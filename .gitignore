@@ -16,6 +16,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Claude Code local settings
+.claude/
+
 # Elixir (combat_log_parser has its own .gitignore)
 # But just in case:
 /_build/
