@@ -1,0 +1,28 @@
+# Generated analysis outputs
+analysis_output_*.txt
+
+# Large combat log files (if ever copied into repo)
+*.log
+WoWCombatLog*.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Elixir (combat_log_parser has its own .gitignore)
+# But just in case:
+/_build/
+/deps/
+erl_crash.dump
+*.ez
+
+# Temporary files
+*.tmp
+*.temp
