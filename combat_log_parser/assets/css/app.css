@@ -1,0 +1,64 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* WoW-themed color variables */
+:root {
+  --color-gold: #ffd100;
+  --color-epic: #a335ee;
+  --color-rare: #0070dd;
+  --color-uncommon: #1eff00;
+  --color-death: #ff4444;
+  --color-tank: #c79c6e;
+  --color-healer: #00ff96;
+  --color-dps: #ff7d0a;
+}
+
+/* Custom utility classes for WoW styling */
+.text-wow-gold { color: var(--color-gold); }
+.text-wow-epic { color: var(--color-epic); }
+.text-wow-rare { color: var(--color-rare); }
+.text-wow-uncommon { color: var(--color-uncommon); }
+.text-wow-death { color: var(--color-death); }
+.text-wow-tank { color: var(--color-tank); }
+.text-wow-healer { color: var(--color-healer); }
+.text-wow-dps { color: var(--color-dps); }
+
+.bg-wow-gold { background-color: var(--color-gold); }
+.bg-wow-epic { background-color: var(--color-epic); }
+
+/* Kill/Wipe badges */
+.badge-kill {
+  @apply inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-900 text-green-300;
+}
+
+.badge-wipe {
+  @apply inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-900 text-red-300;
+}
+
+/* Encounter card styling */
+.encounter-card {
+  @apply bg-zinc-800 border border-zinc-700 rounded-lg p-4 hover:border-zinc-600 transition-colors cursor-pointer;
+}
+
+.encounter-card:hover {
+  @apply bg-zinc-750;
+}
+
+/* Section headers */
+.section-header {
+  @apply text-lg font-semibold text-wow-gold border-b border-zinc-700 pb-2 mb-4;
+}
+
+/* Stat blocks */
+.stat-block {
+  @apply bg-zinc-800 rounded-lg p-4;
+}
+
+.stat-value {
+  @apply text-2xl font-bold text-zinc-100;
+}
+
+.stat-label {
+  @apply text-sm text-zinc-400;
+}
