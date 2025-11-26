@@ -122,11 +122,11 @@ ENCOUNTERS
 - [ ] Boss profile save/load
 - [ ] Failure detection
 
-### Phase 4: Live Dashboard (May 2026)
-- [ ] File watching (real-time log tailing)
-- [ ] LiveView dashboard
-- [ ] Death/failure feeds
-- [ ] Alerts
+### Phase 4: File Watching & Auto-Refresh (May 2026)
+- [ ] Poll log file for new encounters
+- [ ] Auto-refresh dashboard on encounter end
+- [ ] LiveView push updates
+- [ ] Sound notification (optional)
 
 ### Phase 5: Reports (Jul 2026)
 - [ ] Pull summary generation
@@ -231,13 +231,15 @@ mix run test_parse.exs
 
 By Midnight launch, the tool should:
 
-- [ ] Watch combat log in real-time
-- [ ] Display deaths as they happen
+- [ ] Detect encounter end within seconds (file polling)
+- [ ] Display deaths and failures immediately after pull ends
 - [ ] Track user-defined mechanics (criteria system)
-- [ ] Show failures on live dashboard
-- [ ] Generate between-pull summary
+- [ ] Show failures on between-pull dashboard
+- [ ] Generate between-pull summary automatically
 - [ ] Be stable for 3+ hour raid nights
 - [ ] Have at least one boss profile tested with real progression
+
+**Note:** True real-time during combat is not possible due to WoW's log buffering. Focus is on instant analysis when encounters end.
 
 ---
 

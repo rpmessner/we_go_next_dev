@@ -9,12 +9,21 @@
 ## Vision
 
 Build a raid leadership tool that provides:
-1. **Live dashboard** during pulls showing mechanic failures and deaths
-2. **Between-pull analysis** diagnosing what went wrong
-3. **Strategy diagrams** with annotated minimaps for Discord
-4. **Private coaching** reports for individual players
+1. **Instant between-pull analysis** - diagnosing what went wrong, ready during runback
+2. **Strategy diagrams** with annotated minimaps for Discord
+3. **Private coaching** reports for individual players
 
 This is NOT a damage meter. It's a diagnostic tool for progression raiding.
+
+### Why Between-Pull Focus (Not Live)
+
+WoW buffers combat log writes during active combat - data can be delayed by minutes. The external log file is **not suitable for true real-time** during pulls. However:
+- Log flushes immediately on `ENCOUNTER_END`
+- We poll the file and detect new encounters within seconds
+- Analysis is ready during runback/rebuff - when it's actually actionable
+- No addon required, works with stock WoW combat logging
+
+True live-during-combat would require a companion addon (post-MVP consideration).
 
 ---
 
@@ -177,43 +186,36 @@ Define categories for tracked abilities:
 
 ---
 
-## Phase 4: Live Dashboard
+## Phase 4: File Watching & Auto-Refresh
 
-**Goal:** Real-time display during pulls
+**Goal:** Automatically detect new encounters and refresh dashboard
 **Target:** May 2026
+
+**Note:** Due to WoW's combat log buffering, we cannot get true real-time data during active combat. This phase focuses on **instant detection when encounters end**.
 
 ### 4A: File Watching
 
 **Tasks:**
-- [ ] Watch combat log file for changes
-- [ ] Stream new lines as they're written
+- [ ] Poll combat log file for changes (every 500ms-1s)
+- [ ] Detect new `ENCOUNTER_END` events
 - [ ] Handle file rotation (WoW log file changes)
-- [ ] Maintain position between reads
+- [ ] Maintain read position between polls
 
-### 4B: Real-Time Processing
-
-**Tasks:**
-- [ ] Process events as they arrive
-- [ ] Update encounter state incrementally
-- [ ] Detect encounter start/end boundaries
-- [ ] Minimal latency (<500ms event to display)
-
-### 4C: Live Dashboard View
+### 4B: Auto-Refresh Dashboard
 
 **Tasks:**
-- [ ] Current encounter status (in combat, duration)
-- [ ] Death feed (live list of deaths as they happen)
-- [ ] Mechanic failure feed (criteria violations)
-- [ ] Current raid health summary
-- [ ] Glanceable design (scannable at a glance)
+- [ ] Push new encounter to LiveView when detected
+- [ ] Auto-run all analyzers on new encounter
+- [ ] Update encounter list in real-time
+- [ ] Show "Encounter in progress..." during combat (optional)
 
-### 4D: Alerts
+### 4C: Dashboard Polish
 
 **Tasks:**
-- [ ] Visual alerts for critical failures
-- [ ] Configurable alert types
-- [ ] Sound notifications (optional)
-- [ ] Alert history (what happened last 30 seconds)
+- [ ] Most recent encounter prominently displayed
+- [ ] Quick navigation between pulls
+- [ ] Glanceable summary (deaths, key failures)
+- [ ] Sound notification when new encounter ready (optional)
 
 ---
 
@@ -322,18 +324,18 @@ Define categories for tracked abilities:
 ## Technical Priorities
 
 ### Critical Path (Blocks Everything)
-1. Death analysis - Core diagnostic
-2. File watching - Enables real-time
+1. Death analysis - Core diagnostic ✅
+2. File watching - Enables auto-refresh on encounter end
 3. Criteria system - Enables meaningful tracking
 
 ### High Value (Core Features)
-4. Damage taken tracking
-5. Interrupt tracking
-6. Live dashboard
+4. Damage taken tracking ✅
+5. Interrupt tracking ✅
+6. Between-pull dashboard
 7. Pull summaries
 
 ### Medium Value (Full Experience)
-8. Debuff tracking
+8. Debuff tracking ✅
 9. Strategy diagrams
 10. Progress tracking
 11. Player reports
@@ -349,11 +351,11 @@ Define categories for tracked abilities:
 ## Success Criteria
 
 ### MVP (Midnight Launch)
-- [ ] Can watch combat log in real-time
-- [ ] Deaths displayed as they happen
+- [ ] File watching detects encounter end within seconds
+- [ ] Deaths and failures displayed immediately after pull
 - [ ] Criteria system working (mark abilities to track)
 - [ ] Failures shown on dashboard
-- [ ] Between-pull summary generated
+- [ ] Between-pull summary generated automatically
 - [ ] Stable for 3+ hour raid nights
 
 ### Full Product
@@ -382,9 +384,9 @@ If we're falling behind, cut in this order:
 ### Non-Negotiable for MVP
 
 These MUST work for launch:
-- [ ] Real-time file watching (Phase 4A)
-- [ ] Death tracking with cause (Phase 1A)
-- [ ] Live dashboard showing deaths/failures (Phase 4C)
+- [x] Death tracking with cause (Phase 1A) ✅
+- [ ] File watching with encounter detection (Phase 4A)
+- [ ] Dashboard showing deaths/failures after pull ends (Phase 4C)
 - [ ] Basic criteria matching (Phase 3D, even if hardcoded)
 - [ ] Between-pull summary (Phase 5A)
 

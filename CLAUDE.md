@@ -7,10 +7,12 @@ A diagnostic tool for raid progression and Mythic+ dungeons. Diagnoses mechanic 
 **Secondary Focus:** Mythic+ analysis (works automatically, enhanced features post-MVP)
 
 ## Long-Term Vision
-**Real-Time Diagnostic Dashboard**: A web application that runs alongside WoW and provides:
-1. **Live dashboard during pulls** - Glanceable mechanic failures, deaths, danger indicators
-2. **Between-pull analysis** - What went wrong, who needs coaching, are we improving
-3. **Strategy diagrams** - Annotated minimap images for Discord coordination
+**Between-Pull Diagnostic Dashboard**: A web application that runs alongside WoW and provides:
+1. **Instant between-pull analysis** - What went wrong, who needs coaching, are we improving
+2. **Strategy diagrams** - Annotated minimap images for Discord coordination
+3. **Private coaching reports** - Per-player feedback for Discord DMs
+
+**Note on "Live" Updates:** WoW buffers combat log writes during active combat (can delay minutes). True real-time during pulls would require an in-game addon. Our tool focuses on **instant analysis when encounters end** - the log flushes on `ENCOUNTER_END` and we process immediately. This is when feedback is actionable anyway (during runback/rebuff).
 
 ### Target Launch: Midnight Expansion Raids (Early 2026)
 - **Midnight release:** Expected late January - March 2026
@@ -38,21 +40,16 @@ This is NOT a damage meter. It's a **coaching tool** that:
 - Builds boss profiles iteratively during progression
 - Helps raid leaders diagnose wipes without public callouts
 
-## Three Output Modes
+## Two Output Modes
 
-### 1. During Pull (Live Dashboard)
-- Who's dead and why
-- Mechanic failures as they happen
-- Current danger indicators
-- Glanceable while raid leading
-
-### 2. Between Pulls (Analysis Report)
+### 1. Between Pulls (Primary - Analysis Report)
 - What killed us / why we wiped
 - Per-player mechanic failures with timestamps
 - Comparison to previous attempts
 - Actionable items for next pull
+- Ready within seconds of encounter ending
 
-### 3. Strategy Communication (Discord)
+### 2. Strategy Communication (Discord)
 - Annotated minimap diagrams
 - Position markers, movement arrows, assignments
 - Can overlay actual death locations from combat data
@@ -112,9 +109,13 @@ wow_analysis/
 │   ├── lib/
 │   │   ├── combat_log_parser.ex           # Main API
 │   │   └── combat_log_parser/
+│   │       ├── analyzers/                 # Analysis modules
+│   │       │   ├── death_analyzer.ex      # Death tracking ✓
+│   │       │   ├── damage_taken_analyzer.ex # Damage tracking ✓
+│   │       │   ├── interrupt_analyzer.ex  # Interrupt tracking ✓
+│   │       │   └── debuff_analyzer.ex     # Debuff tracking ✓
 │   │       ├── encounter.ex               # Encounter data structure
-│   │       ├── log_reader.ex              # File parsing
-│   │       └── damage_analyzer.ex         # Damage analysis
+│   │       └── log_reader.ex              # File parsing
 │   ├── test_parse.exs                     # Test/demo script
 │   └── mix.exs                            # Project config
 ├── data/                           # Legacy Warcraft Logs CSV exports (NOT used by parser)
@@ -172,6 +173,12 @@ mix run test_parse.exs  # Analyzes most recent combat log
 
 ## Recent Updates
 
+### 2025-11-25: Phase 1 Complete, Between-Pull Focus Confirmed
+- All four core analyzers complete (death, damage, interrupt, debuff)
+- Clarified that WoW buffers combat log writes during combat (not suitable for true real-time)
+- Confirmed between-pull analysis as primary focus - log flushes on encounter end
+- "Live dashboard" renamed to "between-pull dashboard" throughout docs
+
 ### 2025-11-24: Added Mythic+ as Secondary Goal
 - M+ analysis works automatically (same combat log, same analyzers)
 - Raid progression remains primary focus for MVP
@@ -217,4 +224,4 @@ If falling behind schedule:
 - **Progression-focused**: Build what we need as we discover problems
 - **Private coaching**: Help players improve without embarrassment
 - **Iterative**: Start generic, add boss-specific criteria during prog
-- **Real-time**: Information when it matters (during and between pulls)
+- **Between-pull focus**: Analysis ready during runback when it's actionable

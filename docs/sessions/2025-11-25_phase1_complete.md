@@ -102,6 +102,34 @@ All core analyzers now working:
 - These are expected and could be filtered in the criteria system later
 - Good for identifying raid-wide mechanics (many players affected)
 
+## Key Design Decision: Between-Pull Focus
+
+During this session, we clarified an important architectural constraint:
+
+**WoW buffers combat log writes during active combat.** The external log file can be delayed by minutes during a pull. This means true "live" analysis during combat is not possible without an in-game addon.
+
+However:
+- The log **flushes immediately on `ENCOUNTER_END`**
+- We can poll the file and detect new encounters within seconds
+- Analysis is ready during runback/rebuff - when it's actually actionable
+
+**Decision:** Focus on "instant when encounter ends" rather than "live during combat". This is actually better for the use case - raid leaders aren't looking at dashboards mid-pull anyway.
+
+Updated all documentation to reflect this:
+- Renamed "Live Dashboard" → "Between-Pull Dashboard"
+- Phase 4 now "File Watching & Auto-Refresh" (not real-time streaming)
+- Success criteria updated accordingly
+
+## Future ML Opportunities
+
+Discussed potential machine learning applications:
+1. **Mechanic Classification** - Auto-detect "avoidable" vs "unavoidable" abilities
+2. **Death Prediction** - Risk scoring based on recent damage patterns
+3. **Wipe Cause Analysis** - Cluster similar failure patterns
+4. **Player Anomaly Detection** - Flag statistical outliers
+
+Most practical starting point: mechanic classification to bootstrap the criteria system.
+
 ## Next Steps
 
 Phase 2: Discovery Mode
@@ -109,6 +137,7 @@ Phase 2: Discovery Mode
 - Create encounter list view
 - Create encounter detail view with analyzer tabs
 - Add log file loading
+- File polling for new encounters
 
 ## Technical Notes
 
@@ -147,5 +176,30 @@ Index 12:   Aura type (BUFF or DEBUFF)
 ### Modified Files
 - `combat_log_parser/lib/combat_log_parser.ex` - added interrupt/debuff API
 - `combat_log_parser/test_parse.exs` - added interrupt/debuff summaries
-- `docs/HANDOFF.md` - updated for Phase 2
-- `docs/ROADMAP.md` - marked Phase 1 complete
+- `docs/HANDOFF.md` - updated for Phase 2, between-pull focus
+- `docs/ROADMAP.md` - marked Phase 1 complete, between-pull focus
+- `CLAUDE.md` - updated vision, directory structure, added session update
+
+## Commits Created
+
+```
+a330ba1 Clarify between-pull focus due to WoW log buffering
+4cd39f1 Add session documentation for Nov 23-25 development
+129d27b Add WoWAnalyzer patterns research documentation
+c049e27 Add development roadmap and handoff documentation
+53020be Update CLAUDE.md and docs for raid diagnostic focus
+22f0b14 Update main API to use all four analyzers
+d7d4a87 Add debuff analyzer for tracking mechanic failures
+42e71c8 Add interrupt analyzer for tracking kicks
+bcd5e21 Add damage taken analyzer with tank detection
+3038f5b Refactor death analyzer into analyzers directory
+```
+
+## WoWAnalyzer Patterns Doc
+
+The `docs/WOWANALYZER_PATTERNS.md` file contains TypeScript code from WoWAnalyzer's codebase with Elixir translations. This was research from Nov 23 showing how they handle:
+- Normalizer pipelines
+- Pet damage attribution
+- Event linking
+
+Most of this is not directly applicable to our current diagnostic focus, but kept as reference if we need those patterns later (e.g., for Demonology pet tracking post-MVP).
