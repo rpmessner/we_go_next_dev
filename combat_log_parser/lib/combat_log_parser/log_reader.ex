@@ -42,7 +42,7 @@ defmodule CombatLogParser.LogReader do
     %{acc | current: encounter}
   end
 
-  defp process_event({timestamp, "ENCOUNTER_END", fields}, %{current: nil} = acc) do
+  defp process_event({_timestamp, "ENCOUNTER_END", _fields}, %{current: nil} = acc) do
     # Ignore ENCOUNTER_END without a start
     acc
   end
@@ -52,7 +52,7 @@ defmodule CombatLogParser.LogReader do
     %{acc | encounters: [completed_encounter | acc.encounters], current: nil}
   end
 
-  defp process_event({timestamp, event_type, fields}, %{current: nil} = acc) do
+  defp process_event({_timestamp, _event_type, _fields}, %{current: nil} = acc) do
     # Not in an encounter, ignore event
     acc
   end

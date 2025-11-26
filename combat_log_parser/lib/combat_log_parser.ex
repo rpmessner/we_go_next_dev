@@ -1,9 +1,12 @@
 defmodule CombatLogParser do
   @moduledoc """
   Main module for parsing and analyzing WoW combat logs.
+
+  Focused on raid diagnostics: deaths, damage taken, interrupts, mechanic failures.
   """
 
-  alias CombatLogParser.{LogReader, DamageAnalyzer, Encounter}
+  alias CombatLogParser.{LogReader, Encounter}
+  alias CombatLogParser.Analyzers.{DeathAnalyzer, DamageTakenAnalyzer, InterruptAnalyzer, DebuffAnalyzer}
 
   @doc """
   Parses a combat log file and returns all encounters.
@@ -13,64 +16,208 @@ defmodule CombatLogParser do
   end
 
   @doc """
-  Analyzes damage for a specific player across all encounters.
+  Analyzes deaths across all encounters or a single encounter.
+
+  When given a list of encounters, returns a list of {encounter, deaths} tuples.
+  When given a single encounter, returns a list of deaths.
   """
-  def analyze_damage(encounters, player_name) when is_list(encounters) do
+  def analyze_deaths(encounters) when is_list(encounters) do
     Enum.map(encounters, fn encounter ->
-      {encounter, DamageAnalyzer.analyze(encounter, player_name)}
+      {encounter, DeathAnalyzer.analyze(encounter)}
     end)
+  end
+
+  def analyze_deaths(%Encounter{} = encounter) do
+    DeathAnalyzer.analyze(encounter)
   end
 
   @doc """
-  Prints a formatted summary of encounters and player performance.
+  Prints a death summary for all encounters.
   """
-  def print_summary(encounters, player_name) do
+  def print_death_summary(encounters) do
     IO.puts("\n" <> String.duplicate("=", 80))
-    IO.puts("ENCOUNTER SUMMARY")
+    IO.puts("DEATH SUMMARY")
     IO.puts(String.duplicate("=", 80))
 
     encounters
-    |> analyze_damage(player_name)
+    |> analyze_deaths()
     |> Enum.with_index(1)
-    |> Enum.each(fn {{encounter, stats}, index} ->
-      print_encounter(index, encounter, player_name, stats)
+    |> Enum.each(fn {{encounter, deaths}, index} ->
+      print_encounter_deaths(index, encounter, deaths)
     end)
   end
 
-  defp print_encounter(index, encounter, player_name, stats) do
+  defp print_encounter_deaths(index, encounter, deaths) do
     status = if encounter.success, do: "KILL", else: "WIPE"
-    duration = Encounter.fight_time_sec(encounter)
-    start_time = NaiveDateTime.to_time(encounter.start_time)
+    death_count = length(deaths)
 
-    IO.puts("\n#{index}. #{encounter.name} (#{encounter.difficulty_name})")
-    IO.puts("   Status: #{status}")
-    IO.puts("   Duration: #{Float.round(duration, 1)}s")
-    IO.puts("   Start: #{Time.to_string(start_time)}")
+    IO.puts("\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status}")
+    IO.puts("   Deaths: #{death_count}")
 
-    IO.puts("\n   #{player_name}'s Performance:")
-    IO.puts("   - Total Damage: #{format_number(stats.total_damage)}")
-    IO.puts("   - DPS: #{format_number(round(stats.dps))}")
-    IO.puts("   - Damage Events: #{format_number(stats.damage_events)}")
-
-    if length(stats.top_abilities) > 0 do
-      IO.puts("\n   Top Abilities:")
-      stats.top_abilities
-      |> Enum.take(5)
-      |> Enum.each(fn {ability, dmg} ->
-        pct = if stats.total_damage > 0, do: dmg / stats.total_damage * 100, else: 0.0
-        IO.puts("     - #{ability}: #{format_number(dmg)} (#{Float.round(pct, 1)}%)")
-      end)
+    if death_count > 0 do
+      IO.puts("")
+      IO.puts(DeathAnalyzer.format_deaths(deaths))
     end
   end
 
-  defp format_number(num) when is_integer(num) do
-    num
-    |> Integer.to_string()
-    |> String.graphemes()
-    |> Enum.reverse()
-    |> Enum.chunk_every(3)
-    |> Enum.join(",")
-    |> String.reverse()
+  @doc """
+  Analyzes damage taken across all encounters or a single encounter.
+
+  When given a list of encounters, returns a list of {encounter, damage_stats} tuples.
+  When given a single encounter, returns a list of player damage stats.
+  """
+  def analyze_damage_taken(encounters) when is_list(encounters) do
+    Enum.map(encounters, fn encounter ->
+      {encounter, DamageTakenAnalyzer.analyze(encounter)}
+    end)
   end
-  defp format_number(num), do: to_string(num)
+
+  def analyze_damage_taken(%Encounter{} = encounter) do
+    DamageTakenAnalyzer.analyze(encounter)
+  end
+
+  @doc """
+  Prints a damage taken summary for all encounters.
+  """
+  def print_damage_taken_summary(encounters, opts \\ []) do
+    IO.puts("\n" <> String.duplicate("=", 80))
+    IO.puts("DAMAGE TAKEN SUMMARY")
+    IO.puts(String.duplicate("=", 80))
+
+    encounters
+    |> analyze_damage_taken()
+    |> Enum.with_index(1)
+    |> Enum.each(fn {{encounter, damage_stats}, index} ->
+      print_encounter_damage(index, encounter, damage_stats, opts)
+    end)
+  end
+
+  defp print_encounter_damage(index, encounter, damage_stats, opts) do
+    status = if encounter.success, do: "KILL", else: "WIPE"
+    duration = Encounter.fight_time_sec(encounter)
+    duration_str = format_duration(duration)
+
+    IO.puts("\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status} (#{duration_str})")
+
+    if Enum.empty?(damage_stats.all) do
+      IO.puts("   No damage taken data")
+    else
+      IO.puts("")
+      IO.puts(DamageTakenAnalyzer.format_damage_taken(damage_stats, opts))
+
+      # Show top damaging abilities for DPS/healers (avoidable damage)
+      IO.puts("\n   Top Avoidable Abilities (DPS/Healers only):")
+      top_avoidable = DamageTakenAnalyzer.top_avoidable_abilities(damage_stats, 5)
+      IO.puts(DamageTakenAnalyzer.format_top_abilities_summary(top_avoidable))
+    end
+  end
+
+  defp format_duration(seconds) do
+    minutes = trunc(seconds / 60)
+    secs = trunc(rem(trunc(seconds), 60))
+    "#{minutes}:#{String.pad_leading(Integer.to_string(secs), 2, "0")}"
+  end
+
+  @doc """
+  Analyzes interrupts across all encounters or a single encounter.
+
+  When given a list of encounters, returns a list of {encounter, interrupt_stats} tuples.
+  When given a single encounter, returns interrupt stats.
+  """
+  def analyze_interrupts(encounters) when is_list(encounters) do
+    Enum.map(encounters, fn encounter ->
+      {encounter, InterruptAnalyzer.analyze(encounter)}
+    end)
+  end
+
+  def analyze_interrupts(%Encounter{} = encounter) do
+    InterruptAnalyzer.analyze(encounter)
+  end
+
+  @doc """
+  Prints an interrupt summary for all encounters.
+  """
+  def print_interrupt_summary(encounters) do
+    IO.puts("\n" <> String.duplicate("=", 80))
+    IO.puts("INTERRUPT SUMMARY")
+    IO.puts(String.duplicate("=", 80))
+
+    encounters
+    |> analyze_interrupts()
+    |> Enum.with_index(1)
+    |> Enum.each(fn {{encounter, interrupt_stats}, index} ->
+      print_encounter_interrupts(index, encounter, interrupt_stats)
+    end)
+  end
+
+  defp print_encounter_interrupts(index, encounter, interrupt_stats) do
+    status = if encounter.success, do: "KILL", else: "WIPE"
+    duration = Encounter.fight_time_sec(encounter)
+    duration_str = format_duration(duration)
+
+    total_interrupts =
+      interrupt_stats.by_player
+      |> Map.values()
+      |> Enum.map(& &1.total_interrupts)
+      |> Enum.sum()
+
+    missed_count = length(interrupt_stats.missed_casts)
+
+    IO.puts("\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status} (#{duration_str})")
+    IO.puts("   Total Interrupts: #{total_interrupts}, Missed Kicks: #{missed_count}")
+
+    if total_interrupts > 0 or missed_count > 0 do
+      IO.puts("")
+      IO.puts(InterruptAnalyzer.format_interrupt_summary(interrupt_stats))
+    end
+  end
+
+  @doc """
+  Analyzes debuffs across all encounters or a single encounter.
+
+  When given a list of encounters, returns a list of {encounter, debuff_stats} tuples.
+  When given a single encounter, returns debuff stats.
+  """
+  def analyze_debuffs(encounters) when is_list(encounters) do
+    Enum.map(encounters, fn encounter ->
+      {encounter, DebuffAnalyzer.analyze(encounter)}
+    end)
+  end
+
+  def analyze_debuffs(%Encounter{} = encounter) do
+    DebuffAnalyzer.analyze(encounter)
+  end
+
+  @doc """
+  Prints a debuff summary for all encounters.
+  """
+  def print_debuff_summary(encounters, opts \\ []) do
+    IO.puts("\n" <> String.duplicate("=", 80))
+    IO.puts("DEBUFF SUMMARY")
+    IO.puts(String.duplicate("=", 80))
+
+    encounters
+    |> analyze_debuffs()
+    |> Enum.with_index(1)
+    |> Enum.each(fn {{encounter, debuff_stats}, index} ->
+      print_encounter_debuffs(index, encounter, debuff_stats, opts)
+    end)
+  end
+
+  defp print_encounter_debuffs(index, encounter, debuff_stats, opts) do
+    status = if encounter.success, do: "KILL", else: "WIPE"
+    duration = Encounter.fight_time_sec(encounter)
+    duration_str = format_duration(duration)
+
+    total_debuffs = length(debuff_stats.applications)
+    unique_debuffs = map_size(debuff_stats.by_spell)
+
+    IO.puts("\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status} (#{duration_str})")
+    IO.puts("   Total Debuff Applications: #{total_debuffs}, Unique Debuffs: #{unique_debuffs}")
+
+    if total_debuffs > 0 do
+      IO.puts("")
+      IO.puts(DebuffAnalyzer.format_debuff_summary(debuff_stats, opts))
+    end
+  end
 end
