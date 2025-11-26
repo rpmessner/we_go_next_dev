@@ -1,468 +1,460 @@
 # Technical Architecture
 
-This document outlines the technical decisions, technology stack, and architectural approach for the WoW Performance Analysis project.
+**Project:** WoW Raid Diagnostic Tool
+**Last Updated:** 2025-11-24
+
+This document outlines the technical decisions, architecture, and component design for the raid diagnostic dashboard.
 
 ---
 
-## Technology Stack Decision
-
-### Primary Language & Framework: Elixir
-
-**Decision:** Use Elixir for the entire real-time combat log analysis engine and dashboard.
-
-**Rationale:**
-
-Elixir is an excellent fit for this project's core requirement: **real-time analysis of combat logs during gameplay**.
-
-#### Why Elixir Excels Here
-
-1. **Real-time log tailing**
-   - Elixir excels at streaming file I/O
-   - Can tail combat log while WoW is actively writing to it
-   - `File.stream!/1` with concurrent processing
-   - Minimal latency between event occurring and analysis
-
-2. **Low-latency event processing**
-   - BEAM VM designed for soft real-time systems
-   - Parse and analyze combat events with minimal delay
-   - Critical for "live feedback during encounter"
-   - Consistent performance under load
-
-3. **Concurrent event handling**
-   - Process multiple combat events simultaneously
-   - Track DoTs, cooldowns, resources in parallel states
-   - Aggregate metrics without blocking
-   - Natural fit for tracking many game state dimensions at once
-
-4. **Phoenix LiveView for dashboard**
-   - Real-time UI updates without complex WebSocket code
-   - Push analysis results to browser instantly
-   - Built-in presence tracking and state management
-   - Minimal JavaScript required
-
-5. **Fault tolerance**
-   - If analysis process crashes, supervisor restarts it
-   - Combat log parsing continues uninterrupted
-   - Critical for long raid nights (3+ hours)
-   - Let it crash philosophy prevents cascading failures
-
-6. **Hot code reloading**
-   - Update analysis rules without restarting
-   - Refine rotation priorities on the fly
-   - Useful for iterating during raid nights
-
----
-
-## Analysis Approach: Rule-Based First, ML Later
-
-### Phase 1: Rule-Based Analysis (Current Plan)
-
-Start with deterministic, rule-based analysis because:
-
-**WoW combat is well-understood:**
-- Rotation priorities documented (Icy Veins, Wowhead, SimulationCraft)
-- DoT/buff uptimes have known thresholds
-- Resource management rules are spec-specific but known
-- Cooldown timings can be validated against best practices
-
-**Rule-based handles most use cases:**
-- Rotation validation (cast X before Y, don't cap resources)
-- Uptime tracking (DoTs should be >95%, buffs active during cooldowns)
-- Cooldown alignment (use Tyrant with 15+ soul shards)
-- Mechanic timing (interrupt at specific cast times)
-- Resource waste detection (capping shards, missing procs)
-
-**Easier to debug and explain:**
-- "Your Agony uptime was 87%, should be >95%"
-- "You cast Hand of Gul'dan at 5 shards, wait for 3+"
-- Clear, actionable feedback
-
-### Phase 2: Machine Learning (If Needed)
-
-Add ML later if we discover patterns that rules can't capture:
-
-**Potential ML applications:**
-- Learning from YOUR historical patterns (not just theorycrafting)
-- Adapting to YOUR playstyle quirks and preferences
-- Detecting subtle inefficiencies rule-based systems miss
-- Personalized recommendations based on your performance history
-- Anomaly detection (unusual patterns that might indicate mistakes)
-- Predictive optimization (given current state, what's optimal next action)
-
-**Technology: Nx/Axon/Bumblebee**
-- Nx: Numerical computing library for Elixir (like NumPy)
-- Axon: Neural network library built on Nx
-- Bumblebee: Pre-trained models and transformers
-- Nx.Serving: Serve models for real-time inference
-
-**Use Livebook for:**
-- Exploratory data analysis of historical combat logs
-- Interactive development and testing of analysis logic
-- Training and experimenting with ML models
-- Documenting analysis approaches (reproducible notebooks)
-- Visualizing combat data patterns
-
----
-
-## Proposed Architecture
+## System Overview
 
 ```
-Elixir Application (Real-Time Combat Analysis)
-│
-├── CombatLogWatcher (GenServer)
-│   ├── Tail WoW combat log file
-│   ├── Detect new events as WoW writes them
-│   ├── Handle file rotation (if WoW creates new log files)
-│   └── Emit raw combat events to processor
-│
-├── EventProcessor (GenStage/Flow)
-│   ├── Parse combat log event format
-│   ├── Normalize event structure
-│   ├── Filter events relevant to player
-│   ├── Enrich with game state context
-│   └── Route to appropriate analyzers
-│
-├── AnalysisEngine (Supervisor)
-│   │
-│   ├── RotationAnalyzer (GenServer per spec)
-│   │   ├── Validate cast sequences
-│   │   ├── Check resource management
-│   │   ├── Detect rotation mistakes
-│   │   └── Suggest corrections
-│   │
-│   ├── UptimeTracker (GenServer)
-│   │   ├── Track DoT uptimes (Wither, Agony, UA)
-│   │   ├── Track buff uptimes
-│   │   ├── Track debuff uptimes
-│   │   └── Alert on dropped DoTs
-│   │
-│   ├── CooldownAnalyzer (GenServer)
-│   │   ├── Track major cooldown usage
-│   │   ├── Validate cooldown alignment
-│   │   ├── Check resource pooling before CDs
-│   │   └── Measure cooldown efficiency
-│   │
-│   ├── MechanicDetector (GenServer)
-│   │   ├── Detect boss abilities
-│   │   ├── Track mechanic timings
-│   │   ├── Validate player responses
-│   │   └── Alert on mechanic failures
-│   │
-│   └── MetricsAggregator (GenServer)
-│       ├── Calculate real-time DPS
-│       ├── Track damage by ability
-│       ├── Compute efficiency metrics
-│       └── Maintain encounter statistics
-│
-├── Dashboard (Phoenix LiveView)
-│   ├── Real-time metrics display
-│   ├── Live alerts and warnings
-│   ├── Performance graphs
-│   ├── Rotation timeline
-│   └── Mechanic tracking UI
-│
-└── [Future] MLEngine (Nx.Serving)
-    ├── Load trained models
-    ├── Real-time inference
-    ├── Personalized suggestions
-    └── Pattern recognition
+┌─────────────────────────────────────────────────────────────────┐
+│                     WoW Raid Diagnostic Tool                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │  Combat Log  │───▶│  Log Watcher │───▶│   Parser     │       │
+│  │    (File)    │    │  (GenServer) │    │  (Stream)    │       │
+│  └──────────────┘    └──────────────┘    └──────────────┘       │
+│                                                 │                │
+│                                                 ▼                │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                   Event Pipeline                          │   │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐          │   │
+│  │  │   Death    │  │  Damage    │  │ Interrupt  │  ...     │   │
+│  │  │  Analyzer  │  │  Tracker   │  │  Tracker   │          │   │
+│  │  └────────────┘  └────────────┘  └────────────┘          │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                │                                 │
+│                                ▼                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                  Criteria Matching                        │   │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │   │
+│  │  │ Boss Profile│  │   Failure   │  │   Failure   │       │   │
+│  │  │   (Config)  │  │  Detection  │  │   Records   │       │   │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘       │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                │                                 │
+│                                ▼                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                      Output Layer                         │   │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐          │   │
+│  │  │    Live    │  │   Report   │  │  Diagram   │          │   │
+│  │  │ Dashboard  │  │ Generator  │  │  Builder   │          │   │
+│  │  │ (LiveView) │  │            │  │            │          │   │
+│  │  └────────────┘  └────────────┘  └────────────┘          │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Technology Stack
+
+### Core: Elixir/OTP
+
+**Why Elixir:**
+- **Real-time processing**: BEAM VM designed for low-latency message passing
+- **Fault tolerance**: Supervisors restart crashed processes automatically
+- **Concurrency**: Natural fit for tracking multiple raid members simultaneously
+- **Hot code reload**: Update analysis rules without restarting
+- **Developer expertise**: Strong Elixir background means faster development
+
+### Web Layer: Phoenix LiveView
+
+**Why LiveView:**
+- **Real-time updates**: Push changes to browser instantly without WebSocket complexity
+- **Server-rendered**: Minimal JavaScript, easier to maintain
+- **State management**: Server-side state simplifies architecture
+- **Built-in PubSub**: Easy broadcast of events to dashboard
+
+### Storage
+
+**Primary: ETS (Erlang Term Storage)**
+- In-memory, fast reads/writes
+- Perfect for encounter state during pulls
+- No persistence needed during combat
+
+**Secondary: JSON Files**
+- Boss profiles (criteria configurations)
+- Portable, human-readable
+- Easy to share/version control
+
+**Future: SQLite/PostgreSQL**
+- Historical data (if needed)
+- Cross-session analytics
+- Not required for MVP
+
+---
+
+## Component Design
+
+### 1. Log Watcher (GenServer)
+
+Monitors the WoW combat log file for changes.
+
+```elixir
+defmodule RaidDiagnostic.LogWatcher do
+  use GenServer
+
+  # State: %{path: string, position: integer, encounter_pid: pid}
+
+  # Watch for file changes
+  # Stream new lines from last position
+  # Handle file rotation (new log files)
+  # Broadcast raw lines to parser
+end
+```
+
+**Responsibilities:**
+- Watch `/mnt/g/World of Warcraft/_retail_/Logs/WoWCombatLog.txt`
+- Track file position between reads
+- Detect file rotation (new combat log started)
+- Emit raw log lines to parser
+
+### 2. Event Parser
+
+Transforms raw log lines into structured events.
+
+```elixir
+defmodule RaidDiagnostic.Parser do
+  # Input: "11/24/2025 20:15:32.123  UNIT_DIED,..."
+  # Output: %Event{type: :unit_died, timestamp: ~N[...], data: %{...}}
+end
+```
+
+**Event Types:**
+- `UNIT_DIED` - Death events
+- `SPELL_DAMAGE`, `SPELL_PERIODIC_DAMAGE`, `SWING_DAMAGE` - Damage taken
+- `SPELL_INTERRUPT` - Successful interrupts
+- `SPELL_CAST_START`, `SPELL_CAST_SUCCESS` - Cast tracking
+- `SPELL_AURA_APPLIED`, `SPELL_AURA_REMOVED` - Buff/debuff tracking
+- `ENCOUNTER_START`, `ENCOUNTER_END` - Pull boundaries
+
+### 3. Event Analyzers
+
+Specialized processors for different diagnostic needs.
+
+#### Death Analyzer
+```elixir
+defmodule RaidDiagnostic.Analyzers.Death do
+  # Track recent damage per player (rolling window)
+  # On UNIT_DIED: capture death recap
+  # Output: %Death{player: "Name", time: 134.5, killing_blow: %{...}, recap: [...]}
+end
+```
+
+#### Damage Tracker
+```elixir
+defmodule RaidDiagnostic.Analyzers.DamageTaken do
+  # Aggregate damage by ability
+  # Track damage per player
+  # Flag outliers (players taking more than average)
+end
+```
+
+#### Interrupt Tracker
+```elixir
+defmodule RaidDiagnostic.Analyzers.Interrupt do
+  # Track SPELL_CAST_START for interruptible casts
+  # Match with SPELL_INTERRUPT events
+  # Detect uninterrupted casts (cast succeeded)
+end
+```
+
+### 4. Criteria System
+
+Defines what mechanics to track and how to identify failures.
+
+```elixir
+defmodule RaidDiagnostic.Criteria do
+  defstruct [
+    :spell_id,           # The ability to track
+    :name,               # Human-readable name
+    :type,               # :avoidable | :interrupt | :soak | :spread | ...
+    :threshold,          # Failure condition (e.g., hits > 2)
+    :notes               # Raid leader notes
+  ]
+end
+```
+
+#### Mechanic Types
+
+| Type | Description | Failure Condition |
+|------|-------------|-------------------|
+| `:avoidable` | Damage that shouldn't happen | Any hit |
+| `:interrupt` | Cast that must be kicked | Cast completed |
+| `:soak` | Shared damage mechanic | Too few soakers |
+| `:spread` | Requires separation | Hit multiple players |
+| `:stack` | Requires grouping | Players too spread |
+| `:tank_swap` | Tank-specific | Wrong tank hit |
+
+### 5. Boss Profile System
+
+Stores criteria configurations per boss.
+
+```elixir
+defmodule RaidDiagnostic.BossProfile do
+  defstruct [
+    :boss_name,          # "Manaforge Omega"
+    :encounter_id,       # WoW encounter ID
+    :criteria,           # [%Criteria{}, ...]
+    :notes               # General strategy notes
+  ]
+
+  # Save/load from JSON files
+  # Auto-load when encounter detected
+end
+```
+
+**File Format:**
+```json
+{
+  "boss_name": "Manaforge Omega",
+  "encounter_id": 12345,
+  "criteria": [
+    {
+      "spell_id": 99999,
+      "name": "Fire Zone",
+      "type": "avoidable",
+      "threshold": {"hits": 1},
+      "notes": "Don't stand in fire"
+    }
+  ]
+}
+```
+
+### 6. Live Dashboard (Phoenix LiveView)
+
+Real-time display during pulls.
+
+```elixir
+defmodule RaidDiagnosticWeb.DashboardLive do
+  use Phoenix.LiveView
+
+  # Subscribe to encounter events
+  # Display:
+  #   - Current encounter status
+  #   - Death feed (as they happen)
+  #   - Failure feed (criteria violations)
+  #   - Raid status summary
+end
+```
+
+**Dashboard Layout:**
+```
+┌─────────────────────────────────────────────────────────┐
+│  Boss: Manaforge Omega          Duration: 2:34         │
+│  Status: IN COMBAT              Deaths: 3              │
+├─────────────────────────────────────────────────────────┤
+│  DEATHS                    │  FAILURES                 │
+│  ─────────                 │  ────────                 │
+│  2:12 PlayerA - Fire Zone  │  2:05 PlayerB - Fire Zone │
+│  2:18 PlayerB - Fire Zone  │  2:08 PlayerC - Fire Zone │
+│  2:31 PlayerC - Slam       │  2:15 PlayerA - Fire Zone │
+│                            │  2:20 PlayerD - Interrupt │
+├─────────────────────────────────────────────────────────┤
+│  RAID STATUS: 17/20 alive  │  Fire Zone hits: 8       │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 7. Report Generator
+
+Produces between-pull analysis.
+
+```elixir
+defmodule RaidDiagnostic.Reports.PullSummary do
+  # Generate after encounter ends
+  # Include:
+  #   - Deaths with causes
+  #   - Failures by mechanic
+  #   - Failures by player
+  #   - Comparison to previous attempt
+end
+```
+
+**Sample Output:**
+```
+=== Pull #5 Summary ===
+Duration: 2:34 (Best: 3:45)
+Deaths: 3 (Previous: 5) ✓ Improved
+
+WHAT KILLED US:
+  Fire Zone damage overwhelmed healers at 2:30
+
+MECHANIC FAILURES:
+  Fire Zone: 8 hits (PlayerA: 3, PlayerB: 2, PlayerC: 2, PlayerD: 1)
+  Missed Interrupt: 1 (PlayerE)
+
+PLAYER NOTES:
+  PlayerA: Focus on Fire Zone positioning
+  PlayerB: Improve Fire Zone awareness
+  PlayerE: Watch interrupt assignment
+```
+
+### 8. Diagram Builder (Future)
+
+Generates annotated minimap images.
+
+```elixir
+defmodule RaidDiagnostic.Diagrams do
+  # Load minimap background image
+  # Overlay:
+  #   - Position markers
+  #   - Movement arrows
+  #   - Death locations (from combat data)
+  # Export as PNG for Discord
+end
 ```
 
 ---
 
 ## Data Flow
 
+### During Pull (Real-Time)
+
 ```
-WoW Combat Log
-    ↓ (file tailing)
-CombatLogWatcher
-    ↓ (raw events)
-EventProcessor (parse & filter)
-    ↓ (normalized events)
-    ├→ RotationAnalyzer → Alerts
-    ├→ UptimeTracker → Metrics
-    ├→ CooldownAnalyzer → Suggestions
-    ├→ MechanicDetector → Warnings
-    └→ MetricsAggregator → Statistics
-         ↓ (aggregated data)
-    Phoenix LiveView Dashboard
-         ↓ (WebSocket)
-    Browser (real-time display)
+Combat Log File
+    │
+    ▼ (file change detected)
+Log Watcher (GenServer)
+    │
+    ▼ (raw lines)
+Parser
+    │
+    ▼ (structured events)
+    ├──▶ Death Analyzer ──────┐
+    ├──▶ Damage Tracker ──────┤
+    ├──▶ Interrupt Tracker ───┤
+    └──▶ Debuff Tracker ──────┤
+                              │
+                              ▼
+                    Criteria Matcher
+                              │
+                              ▼
+                    Failure Records
+                              │
+                              ▼ (PubSub broadcast)
+                    Live Dashboard
+```
+
+### Between Pulls (Analysis)
+
+```
+Encounter End Event
+    │
+    ▼
+Report Generator
+    │
+    ├──▶ Pull Summary (terminal/web)
+    ├──▶ Player Reports (private, exportable)
+    └──▶ Progress Tracking (trends)
 ```
 
 ---
 
-## Development Phases
+## OTP Supervision Tree
 
-### Phase 1: Historical Analysis (Current)
-**Goal:** Understand data structures using CSV exports
-
-**Technology:**
-- Python or Elixir scripts
-- Livebook for exploration
-- CSV parsing
-
-**Deliverables:**
-- Understanding of combat log format
-- Key metrics identification
-- Performance review templates
-
-### Phase 2: Combat Log Parser
-**Goal:** Read and parse WoW combat log files
-
-**Technology:**
-- Elixir with File.stream!/1
-- Pattern matching for event parsing
-- GenServer for state management
-
-**Deliverables:**
-- Combat log event parser
-- Event normalization pipeline
-- Parsed event data structures
-
-### Phase 3: Rule-Based Analysis Engine
-**Goal:** Implement rotation and performance analysis
-
-**Technology:**
-- Elixir GenServers for analyzers
-- GenStage/Flow for event processing
-- ETS for fast state lookups
-
-**Deliverables:**
-- Rotation validation (spec-specific)
-- Uptime tracking
-- Cooldown analysis
-- Metrics aggregation
-
-### Phase 4: Real-Time Implementation
-**Goal:** Parse combat log in real-time during gameplay
-
-**Technology:**
-- File.stream!/1 with tail mode
-- Concurrent event processing
-- Low-latency state updates
-
-**Deliverables:**
-- Real-time log tailing
-- Live metrics updates
-- Minimal latency (<100ms event → analysis)
-
-### Phase 5: Web Dashboard
-**Goal:** Display live analysis in web browser
-
-**Technology:**
-- Phoenix LiveView
-- TailwindCSS for UI
-- Chart libraries (e.g., Contex, Apache ECharts)
-
-**Deliverables:**
-- Real-time dashboard UI
-- Live metrics visualization
-- Alerts and notifications
-- Encounter timeline view
-
-### Phase 6: ML Integration (Optional)
-**Goal:** Add personalized, ML-based insights
-
-**Technology:**
-- Nx for numerical computing
-- Axon for neural networks
-- Livebook for model training
-- Nx.Serving for inference
-
-**Deliverables:**
-- Trained models on historical data
-- Real-time ML inference
-- Personalized recommendations
-- Adaptive suggestions
+```
+Application
+└── Supervisor
+    ├── LogWatcher (GenServer)
+    │   └── monitors combat log file
+    ├── EncounterSupervisor (DynamicSupervisor)
+    │   └── spawns per-encounter processes
+    ├── ProfileManager (GenServer)
+    │   └── loads/saves boss profiles
+    ├── CriteriaRegistry (ETS table owner)
+    │   └── active criteria for current boss
+    └── Phoenix.Endpoint
+        └── LiveView sessions
+```
 
 ---
 
-## Technology Justifications
+## Performance Targets
 
-### Why Elixir over Python?
-
-**Python Advantages:**
-- Larger data science ecosystem
-- More WoW combat log libraries
-- Easier to find examples and resources
-- Pandas, NumPy, scikit-learn mature ecosystem
-
-**Elixir Advantages (Why We Chose It):**
-- **Real-time performance**: Critical for live analysis during raids
-- **Fault tolerance**: Built-in supervision for long-running processes
-- **Concurrency**: Natural fit for multi-dimensional game state tracking
-- **Phoenix LiveView**: Excellent for real-time dashboards
-- **Hot code reloading**: Update rules during raid nights
-- **Lower latency**: Consistent sub-100ms event processing
-- **Developer expertise**: User knows Elixir really well, doesn't know Python much at all
-
-**Decision:** Elixir's real-time capabilities combined with developer expertise make it the clear choice. The user's strong Elixir background means faster development and better code quality compared to learning Python from scratch.
-
-### Why Livebook?
-
-**Advantages:**
-- Interactive development (like Jupyter notebooks)
-- Built-in for Elixir (no context switching)
-- Great for exploratory data analysis
-- Reproducible analysis documentation
-- Easy to share analysis notebooks
-- Visual feedback during development
-
-**Use Cases:**
-- Exploring historical combat logs
-- Developing and testing analysis rules
-- Training ML models (if we go that route)
-- Documenting analysis approaches
-- Prototyping new features
-
-### Why Phoenix LiveView?
-
-**Advantages:**
-- Real-time updates without complex WebSocket code
-- Server-rendered, minimal JavaScript
-- Built-in state management
-- Optimized for low-latency updates
-- Easy to reason about (stateful server processes)
-
-**Alternatives Considered:**
-- React + WebSocket: More complex, more JavaScript
-- Traditional Phoenix + AJAX: Not real-time enough
-- Desktop app (Electron): Overkill, more complexity
+| Metric | Target | Rationale |
+|--------|--------|-----------|
+| Event latency | <500ms | Visible feedback during pull |
+| Memory usage | <500MB | Long raid nights (3+ hours) |
+| Events/second | 500+ | Heavy combat scenarios |
+| Crash recovery | <1s | Supervisor restart |
 
 ---
 
-## Alternative Architectures Considered
+## Key Technical Decisions
 
-### Option 1: Python for Everything
-**Pros:** Rich ecosystem, easier prototyping
-**Cons:** Less suited for real-time, more complex concurrency
-**Verdict:** Rejected due to real-time requirements
+### Why Not a Damage Meter?
 
-### Option 2: Hybrid (Python ML + Elixir Dashboard)
-**Pros:** Best of both worlds
-**Cons:** Increased complexity, inter-process communication overhead
-**Verdict:** Viable if ML becomes critical, overkill for now
+Damage meters exist (Details!, Warcraft Logs). This tool solves a different problem:
+- **Mechanics over meters**: DPS doesn't matter if you're dead
+- **Coaching over ranking**: Help players improve, not shame them
+- **Progression focus**: What's blocking our kill?
 
-### Option 3: Rust for Parser, Elixir for Analysis
-**Pros:** Maximum performance
-**Cons:** Unnecessary complexity, Elixir fast enough
-**Verdict:** Rejected, premature optimization
+### Why Build Custom vs. Use Warcraft Logs?
 
----
+Warcraft Logs is post-raid analysis. This tool is:
+- **Real-time**: During and between pulls
+- **Iterative**: Build criteria as you learn fights
+- **Private**: Individual coaching without public logs
 
-## Performance Requirements
+### Why Elixir vs. Existing Tools?
 
-### Real-Time Constraints
-
-**Target latency:** <100ms from event occurrence to analysis feedback
-
-**Why this matters:**
-- Combat events happen every 1-2 seconds (GCD)
-- User needs feedback before next decision
-- Alerts must appear in time to react
-
-**How Elixir achieves this:**
-- BEAM VM optimized for low-latency message passing
-- Concurrent event processing (no blocking)
-- Efficient pattern matching for event parsing
-- GenStage for backpressure handling
-
-### Throughput Requirements
-
-**Estimated event rate:** ~100-500 events/second during heavy combat
-
-**Elixir handling:**
-- GenStage/Flow for high-throughput processing
-- ETS for fast in-memory state lookups
-- Concurrent analyzers processing in parallel
-- Minimal garbage collection pauses
+- **Real-time native**: Built for this use case
+- **Full control**: Customize exactly what to track
+- **Learning opportunity**: Deepen Elixir/OTP expertise
+- **No dependencies**: Works offline, no API limits
 
 ---
 
 ## Future Considerations
 
-### Scalability
+### Position Tracking
 
-**Multi-character analysis:**
-- Current architecture: One analyzer per character
-- Future: Supervisor spawns analyzers dynamically
-- ETS tables partitioned by character
-
-**Historical data storage:**
-- Current: In-memory during encounter
-- Future: PostgreSQL or ETS for historical queries
-- Potential: TimescaleDB for time-series data
+Combat log doesn't include player positions directly. Options:
+- Infer from damage events (who got hit by positional mechanic)
+- Correlate with DBM/BigWigs timer data (if exposed)
+- Manual position assignment in diagrams
 
 ### Integration Points
 
-**Warcraft Logs API:**
-- Fetch parse percentiles for comparison
-- Retrieve top player rotations for ML training
-- Historical data enrichment
+- **WoW Addon** (`~/dev/wow-addons/`): Lua addon to display reports in-game
+  - Raid Leader report (full details, private)
+  - Raid report (filtered, appropriate for sharing)
+  - Per-boss configuration of what to expose
+  - Future: Personalized reports per player
+- **Discord Bot**: Post reports to channel
+- **WeakAuras Export**: Generate WA strings for alerts
+- **Warcraft Logs API**: Compare to public logs (optional)
 
-**SimulationCraft:**
-- Import APL (Action Priority List) for rotation rules
-- Compare real performance to simulated
-- Validate against theoretical maximum
+### Scaling
 
-**WeakAuras:**
-- Potential: Send alerts back to WoW via addon
-- Display in-game notifications
-- Bi-directional communication (advanced)
-
----
-
-## Open Questions
-
-1. **Combat log file format:**
-   - Exact structure of events?
-   - How does WoW handle log rotation?
-   - What's the maximum line length?
-
-2. **State management:**
-   - How much game state to track in memory?
-   - When to persist vs. keep ephemeral?
-   - How to handle disconnects/restarts?
-
-3. **Analysis rule sources:**
-   - Import from SimulationCraft APLs?
-   - Manual definition per spec?
-   - Community-sourced rotation guides?
-
-4. **ML necessity:**
-   - What patterns can't rules capture?
-   - Is personalization worth the complexity?
-   - When to revisit this decision?
-
-5. **Dashboard UX:**
-   - What metrics are most actionable?
-   - How to present without overwhelming?
-   - In-raid vs. post-raid views?
+Current design is single-raid focused. Future expansion:
+- Multiple concurrent raids (guild management)
+- Historical analytics across sessions
+- Profile sharing/community library
 
 ---
 
-## Success Metrics
+## Security Considerations
 
-**For the real-time engine:**
-- Event processing latency <100ms
-- Zero crashes during 3+ hour raid nights
-- Accurate rotation validation (validated against known-good logs)
-- Actionable alerts (not overwhelming, not missing important issues)
-
-**For the dashboard:**
-- Live updates feel instant (<200ms perceived latency)
-- Clear, understandable visualizations
-- Alerts are timely and relevant
-- Usable on second monitor during raids
-
-**For the analysis quality:**
-- Suggestions improve parse percentiles
-- Catches rotation mistakes humans miss
-- Doesn't generate false positives
-- Adapts to different fight contexts
+- **Local only**: No data leaves local machine by default
+- **No game modification**: Read-only combat log access
+- **Private by design**: Reports are for raid leader only
 
 ---
 
-**Last Updated:** 2025-11-21
-**Status:** Architecture defined, implementation pending
+## Development Approach
+
+1. **Vertical slices**: Build end-to-end for one feature before expanding
+2. **Real data first**: Test with actual combat logs immediately
+3. **Iterate during progression**: Use current content as test bed
+4. **Ship and refine**: MVP for Midnight, polish after
+
+---
+
+**Next Steps:** See `docs/HANDOFF.md` for immediate implementation tasks.

@@ -1,54 +1,99 @@
-# WoW Performance Analysis Project
+# WoW Diagnostic Tool
 
 ## Purpose
-This project is dedicated to analyzing performance metrics for rpmessner's World of Warcraft characters. The goal is to assess gameplay performance, identify areas for improvement, and track progress over time.
+A diagnostic tool for raid progression and Mythic+ dungeons. Diagnoses mechanic failures, coaches players privately, and improves group performance. Built for Hand of Algalon on Wyrmrest Accord.
+
+**Primary Focus:** Raid progression (MVP for Midnight launch)
+**Secondary Focus:** Mythic+ analysis (works automatically, enhanced features post-MVP)
 
 ## Long-Term Vision
-**Real-Time Combat Analysis Dashboard**: Develop a web application that runs alongside the WoW client and provides real-time feedback on combat performance by parsing the WoW combat log as it's being written. The dashboard will analyze incoming combat data and provide optimization suggestions, mechanic warnings, and performance metrics in real-time during gameplay.
+**Real-Time Diagnostic Dashboard**: A web application that runs alongside WoW and provides:
+1. **Live dashboard during pulls** - Glanceable mechanic failures, deaths, danger indicators
+2. **Between-pull analysis** - What went wrong, who needs coaching, are we improving
+3. **Strategy diagrams** - Annotated minimap images for Discord coordination
 
-### Current Phase: Combat Log Parser Development ✅
-- **Working Elixir parser** that reads WoW combat logs and extracts encounter data
-- Parses encounter boundaries, damage events, and performance metrics
-- Successfully analyzed 603MB combat log with 20 encounters
-- Foundation for real-time analysis is established
+### Target Launch: Midnight Expansion Raids (Early 2026)
+- **Midnight release:** Expected late January - March 2026
+- **First raids:** The Voidspire (6 bosses), The Dreamrift (1 boss), March of Quel'Danas (2 bosses)
+- **MVP Goal:** Working diagnostic tool ready for Day 1 raid progression
 
-### Next Phase: Analysis Engine Enhancement
-- Add pet damage attribution (critical for Warlock/Hunter accuracy)
-- Expand metrics: healing, deaths, buff uptime, cooldown tracking
-- Implement rotation analysis and optimization detection
-- Add real-time file watching for live parsing
+### Mythic+ Support
+The same combat log powers both raid and M+ analysis. Core features work identically:
+- **Deaths** - Same tracking, M+ adds time penalty context (post-MVP)
+- **Interrupts** - Critical for both; M+ kick rotations are life or death
+- **Avoidable damage** - Same detection, M+ aggregates per-dungeon (post-MVP)
 
-### Future Phases
-1. **Web Dashboard**: Display real-time metrics and suggestions in a browser (Phoenix LiveView)
-2. **Optimization Alerts**: Provide actionable feedback during encounters
-3. **Mechanic Tracking**: Boss ability detection and avoidable damage identification
+**MVP:** M+ analysis works out of the box (same analyzers as raid)
+**Post-MVP:** M+-specific features (death timer cost, affix tracking, dungeon summaries)
+
+### Current Phase: Foundation ✅
+- Working Elixir parser that reads WoW combat logs
+- Parses encounter boundaries and combat events
+- Successfully tested on 603MB combat log with 20 encounters
+
+### Key Differentiator
+This is NOT a damage meter. It's a **coaching tool** that:
+- Identifies mechanic failures (who stood in fire, missed soaks, failed interrupts)
+- Generates private feedback for individual players
+- Builds boss profiles iteratively during progression
+- Helps raid leaders diagnose wipes without public callouts
+
+## Three Output Modes
+
+### 1. During Pull (Live Dashboard)
+- Who's dead and why
+- Mechanic failures as they happen
+- Current danger indicators
+- Glanceable while raid leading
+
+### 2. Between Pulls (Analysis Report)
+- What killed us / why we wiped
+- Per-player mechanic failures with timestamps
+- Comparison to previous attempts
+- Actionable items for next pull
+
+### 3. Strategy Communication (Discord)
+- Annotated minimap diagrams
+- Position markers, movement arrows, assignments
+- Can overlay actual death locations from combat data
+- Exportable PNG images for Discord
+
+## Iterative Boss Criteria Building
+
+Since you can't predict what mechanics cause problems during progression:
+
+1. **Discovery Mode** - Surface "interesting events" (deaths, big damage, debuffs)
+2. **Pattern Recognition** - Notice "people keep dying to X ability"
+3. **Mark as Tracked** - Flag ability as avoidable/interrupt/soak/etc
+4. **Dashboard Updates** - Next pull shows failures for tracked mechanics
+5. **Save Profile** - Export boss config for future raid nights
 
 ## Data Sources
-- **WoW Combat Log**: `/mnt/g/World of Warcraft/_retail_/Logs/` (enabled for real-time logging)
-  - Primary source of truth for all combat data
-  - CombatLog.txt is written in real-time during gameplay
-- **Warcraft Logs CSV Exports**: Historical performance data exported from warcraftlogs.com
-  - Located in `data/` directory, organized by boss/encounter
-- **Warcraft Logs API**: GraphQL API for retrieving parse data and rankings (future integration)
-  - API documentation: https://www.warcraftlogs.com/api/docs
 
-## Current Workflow
-1. Combat logging enabled in WoW client (writes to `/mnt/g/World of Warcraft/_retail_/Logs/`)
-2. Run Elixir parser on combat log files: `mix run test_parse.exs`
-3. Parser extracts encounters and analyzes damage output
-4. Review performance metrics and identify areas for improvement
-5. (Optional) Compare with Warcraft Logs CSV exports for validation
+### Primary: WoW Combat Log (Used by Parser)
+**Location:** `/mnt/g/World of Warcraft/_retail_/Logs/WoWCombatLog-*.txt`
 
-## Types of Analysis
-- Parse percentile rankings
-- Performance comparisons across characters
-- Spec/class performance evaluation
-- Fight-specific analysis
-- Progression tracking
-- Gear and optimization recommendations
+This is the **only** data source the parser uses. These are raw combat log files written by the WoW game client in real-time during gameplay. Format:
+```
+11/22/2025 11:20:43.174-5  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,...
+11/22/2025 11:39:35.297-5  ENCOUNTER_START,2887,"Plexus Sentinel",15,20,2652
+11/22/2025 11:40:38.319-5  UNIT_DIED,0000000000000000,nil,...,Player-3676-0E1BB922,"Favikul-Area52-US",...
+```
+
+### NOT Used: Warcraft Logs CSV Exports
+**Location:** `./data/` directory (legacy, not used by parser)
+
+The `data/` folder contains CSV exports from warcraftlogs.com website - these are **processed/aggregated** data, not raw combat logs. They were used in early exploration but are **not** used by the combat log parser. Example content:
+```csv
+"Name","Amount","Casts","Avg Cast",...
+"Diabolic Ritual","694526998$26.47%694.53m","-","-",...
+```
+
+### Future: Strategy Diagrams
+- **Minimap Backgrounds**: Datamined arena maps for strategy diagrams (post-MVP)
 
 ## Character List
-All characters are on **Wyrmrest Accord** realm (US)
+All characters on **Wyrmrest Accord** (US)
 
 ### Main Raiding Character
 - **Mittwoch** - Warlock (Demonology/Affliction)
@@ -56,17 +101,7 @@ All characters are on **Wyrmrest Accord** realm (US)
 - **Current Content**: Mythic Manaforge Omega
 
 ### Alts
-- **Nekoken** - Druid
-- **Elehal** - Mage
-- **Kitsuneken** - Death Knight
-- **Kumaken** - Shaman
-- **Pannonica** - Demon Hunter
-- **Kossil** - Priest
-- **Shoryuken** - Monk
-- **Kyouken** - Rogue
-- **Tatsuken** - Warrior
-- **Soryuken** - Evoker
-- **Kekonen** - Paladin
+Nekoken (Druid), Elehal (Mage), Kitsuneken (DK), Kumaken (Shaman), Pannonica (DH), Kossil (Priest), Shoryuken (Monk), Kyouken (Rogue), Tatsuken (Warrior), Soryuken (Evoker), Kekonen (Paladin)
 
 ## Project Organization
 
@@ -82,77 +117,36 @@ wow_analysis/
 │   │       └── damage_analyzer.ex         # Damage analysis
 │   ├── test_parse.exs                     # Test/demo script
 │   └── mix.exs                            # Project config
-├── data/                           # Warcraft Logs CSV exports (historical)
-│   ├── guild_reports.csv
-│   └── [boss_name]_[difficulty]/  # Per-encounter folders
+├── data/                           # Legacy Warcraft Logs CSV exports (NOT used by parser)
 ├── docs/
 │   ├── sessions/                   # Immutable session logs
-│   └── GETTING_STARTED.md          # Comprehensive guide
-├── analysis_output_*.txt           # Parser output files
+│   ├── ROADMAP.md                  # Development roadmap
+│   ├── TECHNICAL_ARCHITECTURE.md   # Tech stack details
+│   └── HANDOFF.md                  # Next steps for implementation
 ├── CLAUDE.md                       # This file
-└── weekly_performance_review.md    # Performance review template
+└── analysis_output_*.txt           # Parser output files
 ```
-
-### File Naming Conventions
-- All lowercase with underscores
-- No spaces (terminal-friendly, tab-completable)
-- Example: `mittwoch_damage_done.csv` NOT `Mittwoch Damage Done.csv`
 
 ### Session Documentation
 - Location: `docs/sessions/YYYY-MM-DD_description.md`
 - **Immutable**: Never edit old session logs, always create new ones
-- Purpose: Backward-facing record of all project work
-
-## Important Guidelines
-
-### Do NOT Use
-- **Details Addon**: Being deprecated by Blizzard soon; not worth parsing
-- WoW's built-in damage meter (doesn't save logs)
-
-### DO Use
-- **WoW Combat Log** as primary source of truth
-- **Warcraft Logs CSV Exports** for historical analysis
-- **Warcraft Logs API** for future integration
+- **Exception**: If information is later found to be incorrect, you may:
+  1. ~~Strike through~~ the incorrect text using `~~strikethrough~~`
+  2. Add a clarification remark (e.g., "*[Note: This was incorrect, see session X]*")
+- These are the **only** allowable modifications to historical session logs
 
 ## Quick Reference
 
 ### Key Locations
-- **Project Root**: `/home/rpmessner/wow_analysis/`
+- **Project Root**: `/home/rpmessner/dev/games/wow_analysis/`
 - **Combat Logs**: `/mnt/g/World of Warcraft/_retail_/Logs/`
-- **Downloads**: `/mnt/c/Users/rpmes/Downloads/`
 - **Session Logs**: `docs/sessions/`
 
 ### Documentation
-- **Getting Started**: `docs/GETTING_STARTED.md` - Comprehensive guide for new sessions
-- **Session History**: `docs/sessions/` - All past session logs
-- **This File**: Core project context and character roster
-
-## Technical Details
-
-### Combat Log Format (Discovered 2025-11-22)
-- **Format:** Two-space delimited timestamp + CSV event data
-- **Version:** Combat Log Version 22, Advanced Logging Enabled
-- **Structure:** `MM/DD/YYYY HH:MM:SS.mmm-TZ  EVENT_TYPE,field1,field2,...`
-- **Advanced Logging:** Adds variable-length fields between spell info and damage suffix
-- **Damage Position:** Damage amount appears ~7-10 fields from end of data array
-- **Pet Tracking:** Pets have separate source GUIDs (need SPELL_SUMMON event tracking)
-
-### Parser Architecture
-- **Language:** Elixir (leverages streams for efficient log processing)
-- **Location:** `combat_log_parser/` Mix project
-- **Entry Point:** `CombatLogParser.parse(log_path)` returns list of encounters
-- **Key Modules:**
-  - `LogReader` - Streams and parses log files
-  - `Encounter` - Encounter data structure with metadata
-  - `DamageAnalyzer` - Analyzes damage output per player
-
-### Known Limitations
-1. **Pet damage not attributed** - Pet/summon damage has separate source GUIDs
-   - Impact: Warlock/Hunter DPS values are 70%+ lower than actual
-   - Fix needed: Track SPELL_SUMMON events to map pet owners
-2. **DoT damage may be undercounted** - Needs verification with periodic damage events
-3. **No multi-target detection** - Can't distinguish trash vs boss damage yet
-4. **Memory usage** - Entire log loaded into memory (works for 603MB, may scale issues)
+- **Roadmap**: `docs/ROADMAP.md` - Development phases and priorities
+- **Architecture**: `docs/TECHNICAL_ARCHITECTURE.md` - Tech stack decisions
+- **Handoff**: `docs/HANDOFF.md` - Next implementation steps
+- **Sessions**: `docs/sessions/` - Historical session logs
 
 ### Running the Parser
 ```bash
@@ -161,9 +155,66 @@ mix compile
 mix run test_parse.exs  # Analyzes most recent combat log
 ```
 
-## Notes
-- Focus on actionable insights that help improve gameplay
-- Consider context (raid composition, fight mechanics, gear level) when analyzing performance
-- End goal is real-time analysis, not just historical reports
-- Build incrementally from simple to complex
-- **Parser validated:** Direct combat log parsing is feasible and provides all needed data
+## Technical Details
+
+### Combat Log Events for Diagnostics
+- `SPELL_DAMAGE` - Avoidable damage (standing in bad)
+- `SPELL_INTERRUPT` - Interrupt assignments (and missed)
+- `SPELL_AURA_APPLIED` - Debuffs that shouldn't happen
+- `UNIT_DIED` - Deaths with cause analysis
+- `SWING_DAMAGE`, `SPELL_PERIODIC_DAMAGE` - Damage patterns
+
+### Tech Stack
+- **Parser**: Elixir (streams, pattern matching, fault tolerance)
+- **Dashboard**: Phoenix LiveView (real-time updates)
+- **Diagrams**: Image generation with minimap backgrounds
+- **State**: OTP GenServers, ETS for fast lookups
+
+## Recent Updates
+
+### 2025-11-24: Added Mythic+ as Secondary Goal
+- M+ analysis works automatically (same combat log, same analyzers)
+- Raid progression remains primary focus for MVP
+- M+-specific features (death timers, affix tracking) planned for post-MVP
+
+### 2025-11-24: Project Pivot to Diagnostic Tool
+- Shifted from personal DPS analysis to raid-wide diagnostic focus
+- Target launch: Midnight expansion raids (early 2026)
+- Three output modes: live dashboard, between-pull analysis, strategy diagrams
+- Iterative boss criteria building for progression
+- Private coaching focus (not public callouts)
+
+### 2025-11-23: WoWAnalyzer Research
+- Studied WoWAnalyzer architecture patterns
+- Identified normalizer pipeline approach
+- Created initial roadmap (now superseded by diagnostic focus)
+
+### 2025-11-22: Combat Log Parser Working
+- Built Elixir parser for WoW combat logs
+- Successfully parsed 603MB log with 20 encounters
+- Foundation established for real-time processing
+
+## Development Philosophy
+
+### PRIME DIRECTIVE: MVP for Midnight Raids
+**The tool MUST be usable for Day 1 Midnight progression (late Jan - March 2026).**
+
+When making scope decisions:
+- Cut features before missing the launch window
+- "Good enough" beats "perfect but late"
+- Core loop (deaths → failures → reports) is non-negotiable
+- Everything else is negotiable
+
+If falling behind schedule:
+1. Cut strategy diagrams (Phase 6)
+2. Simplify criteria system (hardcode common mechanics)
+3. Skip polish (Phase 7)
+4. Reduce report tiers to just "raid lead" view
+
+**Post-Midnight:** After launch, deadline pressure is off. Take time for polish and new features without a hard target.
+
+### Other Principles
+- **Progression-focused**: Build what we need as we discover problems
+- **Private coaching**: Help players improve without embarrassment
+- **Iterative**: Start generic, add boss-specific criteria during prog
+- **Real-time**: Information when it matters (during and between pulls)
