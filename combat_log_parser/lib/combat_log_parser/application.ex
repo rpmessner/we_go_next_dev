@@ -8,13 +8,25 @@ defmodule CombatLogParser.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      # Starts a worker by calling: CombatLogParser.Worker.start_link(arg)
-      # {CombatLogParser.Worker, arg}
+      # Start the PubSub system
+      {Phoenix.PubSub, name: CombatLogParser.PubSub},
+      # Start the encounter store
+      CombatLogParser.EncounterStore,
+      # Start the Endpoint (http/https)
+      CombatLogParserWeb.Endpoint
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: CombatLogParser.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  # Tell Phoenix to update the endpoint configuration
+  # whenever the application is updated.
+  @impl true
+  def config_change(changed, _new, removed) do
+    CombatLogParserWeb.Endpoint.config_change(changed, removed)
+    :ok
   end
 end
