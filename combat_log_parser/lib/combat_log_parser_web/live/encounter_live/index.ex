@@ -22,7 +22,8 @@ defmodule CombatLogParserWeb.EncounterLive.Index do
      |> assign(:log_path, log_path)
      |> assign(:log_input, log_path || "")
      |> assign(:loading, false)
-     |> assign(:error, nil)}
+     |> assign(:error, nil)
+     |> assign(:default_log_dir, @default_log_dir)}
   end
 
   @impl true
