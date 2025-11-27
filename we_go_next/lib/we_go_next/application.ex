@@ -1,0 +1,36 @@
+defmodule WeGoNext.Application do
+  # See https://hexdocs.pm/elixir/Application.html
+  # for more information on OTP Applications
+  @moduledoc false
+
+  use Application
+
+  @impl true
+  def start(_type, _args) do
+    children = [
+      # Start the Repo
+      WeGoNext.Repo,
+      # Start the PubSub system
+      {Phoenix.PubSub, name: WeGoNext.PubSub},
+      # Start the encounter store
+      WeGoNext.EncounterStore,
+      # Start the file watcher
+      WeGoNext.FileWatcher,
+      # Start the Endpoint (http/https)
+      WeGoNextWeb.Endpoint
+    ]
+
+    # See https://hexdocs.pm/elixir/Supervisor.html
+    # for other strategies and supported options
+    opts = [strategy: :one_for_one, name: WeGoNext.Supervisor]
+    Supervisor.start_link(children, opts)
+  end
+
+  # Tell Phoenix to update the endpoint configuration
+  # whenever the application is updated.
+  @impl true
+  def config_change(changed, _new, removed) do
+    WeGoNextWeb.Endpoint.config_change(changed, removed)
+    :ok
+  end
+end
