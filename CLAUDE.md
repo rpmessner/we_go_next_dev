@@ -14,8 +14,9 @@ A diagnostic tool for raid progression and Mythic+ dungeons. Diagnoses mechanic 
 
 **Note on "Live" Updates:** WoW buffers combat log writes during active combat (can delay minutes). True real-time during pulls would require an in-game addon. Our tool focuses on **instant analysis when encounters end** - the log flushes on `ENCOUNTER_END` and we process immediately. This is when feedback is actionable anyway (during runback/rebuff).
 
-### Target Launch: Midnight Expansion Raids (Early 2026)
-- **Midnight release:** Expected late January - March 2026
+### Target Launch: Midnight Expansion Raids
+- **Midnight release:** March 2, 2026
+- **Raid opening:** Mid-March 2026 (typically 1-2 weeks after expansion launch)
 - **First raids:** The Voidspire (6 bosses), The Dreamrift (1 boss), March of Quel'Danas (2 bosses)
 - **MVP Goal:** Working diagnostic tool ready for Day 1 raid progression
 
@@ -40,7 +41,7 @@ This is NOT a damage meter. It's a **coaching tool** that:
 - Builds boss profiles iteratively during progression
 - Helps raid leaders diagnose wipes without public callouts
 
-## Two Output Modes
+## Three Output Modes
 
 ### 1. Between Pulls (Primary - Analysis Report)
 - What killed us / why we wiped
@@ -49,7 +50,15 @@ This is NOT a damage meter. It's a **coaching tool** that:
 - Actionable items for next pull
 - Ready within seconds of encounter ending
 
-### 2. Strategy Communication (Discord)
+### 2. In-Game Distribution (Optional - Post-MVP)
+- we_go_next writes analysis to WoW SavedVariables
+- Raid lead `/reload` → WeGoNext addon reads results
+- Addon broadcasts to all raid members via addon comm
+- Each player sees personalized performance breakdown
+- No verbal callouts needed (MRT-style sharing)
+- **Note:** MCP server used only for addon development, not during raids
+
+### 3. Strategy Communication (Discord)
 - Annotated minimap diagrams
 - Position markers, movement arrows, assignments
 - Can overlay actual death locations from combat data
@@ -105,25 +114,44 @@ Nekoken (Druid), Elehal (Mage), Kitsuneken (DK), Kumaken (Shaman), Pannonica (DH
 ### Directory Structure
 ```
 wow_analysis/
-├── combat_log_parser/              # Elixir combat log parser (Mix project)
+├── we_go_next/                     # Phoenix/Elixir web app (Mix project)
 │   ├── lib/
-│   │   ├── combat_log_parser.ex           # Main API
-│   │   └── combat_log_parser/
-│   │       ├── analyzers/                 # Analysis modules
-│   │       │   ├── death_analyzer.ex      # Death tracking ✓
-│   │       │   ├── damage_taken_analyzer.ex # Damage tracking ✓
-│   │       │   ├── interrupt_analyzer.ex  # Interrupt tracking ✓
-│   │       │   └── debuff_analyzer.ex     # Debuff tracking ✓
-│   │       ├── encounter.ex               # Encounter data structure
-│   │       └── log_reader.ex              # File parsing
-│   ├── test_parse.exs                     # Test/demo script
-│   └── mix.exs                            # Project config
+│   │   ├── we_go_next.ex                  # Main API
+│   │   ├── we_go_next/
+│   │   │   ├── analyzers/                 # Analysis modules
+│   │   │   │   ├── death_analyzer.ex      # Death tracking ✓
+│   │   │   │   ├── damage_taken_analyzer.ex # Damage tracking ✓
+│   │   │   │   ├── interrupt_analyzer.ex  # Interrupt tracking ✓
+│   │   │   │   └── debuff_analyzer.ex     # Debuff tracking ✓
+│   │   │   ├── encounter.ex               # Encounter data structure
+│   │   │   ├── encounter_store.ex         # ETS-backed encounter cache
+│   │   │   ├── log_reader.ex              # File parsing with byte offsets
+│   │   │   ├── importer.ex                # Incremental log import
+│   │   │   ├── combat_log_file.ex         # Ecto schema for log files
+│   │   │   ├── encounters/
+│   │   │   │   └── encounter.ex           # Ecto schema for encounters
+│   │   │   ├── accounts.ex                # User management
+│   │   │   ├── application.ex             # OTP application
+│   │   │   └── repo.ex                    # PostgreSQL Ecto repo
+│   │   └── we_go_next_web/
+│   │       ├── endpoint.ex                # Phoenix endpoint
+│   │       ├── router.ex                  # Routes
+│   │       ├── live/
+│   │       │   ├── encounter_live/
+│   │       │   │   ├── index.ex           # Encounter list LiveView
+│   │       │   │   └── show.ex            # Encounter detail LiveView
+│   │       │   └── settings_live.ex       # Settings LiveView
+│   │       ├── components/                # Reusable components
+│   │       └── controllers/               # Error handling
+│   ├── test_parse.exs                     # CLI test/demo script
+│   ├── mix.exs                            # Project config
+│   └── priv/repo/migrations/              # Database migrations
 ├── data/                           # Legacy Warcraft Logs CSV exports (NOT used by parser)
 ├── docs/
 │   ├── sessions/                   # Immutable session logs
 │   ├── ROADMAP.md                  # Development roadmap
 │   ├── TECHNICAL_ARCHITECTURE.md   # Tech stack details
-│   └── HANDOFF.md                  # Next steps for implementation
+│   └── WOW_MCP_INTEGRATION_ROADMAP.md  # MCP for addon development
 ├── CLAUDE.md                       # This file
 └── analysis_output_*.txt           # Parser output files
 ```
@@ -149,11 +177,13 @@ wow_analysis/
 - **Handoff**: `docs/HANDOFF.md` - Next implementation steps
 - **Sessions**: `docs/sessions/` - Historical session logs
 
-### Running the Parser
+### Running the App
 ```bash
-cd combat_log_parser
+cd we_go_next
 mix compile
-mix run test_parse.exs  # Analyzes most recent combat log
+mix phx.server              # Start web UI at http://localhost:4000
+# OR
+mix run test_parse.exs      # CLI: Analyzes most recent combat log
 ```
 
 ## Technical Details
@@ -166,12 +196,20 @@ mix run test_parse.exs  # Analyzes most recent combat log
 - `SWING_DAMAGE`, `SPELL_PERIODIC_DAMAGE` - Damage patterns
 
 ### Tech Stack
-- **Parser**: Elixir (streams, pattern matching, fault tolerance)
-- **Dashboard**: Phoenix LiveView (real-time updates)
-- **Diagrams**: Image generation with minimap backgrounds
-- **State**: OTP GenServers, ETS for fast lookups
+- **Backend**: Elixir (streams, pattern matching, fault tolerance)
+- **Web Framework**: Phoenix with LiveView (real-time updates)
+- **Database**: PostgreSQL with Ecto (encounter persistence, incremental parsing)
+- **State Management**: OTP GenServers, ETS cache backed by DB
+- **Diagrams**: Image generation with minimap backgrounds (future)
 
 ## Recent Updates
+
+### 2025-11-26: Project Renamed to "we_go_next"
+- Renamed from generic "combat_log_parser" to raid-themed "we_go_next"
+- Name references raid progression phrase ("we go next" after wipes)
+- Updated all module namespaces: `CombatLogParser` → `WeGoNext`, `CombatLogParserWeb` → `WeGoNextWeb`
+- Migrated database: `combat_log_parser_dev` → `we_go_next_dev`
+- All 25 source files updated, project compiles and runs successfully
 
 ### 2025-11-25: Phase 1 Complete, Between-Pull Focus Confirmed
 - All four core analyzers complete (death, damage, interrupt, debuff)
