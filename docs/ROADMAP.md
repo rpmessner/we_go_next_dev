@@ -1,8 +1,8 @@
 # WoW Raid Diagnostic Tool - Development Roadmap
 
 **Project:** Raid Diagnostic & Coaching Dashboard
-**Target Launch:** Midnight Expansion Raids (Late Jan - March 2026)
-**Last Updated:** 2025-11-24
+**Target Launch:** Midnight Expansion Raids (March 2026)
+**Last Updated:** 2025-11-26
 
 ---
 
@@ -30,21 +30,23 @@ True live-during-combat would require a companion addon (post-MVP consideration)
 ## Timeline to Midnight
 
 **Now:** November 2025
-**Target:** Late January - March 2026 (Midnight launch)
-**Available Time:** ~12-14 months
+**Midnight Launch:** March 2, 2026
+**Raid Opening:** Mid-March 2026 (typically 1-2 weeks after launch)
+**Available Time:** ~3-4 months until raid opening
 
 ### Milestone Schedule
 
 | Milestone | Target | Description |
 |-----------|--------|-------------|
-| **M1: Core Events** | Dec 2025 | Death tracking, damage taken analysis |
-| **M2: Discovery Mode** | Jan 2026 | Surface interesting events, basic UI |
-| **M3: Criteria System** | Mar 2026 | Mark/track mechanics, boss profiles |
-| **M4: Live Dashboard** | May 2026 | Real-time file watching, live updates |
-| **M5: Analysis Reports** | Jul 2026 | Between-pull summaries, trends |
-| **M6: Strategy Diagrams** | Sep 2026 | Minimap annotations, Discord export |
-| **M7: Polish & Testing** | Nov 2026 | Testing with current content, refinement |
-| **MVP Launch** | Jan 2026 | Ready for Midnight Day 1 |
+| **M1: Core Events** | ✅ Nov 2025 | Death tracking, damage taken analysis |
+| **M2: Discovery Mode** | ✅ Nov 2026 | Surface interesting events, basic UI |
+| **M3: Criteria System** | Dec 2025 - Jan 2026 | Mark/track mechanics, boss profiles |
+| **M4: File Watching** | ✅ Nov 2026 | Auto-refresh on encounter end |
+| **M5: Analysis Reports** | Feb 2026 | Between-pull summaries, trends |
+| **M6: Pre-Launch Polish** | Early Mar 2026 | Final testing, bug fixes |
+| **MVP Launch** | **Mid-March 2026** | **Ready for Midnight raids Day 1** |
+| **Post-MVP: Strategy Diagrams** | Q2-Q3 2026 | Minimap annotations, Discord export |
+| **Post-MVP: Addon Distribution** | Q3-Q4 2026 | In-game results sharing |
 
 ---
 
@@ -288,6 +290,123 @@ Define categories for tracked abilities:
 - [ ] Optimized for Discord embedding
 - [ ] Include legend/key
 - [ ] Batch export (multiple phases/positions)
+
+---
+
+## Phase 6B: Addon-Based Results Distribution (Optional)
+
+**Goal:** Automated distribution of analysis results to raid members
+**Target:** Post-MVP (Q3-Q4 2026)
+
+### Why an Addon?
+
+**Without addon (MVP):**
+- Raid lead reads we_go_next web UI
+- Manually calls out failures to raid
+- Players don't see their personal stats
+
+**With addon:**
+- we_go_next writes analysis to SavedVariables
+- Server operator `/reload` → addon reads results
+- Addon broadcasts via addon comm to all raid members
+- Each player sees personalized performance breakdown
+- No verbal callouts needed
+
+### Workflow
+
+```
+Combat Log → we_go_next analyzes → Writes WeGoNextResults.lua
+                                          ↓
+                        Server operator /reload in WoW
+                                          ↓
+                        WeGoNext addon reads SavedVariables
+                                          ↓
+                        Addon broadcasts via C_ChatInfo.SendAddonMessage
+                                          ↓
+                        All raid members' addons display results
+```
+
+### 6B.1: WoW Addon (WeGoNext)
+
+**Tasks:**
+- [ ] Create addon structure with TOC file
+- [ ] Read `WeGoNextResults` SavedVariable after reload
+- [ ] Broadcast results via addon communication channel (`RAID`)
+- [ ] Listen for broadcasts from other addon users
+- [ ] Display personalized stats to each player
+- [ ] Slash commands: `/wgn show`, `/wgn share`
+
+**SavedVariables Format:**
+```lua
+WeGoNextResults = {
+    encounter = {id = 2887, name = "...", pull_number = 12},
+    summary = {result = "WIPE", percent = 43, ...},
+    players = {
+        ["Mittwoch-WyrmrestAccord"] = {
+            deaths = 2,
+            causes = {"Diabolic Ritual", ...},
+            tips = {"Move faster..."},
+        },
+        -- ... all raid members
+    }
+}
+```
+
+### 6B.2: we_go_next Integration
+
+**Tasks:**
+- [ ] Add SavedVariables writer module
+- [ ] Web UI button: "Prepare Results for Sharing"
+- [ ] Generate personalized coaching tips per player
+- [ ] Write to WoW SavedVariables path
+- [ ] Show instructions: "Run /reload then /wgn share"
+
+**File Path:**
+```
+/mnt/g/World of Warcraft/_retail_/WTF/Account/{account}/SavedVariables/WeGoNext.lua
+```
+
+### 6B.3: Player UI
+
+**In-game display options:**
+- **Chat output:** Simple text summary to raid chat
+- **Whispers:** Personal stats whispered to each player
+- **Custom frame:** Popup window with detailed breakdown
+- **Slash command:** `/wgn me` to re-view personal stats
+
+**Example Output:**
+```
+╔════════════════════════════════════╗
+║  Pull #12 - Plexus Sentinel       ║
+║  WIPE at 43% (3:45)                ║
+╠════════════════════════════════════╣
+║  Your Performance:                 ║
+║  ✓ Interrupts: 4/4 (100%)          ║
+║  ✗ Deaths: 2 (Diabolic Ritual)     ║
+║  ⚠ Avoidable Damage: 850k          ║
+║                                    ║
+║  Tip: Move faster out of ritual    ║
+╚════════════════════════════════════╝
+```
+
+### 6B.4: MCP Usage (Development Only)
+
+MCP server (`wow_mcp`) is used **only during addon development**:
+- Deploy addon: `mix deploy_bridge --version retail`
+- Test SavedVariables parsing
+- Debug addon issues
+
+**Not used during raids** - runtime workflow is:
+1. we_go_next writes SavedVariables file directly
+2. You `/reload`
+3. Addon handles everything else
+
+### Implementation Notes
+
+- **Similar to Method Raid Tools:** Raid lead shares, everyone receives via addon comm
+- **Opt-in:** Players without addon installed see nothing (no spam)
+- **Privacy:** Only players in your raid group receive broadcasts
+- **Caching:** Results cached in addon for `/wgn show` after initial broadcast
 
 ---
 
