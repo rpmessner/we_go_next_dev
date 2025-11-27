@@ -253,19 +253,25 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
   Returns the top N abilities by total damage across all players.
 
   Useful for identifying raid-wide problematic mechanics.
+  Returns list of {name, %{total: N, hits: N, ability_id: id, players: N}}
   """
   def top_abilities(%{all: players}, n), do: top_abilities(players, n)
 
   def top_abilities(players, n \\ 10) when is_list(players) do
     players
-    |> Enum.flat_map(fn %PlayerDamage{by_ability: by_ability} ->
-      Enum.map(by_ability, fn {name, stats} -> {name, stats} end)
+    |> Enum.flat_map(fn %PlayerDamage{player_name: player_name, by_ability: by_ability} ->
+      Enum.map(by_ability, fn {name, stats} -> {name, stats, player_name} end)
     end)
-    |> Enum.reduce(%{}, fn {name, %{total: total, hits: hits, ability_id: id}}, acc ->
-      Map.update(acc, name, %{total: total, hits: hits, ability_id: id}, fn existing ->
-        %{existing | total: existing.total + total, hits: existing.hits + hits}
+    |> Enum.reduce(%{}, fn {name, %{total: total, hits: hits, ability_id: id}, player_name}, acc ->
+      Map.update(acc, name, %{total: total, hits: hits, ability_id: id, players: MapSet.new([player_name])}, fn existing ->
+        %{existing |
+          total: existing.total + total,
+          hits: existing.hits + hits,
+          players: MapSet.put(existing.players, player_name)
+        }
       end)
     end)
+    |> Enum.map(fn {name, stats} -> {name, %{stats | players: MapSet.size(stats.players)}} end)
     |> Enum.sort_by(fn {_name, %{total: total}} -> total end, :desc)
     |> Enum.take(n)
   end
