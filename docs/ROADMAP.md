@@ -2,7 +2,7 @@
 
 **Project:** Raid Diagnostic & Coaching Dashboard
 **Target Launch:** Midnight Expansion Raids (March 2026)
-**Last Updated:** 2025-11-26
+**Last Updated:** 2025-11-27
 
 ---
 
@@ -39,9 +39,9 @@ True live-during-combat would require a companion addon (post-MVP consideration)
 | Milestone | Target | Description |
 |-----------|--------|-------------|
 | **M1: Core Events** | ✅ Nov 2025 | Death tracking, damage taken analysis |
-| **M2: Discovery Mode** | ✅ Nov 2026 | Surface interesting events, basic UI |
-| **M3: Criteria System** | Dec 2025 - Jan 2026 | Mark/track mechanics, boss profiles |
-| **M4: File Watching** | ✅ Nov 2026 | Auto-refresh on encounter end |
+| **M2: Discovery Mode** | ✅ Nov 2025 | Surface interesting events, basic UI |
+| **M3: Criteria System** | ✅ Nov 2025 | Mark/track mechanics, failure detection |
+| **M4: File Watching** | ✅ Nov 2025 | Auto-refresh on encounter end |
 | **M5: Analysis Reports** | Feb 2026 | Between-pull summaries, trends |
 | **M6: Pre-Launch Polish** | Early Mar 2026 | Final testing, bug fixes |
 | **MVP Launch** | **Mid-March 2026** | **Ready for Midnight raids Day 1** |
@@ -144,14 +144,14 @@ Many mechanics apply debuffs that need handling.
 
 ---
 
-## Phase 3: Criteria System
+## Phase 3: Criteria System ✅ COMPLETE
 
 **Goal:** Allow marking abilities as tracked mechanics
-**Target:** March 2026
+**Completed:** November 2025
 
-### 3A: Mechanic Types
+### 3A: Mechanic Types ✅
 
-Define categories for tracked abilities:
+Defined categories for tracked abilities:
 
 - **Avoidable Damage** - Damage that shouldn't happen (standing in fire)
 - **Required Interrupt** - Casts that must be kicked
@@ -161,30 +161,30 @@ Define categories for tracked abilities:
 - **Tank Mechanic** - Tank-specific handling
 - **Healer Mechanic** - Requires healing response
 
-### 3B: Criteria Builder UI
+### 3B: Criteria Builder UI ✅
 
 **Tasks:**
-- [ ] Click ability in discovery mode to create criteria
-- [ ] Select mechanic type from dropdown
-- [ ] Set threshold (e.g., "more than 2 hits = failure")
-- [ ] Add notes/description
-- [ ] Preview what this criteria would flag in current pull
+- [x] Click ability in damage tab to create criteria
+- [x] Select mechanic type from modal
+- [x] Threshold configuration (hardcoded defaults, UI future)
+- [ ] Add notes/description (future)
+- [ ] Preview what this criteria would flag (future)
 
-### 3C: Boss Profiles
-
-**Tasks:**
-- [ ] Save criteria as boss profile (boss name + all criteria)
-- [ ] Load profile when boss detected in log
-- [ ] Export/import profiles (JSON)
-- [ ] Share profiles with raid team
-
-### 3D: Failure Detection
+### 3C: Boss Profiles (Partial)
 
 **Tasks:**
-- [ ] Match events against active criteria
-- [ ] Generate failure records (who, what, when)
-- [ ] Aggregate failures per player
-- [ ] Prioritize by severity (death-causing vs minor)
+- [x] Criteria auto-associated with boss encounter
+- [x] Criteria loaded when viewing boss encounter
+- [ ] Export/import profiles (JSON) - future
+- [ ] Share profiles with raid team - future
+
+### 3D: Failure Detection ✅
+
+**Tasks:**
+- [x] Match events against active criteria
+- [x] Generate failure records (who, what, when)
+- [x] Aggregate failures per player and per mechanic
+- [x] Display failures prominently in UI
 
 ---
 
@@ -444,14 +444,14 @@ MCP server (`wow_mcp`) is used **only during addon development**:
 
 ### Critical Path (Blocks Everything)
 1. Death analysis - Core diagnostic ✅
-2. File watching - Enables auto-refresh on encounter end
-3. Criteria system - Enables meaningful tracking
+2. File watching - Enables auto-refresh on encounter end ✅
+3. Criteria system - Enables meaningful tracking ✅
 
 ### High Value (Core Features)
 4. Damage taken tracking ✅
 5. Interrupt tracking ✅
-6. Between-pull dashboard
-7. Pull summaries
+6. Between-pull dashboard ✅
+7. Pull summaries (next priority)
 
 ### Medium Value (Full Experience)
 8. Debuff tracking ✅
@@ -470,10 +470,10 @@ MCP server (`wow_mcp`) is used **only during addon development**:
 ## Success Criteria
 
 ### MVP (Midnight Launch)
-- [ ] File watching detects encounter end within seconds
-- [ ] Deaths and failures displayed immediately after pull
-- [ ] Criteria system working (mark abilities to track)
-- [ ] Failures shown on dashboard
+- [x] File watching detects encounter end within seconds
+- [x] Deaths and failures displayed immediately after pull
+- [x] Criteria system working (mark abilities to track)
+- [x] Failures shown on dashboard
 - [ ] Between-pull summary generated automatically
 - [ ] Stable for 3+ hour raid nights
 
@@ -504,10 +504,10 @@ If we're falling behind, cut in this order:
 
 These MUST work for launch:
 - [x] Death tracking with cause (Phase 1A) ✅
-- [ ] File watching with encounter detection (Phase 4A)
-- [ ] Dashboard showing deaths/failures after pull ends (Phase 4C)
-- [ ] Basic criteria matching (Phase 3D, even if hardcoded)
-- [ ] Between-pull summary (Phase 5A)
+- [x] File watching with encounter detection (Phase 4A) ✅
+- [x] Dashboard showing deaths/failures after pull ends (Phase 4C) ✅
+- [x] Basic criteria matching (Phase 3D) ✅
+- [ ] Between-pull summary (Phase 5A) - **Next priority**
 
 Everything else can come in patches after launch.
 
