@@ -3,7 +3,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   alias WeGoNext.{EncounterStore, Encounter, Criteria}
   alias WeGoNext.Criteria.MechanicCriteria
-  alias WeGoNext.Analyzers.{DeathAnalyzer, DamageTakenAnalyzer, InterruptAnalyzer, DebuffAnalyzer, FailureAnalyzer}
+  alias WeGoNext.Analyzers.{DeathAnalyzer, DamageTakenAnalyzer, InterruptAnalyzer, DebuffAnalyzer, FailureAnalyzer, PullSummary}
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -16,7 +16,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
        |> assign(:page_title, encounter.name)
        |> assign(:encounter_id, id)
        |> assign(:encounter, encounter)
-       |> assign(:active_tab, :deaths)
+       |> assign(:active_tab, :summary)
        |> load_analysis()}
     else
       {:ok,
@@ -32,12 +32,29 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     # Load criteria for this boss
     criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id)
 
+    # Run individual analyzers
+    deaths = DeathAnalyzer.analyze(encounter)
+    damage_stats = DamageTakenAnalyzer.analyze(encounter)
+    interrupt_stats = InterruptAnalyzer.analyze(encounter)
+    debuff_stats = DebuffAnalyzer.analyze(encounter)
+    failure_stats = FailureAnalyzer.analyze(encounter)
+
+    # Generate pull summary using existing analyzer results
+    summary = PullSummary.summarize(encounter,
+      deaths: deaths,
+      damage_stats: damage_stats,
+      interrupt_stats: interrupt_stats,
+      debuff_stats: debuff_stats,
+      failure_stats: failure_stats
+    )
+
     socket
-    |> assign(:deaths, DeathAnalyzer.analyze(encounter))
-    |> assign(:damage_stats, DamageTakenAnalyzer.analyze(encounter))
-    |> assign(:interrupt_stats, InterruptAnalyzer.analyze(encounter))
-    |> assign(:debuff_stats, DebuffAnalyzer.analyze(encounter))
-    |> assign(:failure_stats, FailureAnalyzer.analyze(encounter))
+    |> assign(:deaths, deaths)
+    |> assign(:damage_stats, damage_stats)
+    |> assign(:interrupt_stats, interrupt_stats)
+    |> assign(:debuff_stats, debuff_stats)
+    |> assign(:failure_stats, failure_stats)
+    |> assign(:summary, summary)
     |> assign(:criteria_by_spell, criteria_by_spell)
     |> assign(:show_criteria_modal, false)
     |> assign(:modal_spell_id, nil)
@@ -183,6 +200,9 @@ defmodule WeGoNextWeb.EncounterLive.Show do
       <%!-- Tabs --%>
       <div class="border-b border-zinc-700">
         <nav class="flex gap-4" aria-label="Tabs">
+          <.tab_button tab={:summary} active={@active_tab} count={nil} highlight={false}>
+            Summary
+          </.tab_button>
           <.tab_button tab={:failures} active={@active_tab} count={@failure_stats.summary.total_failures} highlight={@failure_stats.summary.total_failures > 0}>
             Failures
           </.tab_button>
@@ -203,6 +223,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
       <%!-- Tab content --%>
       <div class="min-h-[400px]">
+        <.summary_tab :if={@active_tab == :summary} summary={@summary} />
         <.failures_tab :if={@active_tab == :failures} stats={@failure_stats} />
         <.deaths_tab :if={@active_tab == :deaths} deaths={@deaths} />
         <.damage_tab :if={@active_tab == :damage} stats={@damage_stats} encounter={@encounter} criteria_by_spell={@criteria_by_spell} />
@@ -219,6 +240,174 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     </div>
     """
   end
+
+  # Summary tab - pull summary for between-pull analysis
+  attr :summary, :any, required: true
+
+  defp summary_tab(assigns) do
+    ~H"""
+    <div class="space-y-6">
+      <%!-- Wipe cause banner (only for wipes) --%>
+      <div :if={@summary.wipe_cause} class="bg-red-900/30 border border-red-800 rounded-lg p-4">
+        <h3 class="text-red-400 font-medium mb-1">Wipe Cause</h3>
+        <p class="text-zinc-200">{@summary.wipe_cause}</p>
+      </div>
+
+      <%!-- Kill banner (for successful kills) --%>
+      <div :if={@summary.result == :kill} class="bg-green-900/30 border border-green-800 rounded-lg p-4">
+        <h3 class="text-green-400 font-medium">Boss Defeated!</h3>
+        <p class="text-zinc-400 text-sm">Fight duration: {@summary.duration_str}</p>
+      </div>
+
+      <%!-- Deaths summary --%>
+      <div :if={@summary.deaths_summary.total > 0}>
+        <h3 class="text-sm font-medium text-zinc-400 mb-3">
+          Deaths ({@summary.deaths_summary.total})
+        </h3>
+        <div class="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+          <div class="flex items-center gap-4 mb-3">
+            <div>
+              <span class="text-zinc-500 text-sm">First death:</span>
+              <span class="text-zinc-200 ml-2">{@summary.deaths_summary.first_death_player}</span>
+              <span class="text-zinc-500 ml-1">at {format_time(@summary.deaths_summary.first_death_time)}</span>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <div :for={{cause, count} <- @summary.deaths_summary.deaths_by_cause |> Enum.take(5)} class="inline-flex items-center px-2 py-1 rounded text-xs bg-zinc-700">
+              <span class="text-red-400">{cause}</span>
+              <span class="text-zinc-500 ml-1">({count})</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Critical failures --%>
+      <div :if={@summary.critical_failures != []}>
+        <h3 class="text-sm font-medium text-zinc-400 mb-3">Critical Issues</h3>
+        <div class="space-y-3">
+          <div :for={failure <- @summary.critical_failures} class="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+            <div class="flex justify-between items-start mb-2">
+              <span class={[
+                "font-medium",
+                mechanic_type_color(failure.mechanic_type)
+              ]}>
+                {failure.spell_name}
+              </span>
+              <span class={[
+                "text-xs px-2 py-1 rounded",
+                severity_badge_color(failure.severity)
+              ]}>
+                {String.upcase(to_string(failure.severity))}
+              </span>
+            </div>
+            <p class="text-sm text-zinc-400 mb-2">
+              {failure.failure_count} failure(s)
+              <span :if={failure.total_damage > 0} class="text-zinc-500">
+                &bull; {format_number(failure.total_damage)} damage
+              </span>
+            </p>
+            <div :if={failure.players_involved != []} class="flex flex-wrap gap-1">
+              <span :for={player <- failure.players_involved} class="text-xs px-2 py-0.5 bg-zinc-700 rounded text-zinc-300">
+                {player}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%!-- No failures message --%>
+      <div :if={@summary.critical_failures == [] && @summary.result == :wipe} class="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+        <p class="text-zinc-400">
+          No tracked mechanic failures detected. Consider tracking mechanics from the Damage Taken tab.
+        </p>
+      </div>
+
+      <%!-- Missed interrupts --%>
+      <div :if={@summary.missed_interrupts != []}>
+        <h3 class="text-sm font-medium text-yellow-400 mb-3">Missed Interrupts</h3>
+        <div class="bg-zinc-800 rounded-lg overflow-hidden">
+          <table class="w-full">
+            <thead class="bg-zinc-750">
+              <tr>
+                <th class="text-left text-xs font-medium text-zinc-400 px-4 py-2">Spell</th>
+                <th class="text-right text-xs font-medium text-zinc-400 px-4 py-2">Missed</th>
+                <th class="text-left text-xs font-medium text-zinc-400 px-4 py-2">First At</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-700">
+              <tr :for={missed <- @summary.missed_interrupts} class="hover:bg-zinc-750">
+                <td class="px-4 py-2 text-yellow-400">{missed.spell_name}</td>
+                <td class="px-4 py-2 text-right text-zinc-300">{missed.missed_count}</td>
+                <td class="px-4 py-2 text-zinc-500 font-mono text-sm">{format_time(missed.first_miss_at)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <%!-- Players needing coaching --%>
+      <div :if={@summary.problem_players != []}>
+        <h3 class="text-sm font-medium text-zinc-400 mb-3">Players Needing Attention</h3>
+        <div class="bg-zinc-800 rounded-lg overflow-hidden">
+          <table class="w-full">
+            <thead class="bg-zinc-750">
+              <tr>
+                <th class="text-left text-xs font-medium text-zinc-400 px-4 py-2">Player</th>
+                <th class="text-center text-xs font-medium text-zinc-400 px-4 py-2">Status</th>
+                <th class="text-left text-xs font-medium text-zinc-400 px-4 py-2">Issues</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-700">
+              <tr :for={player <- @summary.problem_players} class="hover:bg-zinc-750">
+                <td class="px-4 py-2 text-zinc-200">{player.name}</td>
+                <td class="px-4 py-2 text-center">
+                  <span :if={player.died} class="text-xs px-2 py-0.5 bg-red-900 text-red-300 rounded">DIED</span>
+                  <span :if={player.failure_count > 0 && !player.died} class="text-xs px-2 py-0.5 bg-yellow-900 text-yellow-300 rounded">
+                    {player.failure_count} fail(s)
+                  </span>
+                </td>
+                <td class="px-4 py-2 text-zinc-500 text-sm">
+                  {Enum.join(player.failed_mechanics, ", ")}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <%!-- Recommendations --%>
+      <div :if={@summary.recommendations != []}>
+        <h3 class="text-sm font-medium text-green-400 mb-3">Next Pull Focus</h3>
+        <div class="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+          <ol class="space-y-2">
+            <li :for={{rec, idx} <- Enum.with_index(@summary.recommendations, 1)} class="flex gap-3">
+              <span class="text-zinc-500 font-mono">{idx}.</span>
+              <span class="text-zinc-200">{rec}</span>
+            </li>
+          </ol>
+        </div>
+      </div>
+
+      <%!-- No recommendations message --%>
+      <div :if={@summary.recommendations == [] && @summary.result == :wipe} class="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
+        <h3 class="text-green-400 font-medium mb-2">Next Pull Focus</h3>
+        <p class="text-zinc-400">No specific issues detected. Keep up the good work!</p>
+      </div>
+    </div>
+    """
+  end
+
+  defp mechanic_type_color("avoidable"), do: "text-red-400"
+  defp mechanic_type_color("interrupt"), do: "text-yellow-400"
+  defp mechanic_type_color("soak"), do: "text-blue-400"
+  defp mechanic_type_color("spread"), do: "text-purple-400"
+  defp mechanic_type_color(_), do: "text-zinc-200"
+
+  defp severity_badge_color(:critical), do: "bg-red-900 text-red-300"
+  defp severity_badge_color(:high), do: "bg-orange-900 text-orange-300"
+  defp severity_badge_color(:medium), do: "bg-yellow-900 text-yellow-300"
+  defp severity_badge_color(:low), do: "bg-zinc-700 text-zinc-300"
+  defp severity_badge_color(_), do: "bg-zinc-700 text-zinc-300"
 
   # Criteria selection modal component
   attr :spell_name, :string, required: true
