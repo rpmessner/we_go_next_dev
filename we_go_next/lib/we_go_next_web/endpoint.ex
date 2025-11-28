@@ -11,6 +11,11 @@ defmodule WeGoNextWeb.Endpoint do
     same_site: "Lax"
   ]
 
+  # SQL sandbox for browser test isolation
+  if Application.compile_env(:we_go_next, :sql_sandbox) do
+    plug Phoenix.Ecto.SQL.Sandbox
+  end
+
   socket "/live", Phoenix.LiveView.Socket,
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]

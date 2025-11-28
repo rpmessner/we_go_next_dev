@@ -1,5 +1,8 @@
 import Config
 
+# Enable SQL sandbox for browser test isolation
+config :we_go_next, sql_sandbox: true
+
 # We run a server during Wallaby tests
 config :we_go_next, WeGoNextWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
@@ -22,7 +25,8 @@ config :we_go_next, WeGoNext.Repo,
   password: "postgres",
   hostname: "localhost",
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 5
+  pool_size: 10,
+  ownership_timeout: 300_000  # 5 minutes for longer integration tests
 
 # Print only warnings and errors during test
 config :logger, level: :warning
