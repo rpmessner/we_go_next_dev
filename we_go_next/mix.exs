@@ -54,6 +54,7 @@ defmodule WeGoNext.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:bandit, "~> 1.0"},
       {:ecto_sql, "~> 3.10"},
+      {:phoenix_ecto, "~> 4.4"},
       {:postgrex, "~> 0.17"},
       {:wallaby, "~> 0.30", runtime: false, only: :test},
       {:tidewave, "~> 0.5", only: :dev}
