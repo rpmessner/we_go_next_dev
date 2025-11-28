@@ -90,29 +90,36 @@ defmodule WeGoNext.FileWatcher do
   @impl true
   def handle_info(:check_file, %{clf: clf} = state) do
     # Refresh the clf record from database to get latest metadata
-    clf = Repo.get!(CombatLogFile, clf.id)
+    # Use Repo.get instead of Repo.get! to handle record being deleted (e.g., test sandbox cleanup)
+    case Repo.get(CombatLogFile, clf.id) do
+      nil ->
+        # Record no longer exists, stop watching
+        Logger.debug("FileWatcher: Watched file record no longer exists, stopping")
+        {:noreply, %{state | clf: nil, timer_ref: nil}}
 
-    # Check if file has new content
-    if CombatLogFile.has_new_content?(clf) do
-      Logger.debug("FileWatcher: Detected changes in #{Path.basename(clf.file_path)}")
+      clf ->
+        # Check if file has new content
+        if CombatLogFile.has_new_content?(clf) do
+          Logger.debug("FileWatcher: Detected changes in #{Path.basename(clf.file_path)}")
 
-      case EncounterStore.sync_log(clf.file_path) do
-        {:ok, count} when count > 0 ->
-          Logger.info("FileWatcher: Imported #{count} new encounter(s)")
-          # Note: EncounterStore.sync_log already broadcasts to PubSub
+          case EncounterStore.sync_log(clf.file_path) do
+            {:ok, count} when count > 0 ->
+              Logger.info("FileWatcher: Imported #{count} new encounter(s)")
+              # Note: EncounterStore.sync_log already broadcasts to PubSub
 
-        {:ok, 0} ->
-          # File changed but no new encounters (partial write, non-encounter events, etc.)
-          :ok
+            {:ok, 0} ->
+              # File changed but no new encounters (partial write, non-encounter events, etc.)
+              :ok
 
-        {:error, reason} ->
-          Logger.error("FileWatcher: Failed to sync log: #{inspect(reason)}")
-      end
+            {:error, reason} ->
+              Logger.error("FileWatcher: Failed to sync log: #{inspect(reason)}")
+          end
+        end
+
+        # Schedule next check
+        timer_ref = Process.send_after(self(), :check_file, @poll_interval)
+        {:noreply, %{state | clf: clf, timer_ref: timer_ref}}
     end
-
-    # Schedule next check
-    timer_ref = Process.send_after(self(), :check_file, @poll_interval)
-    {:noreply, %{state | clf: clf, timer_ref: timer_ref}}
   end
 
   # Private helpers
