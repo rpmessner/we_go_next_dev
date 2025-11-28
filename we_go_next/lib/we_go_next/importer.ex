@@ -127,7 +127,7 @@ defmodule WeGoNext.Importer do
   end
 
   defp insert_encounters(encounters_with_bytes, combat_log_file_id) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     records =
       Enum.map(encounters_with_bytes, fn {encounter, raw_lines, start_byte, end_byte} ->
@@ -142,12 +142,12 @@ defmodule WeGoNext.Importer do
   defp update_file_progress(%CombatLogFile{} = clf, end_byte) do
     # Get updated file stats
     {:ok, %{size: file_size, mtime: mtime}} = File.stat(clf.file_path)
-    mtime_dt = NaiveDateTime.from_erl!(mtime) |> DateTime.from_naive!("Etc/UTC")
+    mtime_dt = NaiveDateTime.from_erl!(mtime) |> DateTime.from_naive!("Etc/UTC") |> DateTime.truncate(:second)
 
     clf
     |> Ecto.Changeset.change(%{
       last_parsed_byte: end_byte,
-      last_parsed_at: DateTime.utc_now(),
+      last_parsed_at: DateTime.utc_now() |> DateTime.truncate(:second),
       file_size: file_size,
       file_mtime: mtime_dt
     })
