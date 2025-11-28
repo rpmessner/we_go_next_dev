@@ -2,7 +2,7 @@
 
 **Project:** Raid Diagnostic & Coaching Dashboard
 **Target Launch:** Midnight Expansion Raids (March 2026)
-**Last Updated:** 2025-11-27
+**Last Updated:** 2025-11-28
 
 ---
 
@@ -42,7 +42,7 @@ True live-during-combat would require a companion addon (post-MVP consideration)
 | **M2: Discovery Mode** | ✅ Nov 2025 | Surface interesting events, basic UI |
 | **M3: Criteria System** | ✅ Nov 2025 | Mark/track mechanics, failure detection |
 | **M4: File Watching** | ✅ Nov 2025 | Auto-refresh on encounter end |
-| **M5: Analysis Reports** | Feb 2026 | Between-pull summaries, trends |
+| **M5: Analysis Reports** | ✅ Nov 2025 | Between-pull summaries, trends |
 | **M6: Pre-Launch Polish** | Early Mar 2026 | Final testing, bug fixes |
 | **MVP Launch** | **Mid-March 2026** | **Ready for Midnight raids Day 1** |
 | **Post-MVP: Strategy Diagrams** | Q2-Q3 2026 | Minimap annotations, Discord export |
@@ -226,14 +226,16 @@ Defined categories for tracked abilities:
 **Goal:** Between-pull summaries and coaching reports
 **Target:** July 2026
 
-### 5A: Pull Summary Report
+### 5A: Pull Summary Report ✅ COMPLETE
 
 **Tasks:**
-- [ ] Automatic generation when encounter ends
-- [ ] Deaths with causes
-- [ ] Mechanic failures ranked by impact
-- [ ] What killed us (if wipe)
-- [ ] Comparison to previous best attempt
+- [x] Automatic generation when encounter ends
+- [x] Deaths with causes
+- [x] Mechanic failures ranked by impact
+- [x] What killed us (if wipe)
+- [x] Players needing coaching identified
+- [x] Actionable recommendations generated
+- [ ] Comparison to previous best attempt (future)
 
 ### 5B: Player Reports
 
@@ -451,7 +453,7 @@ MCP server (`wow_mcp`) is used **only during addon development**:
 4. Damage taken tracking ✅
 5. Interrupt tracking ✅
 6. Between-pull dashboard ✅
-7. Pull summaries (next priority)
+7. Pull summaries ✅
 
 ### Medium Value (Full Experience)
 8. Debuff tracking ✅
@@ -474,7 +476,7 @@ MCP server (`wow_mcp`) is used **only during addon development**:
 - [x] Deaths and failures displayed immediately after pull
 - [x] Criteria system working (mark abilities to track)
 - [x] Failures shown on dashboard
-- [ ] Between-pull summary generated automatically
+- [x] Between-pull summary generated automatically
 - [ ] Stable for 3+ hour raid nights
 
 ### Full Product
@@ -507,7 +509,9 @@ These MUST work for launch:
 - [x] File watching with encounter detection (Phase 4A) ✅
 - [x] Dashboard showing deaths/failures after pull ends (Phase 4C) ✅
 - [x] Basic criteria matching (Phase 3D) ✅
-- [ ] Between-pull summary (Phase 5A) - **Next priority**
+- [x] Between-pull summary (Phase 5A) ✅
+
+**All non-negotiable MVP features are complete!**
 
 Everything else can come in patches after launch.
 

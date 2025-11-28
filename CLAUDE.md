@@ -29,10 +29,21 @@ The same combat log powers both raid and M+ analysis. Core features work identic
 **MVP:** M+ analysis works out of the box (same analyzers as raid)
 **Post-MVP:** M+-specific features (death timer cost, affix tracking, dungeon summaries)
 
-### Current Phase: Foundation ✅
-- Working Elixir parser that reads WoW combat logs
-- Parses encounter boundaries and combat events
-- Successfully tested on 603MB combat log with 20 encounters
+### Current Phase: MVP Core Complete ✅
+All non-negotiable MVP features are implemented:
+- ✅ Working Elixir parser that reads WoW combat logs
+- ✅ Parses encounter boundaries and combat events
+- ✅ Death analyzer with killing blow and damage recap
+- ✅ Damage taken analyzer with tank/non-tank separation
+- ✅ Interrupt analyzer with missed kick detection
+- ✅ Debuff analyzer with player/spell aggregation
+- ✅ Failure analyzer with criteria-based mechanic tracking
+- ✅ Pull Summary report with wipe cause, recommendations
+- ✅ Phoenix LiveView dashboard with Summary tab
+- ✅ File watcher for log monitoring
+- ✅ Criteria system for marking trackable mechanics
+
+**Next Phase:** End-to-end integration testing (see `docs/INTEGRATION_ROADMAP.md`)
 
 ### Key Differentiator
 This is NOT a damage meter. It's a **coaching tool** that:
@@ -122,7 +133,9 @@ wow_analysis/
 │   │   │   │   ├── death_analyzer.ex      # Death tracking ✓
 │   │   │   │   ├── damage_taken_analyzer.ex # Damage tracking ✓
 │   │   │   │   ├── interrupt_analyzer.ex  # Interrupt tracking ✓
-│   │   │   │   └── debuff_analyzer.ex     # Debuff tracking ✓
+│   │   │   │   ├── debuff_analyzer.ex     # Debuff tracking ✓
+│   │   │   │   ├── failure_analyzer.ex    # Criteria-based failure detection ✓
+│   │   │   │   └── pull_summary.ex        # Between-pull report generation ✓
 │   │   │   ├── encounter.ex               # Encounter data structure
 │   │   │   ├── encounter_store.ex         # ETS-backed encounter cache
 │   │   │   ├── log_reader.ex              # File parsing with byte offsets
@@ -173,8 +186,8 @@ wow_analysis/
 
 ### Documentation
 - **Roadmap**: `docs/ROADMAP.md` - Development phases and priorities
+- **Integration**: `docs/INTEGRATION_ROADMAP.md` - End-to-end testing plan
 - **Architecture**: `docs/TECHNICAL_ARCHITECTURE.md` - Tech stack decisions
-- **Handoff**: `docs/HANDOFF.md` - Next implementation steps
 - **Sessions**: `docs/sessions/` - Historical session logs
 
 ### Running the App
@@ -203,6 +216,20 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - **Diagrams**: Image generation with minimap backgrounds (future)
 
 ## Recent Updates
+
+### 2025-11-28: MVP Core Complete - Pull Summary Implementation
+- Implemented `PullSummary` analyzer that aggregates all analyzer outputs
+- Added "Summary" tab as default view in encounter detail LiveView
+- Summary includes: wipe cause, deaths breakdown, critical failures, players needing coaching, recommendations
+- Updated roadmap: all non-negotiable MVP features now complete
+- Created `docs/INTEGRATION_ROADMAP.md` for end-to-end testing plan
+- Next step: wire up log selection UI and live file watching for real-time demo
+
+### 2025-11-27: Criteria System and Failure Detection
+- Implemented criteria system for tracking specific mechanics
+- Added FailureAnalyzer that checks damage/interrupts against criteria
+- Failures tab shows mechanic failures by player and by mechanic
+- UI allows clicking abilities to mark them as "avoidable", "must interrupt", etc.
 
 ### 2025-11-26: Project Renamed to "we_go_next"
 - Renamed from generic "combat_log_parser" to raid-themed "we_go_next"
