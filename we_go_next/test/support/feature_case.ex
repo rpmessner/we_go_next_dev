@@ -1,4 +1,9 @@
 defmodule WeGoNextWeb.FeatureCase do
+  @moduledoc """
+  This module defines the test case to be used by feature tests.
+
+  It provides page objects for common UI interactions.
+  """
   use ExUnit.CaseTemplate
 
   using do
@@ -6,9 +11,30 @@ defmodule WeGoNextWeb.FeatureCase do
       use Wallaby.Feature
 
       alias WeGoNext.Repo
+      alias WeGoNext.Integration.Pages.HomePage
+      alias WeGoNext.Integration.Pages.EncounterDetailPage
+      alias WeGoNext.Integration.Pages.SettingsPage
+
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
+      import WeGoNextWeb.FeatureCase
+
+      @fixtures_path Path.expand("../fixtures", __DIR__)
+
+      def setup_user_with_path(path) do
+        user = WeGoNext.Accounts.get_or_create_default_user()
+
+        if user.wow_logs_path != path do
+          WeGoNext.Accounts.set_wow_logs_path(user, path)
+        end
+
+        user
+      end
+
+      def setup_user_with_fixtures do
+        setup_user_with_path(@fixtures_path)
+      end
     end
   end
 
