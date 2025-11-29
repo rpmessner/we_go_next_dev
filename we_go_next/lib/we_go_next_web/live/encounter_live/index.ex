@@ -613,15 +613,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     """
   end
 
-  defp format_duration(%{fight_time_ms: ms}) when is_integer(ms) do
-    seconds = div(ms, 1000)
-    minutes = div(seconds, 60)
-    secs = rem(seconds, 60)
-    "#{minutes}:#{String.pad_leading(Integer.to_string(secs), 2, "0")}"
-  end
-
-  defp format_duration(_), do: "0:00"
-
   defp format_size(bytes) when bytes >= 1_000_000 do
     "#{Float.round(bytes / 1_000_000, 1)} MB"
   end
