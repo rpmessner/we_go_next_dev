@@ -35,10 +35,9 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
   Tank detection heuristic: top 2 players receiving NPC melee damage are tanks.
   """
   def analyze(%Encounter{} = encounter) do
-    # First pass: collect all damage data
+    # Events are now loaded from DB in chronological order
     players =
       encounter.events
-      |> Enum.reverse()
       |> Enum.reduce(%{}, &process_event/2)
 
     # Detect tanks based on melee damage from NPCs
@@ -81,20 +80,22 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
     |> MapSet.new()
   end
 
-  # Process damage events
+  # Process damage events - now using normalized event fields
   defp process_event(%{type: type} = event, players)
        when type in ["SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE", "SWING_DAMAGE", "RANGE_DAMAGE", "ENVIRONMENTAL_DAMAGE"] do
-    case parse_damage_event(event) do
-      {:ok, target_guid, target_name, source_guid, source_name, ability_name, ability_id, amount} ->
-        if is_player_guid?(target_guid) do
-          is_npc_melee = type == "SWING_DAMAGE" and is_npc_guid?(source_guid)
-          update_player_damage(players, target_guid, target_name, source_name, ability_name, ability_id, amount, is_npc_melee)
-        else
-          players
-        end
+    target_guid = event.target_guid
+    target_name = event.target_name
+    source_guid = event.source_guid
+    source_name = event.source_name || "Unknown"
+    ability_name = event.spell_name || "Melee"
+    ability_id = event.spell_id
+    amount = event.amount || 0
 
-      _ ->
-        players
+    if player_guid?(target_guid) do
+      is_npc_melee = type == "SWING_DAMAGE" and npc_guid?(source_guid)
+      update_player_damage(players, target_guid, target_name, source_name, ability_name, ability_id, amount, is_npc_melee)
+    else
+      players
     end
   end
 
@@ -129,55 +130,11 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
     end)
   end
 
-  # Parse different damage event types
-  defp parse_damage_event(%{type: "SWING_DAMAGE", data: data}) do
-    source_guid = Enum.at(data, 1)
-    source_name = Enum.at(data, 2)
-    target_guid = Enum.at(data, 5)
-    target_name = Enum.at(data, 6)
-    amount = Enum.at(data, 28) |> parse_int()
+  defp player_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Player-")
+  defp player_guid?(_), do: false
 
-    {:ok, target_guid, target_name, source_guid, source_name, "Melee", nil, amount}
-  end
-
-  defp parse_damage_event(%{type: type, data: data})
-       when type in ["SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE", "RANGE_DAMAGE"] do
-    source_guid = Enum.at(data, 1)
-    source_name = Enum.at(data, 2)
-    target_guid = Enum.at(data, 5)
-    target_name = Enum.at(data, 6)
-    ability_id = Enum.at(data, 9) |> parse_int()
-    ability_name = Enum.at(data, 10, "Unknown")
-    amount = Enum.at(data, 31) |> parse_int()
-
-    {:ok, target_guid, target_name, source_guid, source_name, ability_name, ability_id, amount}
-  end
-
-  defp parse_damage_event(%{type: "ENVIRONMENTAL_DAMAGE", data: data}) do
-    target_guid = Enum.at(data, 5)
-    target_name = Enum.at(data, 6)
-    env_type = Enum.at(data, 9, "Environment")
-    amount = Enum.at(data, 29) |> parse_int()
-
-    {:ok, target_guid, target_name, nil, "Environment", "Environmental: #{env_type}", nil, amount}
-  end
-
-  defp parse_damage_event(_), do: :error
-
-  defp is_player_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Player-")
-  defp is_player_guid?(_), do: false
-
-  defp is_npc_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Creature-")
-  defp is_npc_guid?(_), do: false
-
-  defp parse_int(nil), do: 0
-  defp parse_int(value) when is_integer(value), do: value
-  defp parse_int(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {num, _} -> num
-      :error -> 0
-    end
-  end
+  defp npc_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Creature-")
+  defp npc_guid?(_), do: false
 
   @doc """
   Formats damage taken for display, separating tanks and DPS/healers.
@@ -257,7 +214,32 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
   """
   def top_abilities(%{all: players}, n), do: top_abilities(players, n)
 
-  def top_abilities(players, n \\ 10) when is_list(players) do
+  # Handle cached/deserialized format: map of player_name => %{abilities: %{...}}
+  def top_abilities(players, n) when is_map(players) do
+    players
+    |> Enum.flat_map(fn {player_name, %{abilities: abilities}} ->
+      Enum.map(abilities, fn {name, stats} -> {name, stats, player_name} end)
+    end)
+    |> Enum.reduce(%{}, fn {name, stats, player_name}, acc ->
+      total = Map.get(stats, :total, 0)
+      hits = Map.get(stats, :hits, 0)
+      id = Map.get(stats, :ability_id)
+
+      Map.update(acc, name, %{total: total, hits: hits, ability_id: id, players: MapSet.new([player_name])}, fn existing ->
+        %{existing |
+          total: existing.total + total,
+          hits: existing.hits + hits,
+          players: MapSet.put(existing.players, player_name)
+        }
+      end)
+    end)
+    |> Enum.map(fn {name, stats} -> {name, %{stats | players: MapSet.size(stats.players)}} end)
+    |> Enum.sort_by(fn {_name, %{total: total}} -> total end, :desc)
+    |> Enum.take(n)
+  end
+
+  # Handle fresh analysis format: list of PlayerDamage structs
+  def top_abilities(players, n) when is_list(players) do
     players
     |> Enum.flat_map(fn %PlayerDamage{player_name: player_name, by_ability: by_ability} ->
       Enum.map(by_ability, fn {name, stats} -> {name, stats, player_name} end)
@@ -278,9 +260,16 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
 
   @doc """
   Returns top abilities for non-tanks only (avoidable damage).
+  Handles both fresh analysis (:dps_healers) and cached/deserialized data (:non_tanks).
   """
-  def top_avoidable_abilities(%{dps_healers: dps_healers}, n \\ 10) do
+  def top_avoidable_abilities(stats, n \\ 10)
+
+  def top_avoidable_abilities(%{dps_healers: dps_healers}, n) do
     top_abilities(dps_healers, n)
+  end
+
+  def top_avoidable_abilities(%{non_tanks: non_tanks}, n) do
+    top_abilities(non_tanks, n)
   end
 
   @doc """

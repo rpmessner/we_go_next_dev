@@ -38,9 +38,13 @@ defmodule WeGoNext.Analyzers.PullSummary do
     # Use provided stats or run analyzers
     deaths = opts[:deaths] || DeathAnalyzer.analyze(encounter)
     damage_stats = opts[:damage_stats] || DamageTakenAnalyzer.analyze(encounter)
+    damage_done = opts[:damage_done]
     interrupt_stats = opts[:interrupt_stats] || InterruptAnalyzer.analyze(encounter)
     debuff_stats = opts[:debuff_stats] || DebuffAnalyzer.analyze(encounter)
     failure_stats = opts[:failure_stats] || FailureAnalyzer.analyze(encounter)
+
+    # Get underperformers if damage_done is provided
+    underperformers = if damage_done, do: damage_done[:underperformers] || [], else: []
 
     %Summary{
       encounter: encounter,
@@ -52,10 +56,11 @@ defmodule WeGoNext.Analyzers.PullSummary do
       deaths_summary: summarize_deaths(deaths, encounter),
       missed_interrupts: summarize_missed_interrupts(interrupt_stats),
       top_damage_sources: extract_top_damage(damage_stats),
-      recommendations: generate_recommendations(failure_stats, interrupt_stats, deaths),
+      recommendations: generate_recommendations(failure_stats, interrupt_stats, deaths, underperformers),
       raw_stats: %{
         deaths: deaths,
         damage_stats: damage_stats,
+        damage_done: damage_done,
         interrupt_stats: interrupt_stats,
         debuff_stats: debuff_stats,
         failure_stats: failure_stats
@@ -97,6 +102,7 @@ defmodule WeGoNext.Analyzers.PullSummary do
 
         %{
           spell_name: spell_name,
+          spell_id: first_fail.spell_id,
           mechanic_type: first_fail.mechanic_type,
           failure_count: length(fails),
           total_damage: fails |> Enum.map(& &1.total_damage) |> Enum.sum(),
@@ -213,7 +219,7 @@ defmodule WeGoNext.Analyzers.PullSummary do
   end
 
   # Generate actionable recommendations based on the data
-  defp generate_recommendations(failure_stats, interrupt_stats, deaths) do
+  defp generate_recommendations(failure_stats, interrupt_stats, deaths, underperformers) do
     recommendations = []
 
     # Check for avoidable damage issues
@@ -256,6 +262,15 @@ defmodule WeGoNext.Analyzers.PullSummary do
     recommendations =
       if length(tank_deaths) > 0 do
         ["Review tank healing/cooldowns - tank death from melee damage" | recommendations]
+      else
+        recommendations
+      end
+
+    # Check for underperformers (low DPS not due to death)
+    recommendations =
+      if length(underperformers) > 0 do
+        names = underperformers |> Enum.map(& &1.player_name) |> Enum.take(2) |> Enum.join(", ")
+        ["Low DPS (not due to death): #{names}" | recommendations]
       else
         recommendations
       end

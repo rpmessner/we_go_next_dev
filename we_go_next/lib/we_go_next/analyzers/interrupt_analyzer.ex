@@ -69,17 +69,18 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
     - :missed_casts - list of enemy casts that completed (no interrupt)
   """
   def analyze(%Encounter{} = encounter) do
-    events = Enum.reverse(encounter.events)
+    # Events are now loaded from DB in chronological order
+    events = encounter.events
 
     # First pass: collect all SPELL_CAST_START events (potential interrupt targets)
     # and SPELL_INTERRUPT events
     {interrupts, cast_starts, cast_successes} =
       Enum.reduce(events, {[], %{}, []}, fn event, acc ->
-        process_event(event, encounter, acc)
+        process_event(event, acc)
       end)
 
     # Match cast starts with interrupts or successes to find missed kicks
-    {spell_stats, missed_casts} = analyze_casts(cast_starts, cast_successes, interrupts, encounter)
+    {spell_stats, missed_casts} = analyze_casts(cast_starts, cast_successes, interrupts)
 
     # Build player stats from interrupts
     player_stats = build_player_stats(interrupts)
@@ -92,61 +93,22 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
     }
   end
 
-  # Process SPELL_INTERRUPT events
-  defp process_event(%{type: "SPELL_INTERRUPT"} = event, encounter, {interrupts, cast_starts, cast_successes}) do
-    case parse_interrupt(event, encounter) do
-      {:ok, interrupt} ->
-        {[interrupt | interrupts], cast_starts, cast_successes}
-      _ ->
-        {interrupts, cast_starts, cast_successes}
-    end
-  end
-
-  # Process SPELL_CAST_START - enemy begins casting (interruptible)
-  defp process_event(%{type: "SPELL_CAST_START"} = event, encounter, {interrupts, cast_starts, cast_successes}) do
-    case parse_cast_start(event, encounter) do
-      {:ok, caster_guid, spell_id, cast_info} ->
-        # Key by caster + spell to track this specific cast
-        key = {caster_guid, spell_id}
-        updated_starts = Map.put(cast_starts, key, cast_info)
-        {interrupts, updated_starts, cast_successes}
-      _ ->
-        {interrupts, cast_starts, cast_successes}
-    end
-  end
-
-  # Process SPELL_CAST_SUCCESS - cast completed (missed interrupt if was interruptible)
-  defp process_event(%{type: "SPELL_CAST_SUCCESS"} = event, encounter, {interrupts, cast_starts, cast_successes}) do
-    case parse_cast_success(event, encounter) do
-      {:ok, cast_info} ->
-        {interrupts, cast_starts, [cast_info | cast_successes]}
-      _ ->
-        {interrupts, cast_starts, cast_successes}
-    end
-  end
-
-  defp process_event(_event, _encounter, acc), do: acc
-
-  # Parse SPELL_INTERRUPT event
-  # Format: sourceGUID, sourceName, sourceFlags, sourceRaidFlags,
-  #         destGUID, destName, destFlags, destRaidFlags,
-  #         interruptSpellId, interruptSpellName, interruptSpellSchool,
-  #         interruptedSpellId, interruptedSpellName, interruptedSpellSchool
-  defp parse_interrupt(%{timestamp: timestamp, data: data}, encounter) do
-    interrupter_guid = Enum.at(data, 1)
-    interrupter_name = Enum.at(data, 2)
-    target_guid = Enum.at(data, 5)
-    target_name = Enum.at(data, 6)
-    interrupt_spell_id = Enum.at(data, 9) |> parse_int()
-    interrupt_spell_name = Enum.at(data, 10)
-    interrupted_spell_id = Enum.at(data, 12) |> parse_int()
-    interrupted_spell_name = Enum.at(data, 13)
+  # Process SPELL_INTERRUPT events - now using normalized event fields
+  defp process_event(%{type: "SPELL_INTERRUPT"} = event, {interrupts, cast_starts, cast_successes}) do
+    interrupter_guid = event.source_guid
+    interrupter_name = event.source_name
+    target_guid = event.target_guid
+    target_name = event.target_name
+    interrupt_spell_id = event.spell_id
+    interrupt_spell_name = event.spell_name
+    interrupted_spell_id = event.extra_spell_id
+    interrupted_spell_name = event.extra_spell_name
 
     # Only track player interrupts
-    if is_player_guid?(interrupter_guid) do
-      {:ok, %Interrupt{
-        timestamp: timestamp,
-        time_into_fight: time_into_fight(encounter.start_time, timestamp),
+    if player_guid?(interrupter_guid) do
+      interrupt = %Interrupt{
+        timestamp: event.timestamp,
+        time_into_fight: event.time_into_fight,
         interrupter_name: interrupter_name,
         interrupter_guid: interrupter_guid,
         target_name: target_name,
@@ -155,58 +117,64 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
         interrupt_spell_id: interrupt_spell_id,
         interrupted_spell_name: interrupted_spell_name,
         interrupted_spell_id: interrupted_spell_id
-      }}
+      }
+      {[interrupt | interrupts], cast_starts, cast_successes}
     else
-      :error
+      {interrupts, cast_starts, cast_successes}
     end
   end
 
-  # Parse SPELL_CAST_START (enemy beginning a cast)
-  defp parse_cast_start(%{timestamp: timestamp, data: data}, encounter) do
-    caster_guid = Enum.at(data, 1)
-    caster_name = Enum.at(data, 2)
-    spell_id = Enum.at(data, 9) |> parse_int()
-    spell_name = Enum.at(data, 10)
+  # Process SPELL_CAST_START - enemy begins casting (interruptible)
+  defp process_event(%{type: "SPELL_CAST_START"} = event, {interrupts, cast_starts, cast_successes}) do
+    caster_guid = event.source_guid
+    caster_name = event.source_name
+    spell_id = event.spell_id
+    spell_name = event.spell_name
 
     # Only track NPC casts (enemies we might want to interrupt)
-    if is_npc_guid?(caster_guid) do
+    if npc_guid?(caster_guid) do
       cast_info = %{
-        timestamp: timestamp,
-        time_into_fight: time_into_fight(encounter.start_time, timestamp),
+        timestamp: event.timestamp,
+        time_into_fight: event.time_into_fight,
         caster_name: caster_name,
         caster_guid: caster_guid,
         spell_name: spell_name,
         spell_id: spell_id
       }
-      {:ok, caster_guid, spell_id, cast_info}
+      key = {caster_guid, spell_id}
+      updated_starts = Map.put(cast_starts, key, cast_info)
+      {interrupts, updated_starts, cast_successes}
     else
-      :error
+      {interrupts, cast_starts, cast_successes}
     end
   end
 
-  # Parse SPELL_CAST_SUCCESS
-  defp parse_cast_success(%{timestamp: timestamp, data: data}, encounter) do
-    caster_guid = Enum.at(data, 1)
-    caster_name = Enum.at(data, 2)
-    spell_id = Enum.at(data, 9) |> parse_int()
-    spell_name = Enum.at(data, 10)
+  # Process SPELL_CAST_SUCCESS - cast completed (missed interrupt if was interruptible)
+  defp process_event(%{type: "SPELL_CAST_SUCCESS"} = event, {interrupts, cast_starts, cast_successes}) do
+    caster_guid = event.source_guid
+    caster_name = event.source_name
+    spell_id = event.spell_id
+    spell_name = event.spell_name
 
-    if is_npc_guid?(caster_guid) do
-      {:ok, %{
-        timestamp: timestamp,
-        time_into_fight: time_into_fight(encounter.start_time, timestamp),
+    if npc_guid?(caster_guid) do
+      cast_info = %{
+        timestamp: event.timestamp,
+        time_into_fight: event.time_into_fight,
         caster_name: caster_name,
         caster_guid: caster_guid,
         spell_name: spell_name,
         spell_id: spell_id
-      }}
+      }
+      {interrupts, cast_starts, [cast_info | cast_successes]}
     else
-      :error
+      {interrupts, cast_starts, cast_successes}
     end
   end
 
+  defp process_event(_event, acc), do: acc
+
   # Analyze casts to determine which were interrupted vs completed
-  defp analyze_casts(_cast_starts, cast_successes, interrupts, _encounter) do
+  defp analyze_casts(_cast_starts, cast_successes, interrupts) do
     # Build set of interrupted spells (by spell_id)
     interrupted_spell_ids =
       interrupts
@@ -302,24 +270,11 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
   end
 
   # Helper functions
-  defp is_player_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Player-")
-  defp is_player_guid?(_), do: false
+  defp player_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Player-")
+  defp player_guid?(_), do: false
 
-  defp is_npc_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Creature-")
-  defp is_npc_guid?(_), do: false
-
-  defp time_into_fight(start_time, event_time) do
-    NaiveDateTime.diff(event_time, start_time, :millisecond) / 1000
-  end
-
-  defp parse_int(nil), do: 0
-  defp parse_int(value) when is_integer(value), do: value
-  defp parse_int(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {num, _} -> num
-      :error -> 0
-    end
-  end
+  defp npc_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Creature-")
+  defp npc_guid?(_), do: false
 
   @doc """
   Formats interrupt summary for display.

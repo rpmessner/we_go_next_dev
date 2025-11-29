@@ -40,6 +40,8 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
     defstruct [
       :spell_name,
       :spell_id,
+      :source_guid,
+      :source_name,
       total_applications: 0,
       players_affected: 0,
       by_player: %{}       # %{player_guid => count}
@@ -55,12 +57,13 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
     - :by_spell - map of spell_name => %SpellStats{}
   """
   def analyze(%Encounter{} = encounter) do
-    events = Enum.reverse(encounter.events)
+    # Events are now loaded from DB in chronological order
+    events = encounter.events
 
     # First pass: collect all debuff applications
     {applications, pending} =
       Enum.reduce(events, {[], %{}}, fn event, acc ->
-        process_event(event, encounter, acc)
+        process_event(event, acc)
       end)
 
     # Finalize any debuffs that were never removed (still active at end of fight)
@@ -82,108 +85,94 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
     }
   end
 
-  # Process SPELL_AURA_APPLIED - debuff applied
-  defp process_event(%{type: "SPELL_AURA_APPLIED"} = event, encounter, {applications, pending}) do
-    case parse_aura_applied(event, encounter) do
-      {:ok, :debuff, app} ->
-        # Track this application, keyed by player+spell for matching with removal
-        key = {app.player_guid, app.spell_id}
-        updated_pending = Map.update(pending, key, [app], &[app | &1])
-        {applications, updated_pending}
+  # Process SPELL_AURA_APPLIED - debuff applied (now using normalized event fields)
+  defp process_event(%{type: "SPELL_AURA_APPLIED"} = event, {applications, pending}) do
+    dest_guid = event.target_guid
 
-      _ ->
-        {applications, pending}
+    # Only track debuffs on players
+    # Note: aura_type is stored in extra map for aura events
+    aura_type = get_in(event, [:extra, "aura_type"])
+
+    if player_guid?(dest_guid) and aura_type == "DEBUFF" do
+      app = %DebuffApplication{
+        timestamp: event.timestamp,
+        time_into_fight: event.time_into_fight,
+        player_name: event.target_name,
+        player_guid: dest_guid,
+        spell_name: event.spell_name,
+        spell_id: event.spell_id,
+        source_name: event.source_name,
+        source_guid: event.source_guid,
+        duration: nil,
+        removed_at: nil
+      }
+      key = {dest_guid, event.spell_id}
+      updated_pending = Map.update(pending, key, [app], &[app | &1])
+      {applications, updated_pending}
+    else
+      {applications, pending}
     end
   end
 
   # Process SPELL_AURA_REMOVED - debuff removed (calculate duration)
-  defp process_event(%{type: "SPELL_AURA_REMOVED"} = event, encounter, {applications, pending}) do
-    case parse_aura_removed(event, encounter) do
-      {:ok, player_guid, spell_id, removed_at, time_into_fight} ->
-        key = {player_guid, spell_id}
+  defp process_event(%{type: "SPELL_AURA_REMOVED"} = event, {applications, pending}) do
+    player_guid = event.target_guid
+    spell_id = event.spell_id
+    aura_type = get_in(event, [:extra, "aura_type"])
 
-        case Map.get(pending, key) do
-          [app | rest] ->
-            # Calculate duration
-            duration = time_into_fight - app.time_into_fight
-            completed_app = %{app | duration: duration, removed_at: removed_at}
+    if player_guid?(player_guid) and aura_type == "DEBUFF" do
+      key = {player_guid, spell_id}
 
-            # Update pending map
-            updated_pending = if Enum.empty?(rest) do
-              Map.delete(pending, key)
-            else
-              Map.put(pending, key, rest)
-            end
+      case Map.get(pending, key) do
+        [app | rest] ->
+          # Calculate duration
+          duration = event.time_into_fight - app.time_into_fight
+          completed_app = %{app | duration: duration, removed_at: event.timestamp}
 
-            {[completed_app | applications], updated_pending}
+          # Update pending map
+          updated_pending = if Enum.empty?(rest) do
+            Map.delete(pending, key)
+          else
+            Map.put(pending, key, rest)
+          end
 
-          _ ->
-            # No matching application found (debuff was applied before encounter started)
-            {applications, pending}
-        end
+          {[completed_app | applications], updated_pending}
 
-      _ ->
-        {applications, pending}
+        _ ->
+          # No matching application found (debuff was applied before encounter started)
+          {applications, pending}
+      end
+    else
+      {applications, pending}
     end
   end
 
   # Process SPELL_AURA_APPLIED_DOSE - stacking debuff
-  defp process_event(%{type: "SPELL_AURA_APPLIED_DOSE"} = event, encounter, {applications, pending}) do
-    # Treat dose applications as separate debuff hits (shows they're taking repeated damage)
-    case parse_aura_applied(event, encounter) do
-      {:ok, :debuff, app} ->
-        # Add directly to applications (stacks are instant, no duration tracking needed)
-        {[app | applications], pending}
+  defp process_event(%{type: "SPELL_AURA_APPLIED_DOSE"} = event, {applications, pending}) do
+    dest_guid = event.target_guid
+    aura_type = get_in(event, [:extra, "aura_type"])
 
-      _ ->
-        {applications, pending}
-    end
-  end
-
-  defp process_event(_event, _encounter, acc), do: acc
-
-  # Parse SPELL_AURA_APPLIED event
-  defp parse_aura_applied(%{timestamp: timestamp, data: data}, encounter) do
-    source_guid = Enum.at(data, 1)
-    source_name = Enum.at(data, 2)
-    dest_guid = Enum.at(data, 5)
-    dest_name = Enum.at(data, 6)
-    spell_id = Enum.at(data, 9) |> parse_int()
-    spell_name = Enum.at(data, 10)
-    aura_type = Enum.at(data, 12)  # "BUFF" or "DEBUFF"
-
-    # Only track debuffs on players
-    if is_player_guid?(dest_guid) and aura_type == "DEBUFF" do
+    if player_guid?(dest_guid) and aura_type == "DEBUFF" do
       app = %DebuffApplication{
-        timestamp: timestamp,
-        time_into_fight: time_into_fight(encounter.start_time, timestamp),
-        player_name: dest_name,
+        timestamp: event.timestamp,
+        time_into_fight: event.time_into_fight,
+        player_name: event.target_name,
         player_guid: dest_guid,
-        spell_name: spell_name,
-        spell_id: spell_id,
-        source_name: source_name,
-        source_guid: source_guid,
+        spell_name: event.spell_name,
+        spell_id: event.spell_id,
+        source_name: event.source_name,
+        source_guid: event.source_guid,
         duration: nil,
         removed_at: nil
       }
-      {:ok, :debuff, app}
+      # Add directly to applications (stacks are instant, no duration tracking needed)
+      {[app | applications], pending}
     else
-      :skip
+      {applications, pending}
     end
   end
 
-  # Parse SPELL_AURA_REMOVED event
-  defp parse_aura_removed(%{timestamp: timestamp, data: data}, encounter) do
-    dest_guid = Enum.at(data, 5)
-    spell_id = Enum.at(data, 9) |> parse_int()
-    aura_type = Enum.at(data, 12)
-
-    if is_player_guid?(dest_guid) and aura_type == "DEBUFF" do
-      {:ok, dest_guid, spell_id, timestamp, time_into_fight(encounter.start_time, timestamp)}
-    else
-      :skip
-    end
-  end
+  defp process_event(_event, acc), do: acc
 
   # Build player statistics from applications
   defp build_player_stats(applications) do
@@ -238,6 +227,8 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
     %SpellStats{
       spell_name: app.spell_name,
       spell_id: app.spell_id,
+      source_guid: app.source_guid,
+      source_name: app.source_name,
       total_applications: 1,
       players_affected: 1,
       by_player: %{app.player_guid => 1}
@@ -254,21 +245,8 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
   end
 
   # Helper functions
-  defp is_player_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Player-")
-  defp is_player_guid?(_), do: false
-
-  defp time_into_fight(start_time, event_time) do
-    NaiveDateTime.diff(event_time, start_time, :millisecond) / 1000
-  end
-
-  defp parse_int(nil), do: 0
-  defp parse_int(value) when is_integer(value), do: value
-  defp parse_int(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {num, _} -> num
-      :error -> 0
-    end
-  end
+  defp player_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Player-")
+  defp player_guid?(_), do: false
 
   @doc """
   Formats debuff summary for display.
@@ -366,4 +344,22 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
     |> Enum.filter(&(&1.players_affected >= min_players))
     |> Enum.sort_by(& &1.total_applications, :desc)
   end
+
+  @doc """
+  Checks if a source GUID is from a player (vs NPC/boss).
+  """
+  def player_source?(source_guid) when is_binary(source_guid) do
+    String.starts_with?(source_guid, "Player-")
+  end
+
+  def player_source?(_), do: false
+
+  @doc """
+  Checks if a source GUID is from an NPC (boss, add, creature).
+  """
+  def npc_source?(source_guid) when is_binary(source_guid) do
+    String.starts_with?(source_guid, "Creature-")
+  end
+
+  def npc_source?(_), do: false
 end
