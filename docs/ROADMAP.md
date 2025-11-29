@@ -41,10 +41,11 @@ True live-during-combat would require a companion addon (post-MVP consideration)
 | **M1: Core Events** | ✅ Nov 2025 | Death tracking, damage taken analysis |
 | **M2: Discovery Mode** | ✅ Nov 2025 | Surface interesting events, basic UI |
 | **M3: Criteria System** | ✅ Nov 2025 | Mark/track mechanics, failure detection |
-| **M4: File Watching** | ✅ Nov 2025 | Auto-refresh on encounter end |
+| **M4: File Refresh** | ✅ Nov 2025 | Manual refresh, incremental parsing |
 | **M5: Analysis Reports** | ✅ Nov 2025 | Between-pull summaries, trends |
 | **M6: Pre-Launch Polish** | Early Mar 2026 | Final testing, bug fixes |
 | **MVP Launch** | **Mid-March 2026** | **Ready for Midnight raids Day 1** |
+| **Post-MVP: Player Reports** | Q2 2026 | Private coaching for Discord DMs |
 | **Post-MVP: Strategy Diagrams** | Q2-Q3 2026 | Minimap annotations, Discord export |
 | **Post-MVP: Addon Distribution** | Q3-Q4 2026 | In-game results sharing |
 
@@ -188,36 +189,36 @@ Defined categories for tracked abilities:
 
 ---
 
-## Phase 4: File Watching & Auto-Refresh
+## Phase 4: File Watching & Refresh
 
-**Goal:** Automatically detect new encounters and refresh dashboard
-**Target:** May 2026
+**Goal:** Detect new encounters and refresh dashboard
+**Status:** Manual refresh implemented (MVP), auto-polling deferred
 
-**Note:** Due to WoW's combat log buffering, we cannot get true real-time data during active combat. This phase focuses on **instant detection when encounters end**.
+### Current Implementation (MVP)
 
-### 4A: File Watching
+Manual refresh via "Refresh" button in the UI. This works reliably and is the recommended approach for MVP.
+
+**Completed:**
+- [x] Incremental log parsing (only reads new bytes)
+- [x] Log rotation detection
+- [x] Manual "Refresh" button for syncing
+- [x] Encounter list updates immediately on refresh
+
+### Archived: Auto-Polling (Nice-to-Have)
+
+Auto-polling was implemented but removed because WoW's combat log buffering makes it unreliable and confusing. Manual refresh works well and is simpler.
+
+If revisited far in the future:
+- Smarter heuristics for detecting actual new encounters
+- Only poll after detecting `ENCOUNTER_END` pattern
+
+### Dashboard Polish
 
 **Tasks:**
-- [ ] Poll combat log file for changes (every 500ms-1s)
-- [ ] Detect new `ENCOUNTER_END` events
-- [ ] Handle file rotation (WoW log file changes)
-- [ ] Maintain read position between polls
-
-### 4B: Auto-Refresh Dashboard
-
-**Tasks:**
-- [ ] Push new encounter to LiveView when detected
-- [ ] Auto-run all analyzers on new encounter
-- [ ] Update encounter list in real-time
-- [ ] Show "Encounter in progress..." during combat (optional)
-
-### 4C: Dashboard Polish
-
-**Tasks:**
-- [ ] Most recent encounter prominently displayed
-- [ ] Quick navigation between pulls
-- [ ] Glanceable summary (deaths, key failures)
-- [ ] Sound notification when new encounter ready (optional)
+- [x] Most recent encounter prominently displayed
+- [x] Quick navigation between pulls
+- [x] Glanceable summary (deaths, key failures)
+- [ ] Keyboard shortcuts for common actions
 
 ---
 
@@ -466,13 +467,14 @@ MCP server (`wow_mcp`) is used **only during addon development**:
 13. Mobile views
 14. Profile sharing
 15. Heat maps
+16. Auto-polling (if manual refresh becomes annoying)
 
 ---
 
 ## Success Criteria
 
 ### MVP (Midnight Launch)
-- [x] File watching detects encounter end within seconds
+- [x] Manual refresh detects new encounters reliably
 - [x] Deaths and failures displayed immediately after pull
 - [x] Criteria system working (mark abilities to track)
 - [x] Failures shown on dashboard
@@ -506,7 +508,7 @@ If we're falling behind, cut in this order:
 
 These MUST work for launch:
 - [x] Death tracking with cause (Phase 1A) ✅
-- [x] File watching with encounter detection (Phase 4A) ✅
+- [x] Manual refresh with encounter detection (Phase 4) ✅
 - [x] Dashboard showing deaths/failures after pull ends (Phase 4C) ✅
 - [x] Basic criteria matching (Phase 3D) ✅
 - [x] Between-pull summary (Phase 5A) ✅

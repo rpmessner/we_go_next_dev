@@ -1,0 +1,1 @@
+/home/rpmessner/dev/games/we_go_next_dev/CLAUDE.md

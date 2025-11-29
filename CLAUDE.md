@@ -1,13 +1,16 @@
 # WoW Diagnostic Tool
 
 ## Purpose
+
 A diagnostic tool for raid progression and Mythic+ dungeons. Diagnoses mechanic failures, coaches players privately, and improves group performance. Built for Hand of Algalon on Wyrmrest Accord.
 
 **Primary Focus:** Raid progression (MVP for Midnight launch)
 **Secondary Focus:** Mythic+ analysis (works automatically, enhanced features post-MVP)
 
 ## Long-Term Vision
+
 **Between-Pull Diagnostic Dashboard**: A web application that runs alongside WoW and provides:
+
 1. **Instant between-pull analysis** - What went wrong, who needs coaching, are we improving
 2. **Strategy diagrams** - Annotated minimap images for Discord coordination
 3. **Private coaching reports** - Per-player feedback for Discord DMs
@@ -15,13 +18,16 @@ A diagnostic tool for raid progression and Mythic+ dungeons. Diagnoses mechanic 
 **Note on "Live" Updates:** WoW buffers combat log writes during active combat (can delay minutes). True real-time during pulls would require an in-game addon. Our tool focuses on **instant analysis when encounters end** - the log flushes on `ENCOUNTER_END` and we process immediately. This is when feedback is actionable anyway (during runback/rebuff).
 
 ### Target Launch: Midnight Expansion Raids
+
 - **Midnight release:** March 2, 2026
 - **Raid opening:** Mid-March 2026 (typically 1-2 weeks after expansion launch)
 - **First raids:** The Voidspire (6 bosses), The Dreamrift (1 boss), March of Quel'Danas (2 bosses)
 - **MVP Goal:** Working diagnostic tool ready for Day 1 raid progression
 
 ### Mythic+ Support
+
 The same combat log powers both raid and M+ analysis. Core features work identically:
+
 - **Deaths** - Same tracking, M+ adds time penalty context (post-MVP)
 - **Interrupts** - Critical for both; M+ kick rotations are life or death
 - **Avoidable damage** - Same detection, M+ aggregates per-dungeon (post-MVP)
@@ -30,7 +36,9 @@ The same combat log powers both raid and M+ analysis. Core features work identic
 **Post-MVP:** M+-specific features (death timer cost, affix tracking, dungeon summaries)
 
 ### Current Phase: MVP Core Complete ✅
+
 All non-negotiable MVP features are implemented:
+
 - ✅ Working Elixir parser that reads WoW combat logs
 - ✅ Parses encounter boundaries and combat events
 - ✅ Death analyzer with killing blow and damage recap
@@ -46,7 +54,9 @@ All non-negotiable MVP features are implemented:
 **Next Phase:** End-to-end integration testing (see `docs/INTEGRATION_ROADMAP.md`)
 
 ### Key Differentiator
-This is NOT a damage meter. It's a **coaching tool** that:
+
+This is NOT just a damage meter. It's a **coaching tool** that:
+
 - Identifies mechanic failures (who stood in fire, missed soaks, failed interrupts)
 - Generates private feedback for individual players
 - Builds boss profiles iteratively during progression
@@ -55,6 +65,7 @@ This is NOT a damage meter. It's a **coaching tool** that:
 ## Three Output Modes
 
 ### 1. Between Pulls (Primary - Analysis Report)
+
 - What killed us / why we wiped
 - Per-player mechanic failures with timestamps
 - Comparison to previous attempts
@@ -62,6 +73,7 @@ This is NOT a damage meter. It's a **coaching tool** that:
 - Ready within seconds of encounter ending
 
 ### 2. In-Game Distribution (Optional - Post-MVP)
+
 - we_go_next writes analysis to WoW SavedVariables
 - Raid lead `/reload` → WeGoNext addon reads results
 - Addon broadcasts to all raid members via addon comm
@@ -70,6 +82,7 @@ This is NOT a damage meter. It's a **coaching tool** that:
 - **Note:** MCP server used only for addon development, not during raids
 
 ### 3. Strategy Communication (Discord)
+
 - Annotated minimap diagrams
 - Position markers, movement arrows, assignments
 - Can overlay actual death locations from combat data
@@ -88,9 +101,11 @@ Since you can't predict what mechanics cause problems during progression:
 ## Data Sources
 
 ### Primary: WoW Combat Log (Used by Parser)
+
 **Location:** `/mnt/g/World of Warcraft/_retail_/Logs/WoWCombatLog-*.txt`
 
 This is the **only** data source the parser uses. These are raw combat log files written by the WoW game client in real-time during gameplay. Format:
+
 ```
 11/22/2025 11:20:43.174-5  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,...
 11/22/2025 11:39:35.297-5  ENCOUNTER_START,2887,"Plexus Sentinel",15,20,2652
@@ -98,31 +113,38 @@ This is the **only** data source the parser uses. These are raw combat log files
 ```
 
 ### NOT Used: Warcraft Logs CSV Exports
+
 **Location:** `./data/` directory (legacy, not used by parser)
 
 The `data/` folder contains CSV exports from warcraftlogs.com website - these are **processed/aggregated** data, not raw combat logs. They were used in early exploration but are **not** used by the combat log parser. Example content:
+
 ```csv
 "Name","Amount","Casts","Avg Cast",...
 "Diabolic Ritual","694526998$26.47%694.53m","-","-",...
 ```
 
 ### Future: Strategy Diagrams
+
 - **Minimap Backgrounds**: Datamined arena maps for strategy diagrams (post-MVP)
 
 ## Character List
+
 All characters on **Wyrmrest Accord** (US)
 
 ### Main Raiding Character
+
 - **Mittwoch** - Warlock (Demonology/Affliction)
 - **Guild**: Hand of Algalon
 - **Current Content**: Mythic Manaforge Omega
 
 ### Alts
+
 Nekoken (Druid), Elehal (Mage), Kitsuneken (DK), Kumaken (Shaman), Pannonica (DH), Kossil (Priest), Shoryuken (Monk), Kyouken (Rogue), Tatsuken (Warrior), Soryuken (Evoker), Kekonen (Paladin)
 
 ## Project Organization
 
 ### Directory Structure
+
 ```
 wow_analysis/
 ├── we_go_next/                     # Phoenix/Elixir web app (Mix project)
@@ -170,27 +192,31 @@ wow_analysis/
 ```
 
 ### Session Documentation
+
 - Location: `docs/sessions/YYYY-MM-DD_description.md`
 - **Immutable**: Never edit old session logs, always create new ones
 - **Exception**: If information is later found to be incorrect, you may:
   1. ~~Strike through~~ the incorrect text using `~~strikethrough~~`
-  2. Add a clarification remark (e.g., "*[Note: This was incorrect, see session X]*")
+  2. Add a clarification remark (e.g., "_[Note: This was incorrect, see session X]_")
 - These are the **only** allowable modifications to historical session logs
 
 ## Quick Reference
 
 ### Key Locations
+
 - **Project Root**: `/home/rpmessner/dev/games/wow_analysis/`
 - **Combat Logs**: `/mnt/g/World of Warcraft/_retail_/Logs/`
 - **Session Logs**: `docs/sessions/`
 
 ### Documentation
+
 - **Roadmap**: `docs/ROADMAP.md` - Development phases and priorities
 - **Integration**: `docs/INTEGRATION_ROADMAP.md` - End-to-end testing plan
 - **Architecture**: `docs/TECHNICAL_ARCHITECTURE.md` - Tech stack decisions
 - **Sessions**: `docs/sessions/` - Historical session logs
 
 ### Running the App
+
 ```bash
 cd we_go_next
 mix compile
@@ -202,6 +228,7 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 ## Technical Details
 
 ### Combat Log Events for Diagnostics
+
 - `SPELL_DAMAGE` - Avoidable damage (standing in bad)
 - `SPELL_INTERRUPT` - Interrupt assignments (and missed)
 - `SPELL_AURA_APPLIED` - Debuffs that shouldn't happen
@@ -209,6 +236,7 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - `SWING_DAMAGE`, `SPELL_PERIODIC_DAMAGE` - Damage patterns
 
 ### Tech Stack
+
 - **Backend**: Elixir (streams, pattern matching, fault tolerance)
 - **Web Framework**: Phoenix with LiveView (real-time updates)
 - **Database**: PostgreSQL with Ecto (encounter persistence, incremental parsing)
@@ -218,6 +246,7 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 ## Recent Updates
 
 ### 2025-11-28: MVP Core Complete - Pull Summary Implementation
+
 - Implemented `PullSummary` analyzer that aggregates all analyzer outputs
 - Added "Summary" tab as default view in encounter detail LiveView
 - Summary includes: wipe cause, deaths breakdown, critical failures, players needing coaching, recommendations
@@ -226,12 +255,14 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - Next step: wire up log selection UI and live file watching for real-time demo
 
 ### 2025-11-27: Criteria System and Failure Detection
+
 - Implemented criteria system for tracking specific mechanics
 - Added FailureAnalyzer that checks damage/interrupts against criteria
 - Failures tab shows mechanic failures by player and by mechanic
 - UI allows clicking abilities to mark them as "avoidable", "must interrupt", etc.
 
 ### 2025-11-26: Project Renamed to "we_go_next"
+
 - Renamed from generic "combat_log_parser" to raid-themed "we_go_next"
 - Name references raid progression phrase ("we go next" after wipes)
 - Updated all module namespaces: `CombatLogParser` → `WeGoNext`, `CombatLogParserWeb` → `WeGoNextWeb`
@@ -239,17 +270,20 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - All 25 source files updated, project compiles and runs successfully
 
 ### 2025-11-25: Phase 1 Complete, Between-Pull Focus Confirmed
+
 - All four core analyzers complete (death, damage, interrupt, debuff)
 - Clarified that WoW buffers combat log writes during combat (not suitable for true real-time)
 - Confirmed between-pull analysis as primary focus - log flushes on encounter end
 - "Live dashboard" renamed to "between-pull dashboard" throughout docs
 
 ### 2025-11-24: Added Mythic+ as Secondary Goal
+
 - M+ analysis works automatically (same combat log, same analyzers)
 - Raid progression remains primary focus for MVP
 - M+-specific features (death timers, affix tracking) planned for post-MVP
 
 ### 2025-11-24: Project Pivot to Diagnostic Tool
+
 - Shifted from personal DPS analysis to raid-wide diagnostic focus
 - Target launch: Midnight expansion raids (early 2026)
 - Three output modes: live dashboard, between-pull analysis, strategy diagrams
@@ -257,11 +291,13 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - Private coaching focus (not public callouts)
 
 ### 2025-11-23: WoWAnalyzer Research
+
 - Studied WoWAnalyzer architecture patterns
 - Identified normalizer pipeline approach
 - Created initial roadmap (now superseded by diagnostic focus)
 
 ### 2025-11-22: Combat Log Parser Working
+
 - Built Elixir parser for WoW combat logs
 - Successfully parsed 603MB log with 20 encounters
 - Foundation established for real-time processing
@@ -269,15 +305,18 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 ## Development Philosophy
 
 ### PRIME DIRECTIVE: MVP for Midnight Raids
+
 **The tool MUST be usable for Day 1 Midnight progression (late Jan - March 2026).**
 
 When making scope decisions:
+
 - Cut features before missing the launch window
 - "Good enough" beats "perfect but late"
 - Core loop (deaths → failures → reports) is non-negotiable
 - Everything else is negotiable
 
 If falling behind schedule:
+
 1. Cut strategy diagrams (Phase 6)
 2. Simplify criteria system (hardcode common mechanics)
 3. Skip polish (Phase 7)
@@ -286,7 +325,73 @@ If falling behind schedule:
 **Post-Midnight:** After launch, deadline pressure is off. Take time for polish and new features without a hard target.
 
 ### Other Principles
+
 - **Progression-focused**: Build what we need as we discover problems
 - **Private coaching**: Help players improve without embarrassment
 - **Iterative**: Start generic, add boss-specific criteria during prog
 - **Between-pull focus**: Analysis ready during runback when it's actionable
+
+## Testing
+
+### Feature Tests with Page Objects
+
+Feature tests (Wallaby integration tests) **must use the page object pattern**. This keeps tests readable and maintainable.
+
+**Page objects location:** `test/support/pages/`
+
+**Pattern:**
+
+```elixir
+# Good - using page objects
+session
+|> HomePage.navigate()
+|> HomePage.ensure_page_loaded()
+|> HomePage.select_log_file()
+|> HomePage.click_import()
+|> HomePage.wait_for_encounters()
+|> HomePage.click_first_encounter()
+|> EncounterDetailPage.ensure_page_loaded()
+
+# Bad - raw selectors in tests
+session
+|> visit("/")
+|> assert_has(css("h1", text: "WoW Raid Diagnostic Tool"))
+|> execute_script("var select = document.querySelector...")
+|> click(css("button[type='submit']"))
+```
+
+**Available page objects:**
+
+- `HomePage` - Encounter list, log selection, import/refresh
+- `EncounterDetailPage` - Encounter detail view, tabs, assertions
+- `SettingsPage` - Path configuration, file watching
+
+**Creating new page objects:**
+
+1. Create `test/support/pages/your_page.ex`
+2. `use Wallaby.DSL`
+3. Add `navigate/1`, `ensure_page_loaded/1` functions
+4. Add action functions (`click_*`, `fill_in_*`)
+5. Add assertion functions (`assert_*`)
+
+**Reference:** See `~/dev/fun/tilex/test/support/pages/` for the original pattern.
+
+### Caching
+
+Explore all other alternatives before reaching for ets table caching
+
+### Running Tests
+
+```bash
+# All tests
+mix test
+
+# Feature tests only
+mix test test/features/
+
+# Specific test
+mix test test/features/minimal_flow_test.exs
+
+# With Credo
+mix credo
+```
