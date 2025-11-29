@@ -6,9 +6,27 @@ import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+
+// Wowhead tooltip refresh hook - refreshes tooltips when LiveView updates the DOM
+let Hooks = {}
+Hooks.WowheadTooltips = {
+  mounted() {
+    this.refreshTooltips()
+  },
+  updated() {
+    this.refreshTooltips()
+  },
+  refreshTooltips() {
+    if (typeof $WowheadPower !== 'undefined' && $WowheadPower.refreshLinks) {
+      $WowheadPower.refreshLinks()
+    }
+  }
+}
+
 let liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken}
+  params: {_csrf_token: csrfToken},
+  hooks: Hooks
 })
 
 // Show progress bar on live navigation and form submits

@@ -10,7 +10,9 @@ defmodule WeGoNext.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      test_pattern: "*_test.exs",
+      test_paths: ["test"]
     ]
   end
 
@@ -35,8 +37,14 @@ defmodule WeGoNext.MixProject do
         "tailwind we_go_next --minify",
         "esbuild we_go_next --minify",
         "phx.digest"
-      ]
+      ],
+      test: ["test"]
     ]
+  end
+
+  # Ensure test always runs in test env, even if MIX_ENV is set in shell
+  def cli do
+    [preferred_envs: [test: :test]]
   end
 
   defp deps do
@@ -57,7 +65,8 @@ defmodule WeGoNext.MixProject do
       {:phoenix_ecto, "~> 4.4"},
       {:postgrex, "~> 0.17"},
       {:wallaby, "~> 0.30", runtime: false, only: :test},
-      {:tidewave, "~> 0.5", only: :dev}
+      {:tidewave, "~> 0.5", only: :dev},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
 end

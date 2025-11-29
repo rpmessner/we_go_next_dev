@@ -2,6 +2,7 @@ import Config
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
+
 config :we_go_next, WeGoNextWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   http: [ip: {127, 0, 0, 1}, port: 4000],

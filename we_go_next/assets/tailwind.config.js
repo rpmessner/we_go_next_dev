@@ -8,8 +8,8 @@ const path = require("path")
 module.exports = {
   content: [
     "./js/**/*.js",
-    "../lib/combat_log_parser_web.ex",
-    "../lib/combat_log_parser_web/**/*.*ex"
+    "../lib/we_go_next_web.ex",
+    "../lib/we_go_next_web/**/*.*ex"
   ],
   theme: {
     extend: {
