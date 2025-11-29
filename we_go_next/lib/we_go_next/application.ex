@@ -12,9 +12,11 @@ defmodule WeGoNext.Application do
       WeGoNext.Repo,
       # Start the PubSub system
       {Phoenix.PubSub, name: WeGoNext.PubSub},
-      # Start the encounter store
-      WeGoNext.EncounterStore,
-      # Start the file watcher
+      # Task supervisor for background imports
+      {Task.Supervisor, name: WeGoNext.ImportTaskSupervisor},
+      # Import worker (manages imports per user, survives page refresh)
+      WeGoNext.ImportWorker,
+      # Start the file watcher (tracks current combat log file)
       WeGoNext.FileWatcher,
       # Start the Endpoint (http/https)
       WeGoNextWeb.Endpoint
