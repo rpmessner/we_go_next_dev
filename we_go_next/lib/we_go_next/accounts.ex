@@ -3,7 +3,6 @@ defmodule WeGoNext.Accounts do
   The Accounts context - manages users and their settings.
   """
 
-  import Ecto.Query
   alias WeGoNext.Repo
   alias WeGoNext.Accounts.User
 
@@ -71,17 +70,21 @@ defmodule WeGoNext.Accounts do
       {:ok, files} ->
         logs =
           files
-          |> Enum.filter(&String.starts_with?(&1, "WoWCombatLog"))
-          |> Enum.filter(&String.ends_with?(&1, ".txt"))
+          |> Enum.filter(fn f ->
+            String.starts_with?(f, "WoWCombatLog") and String.ends_with?(f, ".txt")
+          end)
           |> Enum.map(fn filename ->
             full_path = Path.join(path, filename)
             stat = File.stat!(full_path)
+
+            # Convert erlang datetime tuple to NaiveDateTime for sorting
+            modified_ndt = NaiveDateTime.from_erl!(stat.mtime)
 
             %{
               filename: filename,
               full_path: full_path,
               size: stat.size,
-              modified: stat.mtime
+              modified: modified_ndt
             }
           end)
           |> Enum.sort_by(& &1.modified, {:desc, NaiveDateTime})

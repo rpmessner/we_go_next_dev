@@ -6,6 +6,7 @@ defmodule WeGoNext.Accounts.User do
     field :name, :string, default: "default"
     field :wow_logs_path, :string
     field :last_loaded_log, :string
+    field :is_admin, :boolean, default: false
 
     timestamps()
   end
