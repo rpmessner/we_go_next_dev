@@ -39,10 +39,10 @@ defmodule WeGoNextWeb.CoreComponents do
 
   def back(assigns) do
     ~H"""
-    <div class="mt-16">
+    <div>
       <.link
         navigate={@navigate}
-        class="text-sm font-semibold leading-6 text-zinc-900 hover:text-zinc-700"
+        class="text-sm font-semibold leading-6 text-zinc-400 hover:text-zinc-200"
       >
         <span aria-hidden="true">&larr;</span> {render_slot(@inner_block)}
       </.link>
