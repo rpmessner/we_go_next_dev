@@ -36,8 +36,8 @@ defmodule WeGoNext.Analyzers.FailureAnalyzer do
     }
   """
   def analyze(%Encounter{} = encounter) do
-    # Load criteria for this boss
-    criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id)
+    # Load criteria for this boss (with difficulty inheritance)
+    criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id, encounter.difficulty_id)
 
     if map_size(criteria_by_spell) == 0 do
       # No criteria defined, return empty results

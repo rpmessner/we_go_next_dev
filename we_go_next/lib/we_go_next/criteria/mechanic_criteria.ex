@@ -22,6 +22,7 @@ defmodule WeGoNext.Criteria.MechanicCriteria do
     field :mechanic_type, :string
     field :boss_encounter_id, :string
     field :boss_name, :string
+    field :difficulty_id, :integer
     field :threshold, :map, default: %{}
     field :notes, :string
     field :active, :boolean, default: true
@@ -38,13 +39,16 @@ defmodule WeGoNext.Criteria.MechanicCriteria do
       :mechanic_type,
       :boss_encounter_id,
       :boss_name,
+      :difficulty_id,
       :threshold,
       :notes,
       :active
     ])
     |> validate_required([:spell_id, :spell_name, :mechanic_type])
     |> validate_inclusion(:mechanic_type, @mechanic_types)
-    |> unique_constraint([:spell_id, :boss_encounter_id], name: :mechanic_criteria_spell_boss_unique)
+    |> unique_constraint([:spell_id, :boss_encounter_id, :difficulty_id],
+      name: :mechanic_criteria_spell_boss_difficulty_unique
+    )
   end
 
   @doc """

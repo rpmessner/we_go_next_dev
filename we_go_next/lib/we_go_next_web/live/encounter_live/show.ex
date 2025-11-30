@@ -24,7 +24,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     # First check if we have cached analysis - if so, skip expensive parsing
     case load_encounter_with_analysis(id) do
       {:ok, encounter, analysis} ->
-        criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id)
+        criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id, encounter.difficulty_id)
 
         {:ok,
          socket
@@ -145,7 +145,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     case Criteria.create_criteria(attrs) do
       {:ok, _criteria} ->
         # Reload criteria
-        criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id)
+        criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id, encounter.difficulty_id)
 
         {:noreply,
          socket
@@ -166,10 +166,10 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     encounter = socket.assigns.encounter
 
     # Find and delete criteria for this spell
-    case Criteria.get_criteria_for_spell(spell_id, encounter.id) do
+    case Criteria.get_criteria_for_spell(spell_id, encounter.id, encounter.difficulty_id) do
       [criteria | _] ->
         Criteria.delete_criteria(criteria)
-        criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id)
+        criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id, encounter.difficulty_id)
 
         {:noreply,
          socket
@@ -310,7 +310,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
         <SummaryTab.render :if={@active_tab == :summary} summary={@summary} player_classes={@player_classes} />
         <FailuresTab.render :if={@active_tab == :failures} stats={@failure_stats} player_classes={@player_classes} />
         <DeathsTab.render :if={@active_tab == :deaths} deaths={@deaths} player_classes={@player_classes} />
-        <DamageTakenTab.render :if={@active_tab == :damage} stats={@damage_stats} encounter={@encounter} criteria_by_spell={@criteria_by_spell} />
+        <DamageTakenTab.render :if={@active_tab == :damage} stats={@damage_stats} encounter={@encounter} criteria_by_spell={@criteria_by_spell} player_classes={@player_classes} />
         <DamageDoneTab.render :if={@active_tab == :damage_done} stats={@damage_done} player_classes={@player_classes} />
         <InterruptsTab.render :if={@active_tab == :interrupts} stats={@interrupt_stats} criteria_by_spell={@criteria_by_spell} player_classes={@player_classes} />
         <DebuffsTab.render
