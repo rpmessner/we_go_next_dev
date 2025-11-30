@@ -4,8 +4,6 @@ defmodule WeGoNextWeb.CoreComponents do
   """
   use Phoenix.Component
 
-  alias Phoenix.LiveView.JS
-
   @doc """
   Renders a header with title.
   """

@@ -139,7 +139,9 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
   @doc """
   Formats damage taken for display, separating tanks and DPS/healers.
   """
-  def format_damage_taken(%{tanks: tanks, dps_healers: dps_healers}, opts \\ []) do
+  def format_damage_taken(data, opts \\ [])
+
+  def format_damage_taken(%{tanks: tanks, dps_healers: dps_healers}, opts) do
     top_n = Keyword.get(opts, :top, 10)
     show_abilities = Keyword.get(opts, :show_abilities, 5)
 

@@ -7,7 +7,6 @@ defmodule WeGoNext.Analyzers.FailureAnalyzer do
   """
 
   alias WeGoNext.{Encounter, Criteria}
-  alias WeGoNext.Criteria.MechanicCriteria
   alias WeGoNext.Analyzers.{DamageTakenAnalyzer, InterruptAnalyzer}
 
   defmodule Failure do

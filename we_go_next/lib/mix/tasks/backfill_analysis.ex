@@ -7,7 +7,7 @@ defmodule Mix.Tasks.WeGoNext.BackfillAnalysis do
   """
   use Mix.Task
 
-  alias WeGoNext.{Repo, Encounter}
+  alias WeGoNext.Repo
   alias WeGoNext.Encounters.Encounter, as: EncounterRecord
   alias WeGoNext.Analyzers.AnalysisCache
   import Ecto.Query
