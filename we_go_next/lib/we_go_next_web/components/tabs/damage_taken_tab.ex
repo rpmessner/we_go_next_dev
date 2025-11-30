@@ -17,10 +17,11 @@ defmodule WeGoNextWeb.Components.Tabs.DamageTakenTab do
   attr :stats, :map, required: true
   attr :encounter, :any, required: true
   attr :criteria_by_spell, :map, required: true
+  attr :player_classes, :map, required: true
 
   def render(assigns) do
     ~H"""
-    <div class="space-y-6">
+    <div class="space-y-6" id="damage-taken-tab" phx-hook="WowheadTooltips">
       <%!-- Top avoidable abilities --%>
       <div>
         <h3 class="text-sm font-medium text-zinc-400 mb-3">Top Damaging Abilities (Non-Tank)</h3>
@@ -90,11 +91,8 @@ defmodule WeGoNextWeb.Components.Tabs.DamageTakenTab do
         <div class="grid grid-cols-2 gap-4">
           <div :for={player <- sorted_players(@stats)} class="bg-zinc-800 rounded-lg p-3">
             <div class="flex justify-between items-center mb-2">
-              <span class={[
-                "font-medium",
-                if(player.is_tank, do: "text-wow-tank", else: "text-zinc-200")
-              ]}>
-                {player.name}
+              <span class="font-medium">
+                <.player_name name={player.name} player_classes={@player_classes} />
                 <span :if={player.is_tank} class="text-xs text-zinc-500 ml-1">(Tank)</span>
               </span>
               <span class="text-zinc-400">{format_number(player.total)}</span>
