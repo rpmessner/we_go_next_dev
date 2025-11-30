@@ -223,6 +223,20 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   end
 
   @impl true
+  def handle_info({:analysis_computed, _encounter_id, current, total}, socket) do
+    # Refresh encounter records to get updated analysis status
+    # Only refresh on last analysis or every 5th to avoid excessive updates
+    socket =
+      if current == total or rem(current, 5) == 0 do
+        assign(socket, :encounter_records, EncounterStore.list_encounter_records())
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_info({:import_progress, :saving}, socket) do
     {:noreply, assign(socket, :import_progress, %{percent: 100, encounters_found: socket.assigns.import_progress[:encounters_found] || 0, status: :saving})}
   end

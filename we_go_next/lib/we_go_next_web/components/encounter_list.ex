@@ -85,7 +85,11 @@ defmodule WeGoNextWeb.Components.EncounterList do
             {format_duration(@encounter)}
           </span>
           <span class="text-zinc-500 text-sm">
-            {death_count_from_record(@encounter)} deaths
+            <%= if analysis_pending?(@encounter) do %>
+              <span class="text-yellow-500 animate-pulse" title="Analysis in progress">analyzing...</span>
+            <% else %>
+              {death_count_from_record(@encounter)} deaths
+            <% end %>
           </span>
           <div :if={@is_admin} class="pointer-events-auto">
             <.gear_menu encounter={@encounter} open_menu_id={@open_menu_id} />
@@ -140,6 +144,14 @@ defmodule WeGoNextWeb.Components.EncounterList do
   end
 
   # Helper functions
+
+  defp analysis_pending?(record) do
+    case record.analysis do
+      nil -> true
+      analysis when analysis == %{} -> true
+      _ -> false
+    end
+  end
 
   defp death_count_from_record(record) do
     case record.analysis do

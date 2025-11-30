@@ -201,6 +201,12 @@ defmodule WeGoNext.Importer do
       {:ok, %{encounters_found: count, end_byte: end_byte}} ->
         # Final update to ensure file_size matches what we parsed
         {:ok, updated_clf} = update_file_progress(clf, end_byte)
+
+        # Spawn async task to compute analysis for newly imported encounters
+        if count > 0 do
+          spawn_analysis_task(updated_clf.id)
+        end
+
         {:ok, %{file: updated_clf, new_encounters: count}}
 
       {:error, reason} ->
@@ -211,14 +217,68 @@ defmodule WeGoNext.Importer do
     end
   end
 
+  # Spawn a background task to compute analysis for encounters missing it
+  defp spawn_analysis_task(combat_log_file_id) do
+    Task.Supervisor.start_child(WeGoNext.ImportTaskSupervisor, fn ->
+      compute_pending_analyses(combat_log_file_id)
+    end)
+  end
+
+  @doc """
+  Computes analysis for all encounters in a log file that don't have it yet.
+  Called async after import completes.
+  """
+  def compute_pending_analyses(combat_log_file_id) do
+    # Find encounters with empty analysis
+    encounters =
+      EncounterRecord
+      |> where([e], e.combat_log_file_id == ^combat_log_file_id)
+      |> where([e], is_nil(e.analysis) or e.analysis == ^%{})
+      |> order_by([e], asc: e.start_time)
+      |> Repo.all()
+
+    total = length(encounters)
+
+    if total > 0 do
+      require Logger
+      Logger.info("Computing analysis for #{total} encounter(s)...")
+
+      encounters
+      |> Enum.with_index(1)
+      |> Enum.each(fn {record, idx} ->
+        compute_and_save_analysis(record)
+
+        # Broadcast progress for UI updates
+        Phoenix.PubSub.broadcast(
+          WeGoNext.PubSub,
+          "encounters",
+          {:analysis_computed, record.id, idx, total}
+        )
+      end)
+
+      Logger.info("Analysis computation complete for #{total} encounter(s)")
+    end
+  end
+
+  defp compute_and_save_analysis(%EncounterRecord{} = record) do
+    # Convert to encounter struct with events for analysis
+    encounter = EncounterRecord.to_encounter_struct(record)
+
+    # Compute analysis
+    analysis = compute_analysis(encounter)
+
+    # Save to database
+    record
+    |> Ecto.Changeset.change(%{analysis: analysis})
+    |> Repo.update()
+  end
+
   defp insert_single_encounter(encounter, combat_log_file_id, start_byte, end_byte) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
-    # Pre-compute analysis for this encounter
-    analysis = compute_analysis(encounter)
-
+    # Insert with empty analysis - will be computed async after import completes
     encounter_attrs =
-      EncounterRecord.from_parsed(encounter, [], combat_log_file_id, start_byte, end_byte, analysis: analysis)
+      EncounterRecord.from_parsed(encounter, [], combat_log_file_id, start_byte, end_byte, analysis: %{})
       |> Map.put(:inserted_at, now)
       |> Map.put(:updated_at, now)
 

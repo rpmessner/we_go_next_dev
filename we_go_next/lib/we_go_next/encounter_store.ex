@@ -165,13 +165,11 @@ defmodule WeGoNext.EncounterStore do
 
   @doc """
   Returns the current CombatLogFile record if one is loaded.
-  Fetches fresh from database to ensure up-to-date byte offsets.
+  Returns the struct directly from FileWatcher - it's always kept up-to-date
+  after imports/syncs via FileWatcher.watch/1.
   """
   def current_combat_log_file do
-    case FileWatcher.current_file() do
-      nil -> nil
-      clf -> Repo.get(CombatLogFile, clf.id)
-    end
+    FileWatcher.current_file()
   end
 
   @doc """
