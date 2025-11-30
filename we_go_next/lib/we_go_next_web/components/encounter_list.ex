@@ -60,16 +60,17 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
   defp encounter_card(assigns) do
     ~H"""
-    <div class={["encounter-card", if(@encounter.is_reset, do: "opacity-50", else: "")]}>
-      <div class="flex items-center justify-between">
-        <.link href={"/encounters/#{@encounter.id}"} class="flex-1 flex items-center gap-3">
+    <div class={["encounter-card relative", if(@encounter.is_reset, do: "opacity-50", else: "")]}>
+      <.link href={"/encounters/#{@encounter.id}"} class="absolute inset-0 z-0"></.link>
+      <div class="flex items-center justify-between relative z-10 pointer-events-none">
+        <div class="flex-1 flex items-center gap-3">
           <span class="text-zinc-500 font-mono text-sm w-6">{@idx}.</span>
           <div>
             <span class="font-semibold text-zinc-100">{@encounter.name}</span>
             <span class="text-zinc-500 ml-2">({@encounter.difficulty_name})</span>
             <span :if={@encounter.is_reset} class="ml-2 text-xs text-yellow-500">(Reset)</span>
           </div>
-        </.link>
+        </div>
         <div class="flex items-center gap-4">
           <span class={[
             "inline-flex items-center px-2 py-1 rounded text-xs font-medium",
@@ -86,7 +87,9 @@ defmodule WeGoNextWeb.Components.EncounterList do
           <span class="text-zinc-500 text-sm">
             {death_count_from_record(@encounter)} deaths
           </span>
-          <.gear_menu :if={@is_admin} encounter={@encounter} open_menu_id={@open_menu_id} />
+          <div :if={@is_admin} class="pointer-events-auto">
+            <.gear_menu encounter={@encounter} open_menu_id={@open_menu_id} />
+          </div>
         </div>
       </div>
     </div>

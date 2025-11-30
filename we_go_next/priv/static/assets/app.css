@@ -754,6 +754,14 @@ select {
   }
 }
 
+.pointer-events-none {
+  pointer-events: none;
+}
+
+.pointer-events-auto {
+  pointer-events: auto;
+}
+
 .static {
   position: static;
 }
@@ -813,6 +821,10 @@ select {
 
 .z-50 {
   z-index: 50;
+}
+
+.z-0 {
+  z-index: 0;
 }
 
 .mx-4 {
