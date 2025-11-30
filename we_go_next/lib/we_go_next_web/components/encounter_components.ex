@@ -243,6 +243,17 @@ defmodule WeGoNextWeb.EncounterComponents do
   def format_dps(dps) when is_integer(dps), do: format_dps(dps / 1)
   def format_dps(_), do: "0"
 
+  @doc "Format file size with KB/MB suffixes"
+  def format_size(bytes) when bytes >= 1_000_000 do
+    "#{Float.round(bytes / 1_000_000, 1)} MB"
+  end
+
+  def format_size(bytes) when bytes >= 1000 do
+    "#{div(bytes, 1000)} KB"
+  end
+
+  def format_size(bytes), do: "#{bytes} B"
+
   @doc "Format a timestamp as mm:ss"
   def format_timestamp(timestamp) do
     Calendar.strftime(timestamp, "%M:%S")

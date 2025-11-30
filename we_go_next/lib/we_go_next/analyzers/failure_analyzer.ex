@@ -211,8 +211,7 @@ defmodule WeGoNext.Analyzers.FailureAnalyzer do
         player_counts =
           fails
           |> Enum.group_by(& &1.player_name)
-          |> Enum.map(fn {name, pf} -> "#{name}: #{length(pf)}" end)
-          |> Enum.join(", ")
+          |> Enum.map_join(", ", fn {name, pf} -> "#{name}: #{length(pf)}" end)
 
         "  #{spell_name}: #{length(fails)} failures (#{player_counts})"
       end)

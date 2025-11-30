@@ -1,6 +1,8 @@
 defmodule WeGoNextWeb.SettingsLive do
   use WeGoNextWeb, :live_view
 
+  import WeGoNextWeb.EncounterComponents, only: [format_size: 1]
+
   alias WeGoNext.{Accounts, EncounterStore, FileWatcher}
 
   @impl true
@@ -337,14 +339,4 @@ defmodule WeGoNextWeb.SettingsLive do
     </div>
     """
   end
-
-  defp format_size(bytes) when bytes >= 1_000_000 do
-    "#{Float.round(bytes / 1_000_000, 1)} MB"
-  end
-
-  defp format_size(bytes) when bytes >= 1000 do
-    "#{div(bytes, 1000)} KB"
-  end
-
-  defp format_size(bytes), do: "#{bytes} B"
 end

@@ -11,6 +11,8 @@ defmodule WeGoNextWeb.Components.LogSelector do
   """
   use Phoenix.Component
 
+  import WeGoNextWeb.EncounterComponents, only: [format_size: 1]
+
   attr :user, :map, required: true
   attr :log_files, :list, required: true
   attr :selected_log, :string, default: nil
@@ -211,16 +213,6 @@ defmodule WeGoNextWeb.Components.LogSelector do
   end
 
   # Helper functions
-
-  defp format_size(bytes) when bytes >= 1_000_000 do
-    "#{Float.round(bytes / 1_000_000, 1)} MB"
-  end
-
-  defp format_size(bytes) when bytes >= 1000 do
-    "#{div(bytes, 1000)} KB"
-  end
-
-  defp format_size(bytes), do: "#{bytes} B"
 
   defp log_status_indicator(file_path, imported_logs) do
     cond do

@@ -16,7 +16,7 @@ defmodule WeGoNextWeb.Components.ImportedLogsSwitcher do
       <h3 class="text-sm font-medium text-zinc-400 mb-3">Switch Log File</h3>
       <div class="space-y-2">
         <%= for clf <- @imported_logs do %>
-          <.log_button clf={clf} is_current={is_current?(@combat_log_file, clf)} />
+          <.log_button clf={clf} is_current={current?(@combat_log_file, clf)} />
         <% end %>
       </div>
     </div>
@@ -55,6 +55,6 @@ defmodule WeGoNextWeb.Components.ImportedLogsSwitcher do
     """
   end
 
-  defp is_current?(nil, _clf), do: false
-  defp is_current?(combat_log_file, clf), do: combat_log_file.id == clf.id
+  defp current?(nil, _clf), do: false
+  defp current?(combat_log_file, clf), do: combat_log_file.id == clf.id
 end

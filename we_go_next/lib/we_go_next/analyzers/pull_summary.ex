@@ -341,15 +341,16 @@ defmodule WeGoNext.Analyzers.PullSummary do
     causes =
       deaths.deaths_by_cause
       |> Enum.take(3)
-      |> Enum.map(fn {cause, count} -> "#{cause} (#{count})" end)
-      |> Enum.join(", ")
+      |> Enum.map_join(", ", fn {cause, count} -> "#{cause} (#{count})" end)
 
-    [
-      "DEATHS: #{deaths.total} total",
-      "  First death: #{deaths.first_death_player} at #{format_time(deaths.first_death_time)}",
-      "  Causes: #{causes}"
-    ]
-    |> Enum.join("\n")
+    Enum.join(
+      [
+        "DEATHS: #{deaths.total} total",
+        "  First death: #{deaths.first_death_player} at #{format_time(deaths.first_death_time)}",
+        "  Causes: #{causes}"
+      ],
+      "\n"
+    )
   end
 
   defp format_failures_section([]), do: "MECHANIC FAILURES: None - great execution!"

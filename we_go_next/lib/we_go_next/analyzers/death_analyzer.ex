@@ -179,14 +179,16 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
   end
 
   defp format_recap([]), do: "         No damage recap available"
+
   defp format_recap(recap) do
-    recap
-    |> Enum.take(5)
-    |> Enum.map(fn %DamageEvent{ability_name: ability, amount: amount, source_name: source} ->
-      "           #{ability} (#{format_number(amount)}) - #{source}"
-    end)
-    |> Enum.join("\n")
-    |> then(&("         Recap:\n" <> &1))
+    lines =
+      recap
+      |> Enum.take(5)
+      |> Enum.map_join("\n", fn %DamageEvent{ability_name: ability, amount: amount, source_name: source} ->
+        "           #{ability} (#{format_number(amount)}) - #{source}"
+      end)
+
+    "         Recap:\n" <> lines
   end
 
   defp format_number(num) when is_integer(num) and num >= 1_000_000 do
