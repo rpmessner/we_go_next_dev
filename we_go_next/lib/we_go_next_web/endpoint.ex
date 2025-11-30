@@ -33,8 +33,9 @@ defmodule WeGoNextWeb.Endpoint do
   )
 
   # Tidewave MCP server for AI assistant integration
+  # allow_remote_access needed since endpoint binds to 0.0.0.0 for WSL2->Windows access
   if Code.ensure_loaded?(Tidewave) do
-    plug(Tidewave)
+    plug(Tidewave, allow_remote_access: true)
   end
 
   # Code reloading can be explicitly enabled under the
