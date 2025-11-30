@@ -815,16 +815,16 @@ select {
   top: 100%;
 }
 
+.z-0 {
+  z-index: 0;
+}
+
 .z-10 {
   z-index: 10;
 }
 
 .z-50 {
   z-index: 50;
-}
-
-.z-0 {
-  z-index: 0;
 }
 
 .mx-4 {
@@ -1617,11 +1617,6 @@ select {
 .text-wow-gold {
   --tw-text-opacity: 1;
   color: rgb(255 209 0 / var(--tw-text-opacity));
-}
-
-.text-wow-tank {
-  --tw-text-opacity: 1;
-  color: rgb(199 156 110 / var(--tw-text-opacity));
 }
 
 .text-yellow-300 {
