@@ -10,17 +10,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   alias WeGoNext.{EncounterStore, Criteria, Accounts, Preferences}
   alias WeGoNext.Criteria.MechanicCriteria
-  alias WeGoNext.Analyzers.{
-    DeathAnalyzer,
-    DamageTakenAnalyzer,
-    DamageDoneAnalyzer,
-    InterruptAnalyzer,
-    DebuffAnalyzer,
-    FailureAnalyzer,
-    PullSummary,
-    AnalysisCache,
-    PlayerInfoAnalyzer
-  }
+  alias WeGoNext.Analyzers.{AnalysisCache, DebuffAnalyzer}
 
   # ============================================================================
   # Mount & Data Loading
@@ -90,66 +80,21 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   end
 
   # Compute analysis fresh and cache it for next time
+  # Delegates to AnalysisCache.compute/1 which runs all analyzers and serializes
   defp compute_and_cache_analysis(encounter) do
-    deaths = DeathAnalyzer.analyze(encounter)
-    damage_stats = DamageTakenAnalyzer.analyze(encounter)
-    interrupt_stats = InterruptAnalyzer.analyze(encounter)
-    debuff_stats = DebuffAnalyzer.analyze(encounter)
-    failure_stats = FailureAnalyzer.analyze(encounter)
-
-    # Extract player class information from COMBATANT_INFO events
-    player_classes = PlayerInfoAnalyzer.player_classes_by_name(encounter)
-
-    # Get tank GUIDs from damage taken analysis for role detection
-    tank_guids = damage_stats.tanks
-      |> Enum.map(& &1.player_guid)
-      |> MapSet.new()
-
-    # Analyze damage done (need tank_guids for role detection)
-    damage_done_raw = DamageDoneAnalyzer.analyze(encounter, tank_guids: tank_guids)
-    damage_done_annotated = DamageDoneAnalyzer.annotate_with_deaths(damage_done_raw, deaths)
-    underperformers = DamageDoneAnalyzer.identify_underperformers(damage_done_raw, deaths)
-    damage_done = Map.put(damage_done_annotated, :underperformers, underperformers)
-
-    summary = PullSummary.summarize(encounter,
-      deaths: deaths,
-      damage_stats: damage_stats,
-      damage_done: damage_done,
-      interrupt_stats: interrupt_stats,
-      debuff_stats: debuff_stats,
-      failure_stats: failure_stats
-    )
+    # Compute and serialize analysis (runs all analyzers)
+    serialized = AnalysisCache.compute(encounter)
 
     # Save to database for future loads
-    save_analysis_to_db(encounter.id, deaths, damage_stats, damage_done, interrupt_stats, debuff_stats, failure_stats, summary, player_classes)
+    save_analysis_to_db(encounter.id, serialized)
 
-    %{
-      deaths: deaths,
-      damage_stats: damage_stats,
-      damage_done: damage_done,
-      interrupt_stats: interrupt_stats,
-      debuff_stats: debuff_stats,
-      failure_stats: failure_stats,
-      summary: summary,
-      player_classes: player_classes
-    }
+    # Deserialize back to atom-keyed maps for UI consumption
+    AnalysisCache.from_cache(serialized)
   end
 
-  defp save_analysis_to_db(encounter_id, deaths, damage_stats, damage_done, interrupt_stats, debuff_stats, failure_stats, summary, player_classes) do
-    # Use AnalysisCache.serialize to convert to storable format
-    analysis_data = AnalysisCache.serialize(%{
-      deaths: deaths,
-      damage_stats: damage_stats,
-      damage_done: damage_done,
-      interrupt_stats: interrupt_stats,
-      debuff_stats: debuff_stats,
-      failure_stats: failure_stats,
-      summary: summary,
-      player_classes: player_classes
-    })
-
-    # Update the encounter record in DB
+  defp save_analysis_to_db(encounter_id, analysis_data) do
     import Ecto.Query
+
     from(e in WeGoNext.Encounters.Encounter, where: e.id == ^encounter_id)
     |> WeGoNext.Repo.update_all(set: [analysis: analysis_data])
   end
