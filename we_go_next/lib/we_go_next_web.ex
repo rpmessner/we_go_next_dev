@@ -88,6 +88,7 @@ defmodule WeGoNextWeb do
       import WeGoNextWeb.EncounterComponents
 
       # Tab components for encounter detail view
+      alias WeGoNextWeb.Components.Tabs.BetweenPullTab
       alias WeGoNextWeb.Components.Tabs.SummaryTab
       alias WeGoNextWeb.Components.Tabs.FailuresTab
       alias WeGoNextWeb.Components.Tabs.DeathsTab
