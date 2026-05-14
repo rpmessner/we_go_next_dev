@@ -66,7 +66,8 @@ defmodule WeGoNext.MixProject do
       {:postgrex, "~> 0.17"},
       {:wallaby, "~> 0.30", runtime: false, only: :test},
       {:tidewave, "~> 0.5", only: :dev},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:zigler, "~> 0.15.1", runtime: false}
     ]
   end
 end
