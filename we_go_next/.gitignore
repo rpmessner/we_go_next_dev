@@ -22,3 +22,6 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 combat_log_parser-*.tar
 
+# Zigler build artifacts: compiled NIF shared objects and codegen intermediates.
+/priv/lib/
+/lib/we_go_next/.Elixir.*.zig
