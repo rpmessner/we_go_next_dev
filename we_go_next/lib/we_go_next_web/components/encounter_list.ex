@@ -2,16 +2,14 @@ defmodule WeGoNextWeb.Components.EncounterList do
   @moduledoc """
   Component for displaying the list of encounters from a combat log.
 
-  Shows each encounter as a card with:
-  - Boss name and difficulty
-  - Kill/Wipe indicator
-  - Fight duration
-  - Death count
-  - Admin gear menu for marking resets
+  Groups encounters by instance (dungeon/raid) with headers showing
+  instance name, difficulty, date, and kill/wipe summary.
   """
   use Phoenix.Component
 
   import WeGoNextWeb.EncounterComponents, only: [format_duration: 1]
+
+  alias WeGoNext.GameData.Instances
 
   attr :encounter_records, :list, required: true
   attr :show_resets, :boolean, required: true
@@ -21,11 +19,14 @@ defmodule WeGoNextWeb.Components.EncounterList do
   attr :loading, :boolean, default: false
 
   def render(assigns) do
+    groups = group_encounters(assigns.encounter_records, assigns.show_resets)
+    assigns = assign(assigns, :groups, groups)
+
     ~H"""
     <div :if={@encounter_records != []}>
       <div class="flex items-center justify-between mb-3">
         <h2 class="section-header mb-0">Encounters ({visible_count(@encounter_records, @show_resets)})</h2>
-        <div :if={@is_admin && has_resets?(@encounter_records)} class="flex items-center gap-2">
+        <div :if={has_resets?(@encounter_records)} class="flex items-center gap-2">
           <label class="flex items-center gap-2 cursor-pointer text-sm text-zinc-400">
             <input
               type="checkbox"
@@ -37,8 +38,38 @@ defmodule WeGoNextWeb.Components.EncounterList do
           </label>
         </div>
       </div>
-      <div class="space-y-2">
-        <%= for {encounter, idx} <- filtered_encounters(@encounter_records, @show_resets) do %>
+      <div class="space-y-6">
+        <%= for group <- @groups do %>
+          <.instance_group group={group} is_admin={@is_admin} open_menu_id={@open_menu_id} />
+        <% end %>
+      </div>
+    </div>
+
+    <.empty_state :if={@encounter_records == [] && !@loading && @log_files != []} />
+    """
+  end
+
+  # ── Instance Group ──
+
+  attr :group, :map, required: true
+  attr :is_admin, :boolean, required: true
+  attr :open_menu_id, :any, default: nil
+
+  defp instance_group(assigns) do
+    ~H"""
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <h3 class="text-sm font-semibold text-zinc-300">
+          {@group.instance_name}
+        </h3>
+        <span class="text-xs text-zinc-500">{@group.difficulty}</span>
+        <span class="text-xs text-zinc-600">&bull;</span>
+        <span class="text-xs text-zinc-500">{@group.date_str}</span>
+        <div class="flex-1 border-t border-zinc-700/50 ml-2"></div>
+        <.group_summary group={@group} />
+      </div>
+      <div class="space-y-1.5 ml-0">
+        <%= for {encounter, idx} <- @group.encounters do %>
           <.encounter_card
             encounter={encounter}
             idx={idx}
@@ -48,10 +79,19 @@ defmodule WeGoNextWeb.Components.EncounterList do
         <% end %>
       </div>
     </div>
-
-    <.empty_state :if={@encounter_records == [] && !@loading && @log_files != []} />
     """
   end
+
+  defp group_summary(assigns) do
+    ~H"""
+    <div class="flex items-center gap-2 text-xs">
+      <span :if={@group.kills > 0} class="text-green-400">{@group.kills} kill{if @group.kills != 1, do: "s"}</span>
+      <span :if={@group.wipes > 0} class="text-red-400">{@group.wipes} wipe{if @group.wipes != 1, do: "s"}</span>
+    </div>
+    """
+  end
+
+  # ── Encounter Card ──
 
   attr :encounter, :map, required: true
   attr :idx, :integer, required: true
@@ -67,7 +107,6 @@ defmodule WeGoNextWeb.Components.EncounterList do
           <span class="text-zinc-500 font-mono text-sm w-6">{@idx}.</span>
           <div>
             <span class="font-semibold text-zinc-100">{@encounter.name}</span>
-            <span class="text-zinc-500 ml-2">({@encounter.difficulty_name})</span>
             <span :if={@encounter.is_reset} class="ml-2 text-xs text-yellow-500">(Reset)</span>
           </div>
         </div>
@@ -99,6 +138,8 @@ defmodule WeGoNextWeb.Components.EncounterList do
     </div>
     """
   end
+
+  # ── Gear Menu ──
 
   attr :encounter, :map, required: true
   attr :open_menu_id, :any, default: nil
@@ -143,7 +184,61 @@ defmodule WeGoNextWeb.Components.EncounterList do
     """
   end
 
-  # Helper functions
+  # ============================================================================
+  # Grouping Logic
+  # ============================================================================
+
+  defp group_encounters(records, show_resets) do
+    records
+    |> maybe_filter_resets(show_resets)
+    |> Enum.chunk_by(& &1.instance_id)
+    |> Enum.map(fn chunk ->
+      first = hd(chunk)
+      instance_name = Instances.name(first.instance_id) || infer_instance_name(chunk)
+
+      indexed = Enum.with_index(chunk, 1)
+      kills = Enum.count(chunk, & &1.success)
+      wipes = Enum.count(chunk, &(not &1.success))
+
+      %{
+        instance_id: first.instance_id,
+        instance_name: instance_name,
+        difficulty: first.difficulty_name,
+        date_str: format_date(first.start_time),
+        encounters: indexed,
+        kills: kills,
+        wipes: wipes
+      }
+    end)
+  end
+
+  # If we don't have a name mapping, infer from boss names
+  defp infer_instance_name(encounters) do
+    boss_names = encounters |> Enum.map(& &1.name) |> Enum.uniq()
+
+    case boss_names do
+      [single] -> single
+      multiple -> Enum.join(Enum.take(multiple, 2), ", ") <> if(length(multiple) > 2, do: "...", else: "")
+    end
+  end
+
+  defp format_date(nil), do: ""
+
+  defp format_date(%DateTime{} = dt) do
+    Calendar.strftime(dt, "%b %d, %I:%M %p")
+  end
+
+  defp format_date(%NaiveDateTime{} = dt) do
+    Calendar.strftime(dt, "%b %d, %I:%M %p")
+  end
+
+  defp maybe_filter_resets(records, true), do: records
+
+  defp maybe_filter_resets(records, false) do
+    Enum.reject(records, & &1.is_reset)
+  end
+
+  # ── Helpers ──
 
   defp analysis_pending?(record) do
     case record.analysis do
@@ -158,14 +253,6 @@ defmodule WeGoNextWeb.Components.EncounterList do
       %{"deaths" => deaths} when is_list(deaths) -> length(deaths)
       _ -> 0
     end
-  end
-
-  defp filtered_encounters(records, show_resets) do
-    records
-    |> Enum.with_index(1)
-    |> Enum.reject(fn {record, _idx} ->
-      not show_resets and record.is_reset
-    end)
   end
 
   defp visible_count(records, show_resets) do
