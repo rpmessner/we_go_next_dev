@@ -1,7 +1,8 @@
 defmodule WeGoNext.Encounters.Encounter do
   @moduledoc """
   Ecto schema for persisted encounter records.
-  Stores encounter metadata. Events are stored in the encounter_events table.
+  Stores encounter metadata and cached analysis results.
+  Events are parsed on-demand from the combat log file via CombatLogParser.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -9,6 +10,7 @@ defmodule WeGoNext.Encounters.Encounter do
   alias WeGoNext.CombatLogFile
 
   @difficulty_names %{
+    8 => "M+",
     14 => "Normal",
     15 => "Heroic",
     16 => "Mythic",
@@ -94,13 +96,21 @@ defmodule WeGoNext.Encounters.Encounter do
 
   @doc """
   Converts this Ecto record back to an in-memory Encounter struct for analysis.
-  Loads events from the encounter_events table.
+  Parses events from the combat log file using stored byte offsets.
   """
   def to_encounter_struct(%__MODULE__{} = enc) do
-    alias WeGoNext.Encounter
+    alias WeGoNext.{Encounter, Repo, CombatLogFile, CombatLogParser}
 
-    # Load events from database
-    events = load_events_from_db(enc.id)
+    clf = Repo.get!(CombatLogFile, enc.combat_log_file_id)
+
+    # Format start_time for the Zig parser
+    start_ts = format_timestamp_for_zig(enc.start_time)
+
+    events =
+      case CombatLogParser.parse_events(clf.file_path, enc.start_byte, enc.end_byte, start_ts) do
+        {:ok, evts} -> evts
+        {:error, _} -> []
+      end
 
     %Encounter{
       id: enc.wow_encounter_id,
@@ -117,46 +127,17 @@ defmodule WeGoNext.Encounters.Encounter do
     }
   end
 
-  # Load events from database and convert to the format analyzers expect
-  defp load_events_from_db(encounter_id) do
-    import Ecto.Query
-
-    alias WeGoNext.Repo
-    alias WeGoNext.Encounters.EncounterEvent
-
-    EncounterEvent
-    |> where([e], e.encounter_id == ^encounter_id)
-    |> order_by([e], asc: e.timestamp)
-    |> Repo.all()
-    |> Enum.map(&event_to_map/1)
+  defp format_timestamp_for_zig(%DateTime{} = dt) do
+    ms = div(elem(dt.microsecond, 0), 1000)
+    "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
   end
 
-  # Convert EncounterEvent to the map format analyzers expect
-  # Analyzers expect: %{timestamp: _, type: _, data: []}
-  # Since we've normalized the data, we convert back to this format
-  defp event_to_map(%WeGoNext.Encounters.EncounterEvent{} = event) do
-    %{
-      timestamp: event.timestamp,
-      type: event.event_type,
-      # Normalized data - analyzers can now access fields directly
-      source_guid: event.source_guid,
-      source_name: event.source_name,
-      source_flags: event.source_flags,
-      target_guid: event.target_guid,
-      target_name: event.target_name,
-      target_flags: event.target_flags,
-      spell_id: event.spell_id,
-      spell_name: event.spell_name,
-      spell_school: event.spell_school,
-      amount: event.amount,
-      overkill: event.overkill,
-      absorbed: event.absorbed,
-      extra_spell_id: event.extra_spell_id,
-      extra_spell_name: event.extra_spell_name,
-      extra: event.extra,
-      time_into_fight: event.time_into_fight
-    }
+  defp format_timestamp_for_zig(%NaiveDateTime{} = dt) do
+    ms = div(elem(dt.microsecond, 0), 1000)
+    "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
   end
+
+  defp format_timestamp_for_zig(nil), do: "1/1/2000 00:00:00.000-0"
 
   @doc """
   Converts this Ecto record to a lightweight Encounter struct (no events).

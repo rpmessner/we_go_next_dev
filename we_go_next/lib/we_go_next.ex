@@ -5,16 +5,34 @@ defmodule WeGoNext do
   Focused on raid diagnostics: deaths, damage taken, interrupts, mechanic failures.
   """
 
-  alias WeGoNext.{LogReader, Encounter}
+  alias WeGoNext.{CombatLogParser, Encounter}
   alias WeGoNext.Analyzers.{DeathAnalyzer, DamageTakenAnalyzer, InterruptAnalyzer, DebuffAnalyzer}
 
   @doc """
-  Parses a combat log file and returns all encounters.
+  Scans a combat log file and returns encounter boundaries.
   """
   def parse(log_path) do
-    {:ok, LogReader.parse_file(log_path)}
-  rescue
-    e -> {:error, Exception.message(e)}
+    case CombatLogParser.scan_boundaries(log_path, 0) do
+      {:ok, boundaries, _end_byte} ->
+        encounters =
+          Enum.map(boundaries, fn b ->
+            %Encounter{
+              id: b.wow_encounter_id,
+              name: b.name,
+              difficulty_id: b.difficulty_id,
+              difficulty_name: Encounter.difficulty_name_for(b.difficulty_id),
+              group_size: b.group_size,
+              instance_id: b.instance_id,
+              success: b.success,
+              fight_time_ms: b.fight_time_ms,
+              events: []
+            }
+          end)
+        {:ok, encounters}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   @doc """

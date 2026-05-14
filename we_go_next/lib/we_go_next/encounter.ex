@@ -18,6 +18,7 @@ defmodule WeGoNext.Encounter do
   ]
 
   @difficulty_names %{
+    8 => "M+",
     14 => "Normal",
     15 => "Heroic",
     16 => "Mythic",
@@ -70,13 +71,14 @@ defmodule WeGoNext.Encounter do
   end
   def fight_time_sec(_), do: 0
 
-  defp get_difficulty_name(difficulty_id) when is_binary(difficulty_id) do
-    difficulty_id
-    |> String.to_integer()
-    |> get_difficulty_name()
-  end
-
-  defp get_difficulty_name(difficulty_id) when is_integer(difficulty_id) do
+  @doc "Returns the human-readable difficulty name for a difficulty ID."
+  def difficulty_name_for(difficulty_id) when is_integer(difficulty_id) do
     Map.get(@difficulty_names, difficulty_id, "Unknown (#{difficulty_id})")
   end
+
+  def difficulty_name_for(difficulty_id) when is_binary(difficulty_id) do
+    difficulty_id |> String.to_integer() |> difficulty_name_for()
+  end
+
+  defp get_difficulty_name(difficulty_id), do: difficulty_name_for(difficulty_id)
 end

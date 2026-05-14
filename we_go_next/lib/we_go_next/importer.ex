@@ -5,9 +5,8 @@ defmodule WeGoNext.Importer do
   Tracks byte offsets so subsequent imports only parse new content.
   """
 
-  alias WeGoNext.{Repo, CombatLogFile, LogReader, Encounter}
+  alias WeGoNext.{Repo, CombatLogFile, Encounter, CombatLogParser}
   alias WeGoNext.Encounters.Encounter, as: EncounterRecord
-  alias WeGoNext.Encounters.EventParser
   alias WeGoNext.Analyzers.AnalysisCache
   import Ecto.Query
 
@@ -107,14 +106,7 @@ defmodule WeGoNext.Importer do
   Also deletes the combat log file record itself.
   """
   def purge_log(combat_log_file_id) do
-    # Delete events first (foreign key constraint)
-    from(e in "encounter_events",
-      join: enc in EncounterRecord, on: e.encounter_id == enc.id,
-      where: enc.combat_log_file_id == ^combat_log_file_id
-    )
-    |> Repo.delete_all()
-
-    # Delete encounters
+    # Delete encounters (cascade will handle encounter_events if table still exists)
     from(e in EncounterRecord, where: e.combat_log_file_id == ^combat_log_file_id)
     |> Repo.delete_all()
 
@@ -172,37 +164,29 @@ defmodule WeGoNext.Importer do
     start_byte = clf.last_parsed_byte || 0
     progress_topic = Keyword.get(opts, :progress_topic)
 
-    progress_callback =
-      if progress_topic do
-        fn progress ->
-          Phoenix.PubSub.broadcast(WeGoNext.PubSub, progress_topic, {:import_progress, progress})
-        end
-      else
-        nil
-      end
+    case CombatLogParser.scan_boundaries(clf.file_path, start_byte) do
+      {:ok, boundaries, end_byte} ->
+        count = length(boundaries)
 
-    # Stream encounters and insert each one immediately
-    encounter_callback = fn encounter, enc_start_byte, enc_end_byte ->
-      try do
-        insert_single_encounter(encounter, clf.id, enc_start_byte, enc_end_byte)
-        # Update last_parsed_byte after each successful encounter insert
-        # This allows resuming from the last successful encounter on failure
-        update_file_progress(clf, enc_end_byte)
-        :ok
-      rescue
-        e ->
-          require Logger
-          Logger.error("Failed to insert encounter: #{Exception.message(e)}")
-          {:error, Exception.message(e)}
-      end
-    end
+        boundaries
+        |> Enum.with_index(1)
+        |> Enum.each(fn {boundary, idx} ->
+          insert_encounter_from_boundary(boundary, clf)
 
-    case LogReader.stream_encounters(clf.file_path, start_byte, encounter_callback, progress_callback: progress_callback) do
-      {:ok, %{encounters_found: count, end_byte: end_byte}} ->
-        # Final update to ensure file_size matches what we parsed
+          # Broadcast progress
+          if progress_topic do
+            Phoenix.PubSub.broadcast(WeGoNext.PubSub, progress_topic, {:import_progress, %{
+              bytes_read: boundary.end_byte,
+              total_bytes: end_byte,
+              encounters_found: idx
+            }})
+          end
+        end)
+
+        # Final progress update
         {:ok, updated_clf} = update_file_progress(clf, end_byte)
 
-        # Spawn async task to compute analysis for newly imported encounters
+        # Compute analysis for newly imported encounters
         if count > 0 do
           spawn_analysis_task(updated_clf.id)
         end
@@ -210,8 +194,6 @@ defmodule WeGoNext.Importer do
         {:ok, %{file: updated_clf, new_encounters: count}}
 
       {:error, reason} ->
-        # Even on error, we've saved progress up to the last successful encounter
-        # Reload clf to get the latest last_parsed_byte
         updated_clf = Repo.get!(CombatLogFile, clf.id)
         {:error, %{reason: reason, file: updated_clf}}
     end
@@ -261,69 +243,79 @@ defmodule WeGoNext.Importer do
   end
 
   defp compute_and_save_analysis(%EncounterRecord{} = record) do
-    # Convert to encounter struct with events for analysis
-    encounter = EncounterRecord.to_encounter_struct(record)
+    # Load the combat log file to get the path
+    clf = Repo.get!(CombatLogFile, record.combat_log_file_id)
 
-    # Compute analysis
-    analysis = compute_analysis(encounter)
+    # Parse events from the log file using byte offsets
+    case CombatLogParser.parse_events(clf.file_path, record.start_byte, record.end_byte, format_timestamp(record.start_time)) do
+      {:ok, events} ->
+        # Build Encounter struct with parsed events
+        encounter = %Encounter{
+          id: record.wow_encounter_id,
+          name: record.name,
+          difficulty_id: record.difficulty_id,
+          difficulty_name: record.difficulty_name,
+          group_size: record.group_size,
+          instance_id: record.instance_id,
+          start_time: record.start_time && DateTime.to_naive(record.start_time),
+          end_time: record.end_time && DateTime.to_naive(record.end_time),
+          success: record.success,
+          fight_time_ms: record.fight_time_ms,
+          events: events
+        }
 
-    # Save to database
-    record
-    |> Ecto.Changeset.change(%{analysis: analysis})
-    |> Repo.update()
+        analysis = compute_analysis(encounter)
+
+        record
+        |> Ecto.Changeset.change(%{analysis: analysis})
+        |> Repo.update()
+
+      {:error, reason} ->
+        require Logger
+        Logger.warning("Failed to parse events for analysis: #{inspect(reason)}")
+        {:ok, record}
+    end
   end
 
-  defp insert_single_encounter(encounter, combat_log_file_id, start_byte, end_byte) do
+  defp insert_encounter_from_boundary(boundary, clf) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
-    # Insert with empty analysis - will be computed async after import completes
-    encounter_attrs =
-      EncounterRecord.from_parsed(encounter, [], combat_log_file_id, start_byte, end_byte, analysis: %{})
-      |> Map.put(:inserted_at, now)
-      |> Map.put(:updated_at, now)
+    # Parse the start timestamp to get a NaiveDateTime for the encounter record
+    start_time = parse_wow_timestamp(boundary.start_timestamp)
+    end_time = parse_wow_timestamp(boundary.end_timestamp)
 
-    # Insert the encounter, skipping if it already exists (based on combat_log_file_id + start_time)
-    # This handles resume scenarios where we might re-parse an already-imported encounter
-    result =
-      Repo.insert_all(
-        EncounterRecord,
-        [encounter_attrs],
-        on_conflict: :nothing,
-        conflict_target: [:combat_log_file_id, :start_time],
-        returning: [:id]
-      )
+    difficulty_name = Encounter.difficulty_name_for(boundary.difficulty_id)
 
-    case result do
-      {1, [%{id: encounter_id}]} ->
-        # New encounter inserted - add events
-        insert_encounter_events(encounter, encounter_id, now)
+    encounter_attrs = %{
+      wow_encounter_id: boundary.wow_encounter_id,
+      name: boundary.name,
+      difficulty_id: boundary.difficulty_id,
+      difficulty_name: difficulty_name,
+      group_size: boundary.group_size,
+      instance_id: boundary.instance_id,
+      start_time: start_time,
+      end_time: end_time,
+      success: boundary.success,
+      fight_time_ms: boundary.fight_time_ms,
+      start_byte: boundary.start_byte,
+      end_byte: boundary.end_byte,
+      combat_log_file_id: clf.id,
+      is_reset: detect_reset?(boundary),
+      analysis: %{},
+      inserted_at: now,
+      updated_at: now
+    }
 
-      {0, []} ->
-        # Encounter already exists - skip (already has events)
-        :ok
-    end
+    # Insert, skipping duplicates
+    Repo.insert_all(
+      EncounterRecord,
+      [encounter_attrs],
+      on_conflict: :nothing,
+      conflict_target: [:combat_log_file_id, :start_time]
+    )
 
-    :ok
-  end
-
-  defp insert_encounter_events(%Encounter{} = encounter, encounter_id, now) do
-    # Parse each event into normalized format
-    events =
-      encounter.events
-      |> Enum.reverse()  # Events are stored in reverse order
-      |> Enum.map(fn event ->
-        EventParser.parse(event, encounter.start_time)
-        |> Map.put(:encounter_id, encounter_id)
-        |> Map.put(:inserted_at, now)
-        |> Map.put(:updated_at, now)
-      end)
-
-    # Insert in batches to avoid huge queries
-    events
-    |> Enum.chunk_every(1000)
-    |> Enum.each(fn batch ->
-      Repo.insert_all("encounter_events", batch)
-    end)
+    # Update last_parsed_byte after each encounter
+    update_file_progress(clf, boundary.end_byte)
   end
 
   # Compute analysis for an encounter at import time
@@ -336,6 +328,57 @@ defmodule WeGoNext.Importer do
       Logger.warning("Failed to compute analysis: #{Exception.message(e)}")
       %{}
   end
+
+  # Parse WoW timestamp string "M/DD/YYYY HH:MM:SS.mmm-TZ" into DateTime
+  defp parse_wow_timestamp(ts_str) when is_binary(ts_str) do
+    # Strip timezone offset
+    [datetime_part | _] = String.split(ts_str, ~r/[-+](?=\d+$)/)
+
+    case String.split(datetime_part, " ") do
+      [date_part, time_part] ->
+        [month, day, year] = String.split(date_part, "/")
+        [time_str, ms_str] = String.split(time_part, ".")
+        [hour, minute, second] = String.split(time_str, ":")
+
+        {:ok, naive} = NaiveDateTime.new(
+          String.to_integer(year),
+          String.to_integer(month),
+          String.to_integer(day),
+          String.to_integer(hour),
+          String.to_integer(minute),
+          String.to_integer(second),
+          String.to_integer(ms_str) * 1000
+        )
+
+        DateTime.from_naive!(naive, "Etc/UTC")
+
+      _ -> nil
+    end
+  end
+
+  # Format a DateTime back to the WoW timestamp format for CombatLogParser
+  defp format_timestamp(%DateTime{} = dt) do
+    ms = div(dt.microsecond |> elem(0), 1000)
+    "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
+  end
+
+  defp format_timestamp(%NaiveDateTime{} = dt) do
+    ms = div(dt.microsecond |> elem(0), 1000)
+    "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
+  end
+
+  defp format_timestamp(nil), do: "1/1/2000 00:00:00.000-0"
+
+  # Auto-detect reset pulls: wipes under 15 seconds are almost certainly resets.
+  # Kills are never flagged — could be an old instance farm.
+  @reset_threshold_ms 15_000
+
+  defp detect_reset?(%{success: true}), do: false
+
+  defp detect_reset?(%{fight_time_ms: ms}) when is_integer(ms) and ms < @reset_threshold_ms,
+    do: true
+
+  defp detect_reset?(_), do: false
 
   defp update_file_progress(%CombatLogFile{} = clf, end_byte) do
     # Get updated file stats for mtime only
