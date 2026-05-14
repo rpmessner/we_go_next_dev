@@ -35,7 +35,9 @@ defmodule WeGoNext.Analyzers.FailureAnalyzer do
       summary: %{total_failures: N, players_with_failures: N, ...}
     }
   """
-  def analyze(%Encounter{} = encounter) do
+  def analyze(%Encounter{} = encounter), do: analyze(encounter, [])
+
+  def analyze(%Encounter{} = encounter, opts) do
     # Load criteria for this boss (with difficulty inheritance)
     criteria_by_spell = Criteria.criteria_by_spell_id(encounter.id, encounter.difficulty_id)
 
@@ -48,9 +50,12 @@ defmodule WeGoNext.Analyzers.FailureAnalyzer do
         summary: %{total_failures: 0, players_with_failures: 0, mechanics_failed: 0}
       }
     else
-      # Analyze based on criteria types
-      avoidable_failures = analyze_avoidable_damage(encounter, criteria_by_spell)
-      interrupt_failures = analyze_missed_interrupts(encounter, criteria_by_spell)
+      # Use pre-computed results if provided, otherwise compute fresh
+      damage_stats = opts[:damage_stats]
+      interrupt_stats = opts[:interrupt_stats]
+
+      avoidable_failures = analyze_avoidable_damage(encounter, criteria_by_spell, damage_stats)
+      interrupt_failures = analyze_missed_interrupts(encounter, criteria_by_spell, interrupt_stats)
 
       all_failures = avoidable_failures ++ interrupt_failures
 
@@ -81,8 +86,8 @@ defmodule WeGoNext.Analyzers.FailureAnalyzer do
   For each "avoidable" criteria, checks if any non-tank player took damage
   from that ability beyond the threshold.
   """
-  def analyze_avoidable_damage(%Encounter{} = encounter, criteria_by_spell) do
-    damage_stats = DamageTakenAnalyzer.analyze(encounter)
+  def analyze_avoidable_damage(%Encounter{} = encounter, criteria_by_spell, damage_stats \\ nil) do
+    damage_stats = damage_stats || DamageTakenAnalyzer.analyze(encounter)
 
     # Get avoidable criteria
     avoidable_criteria =
@@ -146,8 +151,8 @@ defmodule WeGoNext.Analyzers.FailureAnalyzer do
   For each "interrupt" criteria, checks if any casts of that spell completed
   without being interrupted.
   """
-  def analyze_missed_interrupts(%Encounter{} = encounter, criteria_by_spell) do
-    interrupt_stats = InterruptAnalyzer.analyze(encounter)
+  def analyze_missed_interrupts(%Encounter{} = encounter, criteria_by_spell, interrupt_stats \\ nil) do
+    interrupt_stats = interrupt_stats || InterruptAnalyzer.analyze(encounter)
 
     # Get interrupt criteria
     interrupt_criteria =

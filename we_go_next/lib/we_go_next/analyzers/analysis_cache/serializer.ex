@@ -22,13 +22,21 @@ defmodule WeGoNext.Analyzers.AnalysisCache.Serializer do
   Generates complete analysis for an encounter, returning a JSON-serializable map.
   """
   def compute(%Encounter{} = encounter) do
-    deaths = DeathAnalyzer.analyze(encounter)
-    damage_stats = DamageTakenAnalyzer.analyze(encounter)
-    interrupt_stats = InterruptAnalyzer.analyze(encounter)
-    debuff_stats = DebuffAnalyzer.analyze(encounter)
-    failure_stats = FailureAnalyzer.analyze(encounter)
+    # Run independent analyzers concurrently
+    [deaths, damage_stats, interrupt_stats, debuff_stats, player_classes] =
+      Task.await_many([
+        Task.async(fn -> DeathAnalyzer.analyze(encounter) end),
+        Task.async(fn -> DamageTakenAnalyzer.analyze(encounter) end),
+        Task.async(fn -> InterruptAnalyzer.analyze(encounter) end),
+        Task.async(fn -> DebuffAnalyzer.analyze(encounter) end),
+        Task.async(fn -> PlayerInfoAnalyzer.player_classes_by_name(encounter) end)
+      ])
 
-    player_classes = PlayerInfoAnalyzer.player_classes_by_name(encounter)
+    # Dependent analyzers — need results from above
+    failure_stats = FailureAnalyzer.analyze(encounter,
+      damage_stats: damage_stats,
+      interrupt_stats: interrupt_stats
+    )
 
     tank_guids =
       damage_stats.tanks
@@ -455,4 +463,5 @@ defmodule WeGoNext.Analyzers.AnalysisCache.Serializer do
   defp serialize_datetime(nil), do: nil
   defp serialize_datetime(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
   defp serialize_datetime(%NaiveDateTime{} = ndt), do: NaiveDateTime.to_iso8601(ndt)
+  defp serialize_datetime(str) when is_binary(str), do: str
 end
