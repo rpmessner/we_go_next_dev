@@ -49,6 +49,13 @@ defmodule WeGoNext.Accounts do
   end
 
   @doc """
+  Updates the character name for a user.
+  """
+  def set_character_name(%User{} = user, name) do
+    update_user_settings(user, %{character_name: name})
+  end
+
+  @doc """
   Updates the last loaded log for a user.
   """
   def set_last_loaded_log(%User{} = user, log_path) do

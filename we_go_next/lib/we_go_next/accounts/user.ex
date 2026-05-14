@@ -6,6 +6,7 @@ defmodule WeGoNext.Accounts.User do
     field :name, :string, default: "default"
     field :wow_logs_path, :string
     field :last_loaded_log, :string
+    field :character_name, :string
     field :is_admin, :boolean, default: false
 
     timestamps()
@@ -14,13 +15,13 @@ defmodule WeGoNext.Accounts.User do
   @doc false
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:name, :wow_logs_path, :last_loaded_log])
+    |> cast(attrs, [:name, :wow_logs_path, :last_loaded_log, :character_name])
     |> validate_required([:name])
     |> unique_constraint(:name)
   end
 
   def settings_changeset(user, attrs) do
     user
-    |> cast(attrs, [:wow_logs_path, :last_loaded_log])
+    |> cast(attrs, [:wow_logs_path, :last_loaded_log, :character_name])
   end
 end
