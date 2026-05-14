@@ -136,6 +136,12 @@ defmodule WeGoNextWeb.SettingsLive do
   end
 
   @impl true
+  def handle_info({:analysis_computed, _encounter_id, _current, _total}, socket) do
+    # Ignore analysis progress updates on settings page
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_info({:log_rotated, new_clf, count}, socket) do
     # Log rotation detected - update watching file indicator
     {:noreply,
