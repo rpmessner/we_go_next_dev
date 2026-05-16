@@ -1,12 +1,14 @@
 # Integration Roadmap: End-to-End Combat Log Flow
 
+> **Completed.** All four sprints below shipped in Nov–Dec 2025. The end-to-end flow (settings → log selection → file watch → PubSub-driven LiveView updates → Pull Summary on encounter end) is live and dogfooded. Kept for historical reference; tracking now happens in [ROADMAP.md](ROADMAP.md). Note that "ETS-backed encounter store" referenced below was later replaced by the Postgres encounter table in the April 2026 Zig parser rewrite — see [`../2026-04-09_zig_parser_rewrite.md`](../2026-04-09_zig_parser_rewrite.md).
+
 **Goal:** Verify the complete flow from WoW combat → automatic analysis → dashboard display
 
 **Target:** Working demo with trash mob pulls in current content
 
 ---
 
-## Current State
+## Current State (as of Nov 28, 2025)
 
 We have all the core pieces built:
 - ✅ Combat log parser (reads WoW log files)
@@ -16,7 +18,7 @@ We have all the core pieces built:
 - ✅ Pull Summary report generation
 - ✅ Phoenix LiveView dashboard with Summary tab
 - ✅ File watcher (polls for changes)
-- ✅ ETS-backed encounter store
+- ✅ ETS-backed encounter store *(later replaced by Postgres; see April 2026 rewrite)*
 
 **What's missing:** The pieces aren't fully wired together for the live workflow.
 

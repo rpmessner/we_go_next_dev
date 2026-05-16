@@ -1,5 +1,7 @@
 # WoWAnalyzer Architectural Patterns Reference
 
+> **Historical research, not implemented as-is.** These notes from Nov 2025 informed early thinking, but the codebase did not adopt the normalizer-pipeline pattern (we use a Zig NIF parser plus straight-through analyzers) and does not implement pet attribution. Kept for reference if those patterns become relevant later.
+
 **Source:** https://github.com/WoWAnalyzer/WoWAnalyzer
 **Date Analyzed:** 2025-11-23
 **Purpose:** Quick reference for implementation patterns learned from WoWAnalyzer

@@ -1,460 +1,328 @@
 # Technical Architecture
 
-**Project:** WoW Raid Diagnostic Tool
-**Last Updated:** 2025-11-24
+**Project:** WeGoNext — WoW Combat Log Analysis Tool
+**Last Updated:** 2026-05-16
 
-This document outlines the technical decisions, architecture, and component design for the raid diagnostic dashboard.
+This document describes the architecture *as it stands today* — the Zig-NIF parser, Postgres-backed encounter store, and Phoenix LiveView UI. Earlier design notes (ETS-backed storage, in-Elixir parser, JSON boss profiles) are superseded; the relevant rewrite session is in [`../2026-04-09_zig_parser_rewrite.md`](../2026-04-09_zig_parser_rewrite.md).
+
+For *why* this shape (vs. damage meters, Warcraft Logs, etc.) see [VISION.md](VISION.md).
 
 ---
 
 ## System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     WoW Raid Diagnostic Tool                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │  Combat Log  │───▶│  Log Watcher │───▶│   Parser     │       │
-│  │    (File)    │    │  (GenServer) │    │  (Stream)    │       │
-│  └──────────────┘    └──────────────┘    └──────────────┘       │
-│                                                 │                │
-│                                                 ▼                │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                   Event Pipeline                          │   │
-│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐          │   │
-│  │  │   Death    │  │  Damage    │  │ Interrupt  │  ...     │   │
-│  │  │  Analyzer  │  │  Tracker   │  │  Tracker   │          │   │
-│  │  └────────────┘  └────────────┘  └────────────┘          │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                │                                 │
-│                                ▼                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                  Criteria Matching                        │   │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │   │
-│  │  │ Boss Profile│  │   Failure   │  │   Failure   │       │   │
-│  │  │   (Config)  │  │  Detection  │  │   Records   │       │   │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘       │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                │                                 │
-│                                ▼                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                      Output Layer                         │   │
-│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐          │   │
-│  │  │    Live    │  │   Report   │  │  Diagram   │          │   │
-│  │  │ Dashboard  │  │ Generator  │  │  Builder   │          │   │
-│  │  │ (LiveView) │  │            │  │            │          │   │
-│  │  └────────────┘  └────────────┘  └────────────┘          │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                              WeGoNext                                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  WoW client                                                              │
+│  WoWCombatLog-*.txt ──► FileWatcher ──► Importer ──► CombatLogParser    │
+│                         (GenServer)     (per user      (Zig NIF)         │
+│                                          via              │              │
+│                                          ImportWorker)    │ byte offsets │
+│                                          │                │ + events     │
+│                                          ▼                ▼              │
+│                                  ┌─────────────────────────────┐         │
+│                                  │  Encounters (PostgreSQL)    │         │
+│                                  │  — wow_encounter_id, name,  │         │
+│                                  │    difficulty, success, ms  │         │
+│                                  │  — start_byte / end_byte    │         │
+│                                  │  — analysis (JSON cache)    │         │
+│                                  └─────────────────────────────┘         │
+│                                                │                         │
+│                                                │ to_encounter_struct/1   │
+│                                                │ re-parses events from   │
+│                                                │ log file using offsets  │
+│                                                ▼                         │
+│                                  ┌─────────────────────────────┐         │
+│                                  │  Analyzers (parallel)       │         │
+│                                  │  Death / DamageTaken /      │         │
+│                                  │  Interrupt / Debuff /       │         │
+│                                  │  Failure / PullSummary /    │         │
+│                                  │  DamageDone / PlayerInfo    │         │
+│                                  └─────────────────────────────┘         │
+│                                                │                         │
+│                                                ▼                         │
+│                                  ┌─────────────────────────────┐         │
+│                                  │  LiveView (Phoenix)         │         │
+│                                  │  Index (encounter list)     │         │
+│                                  │  Show (tabs: Summary /      │         │
+│                                  │    Failures / Deaths /      │         │
+│                                  │    DamageTaken /            │         │
+│                                  │    DamageDone / Interrupts /│         │
+│                                  │    Debuffs / BetweenPull)   │         │
+│                                  │  Settings                   │         │
+│                                  └─────────────────────────────┘         │
+│                                                                          │
+│            PubSub (`WeGoNext.PubSub`): new-encounter broadcasts,         │
+│                  import progress, log-rotation events                    │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Technology Stack
 
-### Core: Elixir/OTP
+| Layer       | Choice                                  | Rationale                                                                      |
+| ----------- | --------------------------------------- | ------------------------------------------------------------------------------ |
+| BEAM        | Elixir 1.19 + Erlang/OTP 27             | GenServers, supervisors, PubSub, hot reload. Strong existing expertise.        |
+| Web         | Phoenix 1.8 + LiveView 1.0              | Server-rendered UI, push-on-change without writing JS.                          |
+| Database    | PostgreSQL + Ecto 3                     | Encounter metadata, cached analysis JSON, criteria persistence.                |
+| Parser      | Zig 0.15.x via Zigler 0.15              | Native NIF; a 344 MB log scans in ~5 s where pure Elixir took minutes.          |
+| Styling     | Tailwind 0.4 (Phoenix integration)      | Utility-first, precompiled.                                                    |
+| Tests       | ExUnit + Wallaby (page objects)         | Unit + browser-driven feature tests.                                           |
 
-**Why Elixir:**
-- **Real-time processing**: BEAM VM designed for low-latency message passing
-- **Fault tolerance**: Supervisors restart crashed processes automatically
-- **Concurrency**: Natural fit for tracking multiple raid members simultaneously
-- **Hot code reload**: Update analysis rules without restarting
-- **Developer expertise**: Strong Elixir background means faster development
+---
 
-### Web Layer: Phoenix LiveView
+## Storage Model
 
-**Why LiveView:**
-- **Real-time updates**: Push changes to browser instantly without WebSocket complexity
-- **Server-rendered**: Minimal JavaScript, easier to maintain
-- **State management**: Server-side state simplifies architecture
-- **Built-in PubSub**: Easy broadcast of events to dashboard
+### What lives in Postgres
 
-### Storage
+- **`combat_log_files`** — one row per imported `WoWCombatLog-*.txt`, with `last_parsed_byte` for incremental imports and `file_size` for rotation detection.
+- **`encounters`** — boss + dungeon encounter records:
+  - `wow_encounter_id`, `name`, `difficulty_id`, `group_size`, `instance_id`, `success`, `fight_time_ms`
+  - `start_byte`, `end_byte` — byte offsets into the parent combat log file
+  - `analysis` (JSON, cached per-encounter result of running all analyzers)
+- **`criteria`** — abilities the user has marked as tracked mechanics (per boss, per difficulty, with difficulty inheritance — Heroic criteria apply on Mythic unless overridden).
+- **`users`** — minimal: name, `wow_logs_path`, `last_loaded_log`, `character_name`, `is_admin`.
 
-**Primary: ETS (Erlang Term Storage)**
-- In-memory, fast reads/writes
-- Perfect for encounter state during pulls
-- No persistence needed during combat
+### What does *not* live in Postgres
 
-**Secondary: JSON Files**
-- Boss profiles (criteria configurations)
-- Portable, human-readable
-- Easy to share/version control
+- **Combat events.** The `encounter_events` table was dropped in the April 2026 rewrite. Events are re-parsed on demand from the log file using the stored byte offsets when an encounter is opened. The Zig parser is fast enough that this is effectively free.
 
-**Future: SQLite/PostgreSQL**
-- Historical data (if needed)
-- Cross-session analytics
-- Not required for MVP
+### Why no per-event table
+
+The previous design wrote thousands of rows per encounter and then immediately read them back to run analyzers. The UI only ever read the cached `analysis` JSON anyway, so the event rows were dead weight. Removing the table made imports an order of magnitude faster and eliminated a class of migration/vacuum problems.
 
 ---
 
 ## Component Design
 
-### 1. Log Watcher (GenServer)
+### `WeGoNext.FileWatcher` (GenServer)
 
-Monitors the WoW combat log file for changes.
+Tracks the user's currently active combat log file.
 
-```elixir
-defmodule RaidDiagnostic.LogWatcher do
-  use GenServer
+- Polls the configured logs directory for `WoWCombatLog-*.txt` files.
+- Detects rotation when a newer file appears or the current file shrinks (typical after `/reload`).
+- Broadcasts `{:log_rotated, new_clf, count}` on `WeGoNext.PubSub` so LiveViews can update their "watching" indicator.
 
-  # State: %{path: string, position: integer, encounter_pid: pid}
+### `WeGoNext.ImportWorker` (GenServer)
 
-  # Watch for file changes
-  # Stream new lines from last position
-  # Handle file rotation (new log files)
-  # Broadcast raw lines to parser
-end
-```
+One import operation at a time per user; survives page refresh.
 
-**Responsibilities:**
-- Watch `/mnt/g/World of Warcraft/_retail_/Logs/WoWCombatLog.txt`
-- Track file position between reads
-- Detect file rotation (new combat log started)
-- Emit raw log lines to parser
+- Triggered by the user clicking **Import** in the encounter list, or by file-watcher rotation events.
+- Runs the import inside `WeGoNext.ImportTaskSupervisor` so the worker stays responsive.
+- Broadcasts `{:import_progress, %{bytes_read, total_bytes, encounters_found}}` on a per-user PubSub topic.
 
-### 2. Event Parser
+### `WeGoNext.CombatLogParser` (Zig NIF)
 
-Transforms raw log lines into structured events.
+The hot path. Implemented in [`we_go_next/priv/native/combat_log_parser.zig`](../we_go_next/priv/native/combat_log_parser.zig) and wired into Elixir via Zigler's `zig_code_path` option.
+
+Two functions:
 
 ```elixir
-defmodule RaidDiagnostic.Parser do
-  # Input: "11/24/2025 20:15:32.123  UNIT_DIED,..."
-  # Output: %Event{type: :unit_died, timestamp: ~N[...], data: %{...}}
-end
+@spec scan_boundaries(String.t(), non_neg_integer()) ::
+        {:ok, [map()], non_neg_integer()} | {:error, term()}
+@spec parse_events(String.t(), non_neg_integer(), non_neg_integer(), String.t()) ::
+        {:ok, [map()]} | {:error, term()}
 ```
 
-**Event Types:**
-- `UNIT_DIED` - Death events
-- `SPELL_DAMAGE`, `SPELL_PERIODIC_DAMAGE`, `SWING_DAMAGE` - Damage taken
-- `SPELL_INTERRUPT` - Successful interrupts
-- `SPELL_CAST_START`, `SPELL_CAST_SUCCESS` - Cast tracking
-- `SPELL_AURA_APPLIED`, `SPELL_AURA_REMOVED` - Buff/debuff tracking
-- `ENCOUNTER_START`, `ENCOUNTER_END` - Pull boundaries
+- `scan_boundaries/2` walks the file once, returns a list of encounter boundaries `%{wow_encounter_id, name, difficulty_id, group_size, instance_id, success, fight_time_ms, start_byte, end_byte}` plus the new end-of-file byte. Used during import.
+- `parse_events/4` parses every event in a byte range into Elixir maps matching the format the analyzers consume. Called on demand when an encounter is opened.
 
-### 3. Event Analyzers
+The parser handles WoW's CSV quoting, hex flag parsing, the 19-field "advanced combat log" layout introduced in TWW, and the `M/D/YYYY HH:MM:SS.mmm-TZ` timestamp format.
 
-Specialized processors for different diagnostic needs.
+### `WeGoNext.Importer`
 
-#### Death Analyzer
-```elixir
-defmodule RaidDiagnostic.Analyzers.Death do
-  # Track recent damage per player (rolling window)
-  # On UNIT_DIED: capture death recap
-  # Output: %Death{player: "Name", time: 134.5, killing_blow: %{...}, recap: [...]}
-end
+Glue between FileWatcher events and the database.
+
+- Calls `CombatLogParser.scan_boundaries/2` from the last-parsed byte.
+- Inserts one `encounters` row per boundary (idempotent on `wow_encounter_id + combat_log_file_id`).
+- Updates `last_parsed_byte` after each encounter so failures resume cleanly.
+- Broadcasts progress over PubSub.
+
+### Analyzers (`WeGoNext.Analyzers.*`)
+
+Pure functions taking a `%WeGoNext.Encounter{}` (with events loaded) and returning a result map. The full set:
+
+| Module                  | Output                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `DeathAnalyzer`         | Deaths with killing blow + damage recap                                         |
+| `DamageTakenAnalyzer`   | Per-player damage taken; tank vs. non-tank split; per-ability breakdown         |
+| `DamageDoneAnalyzer`    | Per-player damage done; per-target breakdown                                    |
+| `InterruptAnalyzer`     | Per-player interrupt counts; missed-kick detection                              |
+| `DebuffAnalyzer`        | Debuff applications by player/spell                                             |
+| `FailureAnalyzer`       | Mechanic failures matched against the criteria table                            |
+| `PlayerInfoAnalyzer`    | Player classes/specs from `COMBATANT_INFO`                                      |
+| `PullSummary`           | Aggregates the above into the Summary-tab payload                               |
+
+Independent analyzers run concurrently via `Task.await_many` in [`AnalysisCache.Serializer`](../we_go_next/lib/we_go_next/analyzers/analysis_cache/serializer.ex). `FailureAnalyzer` depends on `DamageTakenAnalyzer` and `InterruptAnalyzer` outputs; the serializer passes them in via opts instead of recomputing.
+
+### Criteria System
+
+User-flagged mechanics, stored in Postgres.
+
+- A criterion is `{encounter_id, difficulty_id, spell_id, type, threshold}` where `type` is `:avoidable` / `:must_interrupt` / `:soak` / etc.
+- Created by clicking an ability in the Damage Taken tab and picking a type from a modal.
+- **Difficulty inheritance:** a Heroic-tagged criterion applies on Mythic unless explicitly overridden at Mythic. Implemented in `WeGoNext.Encounters.Criteria.criteria_by_spell_id/2`.
+- `FailureAnalyzer` walks events against the active criteria for the current boss/difficulty and emits failure records.
+
+### LiveView UI
+
+```
+WeGoNextWeb.EncounterLive.Index   → /             (encounter list, grouped by instance)
+WeGoNextWeb.EncounterLive.Show    → /encounters/:id
+WeGoNextWeb.SettingsLive          → /settings     (logs path, character name, file watcher status)
 ```
 
-#### Damage Tracker
-```elixir
-defmodule RaidDiagnostic.Analyzers.DamageTaken do
-  # Aggregate damage by ability
-  # Track damage per player
-  # Flag outliers (players taking more than average)
-end
-```
+`Show` renders the per-encounter tabs in `we_go_next/lib/we_go_next_web/components/tabs/`:
 
-#### Interrupt Tracker
-```elixir
-defmodule RaidDiagnostic.Analyzers.Interrupt do
-  # Track SPELL_CAST_START for interruptible casts
-  # Match with SPELL_INTERRUPT events
-  # Detect uninterrupted casts (cast succeeded)
-end
-```
+- `SummaryTab` (default) — Pull Summary output
+- `FailuresTab` — criteria failures by player and by mechanic
+- `DeathsTab` — deaths with recap
+- `DamageTakenTab` — per-ability damage with class colors + spell icons (also the criteria entry point)
+- `DamageDoneTab`, `InterruptsTab`, `DebuffsTab`
+- `BetweenPullTab` — scaffolded for the M+ "between-pull" view; not rendered by any route yet
 
-### 4. Criteria System
+### M+ Support (in progress)
 
-Defines what mechanics to track and how to identify failures.
+Data layer is in place:
 
-```elixir
-defmodule RaidDiagnostic.Criteria do
-  defstruct [
-    :spell_id,           # The ability to track
-    :name,               # Human-readable name
-    :type,               # :avoidable | :interrupt | :soak | :spread | ...
-    :threshold,          # Failure condition (e.g., hits > 2)
-    :notes               # Raid leader notes
-  ]
-end
-```
+- `WeGoNext.GameData.{Instances, Dungeons, Spells}` — instance/dungeon name lookups, per-mob NPC IDs and forces values, spell name lookups
+- `WeGoNext.GameData.Dungeons.*` — 8 modules for the Midnight rotation (AlgetharAcademy, MagistersTerrace, MaisaraCaverns, NexusPointXenas, PitOfSaron, SeatOfTheTriumvirate, Skyreach, WindrunnerSpire)
+- `WeGoNext.MythicPlusRun`, `WeGoNext.TrashPull` — run + pull data structures with gap-based segmentation
+- Minimap PNGs in `priv/static/images/maps/`
 
-#### Mechanic Types
-
-| Type | Description | Failure Condition |
-|------|-------------|-------------------|
-| `:avoidable` | Damage that shouldn't happen | Any hit |
-| `:interrupt` | Cast that must be kicked | Cast completed |
-| `:soak` | Shared damage mechanic | Too few soakers |
-| `:spread` | Requires separation | Hit multiple players |
-| `:stack` | Requires grouping | Players too spread |
-| `:tank_swap` | Tank-specific | Wrong tank hit |
-
-### 5. Boss Profile System
-
-Stores criteria configurations per boss.
-
-```elixir
-defmodule RaidDiagnostic.BossProfile do
-  defstruct [
-    :boss_name,          # "Manaforge Omega"
-    :encounter_id,       # WoW encounter ID
-    :criteria,           # [%Criteria{}, ...]
-    :notes               # General strategy notes
-  ]
-
-  # Save/load from JSON files
-  # Auto-load when encounter detected
-end
-```
-
-**File Format:**
-```json
-{
-  "boss_name": "Manaforge Omega",
-  "encounter_id": 12345,
-  "criteria": [
-    {
-      "spell_id": 99999,
-      "name": "Fire Zone",
-      "type": "avoidable",
-      "threshold": {"hits": 1},
-      "notes": "Don't stand in fire"
-    }
-  ]
-}
-```
-
-### 6. Live Dashboard (Phoenix LiveView)
-
-Real-time display during pulls.
-
-```elixir
-defmodule RaidDiagnosticWeb.DashboardLive do
-  use Phoenix.LiveView
-
-  # Subscribe to encounter events
-  # Display:
-  #   - Current encounter status
-  #   - Death feed (as they happen)
-  #   - Failure feed (criteria violations)
-  #   - Raid status summary
-end
-```
-
-**Dashboard Layout:**
-```
-┌─────────────────────────────────────────────────────────┐
-│  Boss: Manaforge Omega          Duration: 2:34         │
-│  Status: IN COMBAT              Deaths: 3              │
-├─────────────────────────────────────────────────────────┤
-│  DEATHS                    │  FAILURES                 │
-│  ─────────                 │  ────────                 │
-│  2:12 PlayerA - Fire Zone  │  2:05 PlayerB - Fire Zone │
-│  2:18 PlayerB - Fire Zone  │  2:08 PlayerC - Fire Zone │
-│  2:31 PlayerC - Slam       │  2:15 PlayerA - Fire Zone │
-│                            │  2:20 PlayerD - Interrupt │
-├─────────────────────────────────────────────────────────┤
-│  RAID STATUS: 17/20 alive  │  Fire Zone hits: 8       │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 7. Report Generator
-
-Produces between-pull analysis.
-
-```elixir
-defmodule RaidDiagnostic.Reports.PullSummary do
-  # Generate after encounter ends
-  # Include:
-  #   - Deaths with causes
-  #   - Failures by mechanic
-  #   - Failures by player
-  #   - Comparison to previous attempt
-end
-```
-
-**Sample Output:**
-```
-=== Pull #5 Summary ===
-Duration: 2:34 (Best: 3:45)
-Deaths: 3 (Previous: 5) ✓ Improved
-
-WHAT KILLED US:
-  Fire Zone damage overwhelmed healers at 2:30
-
-MECHANIC FAILURES:
-  Fire Zone: 8 hits (PlayerA: 3, PlayerB: 2, PlayerC: 2, PlayerD: 1)
-  Missed Interrupt: 1 (PlayerE)
-
-PLAYER NOTES:
-  PlayerA: Focus on Fire Zone positioning
-  PlayerB: Improve Fire Zone awareness
-  PlayerE: Watch interrupt assignment
-```
-
-### 8. Diagram Builder (Future)
-
-Generates annotated minimap images.
-
-```elixir
-defmodule RaidDiagnostic.Diagrams do
-  # Load minimap background image
-  # Overlay:
-  #   - Position markers
-  #   - Movement arrows
-  #   - Death locations (from combat data)
-  # Export as PNG for Discord
-end
-```
+Runtime wiring is **not done yet** — the Zig parser doesn't yet detect `CHALLENGE_MODE_START`/`CHALLENGE_MODE_END`, and `parse_events` only reads inside `ENCOUNTER_START`/`END` ranges. See [`../we_go_next/docs/sessions/2026-04-10_m_plus_trash_research.md`](../we_go_next/docs/sessions/2026-04-10_m_plus_trash_research.md) for the detailed gap.
 
 ---
 
 ## Data Flow
 
-### During Pull (Real-Time)
+### Import (user clicks Import, or watcher fires)
 
 ```
-Combat Log File
-    │
-    ▼ (file change detected)
-Log Watcher (GenServer)
-    │
-    ▼ (raw lines)
-Parser
-    │
-    ▼ (structured events)
-    ├──▶ Death Analyzer ──────┐
-    ├──▶ Damage Tracker ──────┤
-    ├──▶ Interrupt Tracker ───┤
-    └──▶ Debuff Tracker ──────┤
-                              │
-                              ▼
-                    Criteria Matcher
-                              │
-                              ▼
-                    Failure Records
-                              │
-                              ▼ (PubSub broadcast)
-                    Live Dashboard
+FileWatcher detects new bytes / rotation
+        │
+        ▼ broadcasts new encounter via PubSub
+ImportWorker.import_log/2
+        │
+        ▼
+CombatLogParser.scan_boundaries(path, last_parsed_byte)
+        │
+        ▼ for each boundary
+Importer.insert_single_encounter/3   ──►  encounters row
+Importer.update_file_progress/2      ──►  last_parsed_byte
+        │
+        ▼ broadcasts {:import_progress, ...}
+LiveView (Index)  ──►  refreshes encounter list
 ```
 
-### Between Pulls (Analysis)
+### Viewing an encounter
 
 ```
-Encounter End Event
-    │
-    ▼
-Report Generator
-    │
-    ├──▶ Pull Summary (terminal/web)
-    ├──▶ Player Reports (private, exportable)
-    └──▶ Progress Tracking (trends)
+User opens /encounters/:id
+        │
+        ▼
+EncounterLive.Show.mount/3
+  • loads encounters row + cached analysis JSON (if present)
+  • if analysis missing: kicks off background AnalysisCache.Serializer.compute/1
+        │
+        ▼  compute (only if cache miss)
+to_encounter_struct/1
+  → CombatLogParser.parse_events(path, start_byte, end_byte, start_ts)
+        │
+        ▼ runs concurrently
+Death / DamageTaken / Interrupt / Debuff / PlayerInfo
+        │
+        ▼ runs sequentially after the above
+Failure (uses damage_stats + interrupt_stats from above)
+PullSummary (aggregates everything)
+        │
+        ▼
+analysis JSON cached on encounters row
+        │
+        ▼ PubSub broadcast
+LiveView (Show)  ──►  renders the active tab
 ```
 
 ---
 
 ## OTP Supervision Tree
 
+From `WeGoNext.Application`:
+
 ```
-Application
-└── Supervisor
-    ├── LogWatcher (GenServer)
-    │   └── monitors combat log file
-    ├── EncounterSupervisor (DynamicSupervisor)
-    │   └── spawns per-encounter processes
-    ├── ProfileManager (GenServer)
-    │   └── loads/saves boss profiles
-    ├── CriteriaRegistry (ETS table owner)
-    │   └── active criteria for current boss
-    └── Phoenix.Endpoint
-        └── LiveView sessions
+WeGoNext.Supervisor (one_for_one)
+├── WeGoNext.Repo                        Ecto / PostgreSQL
+├── Phoenix.PubSub (name: WeGoNext.PubSub)
+├── Task.Supervisor (name: WeGoNext.ImportTaskSupervisor)
+├── WeGoNext.ImportWorker                One import at a time per user
+├── WeGoNext.FileWatcher                 Tracks active combat log file
+└── WeGoNextWeb.Endpoint                 Phoenix HTTP
 ```
+
+No `ProfileManager`, no `CriteriaRegistry`, no per-encounter `DynamicSupervisor`. Earlier design notes referenced these — they were never built; criteria persist in Postgres and analyses run synchronously inside the `Show` LiveView's mount path.
 
 ---
 
-## Performance Targets
+## Performance
 
-| Metric | Target | Rationale |
-|--------|--------|-----------|
-| Event latency | <500ms | Visible feedback during pull |
-| Memory usage | <500MB | Long raid nights (3+ hours) |
-| Events/second | 500+ | Heavy combat scenarios |
-| Crash recovery | <1s | Supervisor restart |
+Measured against a 344 MB combat log with 8 encounters and ~1.2 M lines (Manaforge Omega progression):
+
+| Stage                              | Time           |
+| ---------------------------------- | -------------- |
+| `scan_boundaries` (full file)      | ~4 s           |
+| `parse_events` (~109K events)      | ~800 ms        |
+| Parallel analyzer pass             | ~340 ms        |
+| **End-to-end import + analysis**   | **~5 s**       |
+
+For comparison the prior pure-Elixir implementation took minutes on the same file. The win comes from (a) avoiding the per-event DB roundtrip entirely and (b) doing the CSV/timestamp/hex parsing in Zig with `std.heap.page_allocator`.
 
 ---
 
 ## Key Technical Decisions
 
-### Why Not a Damage Meter?
+### Why between-pull, not live
 
-Damage meters exist (Details!, Warcraft Logs). This tool solves a different problem:
-- **Mechanics over meters**: DPS doesn't matter if you're dead
-- **Coaching over ranking**: Help players improve, not shame them
-- **Progression focus**: What's blocking our kill?
+WoW buffers combat log writes during active combat — events can be delayed several minutes from gameplay. The external log file is *not* a real-time stream during a pull. It flushes immediately on `ENCOUNTER_END`, which is when analysis is actually actionable (during runback). A true live-during-combat view would require a companion addon emitting events over WebSocket; that's deliberately out of scope.
 
-### Why Build Custom vs. Use Warcraft Logs?
+### Why Zig (and not Rust or NIFs in C)
 
-Warcraft Logs is post-raid analysis. This tool is:
-- **Real-time**: During and between pulls
-- **Iterative**: Build criteria as you learn fights
-- **Private**: Individual coaching without public logs
+A pure-Elixir parser was the bottleneck. Two paths to native speed: Rustler or Zigler. Zig 0.15 was easier to drop in given the no-dependency build, and Zigler 0.15 supports loading the Zig source from an external file via `:zig_code_path`, which keeps the Elixir module a thin NIF declaration and lets the Zig code be edited with ZLS / `zig fmt` / proper syntax highlighting.
 
-### Why Elixir vs. Existing Tools?
+### Why not Warcraft Logs
 
-- **Real-time native**: Built for this use case
-- **Full control**: Customize exactly what to track
-- **Learning opportunity**: Deepen Elixir/OTP expertise
-- **No dependencies**: Works offline, no API limits
+WCL is post-raid analysis with a public-facing rankings angle. WeGoNext is between-pull and private. Different problem.
+
+### Why not a damage meter
+
+Damage meters answer "who did the most." WeGoNext answers *why* — per-target, per-phase, per-pull context that the in-game meter aggregates away. See [VISION.md](VISION.md).
 
 ---
 
-## Future Considerations
+## Security & Privacy
 
-### Position Tracking
-
-Combat log doesn't include player positions directly. Options:
-- Infer from damage events (who got hit by positional mechanic)
-- Correlate with DBM/BigWigs timer data (if exposed)
-- Manual position assignment in diagrams
-
-### Integration Points
-
-- **WoW Addon** (`~/dev/wow-addons/`): Lua addon to display reports in-game
-  - Raid Leader report (full details, private)
-  - Raid report (filtered, appropriate for sharing)
-  - Per-boss configuration of what to expose
-  - Future: Personalized reports per player
-- **Discord Bot**: Post reports to channel
-- **WeakAuras Export**: Generate WA strings for alerts
-- **Warcraft Logs API**: Compare to public logs (optional)
-
-### Scaling
-
-Current design is single-raid focused. Future expansion:
-- Multiple concurrent raids (guild management)
-- Historical analytics across sessions
-- Profile sharing/community library
+- **Local only.** No data leaves the machine. The Phoenix server binds to all interfaces by default so the Windows host can reach a WSL2-hosted server, but only on the local network.
+- **Read-only.** Combat log access is read-only; the tool never writes to game files or modifies the client.
+- **Private by design.** Criteria, analyses, and per-player breakdowns are not shared anywhere unless the user explicitly exports them.
 
 ---
 
-## Security Considerations
+## What's Out of Scope (For Now)
 
-- **Local only**: No data leaves local machine by default
-- **No game modification**: Read-only combat log access
-- **Private by design**: Reports are for raid leader only
-
----
-
-## Development Approach
-
-1. **Vertical slices**: Build end-to-end for one feature before expanding
-2. **Real data first**: Test with actual combat logs immediately
-3. **Iterate during progression**: Use current content as test bed
-4. **Ship and refine**: MVP for Midnight, polish after
+- **Live-during-combat updates.** Combat log buffering makes this impossible without an in-game addon.
+- **Position tracking.** Combat log doesn't include player coordinates. Would require an addon or DBM/BigWigs integration to overlay positions on minimaps.
+- **Multi-user / hosted version.** The data model has a `users` table but the deployment model is single-user-on-localhost. A hosted version with role-based access (raid leads see everything, players see own data) is post-MVP.
+- **WCL parity.** No public rankings, no log uploads, no public profile pages.
 
 ---
 
-**Next Steps:** See `docs/HANDOFF.md` for immediate implementation tasks.
+## See Also
+
+- [README.md](../README.md) — project overview and quick start
+- [VISION.md](VISION.md) — what this tool is and isn't (April 2026)
+- [ROADMAP.md](ROADMAP.md) — phases and Midnight launch timeline
+- [`../2026-04-09_zig_parser_rewrite.md`](../2026-04-09_zig_parser_rewrite.md) — full session log on the parser rewrite
+- [`../we_go_next/docs/sessions/2026-04-10_m_plus_trash_research.md`](../we_go_next/docs/sessions/2026-04-10_m_plus_trash_research.md) — what M+ runtime wiring still needs

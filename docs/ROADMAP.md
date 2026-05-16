@@ -1,19 +1,23 @@
-# WoW Raid Diagnostic Tool - Development Roadmap
+# WeGoNext - Development Roadmap
 
-**Project:** Raid Diagnostic & Coaching Dashboard
+**Project:** WoW Combat Log Analysis Tool
 **Target Launch:** Midnight Expansion Raids (March 2026)
-**Last Updated:** 2025-11-28
+**Last Updated:** 2026-05-16
+
+> **Priority note:** [VISION.md](VISION.md) (April 2026 rewrite) is the canonical statement of priorities. The pre-April direction below — "raid leadership tool" — has been re-centered around **personal play first** (my play this pull → my play over time → raid-wide → sharing). Roadmap phases below are still useful as a work breakdown but read priorities through VISION.
 
 ---
 
 ## Vision
 
-Build a raid leadership tool that provides:
-1. **Instant between-pull analysis** - diagnosing what went wrong, ready during runback
-2. **Strategy diagrams** with annotated minimaps for Discord
-3. **Private coaching** reports for individual players
+Build a combat-log analysis tool that provides:
+1. **Personal between-pull analysis** - what *I* did wrong, how my rotation broke down, where I can improve
+2. **Raid-wide diagnosis** - what killed us, who failed mechanics, who needs coaching
+3. **M+ run analysis** - first-class M+ support, especially for failed keys
+4. **Strategy diagrams** with annotated minimaps for Discord (post-MVP)
+5. **Private coaching** reports for individual players (post-MVP)
 
-This is NOT a damage meter. It's a diagnostic tool for progression raiding.
+This is NOT a damage meter. It's the analysis layer that answers "why" questions a meter glosses over.
 
 ### Why Between-Pull Focus (Not Live)
 
@@ -43,7 +47,10 @@ True live-during-combat would require a companion addon (post-MVP consideration)
 | **M3: Criteria System** | ✅ Nov 2025 | Mark/track mechanics, failure detection |
 | **M4: File Refresh** | ✅ Nov 2025 | Manual refresh, incremental parsing |
 | **M5: Analysis Reports** | ✅ Nov 2025 | Between-pull summaries, trends |
-| **M6: Pre-Launch Polish** | Early Mar 2026 | Final testing, bug fixes |
+| **M6: Zig Parser Rewrite** | ✅ Apr 2026 | Replace Elixir parser with Zig NIF; drop `encounter_events` table |
+| **M7: M+ Data Layer** | ✅ Apr 2026 | GameData modules for 8 Midnight dungeons; minimaps; trash-pull skeleton |
+| **M8: M+ Runtime Wiring** | In progress | Detect `CHALLENGE_MODE_START/END`; parse trash gaps; map NPC IDs |
+| **M9: Pre-Launch Polish** | Early Mar 2026 | Final testing, bug fixes |
 | **MVP Launch** | **Mid-March 2026** | **Ready for Midnight raids Day 1** |
 | **Post-MVP: Player Reports** | Q2 2026 | Private coaching for Discord DMs |
 | **Post-MVP: Strategy Diagrams** | Q2-Q3 2026 | Minimap annotations, Discord export |
@@ -56,7 +63,7 @@ True live-during-combat would require a companion addon (post-MVP consideration)
 **Goal:** Extract diagnostic-relevant events from combat logs
 **Target:** December 2025
 
-### 1A: Death Analysis (Priority: CRITICAL)
+### 1A: Death Analysis (Priority: CRITICAL) ✅ COMPLETE
 
 The most important diagnostic: who died and why.
 
@@ -66,21 +73,22 @@ The most important diagnostic: who died and why.
 - [x] Identify killing blow (ability, source)
 - [x] Calculate overkill amount
 - [x] Track time of death in encounter
-- [ ] Aggregate deaths per player across pulls
+- [ ] Aggregate deaths per player across pulls (future)
 
 **Output:** "Player X died at 2:34 to [Ability] from [Source]. Took 450k damage in last 3 seconds."
 
-### 1B: Damage Taken Tracking (Priority: HIGH)
+### 1B: Damage Taken Tracking (Priority: HIGH) ✅ COMPLETE
 
 Track what's hitting the raid.
 
 **Tasks:**
-- [ ] Parse `SPELL_DAMAGE`, `SPELL_PERIODIC_DAMAGE`, `SWING_DAMAGE`
-- [ ] Track damage by ability (group similar damage)
-- [ ] Track damage by target (who's taking damage)
-- [ ] Identify high-damage abilities (potential mechanics)
-- [ ] Calculate DTPS (damage taken per second) per player
-- [ ] Flag players taking significantly more damage than others
+- [x] Parse `SPELL_DAMAGE`, `SPELL_PERIODIC_DAMAGE`, `SWING_DAMAGE`
+- [x] Track damage by ability (group similar damage)
+- [x] Track damage by target (who's taking damage)
+- [x] Identify high-damage abilities (potential mechanics)
+- [x] Calculate DTPS (damage taken per second) per player
+- [x] Flag players taking significantly more damage than others
+- [x] Tank/non-tank split, class colors, spell icons in UI
 
 **Output:** "[Ability X] hit 8 players for average 120k damage. Player Y took 3 hits."
 
@@ -115,27 +123,27 @@ Many mechanics apply debuffs that need handling.
 ## Phase 2: Discovery Mode
 
 **Goal:** Surface interesting events without predefined criteria
-**Target:** January 2026
+**Status:** 2A and 2B complete; 2C (pull comparison) deferred
 
-### 2A: Event Aggregation
-
-**Tasks:**
-- [ ] Group events by ability/spell ID
-- [ ] Calculate frequency, total damage, affected players
-- [ ] Rank abilities by "interestingness" (damage, frequency, deaths caused)
-- [ ] Filter out noise (auto-attacks, minor damage)
-- [ ] Present top N "notable" abilities per pull
-
-### 2B: Basic Web Interface
+### 2A: Event Aggregation ✅
 
 **Tasks:**
-- [ ] Create Phoenix application
-- [ ] Simple pull selector (list encounters from log)
-- [ ] Event summary view (deaths, damage sources, interrupts)
-- [ ] Sortable/filterable tables
-- [ ] Basic styling (TailwindCSS)
+- [x] Group events by ability/spell ID
+- [x] Calculate frequency, total damage, affected players
+- [x] Rank abilities by "interestingness" (damage, frequency, deaths caused)
+- [x] Filter out noise (auto-attacks, minor damage)
+- [x] Present top N "notable" abilities per pull (Damage Taken tab)
 
-### 2C: Pull Comparison
+### 2B: Basic Web Interface ✅
+
+**Tasks:**
+- [x] Create Phoenix application
+- [x] Pull selector (encounter list grouped by instance)
+- [x] Event summary view (Summary / Deaths / Damage Taken / Failures / Debuffs tabs)
+- [x] Sortable/filterable tables
+- [x] Basic styling (Tailwind 0.4)
+
+### 2C: Pull Comparison (deferred)
 
 **Tasks:**
 - [ ] Compare current pull to previous attempts
