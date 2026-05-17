@@ -7,18 +7,28 @@ defmodule WeGoNext.CombatLogFile do
   import Ecto.Changeset
 
   alias WeGoNext.Accounts.User
+  alias WeGoNext.Bronze.FileFingerprint
+
+  @sources [:live, :warcraftlogs_archive]
 
   schema "combat_log_files" do
-    field :file_path, :string
-    field :file_size, :integer
-    field :file_mtime, :utc_datetime
-    field :last_parsed_byte, :integer, default: 0
-    field :last_parsed_at, :utc_datetime
-    # Mark as complete when fully parsed and a newer log exists (dead log)
-    field :is_complete, :boolean, default: false
+    field(:file_path, :string)
+    field(:file_size, :integer)
+    field(:file_mtime, :utc_datetime)
+    field(:last_parsed_byte, :integer, default: 0)
+    field(:last_parsed_at, :utc_datetime)
 
-    belongs_to :user, User
-    has_many :encounters, WeGoNext.Encounters.Encounter
+    field(:source, Ecto.Enum,
+      values: [live: "live", warcraftlogs_archive: "warcraftlogs_archive"],
+      default: :live
+    )
+
+    field(:head_sha256, :string)
+    # Mark as complete when fully parsed and a newer log exists (dead log)
+    field(:is_complete, :boolean, default: false)
+
+    belongs_to(:user, User)
+    has_many(:encounters, WeGoNext.Encounters.Encounter)
 
     timestamps()
   end
@@ -26,9 +36,22 @@ defmodule WeGoNext.CombatLogFile do
   @doc false
   def changeset(combat_log_file, attrs) do
     combat_log_file
-    |> cast(attrs, [:file_path, :file_size, :file_mtime, :last_parsed_byte, :last_parsed_at, :user_id, :is_complete])
-    |> validate_required([:file_path, :user_id])
+    |> cast(attrs, [
+      :file_path,
+      :file_size,
+      :file_mtime,
+      :last_parsed_byte,
+      :last_parsed_at,
+      :source,
+      :head_sha256,
+      :user_id,
+      :is_complete
+    ])
+    |> validate_required([:file_path, :user_id, :source])
+    |> validate_inclusion(:source, @sources)
+    |> validate_format(:head_sha256, ~r/\A[0-9a-f]{64}\z/)
     |> unique_constraint(:file_path)
+    |> check_constraint(:source, name: :combat_log_files_source_check)
   end
 
   @doc """
@@ -36,7 +59,10 @@ defmodule WeGoNext.CombatLogFile do
   """
   def update_progress_changeset(combat_log_file, byte_offset) do
     combat_log_file
-    |> cast(%{last_parsed_byte: byte_offset, last_parsed_at: DateTime.utc_now()}, [:last_parsed_byte, :last_parsed_at])
+    |> cast(%{last_parsed_byte: byte_offset, last_parsed_at: DateTime.utc_now()}, [
+      :last_parsed_byte,
+      :last_parsed_at
+    ])
   end
 
   @doc """
@@ -87,22 +113,25 @@ defmodule WeGoNext.CombatLogFile do
   @doc """
   Creates attrs from a file path by reading file metadata.
   """
-  def attrs_from_file(file_path, user_id) do
-    case File.stat(file_path) do
-      {:ok, %{size: size, mtime: mtime}} ->
-        mtime_dt = NaiveDateTime.from_erl!(mtime) |> DateTime.from_naive!("Etc/UTC")
+  def attrs_from_file(file_path, user_id, opts \\ []) do
+    source = Keyword.get(opts, :source, :live)
 
-        {:ok,
-         %{
-           file_path: file_path,
-           file_size: size,
-           file_mtime: mtime_dt,
-           user_id: user_id,
-           last_parsed_byte: 0
-         }}
+    with {:ok, %{size: size, mtime: mtime}} <- File.stat(file_path),
+         {:ok, head_sha256} <- FileFingerprint.head_sha256(file_path) do
+      mtime_dt = NaiveDateTime.from_erl!(mtime) |> DateTime.from_naive!("Etc/UTC")
 
-      {:error, reason} ->
-        {:error, reason}
+      {:ok,
+       %{
+         file_path: file_path,
+         file_size: size,
+         file_mtime: mtime_dt,
+         source: source,
+         head_sha256: head_sha256,
+         user_id: user_id,
+         last_parsed_byte: 0
+       }}
+    else
+      {:error, reason} -> {:error, reason}
     end
   end
 end

@@ -3,8 +3,11 @@ defmodule WeGoNext.Accounts do
   The Accounts context - manages users and their settings.
   """
 
-  alias WeGoNext.Repo
+  require Logger
+
+  alias WeGoNext.{CombatLogFile, Repo}
   alias WeGoNext.Accounts.User
+  alias WeGoNext.Bronze.FileFingerprint
 
   @doc """
   Gets the default user, creating one if it doesn't exist.
@@ -68,11 +71,13 @@ defmodule WeGoNext.Accounts do
   """
   def list_combat_logs(%User{wow_logs_path: nil}), do: {:error, :no_path_configured}
 
-  def list_combat_logs(%User{wow_logs_path: path}) do
-    list_combat_logs_in_path(path)
+  def list_combat_logs(%User{wow_logs_path: path} = user) do
+    list_combat_logs_in_path(path, user)
   end
 
-  def list_combat_logs_in_path(path) do
+  def list_combat_logs_in_path(path), do: list_combat_logs_in_path(path, nil)
+
+  def list_combat_logs_in_path(path, user) do
     case File.ls(path) do
       {:ok, files} ->
         logs =
@@ -83,6 +88,7 @@ defmodule WeGoNext.Accounts do
           |> Enum.map(fn filename ->
             full_path = Path.join(path, filename)
             stat = File.stat!(full_path)
+            maybe_backfill_head_sha256(full_path, user)
 
             # Convert erlang datetime tuple to NaiveDateTime for sorting
             modified_ndt = NaiveDateTime.from_erl!(stat.mtime)
@@ -91,7 +97,8 @@ defmodule WeGoNext.Accounts do
               filename: filename,
               full_path: full_path,
               size: stat.size,
-              modified: modified_ndt
+              modified: modified_ndt,
+              source: :live
             }
           end)
           |> Enum.sort_by(& &1.modified, {:desc, NaiveDateTime})
@@ -100,6 +107,32 @@ defmodule WeGoNext.Accounts do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp maybe_backfill_head_sha256(_full_path, nil), do: :ok
+
+  defp maybe_backfill_head_sha256(full_path, %User{id: user_id}) do
+    case Repo.get_by(CombatLogFile, file_path: full_path, user_id: user_id) do
+      %CombatLogFile{head_sha256: nil} = combat_log_file ->
+        case FileFingerprint.head_sha256(full_path) do
+          {:ok, head_sha256} ->
+            combat_log_file
+            |> Ecto.Changeset.change(%{head_sha256: head_sha256})
+            |> Repo.update()
+
+            :ok
+
+          {:error, reason} ->
+            Logger.warning(
+              "Failed to backfill combat log fingerprint for #{full_path}: #{inspect(reason)}"
+            )
+
+            :ok
+        end
+
+      _ ->
+        :ok
     end
   end
 end
