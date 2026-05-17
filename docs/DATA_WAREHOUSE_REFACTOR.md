@@ -34,12 +34,12 @@ Bronze:  Logs/WoWCombatLog-*.txt                                (live)
                 │
                 │ Zig: project_silver/3 (new NIF — one pass over events)
                 ▼
-Silver:  public.silver_damage_taken
-         public.silver_damage_done
-         public.silver_death
-         public.silver_interrupt_opportunity
-         public.silver_debuff_application
-         public.silver_player_info
+Silver:  silver.damage_taken
+         silver.damage_done
+         silver.death
+         silver.interrupt_opportunity
+         silver.debuff_application
+         silver.player_info
                 │
                 │ SQL transform (Elixir, this iteration — dbt later)
                 ▼
@@ -78,25 +78,25 @@ Each table has `encounter_id` FK to `encounters`, an `inserted_at`, and a unique
 
 | Table | Natural key | Measures / payload |
 | --- | --- | --- |
-| `silver_damage_taken` | (encounter_id, target_guid, source_guid, spell_id) | total_amount, hit_count, max_hit, overkill_total, source_is_npc (bool — populated in Zig from source_flags) |
-| `silver_damage_done` | (encounter_id, source_guid, target_guid, spell_id) | total_amount, hit_count, max_hit |
-| `silver_death` | (encounter_id, target_guid, died_at_ms_into_fight) | killing_blow_spell_id, killing_blow_source_guid, damage_recap (jsonb — last 10 events) |
-| `silver_interrupt_opportunity` | (encounter_id, target_npc_guid, interrupted_spell_id, opportunity_ms_into_fight) | success (bool), interrupter_guid (nullable — null when success=false), interrupting_spell_id (nullable) |
-| `silver_debuff_application` | (encounter_id, target_guid, source_guid, spell_id, applied_at_ms_into_fight) | duration_ms (nullable — null if not removed before encounter end), stack_count |
-| `silver_player_info` | (encounter_id, player_guid) | player_name, class_id, spec_id, item_level, detected_role (enum: `tank`/`healer`/`dps`/`unknown`) |
+| `silver.damage_taken` | (encounter_id, target_guid, source_guid, spell_id) | total_amount, hit_count, max_hit, overkill_total, source_is_npc (bool — populated in Zig from source_flags) |
+| `silver.damage_done` | (encounter_id, source_guid, target_guid, spell_id) | total_amount, hit_count, max_hit |
+| `silver.death` | (encounter_id, target_guid, died_at_ms_into_fight) | killing_blow_spell_id, killing_blow_source_guid, damage_recap (jsonb — last 10 events) |
+| `silver.interrupt_opportunity` | (encounter_id, target_npc_guid, interrupted_spell_id, opportunity_ms_into_fight) | success (bool), interrupter_guid (nullable — null when success=false), interrupting_spell_id (nullable) |
+| `silver.debuff_application` | (encounter_id, target_guid, source_guid, spell_id, applied_at_ms_into_fight) | duration_ms (nullable — null if not removed before encounter end), stack_count |
+| `silver.player_info` | (encounter_id, player_guid) | player_name, class_id, spec_id, item_level, detected_role (enum: `tank`/`healer`/`dps`/`unknown`) |
 
-**`silver_interrupt_opportunity` semantics** (renamed from `silver_interrupt` after review):
+**`silver.interrupt_opportunity` semantics** (renamed from `silver.interrupt` after review):
 
 - One row per interrupt *opportunity* — either a successful interrupt of an enemy cast OR an enemy cast of an interruptible spell that completed unkicked.
 - `target_npc_guid` is the source of the enemy cast (the thing being interrupted, or the thing that finished casting).
 - `opportunity_ms_into_fight` is the time of the interrupt event (when `success=true`) or the time of `SPELL_CAST_SUCCESS` (when `success=false`), stored as integer milliseconds.
 - `interrupter_guid` is the player who landed the kick (null for missed casts).
 - Natural key excludes `interrupter_guid` so missed casts (no interrupter) still have a unique key.
-- This matches `InterruptAnalyzer.missed_casts` (`interrupt_analyzer.ex:226-243`), which only treats an NPC `SPELL_CAST_SUCCESS` as "missed" if that spell was successfully interrupted at least once in the SAME encounter. Implication for the Zig projection: maintain TWO accumulators during the single pass — (a) all successful `SPELL_INTERRUPT` events, (b) all NPC `SPELL_CAST_SUCCESS` events buffered with their spell_id. At end-of-encounter, build a set of interrupted spell_ids from (a), then filter (b) down to casts whose spell appears in that set — only those become `success=false` rows in `silver_interrupt_opportunity`. Casts of spells that nobody ever kicked are dropped (they're not considered "interruptible" by the analyzer's heuristic).
+- This matches `InterruptAnalyzer.missed_casts` (`interrupt_analyzer.ex:226-243`), which only treats an NPC `SPELL_CAST_SUCCESS` as "missed" if that spell was successfully interrupted at least once in the SAME encounter. Implication for the Zig projection: maintain TWO accumulators during the single pass — (a) all successful `SPELL_INTERRUPT` events, (b) all NPC `SPELL_CAST_SUCCESS` events buffered with their spell_id. At end-of-encounter, build a set of interrupted spell_ids from (a), then filter (b) down to casts whose spell appears in that set — only those become `success=false` rows in `silver.interrupt_opportunity`. Casts of spells that nobody ever kicked are dropped (they're not considered "interruptible" by the analyzer's heuristic).
 
-**`silver_player_info.detected_role`** is populated in Zig during the same pass that builds `silver_damage_taken`, reproducing the tank heuristic in `damage_taken_analyzer.ex:43` ("top 2 players receiving NPC melee damage are tanks"). Computed by tracking per-player NPC-source melee damage in an accumulator alongside the damage-taken accumulator; finalized at end-of-encounter when emitting `silver_player_info` rows. Healer detection is left for a follow-on (today's analyzer doesn't distinguish healer from dps in role assignment).
+**`silver.player_info.detected_role`** is populated in Zig during the same pass that builds `silver.damage_taken`, reproducing the tank heuristic in `damage_taken_analyzer.ex:43` ("top 2 players receiving NPC melee damage are tanks"). Computed by tracking per-player NPC-source melee damage in an accumulator alongside the damage-taken accumulator; finalized at end-of-encounter when emitting `silver.player_info` rows. Healer detection is left for a follow-on (today's analyzer doesn't distinguish healer from dps in role assignment).
 
-**`silver_damage_taken.source_is_npc`** is denormalized into the row (cheap to compute from `source_flags` during the same Zig pass) specifically so the gold-tier SQL transform can filter avoidable-damage facts to NPC-source damage without re-deriving NPC-ness from flags in SQL.
+**`silver.damage_taken.source_is_npc`** is denormalized into the row (cheap to compute from `source_flags` during the same Zig pass) specifically so the gold-tier SQL transform can filter avoidable-damage facts to NPC-source damage without re-deriving NPC-ness from flags in SQL.
 
 **Expected per-encounter row counts:** ~500–3000 damage rows, 5–25 deaths, 20–100 interrupt opportunities, 100–500 debuff applications. A heavy raid night = ~80k rows across silver. Negligible vs. the event-grain volume April rejected.
 
@@ -136,23 +136,23 @@ INSERT INTO gold.dim_player (player_guid, player_name, class_id, spec_id)
 VALUES ('__RAID__', 'Raid', NULL, NULL);
 ```
 
-The fact builder maps `player_guid IS NULL` (from `silver_interrupt_opportunity`) to the sentinel row's `id` during the join. All raid-level failures for the same `(encounter, criterion)` collapse to one fact row whose `failure_count` is the count of missed casts — which is what the per-encounter Failures tab already shows. The sentinel is a well-known Kimball pattern; the alternative (nullable `player_dim_id`, or separate `fact_raid_failure`) was rejected because it forces a special case into every consumer.
+The fact builder maps `player_guid IS NULL` (from `silver.interrupt_opportunity`) to the sentinel row's `id` during the join. All raid-level failures for the same `(encounter, criterion)` collapse to one fact row whose `failure_count` is the count of missed casts — which is what the per-encounter Failures tab already shows. The sentinel is a well-known Kimball pattern; the alternative (nullable `player_dim_id`, or separate `fact_raid_failure`) was rejected because it forces a special case into every consumer.
 
 **Type 1 SCD behavior:** `dim_player` upserts on `player_guid` — class/spec changes overwrite the existing row. Historical fact rows then implicitly point at the player's *current* class/spec, not the class/spec at the time of the encounter. SCD2 (preserving point-in-time accuracy via `valid_from`/`valid_to`) is the documented follow-on.
 
 **Build order per import:**
 1. `Silver.project_and_persist(encounter)` writes the six silver tables.
-2. `Gold.DimPlayer.upsert_from_silver(encounter_id)` upserts `dim_player` rows from `silver_player_info` for this encounter (the sentinel `__RAID__` row is seeded once at migration time, not per import).
-3. `Gold.FactFailure.rebuild_for_encounter(encounter_id)` joins `silver_damage_taken` (filtered `silver_player_info.detected_role <> 'tank'`) + `silver_interrupt_opportunity` (where `success = false`, mapped to the `__RAID__` sentinel) + `mechanic_criteria` + `gold.dim_player`, writes `fact_failure` rows with surrogate keys throughout.
+2. `Gold.DimPlayer.upsert_from_silver(encounter_id)` upserts `dim_player` rows from `silver.player_info` for this encounter (the sentinel `__RAID__` row is seeded once at migration time, not per import).
+3. `Gold.FactFailure.rebuild_for_encounter(encounter_id)` joins `silver.damage_taken` (filtered `silver.player_info.detected_role <> 'tank'`) + `silver.interrupt_opportunity` (where `success = false`, mapped to the `__RAID__` sentinel) + `mechanic_criteria` + `gold.dim_player`, writes `fact_failure` rows with surrogate keys throughout.
 
-**Why `source_is_npc` is NOT filtered in `fact_failure`** — even though `silver_damage_taken` carries the column, the current `FailureAnalyzer.analyze_avoidable_damage/2` (`failure_analyzer.ex:90-108`) does not filter avoidable damage by NPC source — it just iterates non-tank players and checks per-spell damage against the criteria thresholds. Adding `source_is_npc = true` to the SQL would diverge from current behavior and break parity, even though it would arguably be a correctness improvement (avoidable mechanics are always cast by NPCs in practice). Decision: preserve parity now; treat the NPC filter as a follow-on improvement that we'd ship with an explicit "diverges from `FailureAnalyzer` here" note. The column stays in silver for future facts.
+**Why `source_is_npc` is NOT filtered in `fact_failure`** — even though `silver.damage_taken` carries the column, the current `FailureAnalyzer.analyze_avoidable_damage/2` (`failure_analyzer.ex:90-108`) does not filter avoidable damage by NPC source — it just iterates non-tank players and checks per-spell damage against the criteria thresholds. Adding `source_is_npc = true` to the SQL would diverge from current behavior and break parity, even though it would arguably be a correctness improvement (avoidable mechanics are always cast by NPCs in practice). Decision: preserve parity now; treat the NPC filter as a follow-on improvement that we'd ship with an explicit "diverges from `FailureAnalyzer` here" note. The column stays in silver for future facts.
 
 Why this is the right minimum:
 
 - **Real dim discipline from day one.** Future facts (`fact_death`, `fact_interrupt`, `fact_damage_taken`) join the same `dim_player` — conformance for free.
 - **No retrofit cost.** If `fact_failure` shipped with `player_guid` inline, every subsequent fact would force a migration of `fact_failure` to surrogate keys. Doing it once upfront is strictly cheaper.
 - **The frontend gets surrogate-key joins.** Standard Ecto associations work cleanly; queries don't pivot on string GUIDs.
-- **`silver_player_info` earns its keep.** It exists specifically to be the source for `dim_player`. Without `dim_player`, that silver table is just data sitting there.
+- **`silver.player_info` earns its keep.** It exists specifically to be the source for `dim_player`. Without `dim_player`, that silver table is just data sitting there.
 
 ---
 
@@ -161,7 +161,7 @@ Why this is the right minimum:
 **Migrations** (`we_go_next/priv/repo/migrations/`, listed in the order they must be generated/run):
 
 1. `<ts>_add_source_and_head_sha256_to_combat_log_files.exs` — adds `source` column (default `"live"`, allowed values `"live"` | `"warcraftlogs_archive"`) and `head_sha256` (text, nullable). Enforce `source` with both a database check constraint and Ecto changeset validation. New rows compute `head_sha256` at creation time (`CombatLogFile.attrs_from_file/2`) by reading the first 4 KB of the file through one shared digest helper. Existing rows are backfilled opportunistically: on each scan, if a row's `file_path` still exists on disk and `head_sha256` is null, compute and persist it. Rows whose file is already gone before the backfill runs simply stay null (see fallback below).
-2. `<ts>_create_silver_tables.exs` — the six silver tables above with indexes on `encounter_id` and unique constraints on natural keys. Natural-key columns must be non-null. If a silver table uses a surrogate `id`, document that and use it consistently in Ecto; if it does not, the persistence layer must not rely on `:id` in `replace_all_except`.
+2. `<ts>_create_silver_tables.exs` — the six `silver.*` tables above with indexes on `encounter_id` and unique constraints on natural keys. Natural-key columns must be non-null. If a silver table uses a surrogate `id`, document that and use it consistently in Ecto; if it does not, the persistence layer must not rely on `:id` in `replace_all_except`.
 3. `<ts>_create_gold_schema.exs` — `execute "CREATE SCHEMA gold"` + downgrade.
 4. `<ts>_create_gold_dim_player.exs` — `gold.dim_player` with unique index on `player_guid`.
 5. `<ts>_seed_raid_sentinel_dim_player.exs` — INSERTs the `__RAID__` sentinel into `gold.dim_player`. Must run after #4 (table exists) and before #6 (the FK target).
@@ -176,12 +176,12 @@ Why this is the right minimum:
 
 **Silver Elixir module** (`we_go_next/lib/we_go_next/silver/`):
 - `silver.ex` — public API: `Silver.project_and_persist(encounter)`. Calls the NIF, bulk-inserts each row list inside a transaction with the natural-key `conflict_target`. If the silver tables have surrogate `id` columns, use `on_conflict: {:replace_all_except, [:id, :inserted_at]}`. If they are key-only tables, replace only the mutable payload columns and leave the natural-key columns unchanged.
-- One Ecto schema per silver table: `damage_taken.ex`, `damage_done.ex`, `death.ex`, `interrupt.ex`, `debuff_application.ex`, `player_info.ex`.
+- One Ecto schema per silver table using `@schema_prefix "silver"`: `damage_taken.ex`, `damage_done.ex`, `death.ex`, `interrupt.ex`, `debuff_application.ex`, `player_info.ex`.
 
 **Gold Elixir module** (`we_go_next/lib/we_go_next/gold/`):
-- `dim_player.ex` — Ecto schema (`@schema_prefix "gold"`) + `upsert_from_silver(encounter_id)` that reads `silver_player_info` rows for the encounter and `INSERT … ON CONFLICT (player_guid) DO UPDATE` into `gold.dim_player`.
+- `dim_player.ex` — Ecto schema (`@schema_prefix "gold"`) + `upsert_from_silver(encounter_id)` that reads `silver.player_info` rows for the encounter and `INSERT … ON CONFLICT (player_guid) DO UPDATE` into `gold.dim_player`.
 - `fact_failure.ex` — Ecto schema (`@schema_prefix "gold"`, `@primary_key false`) with `belongs_to` to `gold.dim_player`, `Encounter`, and `MechanicCriterion`.
-- `fact_failure_builder.ex` — `rebuild_for_encounter(encounter_id)`. One SQL `INSERT … ON CONFLICT DO UPDATE` that reads `silver_damage_taken` + `silver_player_info` (for `detected_role` filter) + `silver_interrupt_opportunity` + `mechanic_criteria` + `gold.dim_player`, grouped by `(encounter_id, player_dim_id, criterion_id)`. Reuse the criteria-matching logic from `failure_analyzer.ex` translated to SQL, including `Criteria.criteria_by_spell_id/2` difficulty inheritance and `threshold["max_hits"]` semantics. Prefer separate avoidable-damage and missed-interrupt SELECT branches combined with `UNION ALL` before the final aggregate so damage and interrupt rows cannot multiply each other in a broad join.
+- `fact_failure_builder.ex` — `rebuild_for_encounter(encounter_id)`. One SQL `INSERT … ON CONFLICT DO UPDATE` that reads `silver.damage_taken` + `silver.player_info` (for `detected_role` filter) + `silver.interrupt_opportunity` + `mechanic_criteria` + `gold.dim_player`, grouped by `(encounter_id, player_dim_id, criterion_id)`. Reuse the criteria-matching logic from `failure_analyzer.ex` translated to SQL, including `Criteria.criteria_by_spell_id/2` difficulty inheritance and `threshold["max_hits"]` semantics. Prefer separate avoidable-damage and missed-interrupt SELECT branches combined with `UNION ALL` before the final aggregate so damage and interrupt rows cannot multiply each other in a broad join.
 
 **Importer hook** (`we_go_next/lib/we_go_next/importer.ex`):
 - `insert_encounter_from_boundary/2` currently calls `Repo.insert_all(..., on_conflict: :nothing)` at line 310 and returns nothing useful. Refactor to `insert_or_fetch_encounter_from_boundary/2` returning `{:inserted, %Encounter{}}` | `{:existing, %Encounter{}}`. Implementation: `INSERT ... ON CONFLICT (combat_log_file_id, start_time) DO UPDATE SET updated_at = EXCLUDED.updated_at RETURNING id, xmax = 0 AS inserted` — the `xmax = 0` trick distinguishes a real insert from a no-op update. Falls back to a `Repo.get_by` if RETURNING isn't viable.
@@ -225,7 +225,7 @@ Why this is the right minimum:
 - `index.ex` — "Mechanic failures across raid nights." Groups `gold.fact_failure` by player + criterion, displays a per-player rollup with date filters. Uses the page-object pattern for its feature test (per `CLAUDE.md` testing conventions).
 
 **Tests**:
-- `we_go_next/test/we_go_next/silver/round_trip_test.exs` — for a fixture encounter, assert `SUM(silver_damage_taken.total_amount)` per `(target_guid, spell_id)` equals the corresponding `DamageTakenAnalyzer.analyze/1` output. Repeat for deaths (count + killing-blow match), interrupt opportunities (success + missed counts match), debuffs (count match), and tank roles (`silver_player_info` rows with `detected_role = 'tank'` match the `tanks` list from `DamageTakenAnalyzer.analyze/1`).
+- `we_go_next/test/we_go_next/silver/round_trip_test.exs` — for a fixture encounter, assert `SUM(silver.damage_taken.total_amount)` per `(target_guid, spell_id)` equals the corresponding `DamageTakenAnalyzer.analyze/1` output. Repeat for deaths (count + killing-blow match), interrupt opportunities (success + missed counts match), debuffs (count match), and tank roles (`silver.player_info` rows with `detected_role = 'tank'` match the `tanks` list from `DamageTakenAnalyzer.analyze/1`).
 - `we_go_next/test/we_go_next/silver/idempotency_test.exs` — running `Silver.project_and_persist/1` twice on the same encounter produces identical row counts and values (proves the `ON CONFLICT` keys are correct).
 - `we_go_next/test/we_go_next/gold/fact_failure_test.exs` — for a fixture with a known mechanic failure, `fact_failure` contains the expected `(player, criterion, count)` row.
 - `we_go_next/test/we_go_next/importer_move_test.exs` — import a live `WoWCombatLog-foo.txt`, then call list/import with the same content at `warcraftlogsarchive/Archive-WoWCombatLog-foo.txt`. Assert the row count in `combat_log_files` is still 1, `file_path` updated, `source` flipped to `:warcraftlogs_archive`, and no re-parse happened (last_parsed_byte unchanged).
@@ -254,7 +254,7 @@ Why this is the right minimum:
 
    This is the contract that proves the SQL rewrite of failure logic preserves semantics. If parity fails, the silver schema or the SQL transform is wrong — don't loosen the test.
 
-2. **Round-trip equality (silver-only).** For a fixture encounter, assert `SUM(silver_damage_taken.total_amount)` per `(target_guid, spell_id)` equals the corresponding `DamageTakenAnalyzer.analyze/1` output. Repeat for deaths (count + killing-blow match), interrupt opportunities (success + missed counts match), debuffs (count match). And: `silver_player_info` rows where `detected_role = 'tank'` exactly equal the set of `player_guid`s in `DamageTakenAnalyzer.analyze(encounter).tanks` (comparing against the public analyzer output, not the private `detect_tanks/1`).
+2. **Round-trip equality (silver-only).** For a fixture encounter, assert `SUM(silver.damage_taken.total_amount)` per `(target_guid, spell_id)` equals the corresponding `DamageTakenAnalyzer.analyze/1` output. Repeat for deaths (count + killing-blow match), interrupt opportunities (success + missed counts match), debuffs (count match). And: `silver.player_info` rows where `detected_role = 'tank'` exactly equal the set of `player_guid`s in `DamageTakenAnalyzer.analyze(encounter).tanks` (comparing against the public analyzer output, not the private `detect_tanks/1`).
 3. **Idempotency.** Re-import the same combat log file → silver row counts identical, no duplicate-key errors. Re-running the importer with `:existing` tag does NOT rebuild silver. The `ON CONFLICT` keys are doing what they should.
 4. **Move detection.** Import a fixture as `WoWCombatLog-foo.txt`; copy the same content to `warcraftlogsarchive/Archive-WoWCombatLog-foo.txt`; rescan. Assert `combat_log_files` still has 1 row, `file_path` updated, `source = :warcraftlogs_archive`, `last_parsed_byte` unchanged, no silver/gold rebuild fired. Then append additional content to the archive file (simulating WCL flushing post-last-scan events) and rescan — assert the importer parses from `last_parsed_byte` onward against the new path.
 5. **End-to-end manual.** `mix phx.server`, import a fixture log via the existing UI, navigate to `/failures`, confirm the page renders rows for the encounters in the fixture. Cross-check one entry against the per-encounter Failures tab (which still uses the JSON cache).
