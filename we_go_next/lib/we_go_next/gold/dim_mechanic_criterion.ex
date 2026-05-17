@@ -11,6 +11,9 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
   @schema_prefix "gold"
 
   schema "dim_mechanic_criterion" do
+    field(:source_rule_id, :integer)
+    field(:ruleset_id, :integer)
+    field(:ruleset_version, :integer)
     field(:spell_id, :integer)
     field(:spell_name, :string)
     field(:mechanic_type, :string)
@@ -28,6 +31,9 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
   def changeset(dim_criterion, attrs) do
     dim_criterion
     |> cast(attrs, [
+      :source_rule_id,
+      :ruleset_id,
+      :ruleset_version,
       :spell_id,
       :spell_name,
       :mechanic_type,
@@ -38,8 +44,19 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
       :notes,
       :active
     ])
-    |> validate_required([:spell_id, :spell_name, :mechanic_type, :threshold, :active])
+    |> validate_required([
+      :source_rule_id,
+      :ruleset_id,
+      :ruleset_version,
+      :spell_id,
+      :spell_name,
+      :mechanic_type,
+      :threshold,
+      :active
+    ])
     |> validate_inclusion(:mechanic_type, @mechanic_types)
+    |> validate_number(:ruleset_version, greater_than: 0)
+    |> unique_constraint(:source_rule_id)
   end
 
   def mechanic_types, do: @mechanic_types

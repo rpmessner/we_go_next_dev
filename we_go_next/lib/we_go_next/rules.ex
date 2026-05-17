@@ -8,6 +8,7 @@ defmodule WeGoNext.Rules do
 
   import Ecto.Query
 
+  alias WeGoNext.Gold.DimMechanicCriterion
   alias WeGoNext.Repo
   alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
 
@@ -112,6 +113,47 @@ defmodule WeGoNext.Rules do
   end
 
   @doc """
+  Promotes a ruleset's authored mechanic criteria into gold criterion snapshots.
+
+  Promotion is idempotent by `source_rule_id`: running it again updates the
+  existing gold snapshot for each rule rather than creating duplicates.
+  """
+  def promote_ruleset_to_gold(%Ruleset{} = ruleset) do
+    Repo.transaction(fn ->
+      ruleset = Repo.preload(ruleset, :mechanic_criteria)
+
+      promoted =
+        ruleset.mechanic_criteria
+        |> Enum.sort_by(& &1.id)
+        |> Enum.reduce_while([], fn criterion, promoted ->
+          case upsert_gold_mechanic_criterion(ruleset, criterion) do
+            {:ok, snapshot} -> {:cont, [snapshot | promoted]}
+            {:error, changeset} -> {:halt, Repo.rollback(changeset)}
+          end
+        end)
+        |> Enum.reverse()
+
+      %{ruleset: ruleset, criteria: promoted}
+    end)
+  end
+
+  def promote_ruleset_to_gold(ruleset_id) do
+    ruleset_id
+    |> get_ruleset!()
+    |> promote_ruleset_to_gold()
+  end
+
+  @doc """
+  Promotes the globally active ruleset into gold criterion snapshots.
+  """
+  def promote_active_ruleset_to_gold do
+    case get_active_ruleset() do
+      %Ruleset{} = ruleset -> promote_ruleset_to_gold(ruleset)
+      nil -> {:error, :active_ruleset_not_found}
+    end
+  end
+
+  @doc """
   Seeds the bundled initial mechanic rules JSON.
   """
   def seed_initial_rules(opts \\ []) do
@@ -201,6 +243,50 @@ defmodule WeGoNext.Rules do
   end
 
   defp upsert_seed_mechanic_criterion(_ruleset, _attrs), do: {:error, :invalid_criterion}
+
+  defp upsert_gold_mechanic_criterion(%Ruleset{} = ruleset, %MechanicCriterion{} = criterion) do
+    attrs = gold_snapshot_attrs(ruleset, criterion)
+
+    %DimMechanicCriterion{}
+    |> DimMechanicCriterion.changeset(attrs)
+    |> Repo.insert(
+      on_conflict:
+        {:replace,
+         [
+           :ruleset_id,
+           :ruleset_version,
+           :spell_id,
+           :spell_name,
+           :mechanic_type,
+           :boss_encounter_id,
+           :boss_name,
+           :difficulty_id,
+           :threshold,
+           :notes,
+           :active,
+           :updated_at
+         ]},
+      conflict_target: [:source_rule_id],
+      returning: true
+    )
+  end
+
+  defp gold_snapshot_attrs(%Ruleset{} = ruleset, %MechanicCriterion{} = criterion) do
+    %{
+      source_rule_id: criterion.id,
+      ruleset_id: ruleset.id,
+      ruleset_version: ruleset.version,
+      spell_id: criterion.spell_id,
+      spell_name: criterion.spell_name,
+      mechanic_type: criterion.mechanic_type,
+      boss_encounter_id: criterion.boss_encounter_id,
+      boss_name: criterion.boss_name,
+      difficulty_id: criterion.difficulty_id,
+      threshold: criterion.threshold,
+      notes: criterion.notes,
+      active: criterion.active
+    }
+  end
 
   defp get_seed_mechanic_criterion(ruleset_id, attrs) do
     spell_id = map_get(attrs, "spell_id")

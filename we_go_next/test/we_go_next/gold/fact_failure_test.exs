@@ -251,6 +251,16 @@ defmodule WeGoNext.Gold.FactFailureTest do
   end
 
   defp insert_criteria!(attrs) do
+    attrs =
+      Map.merge(
+        %{
+          source_rule_id: System.unique_integer([:positive]),
+          ruleset_id: 1,
+          ruleset_version: 1
+        },
+        attrs
+      )
+
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(attrs)
     |> Repo.insert!()

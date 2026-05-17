@@ -51,6 +51,9 @@ defmodule WeGoNext.Gold.SchemaTest do
 
     dim_criterion_changeset =
       DimMechanicCriterion.changeset(%DimMechanicCriterion{}, %{
+        source_rule_id: 1,
+        ruleset_id: 1,
+        ruleset_version: 1,
         spell_id: 123,
         spell_name: "Bad",
         mechanic_type: "avoidable",

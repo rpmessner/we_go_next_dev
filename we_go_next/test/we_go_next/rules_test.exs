@@ -3,6 +3,8 @@ defmodule WeGoNext.RulesTest do
 
   alias WeGoNext.Repo
   alias WeGoNext.Rules
+  alias WeGoNext.Criteria.MechanicCriteria
+  alias WeGoNext.Gold.DimMechanicCriterion
   alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
   import Ecto.Query
 
@@ -239,6 +241,93 @@ defmodule WeGoNext.RulesTest do
 
     assert ruleset_count == 1
     assert criterion_count == 2
+  end
+
+  test "promotes ruleset criteria to idempotent gold snapshots" do
+    {:ok, ruleset} = Rules.create_ruleset(%{name: "Promoted Rules", version: 3})
+
+    {:ok, avoidable_rule} =
+      Rules.create_mechanic_criterion(%{
+        ruleset_id: ruleset.id,
+        spell_id: 1_214_081,
+        spell_name: "Arcane Expulsion",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0},
+        notes: "Local evidence"
+      })
+
+    {:ok, interrupt_rule} =
+      Rules.create_mechanic_criterion(%{
+        ruleset_id: ruleset.id,
+        spell_id: 999,
+        spell_name: "Kick This",
+        mechanic_type: "interrupt"
+      })
+
+    assert {:ok, %{criteria: first_snapshots}} = Rules.promote_ruleset_to_gold(ruleset)
+
+    assert Enum.map(first_snapshots, & &1.source_rule_id) == [
+             avoidable_rule.id,
+             interrupt_rule.id
+           ]
+
+    assert Enum.all?(first_snapshots, &(&1.ruleset_id == ruleset.id))
+    assert Enum.all?(first_snapshots, &(&1.ruleset_version == 3))
+
+    avoidable_snapshot = Enum.find(first_snapshots, &(&1.source_rule_id == avoidable_rule.id))
+    assert avoidable_snapshot.spell_id == 1_214_081
+    assert avoidable_snapshot.spell_name == "Arcane Expulsion"
+    assert avoidable_snapshot.mechanic_type == "avoidable"
+    assert avoidable_snapshot.threshold == %{"max_hits" => 0}
+    assert avoidable_snapshot.notes == "Local evidence"
+    assert avoidable_snapshot.active == true
+
+    {:ok, updated_rule} =
+      Rules.update_mechanic_criterion(avoidable_rule, %{
+        notes: "Updated local evidence",
+        active: false
+      })
+
+    assert {:ok, %{criteria: second_snapshots}} = Rules.promote_ruleset_to_gold(ruleset)
+
+    assert Enum.map(second_snapshots, & &1.id) |> Enum.sort() ==
+             Enum.map(first_snapshots, & &1.id) |> Enum.sort()
+
+    updated_snapshot = Repo.get_by!(DimMechanicCriterion, source_rule_id: updated_rule.id)
+    assert updated_snapshot.notes == "Updated local evidence"
+    assert updated_snapshot.active == false
+
+    assert Repo.aggregate(DimMechanicCriterion, :count) == 2
+  end
+
+  test "promotion uses rules criteria and ignores legacy public mechanic criteria" do
+    {:ok, legacy_criterion} =
+      %MechanicCriteria{}
+      |> MechanicCriteria.changeset(%{
+        spell_id: 777,
+        spell_name: "Legacy Public Rule",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
+      })
+      |> Repo.insert()
+
+    {:ok, ruleset} = Rules.create_ruleset(%{name: "Active Rules", status: "active"})
+
+    {:ok, rule_criterion} =
+      Rules.create_mechanic_criterion(%{
+        ruleset_id: ruleset.id,
+        spell_id: 888,
+        spell_name: "Rules Rule",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
+      })
+
+    assert {:ok, %{criteria: [snapshot]}} = Rules.promote_active_ruleset_to_gold()
+
+    assert snapshot.source_rule_id == rule_criterion.id
+    assert snapshot.spell_id == 888
+
+    refute Repo.get_by(DimMechanicCriterion, spell_id: legacy_criterion.spell_id)
   end
 
   defp criterion_attrs(%Ruleset{} = ruleset, overrides) do
