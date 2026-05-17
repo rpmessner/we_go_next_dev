@@ -20,4 +20,13 @@ defmodule WeGoNext.Silver.Projection do
     :debuff_application,
     :player_info
   ]
+
+  @type t :: %__MODULE__{
+          damage_taken: [map()],
+          damage_done: [map()],
+          death: [map()],
+          interrupt_opportunity: [map()],
+          debuff_application: [map()],
+          player_info: [map()]
+        }
 end
