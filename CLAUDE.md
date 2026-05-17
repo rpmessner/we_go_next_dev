@@ -35,9 +35,9 @@ The same combat log powers both raid and M+ analysis. Core features work identic
 **MVP:** M+ analysis works out of the box (same analyzers as raid)
 **Post-MVP:** M+-specific features (death timer cost, affix tracking, dungeon summaries)
 
-### Current Phase: MVP Core Complete ✅
+### Current Phase: Medallion Warehouse and Rules Foundation
 
-All non-negotiable MVP features are implemented:
+The original analyzer/UI MVP exists, but the current architecture work is moving new analytics onto a medallion-style backend:
 
 - ✅ Working Elixir parser that reads WoW combat logs
 - ✅ Parses encounter boundaries and combat events
@@ -50,8 +50,12 @@ All non-negotiable MVP features are implemented:
 - ✅ Phoenix LiveView dashboard with Summary tab
 - ✅ File watcher for log monitoring
 - ✅ Criteria system for marking trackable mechanics
+- ✅ Bronze provenance and live/archive log reconciliation
+- ✅ Silver projection tables keyed by `gold.dim_encounter.id`
+- ✅ Gold `fact_failure` proof-of-concept derived from silver/gold tables
+- ✅ Rules schema foundation for authored mechanic criteria
 
-**Next Phase:** End-to-end integration testing (see `docs/INTEGRATION_ROADMAP.md`)
+**Current board focus:** finish rules-backed gold criterion snapshots, make `gold.fact_failure` ruleset-aware, then hook silver/gold rebuilds into importer. PR1 acceptance is gated on this path plus silver/move-detection verification.
 
 ### Key Differentiator
 
@@ -112,20 +116,76 @@ This is the **only** data source the parser uses. These are raw combat log files
 11/22/2025 11:40:38.319-5  UNIT_DIED,0000000000000000,nil,...,Player-3676-0E1BB922,"Favikul-Area52-US",...
 ```
 
-### NOT Used: Warcraft Logs CSV Exports
+### Warcraft Logs CSV Exports
 
-**Location:** `./data/` directory (legacy, not used by parser)
+**Location:** `./data/` directory
 
-The `data/` folder contains CSV exports from warcraftlogs.com website - these are **processed/aggregated** data, not raw combat logs. They were used in early exploration but are **not** used by the combat log parser. Example content:
+The `data/` folder contains processed CSV exports from warcraftlogs.com. They are **not** bronze parser input and must not be treated like raw combat logs. They are currently acceptable as curated evidence for initial mechanic rule seeds when the spell ID can be resolved from local reference data.
+
+Example content:
 
 ```csv
 "Name","Amount","Casts","Avg Cast",...
 "Diabolic Ritual","694526998$26.47%694.53m","-","-",...
 ```
 
+Current bundled rules seed uses only local evidence that can be resolved confidently:
+
+- `Arcane Expulsion` spell `1214081`, avoidable, from `data/naazindhri_mythic/mittwoch_damage_taken.csv` and pull-summary docs
+- `Void Burst` spell `1269183`, avoidable, from `data/naazindhri_mythic/mittwoch_damage_taken.csv`
+
+Do not invent rule rows for CSV spell names that do not have a reliable local spell ID mapping.
+
 ### Future: Strategy Diagrams
 
 - **Minimap Backgrounds**: Datamined arena maps for strategy diagrams (post-MVP)
+
+### Future: Patch-Aware Rule Source Data
+
+New patch/season mechanic source data should be handled by a later bronze/source-data ingestion path. Do not block PR1 on this. The near-term rules foundation should work with local curated data and keep a clean import path for future spell/encounter metadata updates.
+
+## Current Architecture: Bronze, Silver, Gold, Rules
+
+### Layer Ownership
+
+- **Bronze/log ingestion** owns raw WoW combat log files and provenance. `combat_log_files` remains the operational catalog for live and Warcraft Logs archive files.
+- **Silver** owns deterministic encounter-grain projections under the `silver` Postgres schema: damage taken, damage done, deaths, interrupt opportunities, debuff applications, and player info.
+- **Gold** owns analytic dimensions/facts under the `gold` schema. Current fact proof: `gold.fact_failure`.
+- **Rules** owns authored mechanic business configuration under the `rules` schema. Rules are not silver event data and are not mutable gold facts.
+
+### Current Medallion Grain
+
+- `gold.dim_encounter.id` is the analytics encounter grain.
+- Silver tables use `encounter_dim_id`, not legacy `public.encounters.id`.
+- `gold.dim_player` is conformed from `silver.player_info`.
+- `gold.dim_mechanic_criterion` is the criterion snapshot table that facts reference.
+- `gold.fact_failure` uses `(encounter_dim_id, player_dim_id, criterion_dim_id)` as its composite key.
+
+### Legacy Boundary
+
+The existing frontend import flow, `public.encounters`, and `public.mechanic_criteria` are transitional/legacy app-domain surfaces. New medallion code should not read or import legacy public criteria. The old UI can continue to exist while the frontend is rebuilt, but new analytics/read models should target silver/gold/rules.
+
+### Rules Layer Decisions
+
+- `rules.ruleset` supports `draft`, `active`, and `archived`.
+- Exactly one active ruleset globally for the first implementation pass.
+- Backfills/tests should be able to select a ruleset explicitly by ID.
+- `rules.mechanic_criterion` validates thresholds by mechanic type:
+  - `avoidable`: only `threshold["max_hits"]` as a non-negative integer
+  - `interrupt`: optional `threshold["must_interrupt"]`, defaults to `true`
+  - `soak`, `spread`, `stack`, `tank_mechanic`, `healer_mechanic`: empty threshold map until fact semantics exist
+- Seed rules through `WeGoNext.Rules` and `mix we_go_next.seed_rules`, not migrations.
+- Gold facts should identify rules through `criterion_dim_id -> gold.dim_mechanic_criterion`, not a direct mutable rule row.
+
+### Rules Refactor Order
+
+Task board order before importer hook:
+
+1. `#27` Promote `rules.mechanic_criterion` into `gold.dim_mechanic_criterion` snapshots.
+2. `#28` Make `Gold.FactFailure.rebuild_for_encounter/1` ruleset-aware.
+3. `#14` Hook silver/gold into importer after #28.
+
+Silver verification tasks (`#16`, `#17`, `#19`) can proceed in parallel because they do not depend on rules.
 
 ## Character List
 
@@ -146,7 +206,7 @@ Nekoken (Druid), Elehal (Mage), Kitsuneken (DK), Kumaken (Shaman), Pannonica (DH
 ### Directory Structure
 
 ```
-wow_analysis/
+we_go_next_dev/
 ├── we_go_next/                     # Phoenix/Elixir web app (Mix project)
 │   ├── lib/
 │   │   ├── we_go_next.ex                  # Main API
@@ -162,6 +222,11 @@ wow_analysis/
 │   │   │   ├── encounter_store.ex         # ETS-backed encounter cache
 │   │   │   ├── log_reader.ex              # File parsing with byte offsets
 │   │   │   ├── importer.ex                # Incremental log import
+│   │   │   ├── bronze/                    # Bronze reconciliation helpers
+│   │   │   ├── silver/                    # Silver Ecto schemas
+│   │   │   ├── gold/                      # Gold dimensions/facts
+│   │   │   ├── rules.ex                   # Rules context
+│   │   │   ├── rules/                     # Rules Ecto schemas
 │   │   │   ├── combat_log_file.ex         # Ecto schema for log files
 │   │   │   ├── encounters/
 │   │   │   │   └── encounter.ex           # Ecto schema for encounters
@@ -178,10 +243,11 @@ wow_analysis/
 │   │       │   └── settings_live.ex       # Settings LiveView
 │   │       ├── components/                # Reusable components
 │   │       └── controllers/               # Error handling
-│   ├── test_parse.exs                     # CLI test/demo script
+│   ├── priv/rules/                        # Static curated rules seed JSON
 │   ├── mix.exs                            # Project config
 │   └── priv/repo/migrations/              # Database migrations
-├── data/                           # Legacy Warcraft Logs CSV exports (NOT used by parser)
+├── data/                           # Warcraft Logs CSV exports used only as curated seed evidence
+├── tools/                          # Local spell/dungeon reference JSON
 ├── docs/
 │   ├── sessions/                   # Immutable session logs
 │   ├── ROADMAP.md                  # Development roadmap
@@ -204,7 +270,8 @@ wow_analysis/
 
 ### Key Locations
 
-- **Project Root**: `/home/rpmessner/dev/games/wow_analysis/`
+- **Repo Root**: `/home/rpmessner/dev/games/wow-addons/we_go_next_dev/`
+- **Phoenix App**: `/home/rpmessner/dev/games/wow-addons/we_go_next_dev/we_go_next/`
 - **Combat Logs**: `/mnt/g/World of Warcraft/_retail_/Logs/`
 - **Session Logs**: `docs/sessions/`
 
@@ -244,6 +311,18 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - **Diagrams**: Image generation with minimap backgrounds (future)
 
 ## Recent Updates
+
+### 2026-05-17: Medallion and Rules Foundation
+
+- Reworked gold/silver failure fact path away from legacy public-domain tables.
+- Added `gold.dim_encounter` as the analytics encounter grain.
+- Re-keyed silver projections to `encounter_dim_id`.
+- Added `gold.dim_mechanic_criterion` as the current criterion snapshot table.
+- Added `rules` schema with `rules.ruleset` and `rules.mechanic_criterion`.
+- Added idempotent rules seed path via `priv/rules/initial_mechanic_rules.json` and `mix we_go_next.seed_rules`.
+- Seeded initial local evidence rules for `Arcane Expulsion` and `Void Burst`.
+- Refactored importer encounter insertion to distinguish inserted vs existing rows so future rebuild hooks run only for new encounters.
+- Created `docs/rules_layer_refactor.md` for the broader rules-layer plan.
 
 ### 2025-11-28: MVP Core Complete - Pull Summary Implementation
 
