@@ -46,6 +46,35 @@ defmodule WeGoNext.AccountsTest do
     assert Repo.get!(CombatLogFile, combat_log_file.id).head_sha256 == sha256(content)
   end
 
+  test "list_combat_logs includes live and warcraftlogs archive files", %{dir: dir, user: user} do
+    archive_dir = Path.join(dir, "warcraftlogsarchive")
+    File.mkdir_p!(archive_dir)
+
+    live_path = Path.join(dir, "WoWCombatLog-051626_111133.txt")
+    archive_path = Path.join(archive_dir, "Archive-WoWCombatLog-051326_214806.txt")
+
+    File.write!(live_path, "live log")
+    File.write!(archive_path, "archive log")
+    File.write!(Path.join(dir, "NotACombatLog.txt"), "ignore me")
+    File.write!(Path.join(archive_dir, "WoWCombatLog-should-not-match.txt"), "ignore me")
+
+    assert {:ok, logs} = Accounts.list_combat_logs(user)
+
+    logs_by_path = Map.new(logs, &{&1.full_path, &1})
+
+    assert Map.keys(logs_by_path) |> Enum.sort() == Enum.sort([archive_path, live_path])
+
+    assert %{
+             filename: "WoWCombatLog-051626_111133.txt",
+             source: :live
+           } = logs_by_path[live_path]
+
+    assert %{
+             filename: "Archive-WoWCombatLog-051326_214806.txt",
+             source: :warcraftlogs_archive
+           } = logs_by_path[archive_path]
+  end
+
   defp sha256(data) do
     :sha256
     |> :crypto.hash(data)

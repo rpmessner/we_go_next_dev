@@ -9,6 +9,15 @@ defmodule WeGoNext.Accounts do
   alias WeGoNext.Accounts.User
   alias WeGoNext.Bronze.FileFingerprint
 
+  @log_sources [
+    %{source: :live, directory: nil, prefix: "WoWCombatLog-"},
+    %{
+      source: :warcraftlogs_archive,
+      directory: "warcraftlogsarchive",
+      prefix: "Archive-WoWCombatLog-"
+    }
+  ]
+
   @doc """
   Gets the default user, creating one if it doesn't exist.
   """
@@ -79,28 +88,10 @@ defmodule WeGoNext.Accounts do
 
   def list_combat_logs_in_path(path, user) do
     case File.ls(path) do
-      {:ok, files} ->
+      {:ok, _files} ->
         logs =
-          files
-          |> Enum.filter(fn f ->
-            String.starts_with?(f, "WoWCombatLog") and String.ends_with?(f, ".txt")
-          end)
-          |> Enum.map(fn filename ->
-            full_path = Path.join(path, filename)
-            stat = File.stat!(full_path)
-            maybe_backfill_head_sha256(full_path, user)
-
-            # Convert erlang datetime tuple to NaiveDateTime for sorting
-            modified_ndt = NaiveDateTime.from_erl!(stat.mtime)
-
-            %{
-              filename: filename,
-              full_path: full_path,
-              size: stat.size,
-              modified: modified_ndt,
-              source: :live
-            }
-          end)
+          @log_sources
+          |> Enum.flat_map(&list_logs_for_source(path, &1, user))
           |> Enum.sort_by(& &1.modified, {:desc, NaiveDateTime})
 
         {:ok, logs}
@@ -108,6 +99,49 @@ defmodule WeGoNext.Accounts do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp list_logs_for_source(
+         base_path,
+         %{source: source, directory: directory, prefix: prefix},
+         user
+       ) do
+    directory_path = if directory, do: Path.join(base_path, directory), else: base_path
+
+    case File.ls(directory_path) do
+      {:ok, files} ->
+        files
+        |> Enum.filter(&combat_log_filename?(&1, prefix))
+        |> Enum.map(&log_entry(directory_path, &1, source, user))
+
+      {:error, :enoent} when directory != nil ->
+        []
+
+      {:error, reason} ->
+        Logger.warning("Failed to list combat logs in #{directory_path}: #{inspect(reason)}")
+        []
+    end
+  end
+
+  defp combat_log_filename?(filename, prefix) do
+    String.starts_with?(filename, prefix) and String.ends_with?(filename, ".txt")
+  end
+
+  defp log_entry(directory_path, filename, source, user) do
+    full_path = Path.join(directory_path, filename)
+    stat = File.stat!(full_path)
+    maybe_backfill_head_sha256(full_path, user)
+
+    # Convert erlang datetime tuple to NaiveDateTime for sorting
+    modified_ndt = NaiveDateTime.from_erl!(stat.mtime)
+
+    %{
+      filename: filename,
+      full_path: full_path,
+      size: stat.size,
+      modified: modified_ndt,
+      source: source
+    }
   end
 
   defp maybe_backfill_head_sha256(_full_path, nil), do: :ok

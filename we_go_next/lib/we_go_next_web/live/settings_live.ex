@@ -25,7 +25,7 @@ defmodule WeGoNextWeb.SettingsLive do
      |> assign(:watching_file, watching_file)
      |> assign(:selected_log, nil)
      |> assign(:importing, false)
-     |> maybe_load_log_files(user.wow_logs_path)}
+     |> maybe_load_log_files(user)}
   end
 
   @impl true
@@ -49,7 +49,7 @@ defmodule WeGoNextWeb.SettingsLive do
          socket
          |> assign(:user, user)
          |> assign(:path_valid, check_path_valid(path))
-         |> maybe_load_log_files(path)
+         |> maybe_load_log_files(user)
          |> put_flash(:info, "WoW Logs folder saved!")}
 
       {:error, _changeset} ->
@@ -147,14 +147,18 @@ defmodule WeGoNextWeb.SettingsLive do
     {:noreply,
      socket
      |> assign(:watching_file, new_clf)
-     |> assign(:log_files, reload_log_files(socket.assigns.user.wow_logs_path))
-     |> put_flash(:info, "Log rotation! Now watching #{Path.basename(new_clf.file_path)} (#{count} encounters)")}
+     |> assign(:log_files, reload_log_files(socket.assigns.user))
+     |> put_flash(
+       :info,
+       "Log rotation! Now watching #{Path.basename(new_clf.file_path)} (#{count} encounters)"
+     )}
   end
 
-  defp reload_log_files(nil), do: []
+  defp reload_log_files(%{wow_logs_path: nil}), do: []
+  defp reload_log_files(%{wow_logs_path: ""}), do: []
 
-  defp reload_log_files(path) do
-    case Accounts.list_combat_logs_in_path(path) do
+  defp reload_log_files(user) do
+    case Accounts.list_combat_logs(user) do
       {:ok, files} -> files
       {:error, _} -> []
     end
@@ -167,11 +171,11 @@ defmodule WeGoNextWeb.SettingsLive do
     File.dir?(path)
   end
 
-  defp maybe_load_log_files(socket, nil), do: assign(socket, :log_files, [])
-  defp maybe_load_log_files(socket, ""), do: assign(socket, :log_files, [])
+  defp maybe_load_log_files(socket, %{wow_logs_path: nil}), do: assign(socket, :log_files, [])
+  defp maybe_load_log_files(socket, %{wow_logs_path: ""}), do: assign(socket, :log_files, [])
 
-  defp maybe_load_log_files(socket, path) do
-    case Accounts.list_combat_logs_in_path(path) do
+  defp maybe_load_log_files(socket, user) do
+    case Accounts.list_combat_logs(user) do
       {:ok, files} -> assign(socket, :log_files, files)
       {:error, _} -> assign(socket, :log_files, [])
     end

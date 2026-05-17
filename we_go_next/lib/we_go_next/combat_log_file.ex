@@ -10,6 +10,7 @@ defmodule WeGoNext.CombatLogFile do
   alias WeGoNext.Bronze.FileFingerprint
 
   @sources [:live, :warcraftlogs_archive]
+  @archive_prefix "Archive-WoWCombatLog-"
 
   schema "combat_log_files" do
     field(:file_path, :string)
@@ -114,7 +115,7 @@ defmodule WeGoNext.CombatLogFile do
   Creates attrs from a file path by reading file metadata.
   """
   def attrs_from_file(file_path, user_id, opts \\ []) do
-    source = Keyword.get(opts, :source, :live)
+    source = Keyword.get(opts, :source, source_from_path(file_path))
 
     with {:ok, %{size: size, mtime: mtime}} <- File.stat(file_path),
          {:ok, head_sha256} <- FileFingerprint.head_sha256(file_path) do
@@ -132,6 +133,14 @@ defmodule WeGoNext.CombatLogFile do
        }}
     else
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp source_from_path(file_path) do
+    if file_path |> Path.basename() |> String.starts_with?(@archive_prefix) do
+      :warcraftlogs_archive
+    else
+      :live
     end
   end
 end

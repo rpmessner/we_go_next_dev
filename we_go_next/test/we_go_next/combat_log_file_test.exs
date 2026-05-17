@@ -68,6 +68,15 @@ defmodule WeGoNext.CombatLogFileTest do
     assert attrs.head_sha256 == sha256(binary_part(content, 0, 4_096))
   end
 
+  test "attrs_from_file infers warcraftlogs archive source from archive filename" do
+    dir = temp_dir!()
+    file_path = Path.join(dir, "Archive-WoWCombatLog-test.txt")
+    File.write!(file_path, "archived combat log")
+
+    assert {:ok, attrs} = CombatLogFile.attrs_from_file(file_path, 42)
+    assert attrs.source == :warcraftlogs_archive
+  end
+
   defp temp_dir! do
     dir =
       Path.join(System.tmp_dir!(), "wgn-combat-log-file-#{System.unique_integer([:positive])}")
