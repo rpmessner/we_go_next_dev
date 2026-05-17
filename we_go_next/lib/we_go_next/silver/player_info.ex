@@ -6,7 +6,7 @@ defmodule WeGoNext.Silver.PlayerInfo do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias WeGoNext.Encounters.Encounter
+  alias WeGoNext.Gold.DimEncounter
 
   @detected_roles ~w(tank healer dps unknown)
 
@@ -20,7 +20,7 @@ defmodule WeGoNext.Silver.PlayerInfo do
     field(:item_level, :integer)
     field(:detected_role, :string, default: "unknown")
 
-    belongs_to(:encounter, Encounter)
+    belongs_to(:encounter, DimEncounter, foreign_key: :encounter_dim_id)
 
     timestamps(updated_at: false, type: :utc_datetime_usec)
   end
@@ -29,7 +29,7 @@ defmodule WeGoNext.Silver.PlayerInfo do
   def changeset(player_info, attrs) do
     player_info
     |> cast(attrs, [
-      :encounter_id,
+      :encounter_dim_id,
       :player_guid,
       :player_name,
       :class_id,
@@ -37,9 +37,9 @@ defmodule WeGoNext.Silver.PlayerInfo do
       :item_level,
       :detected_role
     ])
-    |> validate_required([:encounter_id, :player_guid, :player_name, :detected_role])
+    |> validate_required([:encounter_dim_id, :player_guid, :player_name, :detected_role])
     |> validate_inclusion(:detected_role, @detected_roles)
-    |> unique_constraint([:encounter_id, :player_guid], name: :silver_player_info_natural_key)
+    |> unique_constraint([:encounter_dim_id, :player_guid], name: :silver_player_info_natural_key)
     |> check_constraint(:detected_role, name: :silver_player_info_detected_role_check)
   end
 

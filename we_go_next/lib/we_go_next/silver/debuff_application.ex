@@ -6,7 +6,7 @@ defmodule WeGoNext.Silver.DebuffApplication do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias WeGoNext.Encounters.Encounter
+  alias WeGoNext.Gold.DimEncounter
 
   @schema_prefix "silver"
 
@@ -18,7 +18,7 @@ defmodule WeGoNext.Silver.DebuffApplication do
     field(:duration_ms, :integer)
     field(:stack_count, :integer, default: 1)
 
-    belongs_to(:encounter, Encounter)
+    belongs_to(:encounter, DimEncounter, foreign_key: :encounter_dim_id)
 
     timestamps(updated_at: false, type: :utc_datetime_usec)
   end
@@ -27,7 +27,7 @@ defmodule WeGoNext.Silver.DebuffApplication do
   def changeset(debuff_application, attrs) do
     debuff_application
     |> cast(attrs, [
-      :encounter_id,
+      :encounter_dim_id,
       :target_guid,
       :source_guid,
       :spell_id,
@@ -36,7 +36,7 @@ defmodule WeGoNext.Silver.DebuffApplication do
       :stack_count
     ])
     |> validate_required([
-      :encounter_id,
+      :encounter_dim_id,
       :target_guid,
       :source_guid,
       :spell_id,
@@ -44,7 +44,7 @@ defmodule WeGoNext.Silver.DebuffApplication do
       :stack_count
     ])
     |> unique_constraint(
-      [:encounter_id, :target_guid, :source_guid, :spell_id, :applied_at_ms_into_fight],
+      [:encounter_dim_id, :target_guid, :source_guid, :spell_id, :applied_at_ms_into_fight],
       name: :silver_debuff_application_natural_key
     )
   end

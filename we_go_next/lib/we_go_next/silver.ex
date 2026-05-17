@@ -3,9 +3,7 @@ defmodule WeGoNext.Silver do
   Public API for projecting and persisting silver medallion rows.
   """
 
-  alias WeGoNext.CombatLogFile
-  alias WeGoNext.CombatLogParser
-  alias WeGoNext.Encounters.Encounter, as: EncounterRecord
+  alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Repo
 
   alias WeGoNext.Silver.{
@@ -25,35 +23,21 @@ defmodule WeGoNext.Silver do
         }
 
   @doc """
-  Parses, projects, and persists silver rows for an encounter.
+  Projects and persists silver rows for a gold encounter dimension.
 
-  The default path parses normalized events from the encounter byte range using
-  `CombatLogParser.parse_events/4`. Tests may pass `events: events` to exercise
-  the persistence layer without depending on combat-log text fixtures.
+  This API intentionally accepts normalized events directly. Log scanning and
+  source file concerns belong in the bronze/log ingestion layer.
   """
-  @spec project_and_persist(EncounterRecord.t(), keyword()) ::
+  @spec project_and_persist(DimEncounter.t(), keyword()) ::
           {:ok, persist_result()} | {:error, term()}
-  def project_and_persist(%EncounterRecord{} = encounter, opts \\ []) do
-    with {:ok, events} <- events_for_encounter(encounter, opts),
-         projection <- Projector.project(encounter.id, events) do
+  def project_and_persist(%DimEncounter{} = dim_encounter, opts) do
+    with {:ok, events} <- Keyword.fetch(opts, :events),
+         true <- is_list(events),
+         projection <- Projector.project(dim_encounter.id, events) do
       persist_projection(projection)
-    end
-  end
-
-  defp events_for_encounter(%EncounterRecord{} = encounter, opts) do
-    case Keyword.fetch(opts, :events) do
-      {:ok, events} when is_list(events) ->
-        {:ok, events}
-
-      :error ->
-        combat_log_file = Repo.get!(CombatLogFile, encounter.combat_log_file_id)
-
-        CombatLogParser.parse_events(
-          combat_log_file.file_path,
-          encounter.start_byte,
-          encounter.end_byte,
-          format_timestamp(encounter.start_time)
-        )
+    else
+      :error -> {:error, :events_required}
+      false -> {:error, :invalid_events}
     end
   end
 
@@ -67,7 +51,7 @@ defmodule WeGoNext.Silver do
             DamageTaken,
             projection.damage_taken,
             now,
-            [:encounter_id, :target_guid, :source_guid, :spell_id],
+            [:encounter_dim_id, :target_guid, :source_guid, :spell_id],
             [:total_amount, :hit_count, :max_hit, :overkill_total, :source_is_npc]
           ),
         damage_done:
@@ -75,7 +59,7 @@ defmodule WeGoNext.Silver do
             DamageDone,
             projection.damage_done,
             now,
-            [:encounter_id, :source_guid, :target_guid, :spell_id],
+            [:encounter_dim_id, :source_guid, :target_guid, :spell_id],
             [:total_amount, :hit_count, :max_hit]
           ),
         death:
@@ -83,7 +67,7 @@ defmodule WeGoNext.Silver do
             Death,
             projection.death,
             now,
-            [:encounter_id, :target_guid, :died_at_ms_into_fight],
+            [:encounter_dim_id, :target_guid, :died_at_ms_into_fight],
             [:killing_blow_spell_id, :killing_blow_source_guid, :damage_recap]
           ),
         interrupt_opportunity:
@@ -91,7 +75,12 @@ defmodule WeGoNext.Silver do
             InterruptOpportunity,
             projection.interrupt_opportunity,
             now,
-            [:encounter_id, :target_npc_guid, :interrupted_spell_id, :opportunity_ms_into_fight],
+            [
+              :encounter_dim_id,
+              :target_npc_guid,
+              :interrupted_spell_id,
+              :opportunity_ms_into_fight
+            ],
             [:success, :interrupter_guid, :interrupting_spell_id]
           ),
         debuff_application:
@@ -99,7 +88,7 @@ defmodule WeGoNext.Silver do
             DebuffApplication,
             projection.debuff_application,
             now,
-            [:encounter_id, :target_guid, :source_guid, :spell_id, :applied_at_ms_into_fight],
+            [:encounter_dim_id, :target_guid, :source_guid, :spell_id, :applied_at_ms_into_fight],
             [:duration_ms, :stack_count]
           ),
         player_info:
@@ -107,7 +96,7 @@ defmodule WeGoNext.Silver do
             PlayerInfo,
             projection.player_info,
             now,
-            [:encounter_id, :player_guid],
+            [:encounter_dim_id, :player_guid],
             [:player_name, :class_id, :spec_id, :item_level, :detected_role]
           )
       }
@@ -136,18 +125,4 @@ defmodule WeGoNext.Silver do
 
     count
   end
-
-  defp format_timestamp(%DateTime{} = dt) do
-    ms = div(elem(dt.microsecond, 0), 1000)
-
-    "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
-  end
-
-  defp format_timestamp(%NaiveDateTime{} = dt) do
-    ms = div(elem(dt.microsecond, 0), 1000)
-
-    "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
-  end
-
-  defp format_timestamp(nil), do: "1/1/2000 00:00:00.000-0"
 end

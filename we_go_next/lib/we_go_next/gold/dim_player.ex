@@ -36,12 +36,12 @@ defmodule WeGoNext.Gold.DimPlayer do
   behavior for mutable player metadata.
   """
   @spec upsert_from_silver(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  def upsert_from_silver(encounter_id) when is_integer(encounter_id) do
+  def upsert_from_silver(encounter_dim_id) when is_integer(encounter_dim_id) do
     now = DateTime.utc_now()
 
     rows =
       from(player_info in PlayerInfo,
-        where: player_info.encounter_id == ^encounter_id,
+        where: player_info.encounter_dim_id == ^encounter_dim_id,
         select: %{
           player_guid: player_info.player_guid,
           player_name: player_info.player_name,

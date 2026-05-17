@@ -1,10 +1,8 @@
 defmodule WeGoNext.Silver.PersistenceTest do
   use ExUnit.Case, async: false
 
-  alias WeGoNext.Accounts.User
-  alias WeGoNext.CombatLogFile
-  alias WeGoNext.Encounters.Encounter, as: EncounterRecord
   alias WeGoNext.Fixtures.CombatLogEventFixtures
+  alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Repo
   alias WeGoNext.Silver
 
@@ -20,21 +18,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
 
-    dir =
-      Path.join(System.tmp_dir!(), "wgn-silver-persistence-#{System.unique_integer([:positive])}")
-
-    File.mkdir_p!(dir)
-
-    user =
-      Repo.insert!(%User{
-        name: "user-#{System.unique_integer([:positive])}",
-        wow_logs_path: dir
-      })
-
-    combat_log_file = insert_combat_log_file!(dir, user)
-    encounter = insert_encounter!(combat_log_file)
-
-    on_exit(fn -> File.rm_rf!(dir) end)
+    encounter = insert_dim_encounter!()
 
     {:ok, encounter: encounter}
   end
@@ -64,14 +48,17 @@ defmodule WeGoNext.Silver.PersistenceTest do
 
     assert %DamageTaken{total_amount: 700, hit_count: 2, max_hit: 400, overkill_total: 50} =
              Repo.get_by!(DamageTaken,
-               encounter_id: encounter.id,
+               encounter_dim_id: encounter.id,
                target_guid: "Player-Victim",
                source_guid: "Creature-Boss",
                spell_id: 123
              )
 
     assert %PlayerInfo{player_name: "Tank", detected_role: "tank"} =
-             Repo.get_by!(PlayerInfo, encounter_id: encounter.id, player_guid: "Player-Tank")
+             Repo.get_by!(PlayerInfo,
+               encounter_dim_id: encounter.id,
+               player_guid: "Player-Tank"
+             )
   end
 
   test "project_and_persist is idempotent across natural keys", %{encounter: encounter} do
@@ -88,41 +75,15 @@ defmodule WeGoNext.Silver.PersistenceTest do
     assert Repo.aggregate(PlayerInfo, :count) == 3
   end
 
-  defp insert_combat_log_file!(dir, user) do
-    file_path = Path.join(dir, "WoWCombatLog-test.txt")
-    File.write!(file_path, "COMBAT_LOG_VERSION,22\n")
-
-    %CombatLogFile{}
-    |> CombatLogFile.changeset(%{
-      file_path: file_path,
-      file_size: 22,
-      file_mtime: DateTime.utc_now() |> DateTime.truncate(:second),
-      source: :live,
-      user_id: user.id,
-      last_parsed_byte: 0
-    })
-    |> Repo.insert!()
-  end
-
-  defp insert_encounter!(combat_log_file) do
-    now = DateTime.utc_now()
-
-    %EncounterRecord{}
-    |> EncounterRecord.changeset(%{
+  defp insert_dim_encounter! do
+    %DimEncounter{}
+    |> DimEncounter.changeset(%{
       wow_encounter_id: "test-boss",
       name: "Test Boss",
       difficulty_id: 16,
       difficulty_name: "Mythic",
       group_size: 20,
-      instance_id: "test-instance",
-      start_time: now,
-      end_time: DateTime.add(now, 120, :second),
-      success: false,
-      fight_time_ms: 120_000,
-      start_byte: 0,
-      end_byte: 1_000,
-      combat_log_file_id: combat_log_file.id,
-      analysis: %{}
+      instance_id: "test-instance"
     })
     |> Repo.insert!()
   end

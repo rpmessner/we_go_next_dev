@@ -4,17 +4,17 @@ defmodule WeGoNext.Silver.ProjectorTest do
   alias WeGoNext.Fixtures.CombatLogEventFixtures
   alias WeGoNext.Silver.{Projection, Projector}
 
-  @encounter_id 42
+  @encounter_dim_id 42
 
   test "projects normalized events into canonical silver row grains" do
     projection =
-      Projector.project(@encounter_id, CombatLogEventFixtures.canonical_projection_events())
+      Projector.project(@encounter_dim_id, CombatLogEventFixtures.canonical_projection_events())
 
     assert %Projection{} = projection
 
     assert [
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                target_guid: "Player-Tank",
                source_guid: "Creature-Boss",
                spell_id: 0,
@@ -25,7 +25,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
                source_is_npc: true
              },
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                target_guid: "Player-Victim",
                source_guid: "Creature-Boss",
                spell_id: 123,
@@ -39,7 +39,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
 
     assert [
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                source_guid: "Player-Dps",
                target_guid: "Creature-Boss",
                spell_id: 456,
@@ -51,7 +51,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
 
     assert [
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                target_guid: "Player-Victim",
                died_at_ms_into_fight: 3_000,
                killing_blow_spell_id: 123,
@@ -79,7 +79,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
 
     assert [
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                target_npc_guid: "Creature-Caster",
                interrupted_spell_id: 777,
                opportunity_ms_into_fight: 4_000,
@@ -88,7 +88,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
                interrupting_spell_id: 1766
              },
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                target_npc_guid: "Creature-Caster",
                interrupted_spell_id: 888,
                opportunity_ms_into_fight: 5_000,
@@ -100,7 +100,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
 
     assert [
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                target_guid: "Player-Dps",
                source_guid: "Creature-Boss",
                spell_id: 999,
@@ -109,7 +109,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
                stack_count: 1
              },
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                target_guid: "Player-Victim",
                source_guid: "Creature-Boss",
                spell_id: 111,
@@ -121,7 +121,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
 
     assert [
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                player_guid: "Player-Dps",
                player_name: "Dps",
                class_id: 1,
@@ -130,7 +130,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
                detected_role: "unknown"
              },
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                player_guid: "Player-Tank",
                player_name: "Tank",
                class_id: nil,
@@ -139,7 +139,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
                detected_role: "tank"
              },
              %{
-               encounter_id: @encounter_id,
+               encounter_dim_id: @encounter_dim_id,
                player_guid: "Player-Victim",
                player_name: "Victim",
                class_id: nil,
@@ -152,7 +152,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
 
   test "normalizes nil-like natural-key values for required silver fields" do
     projection =
-      Projector.project(@encounter_id, [
+      Projector.project(@encounter_dim_id, [
         CombatLogEventFixtures.spell_damage_event(
           time_into_fight: 1.0,
           source_guid: nil,

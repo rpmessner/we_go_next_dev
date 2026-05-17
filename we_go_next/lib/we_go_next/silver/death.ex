@@ -6,7 +6,7 @@ defmodule WeGoNext.Silver.Death do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias WeGoNext.Encounters.Encounter
+  alias WeGoNext.Gold.DimEncounter
 
   @schema_prefix "silver"
 
@@ -17,7 +17,7 @@ defmodule WeGoNext.Silver.Death do
     field(:killing_blow_source_guid, :string)
     field(:damage_recap, {:array, :map}, default: [])
 
-    belongs_to(:encounter, Encounter)
+    belongs_to(:encounter, DimEncounter, foreign_key: :encounter_dim_id)
 
     timestamps(updated_at: false, type: :utc_datetime_usec)
   end
@@ -26,15 +26,15 @@ defmodule WeGoNext.Silver.Death do
   def changeset(death, attrs) do
     death
     |> cast(attrs, [
-      :encounter_id,
+      :encounter_dim_id,
       :target_guid,
       :died_at_ms_into_fight,
       :killing_blow_spell_id,
       :killing_blow_source_guid,
       :damage_recap
     ])
-    |> validate_required([:encounter_id, :target_guid, :died_at_ms_into_fight, :damage_recap])
-    |> unique_constraint([:encounter_id, :target_guid, :died_at_ms_into_fight],
+    |> validate_required([:encounter_dim_id, :target_guid, :died_at_ms_into_fight, :damage_recap])
+    |> unique_constraint([:encounter_dim_id, :target_guid, :died_at_ms_into_fight],
       name: :silver_death_natural_key
     )
   end

@@ -20,21 +20,21 @@ defmodule WeGoNext.Silver.Projector do
   @doc """
   Returns table-shaped row lists for the six silver tables.
   """
-  def project(encounter_id, events) when is_integer(encounter_id) and is_list(events) do
+  def project(encounter_dim_id, events) when is_integer(encounter_dim_id) and is_list(events) do
     events = Enum.sort_by(events, &time_ms/1)
     tank_guids = detect_tank_guids(events)
 
     %Projection{
-      damage_taken: project_damage_taken(encounter_id, events),
-      damage_done: project_damage_done(encounter_id, events),
-      death: project_deaths(encounter_id, events),
-      interrupt_opportunity: project_interrupt_opportunities(encounter_id, events),
-      debuff_application: project_debuff_applications(encounter_id, events),
-      player_info: project_player_info(encounter_id, events, tank_guids)
+      damage_taken: project_damage_taken(encounter_dim_id, events),
+      damage_done: project_damage_done(encounter_dim_id, events),
+      death: project_deaths(encounter_dim_id, events),
+      interrupt_opportunity: project_interrupt_opportunities(encounter_dim_id, events),
+      debuff_application: project_debuff_applications(encounter_dim_id, events),
+      player_info: project_player_info(encounter_dim_id, events, tank_guids)
     }
   end
 
-  defp project_damage_taken(encounter_id, events) do
+  defp project_damage_taken(encounter_dim_id, events) do
     events
     |> Enum.filter(&(event_type(&1) in @damage_taken_types))
     |> Enum.filter(&player_guid?(event_value(&1, :target_guid)))
@@ -50,7 +50,7 @@ defmodule WeGoNext.Silver.Projector do
         acc,
         key,
         new_damage_taken_row(
-          encounter_id,
+          encounter_dim_id,
           event,
           target_guid,
           source_guid,
@@ -74,7 +74,7 @@ defmodule WeGoNext.Silver.Projector do
   end
 
   defp new_damage_taken_row(
-         encounter_id,
+         encounter_dim_id,
          event,
          target_guid,
          source_guid,
@@ -83,7 +83,7 @@ defmodule WeGoNext.Silver.Projector do
          overkill
        ) do
     %{
-      encounter_id: encounter_id,
+      encounter_dim_id: encounter_dim_id,
       target_guid: target_guid,
       source_guid: source_guid,
       spell_id: spell_id,
@@ -95,7 +95,7 @@ defmodule WeGoNext.Silver.Projector do
     }
   end
 
-  defp project_damage_done(encounter_id, events) do
+  defp project_damage_done(encounter_dim_id, events) do
     events
     |> Enum.filter(&(event_type(&1) in @damage_done_types))
     |> Enum.filter(
@@ -111,7 +111,7 @@ defmodule WeGoNext.Silver.Projector do
       Map.update(
         acc,
         key,
-        new_damage_done_row(encounter_id, source_guid, target_guid, spell_id, amount),
+        new_damage_done_row(encounter_dim_id, source_guid, target_guid, spell_id, amount),
         fn row ->
           %{
             row
@@ -126,9 +126,9 @@ defmodule WeGoNext.Silver.Projector do
     |> Enum.sort_by(&{&1.source_guid, &1.target_guid, &1.spell_id})
   end
 
-  defp new_damage_done_row(encounter_id, source_guid, target_guid, spell_id, amount) do
+  defp new_damage_done_row(encounter_dim_id, source_guid, target_guid, spell_id, amount) do
     %{
-      encounter_id: encounter_id,
+      encounter_dim_id: encounter_dim_id,
       source_guid: source_guid,
       target_guid: target_guid,
       spell_id: spell_id,
@@ -138,7 +138,7 @@ defmodule WeGoNext.Silver.Projector do
     }
   end
 
-  defp project_deaths(encounter_id, events) do
+  defp project_deaths(encounter_dim_id, events) do
     {deaths, _damage_windows} =
       Enum.reduce(events, {[], %{}}, fn event, {deaths, damage_windows} ->
         cond do
@@ -148,7 +148,7 @@ defmodule WeGoNext.Silver.Projector do
             killing_blow = List.first(recap)
 
             death = %{
-              encounter_id: encounter_id,
+              encounter_dim_id: encounter_dim_id,
               target_guid: target_guid,
               died_at_ms_into_fight: time_ms(event),
               killing_blow_spell_id: killing_blow && killing_blow["spell_id"],
@@ -194,14 +194,14 @@ defmodule WeGoNext.Silver.Projector do
     }
   end
 
-  defp project_interrupt_opportunities(encounter_id, events) do
+  defp project_interrupt_opportunities(encounter_dim_id, events) do
     events
     |> Enum.reduce([], fn event, rows ->
       cond do
         event_type(event) == "SPELL_INTERRUPT" and player_guid?(event_value(event, :source_guid)) ->
           [
             %{
-              encounter_id: encounter_id,
+              encounter_dim_id: encounter_dim_id,
               target_npc_guid:
                 normalize_guid(event_value(event, :target_guid), @unknown_target_guid),
               interrupted_spell_id: normalize_spell_id(event_value(event, :extra_spell_id)),
@@ -217,7 +217,7 @@ defmodule WeGoNext.Silver.Projector do
         event_type(event) == "SPELL_CAST_SUCCESS" and npc_guid?(event_value(event, :source_guid)) ->
           [
             %{
-              encounter_id: encounter_id,
+              encounter_dim_id: encounter_dim_id,
               target_npc_guid:
                 normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
               interrupted_spell_id: normalize_spell_id(event_value(event, :spell_id)),
@@ -237,17 +237,17 @@ defmodule WeGoNext.Silver.Projector do
     |> Enum.sort_by(&{&1.opportunity_ms_into_fight, &1.target_npc_guid, &1.interrupted_spell_id})
   end
 
-  defp project_debuff_applications(encounter_id, events) do
+  defp project_debuff_applications(encounter_dim_id, events) do
     {applications, pending} =
       Enum.reduce(events, {[], %{}}, fn event, {applications, pending} ->
         cond do
           debuff_event?(event, "SPELL_AURA_APPLIED") ->
-            app = debuff_application_row(encounter_id, event)
+            app = debuff_application_row(encounter_dim_id, event)
             key = {app.target_guid, app.spell_id}
             {applications, Map.update(pending, key, [app], &[app | &1])}
 
           debuff_event?(event, "SPELL_AURA_APPLIED_DOSE") ->
-            {[debuff_application_row(encounter_id, event) | applications], pending}
+            {[debuff_application_row(encounter_dim_id, event) | applications], pending}
 
           debuff_event?(event, "SPELL_AURA_REMOVED") ->
             key = {
@@ -292,9 +292,9 @@ defmodule WeGoNext.Silver.Projector do
       extra_value(event, :aura_type) == "DEBUFF"
   end
 
-  defp debuff_application_row(encounter_id, event) do
+  defp debuff_application_row(encounter_dim_id, event) do
     %{
-      encounter_id: encounter_id,
+      encounter_dim_id: encounter_dim_id,
       target_guid: normalize_guid(event_value(event, :target_guid), @unknown_target_guid),
       source_guid: normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
       spell_id: normalize_spell_id(event_value(event, :spell_id)),
@@ -304,7 +304,7 @@ defmodule WeGoNext.Silver.Projector do
     }
   end
 
-  defp project_player_info(encounter_id, events, tank_guids) do
+  defp project_player_info(encounter_dim_id, events, tank_guids) do
     class_info = collect_class_info(events)
 
     events
@@ -315,7 +315,7 @@ defmodule WeGoNext.Silver.Projector do
       class_id = Map.get(data, :class_id) || WowClass.class_from_spec(spec_id)
 
       %{
-        encounter_id: encounter_id,
+        encounter_dim_id: encounter_dim_id,
         player_guid: guid,
         player_name: Map.get(data, :player_name) || @unknown_player_name,
         class_id: class_id,

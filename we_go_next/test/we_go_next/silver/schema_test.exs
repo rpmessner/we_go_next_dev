@@ -34,7 +34,7 @@ defmodule WeGoNext.Silver.SchemaTest do
   test "silver changesets accept required fields" do
     assert_changeset_valid(
       DamageTaken.changeset(%DamageTaken{}, %{
-        encounter_id: 1,
+        encounter_dim_id: 1,
         target_guid: "Player-1",
         source_guid: "Creature-1",
         spell_id: 123,
@@ -48,7 +48,7 @@ defmodule WeGoNext.Silver.SchemaTest do
 
     assert_changeset_valid(
       DamageDone.changeset(%DamageDone{}, %{
-        encounter_id: 1,
+        encounter_dim_id: 1,
         source_guid: "Player-1",
         target_guid: "Creature-1",
         spell_id: 123,
@@ -60,7 +60,7 @@ defmodule WeGoNext.Silver.SchemaTest do
 
     assert_changeset_valid(
       Death.changeset(%Death{}, %{
-        encounter_id: 1,
+        encounter_dim_id: 1,
         target_guid: "Player-1",
         died_at_ms_into_fight: 12_345,
         damage_recap: [%{"amount" => 100, "spell_id" => 123}]
@@ -69,7 +69,7 @@ defmodule WeGoNext.Silver.SchemaTest do
 
     assert_changeset_valid(
       InterruptOpportunity.changeset(%InterruptOpportunity{}, %{
-        encounter_id: 1,
+        encounter_dim_id: 1,
         target_npc_guid: "Creature-1",
         interrupted_spell_id: 123,
         opportunity_ms_into_fight: 12_345,
@@ -79,7 +79,7 @@ defmodule WeGoNext.Silver.SchemaTest do
 
     assert_changeset_valid(
       DebuffApplication.changeset(%DebuffApplication{}, %{
-        encounter_id: 1,
+        encounter_dim_id: 1,
         target_guid: "Player-1",
         source_guid: "Creature-1",
         spell_id: 123,
@@ -90,7 +90,7 @@ defmodule WeGoNext.Silver.SchemaTest do
 
     assert_changeset_valid(
       PlayerInfo.changeset(%PlayerInfo{}, %{
-        encounter_id: 1,
+        encounter_dim_id: 1,
         player_guid: "Player-1",
         player_name: "Testplayer",
         detected_role: "unknown"
@@ -101,7 +101,7 @@ defmodule WeGoNext.Silver.SchemaTest do
   test "player info validates detected role" do
     changeset =
       PlayerInfo.changeset(%PlayerInfo{}, %{
-        encounter_id: 1,
+        encounter_dim_id: 1,
         player_guid: "Player-1",
         player_name: "Testplayer",
         detected_role: "carry"

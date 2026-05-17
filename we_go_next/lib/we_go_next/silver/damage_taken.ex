@@ -6,7 +6,7 @@ defmodule WeGoNext.Silver.DamageTaken do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias WeGoNext.Encounters.Encounter
+  alias WeGoNext.Gold.DimEncounter
 
   @schema_prefix "silver"
 
@@ -20,7 +20,7 @@ defmodule WeGoNext.Silver.DamageTaken do
     field(:overkill_total, :integer, default: 0)
     field(:source_is_npc, :boolean, default: false)
 
-    belongs_to(:encounter, Encounter)
+    belongs_to(:encounter, DimEncounter, foreign_key: :encounter_dim_id)
 
     timestamps(updated_at: false, type: :utc_datetime_usec)
   end
@@ -29,7 +29,7 @@ defmodule WeGoNext.Silver.DamageTaken do
   def changeset(damage_taken, attrs) do
     damage_taken
     |> cast(attrs, [
-      :encounter_id,
+      :encounter_dim_id,
       :target_guid,
       :source_guid,
       :spell_id,
@@ -40,7 +40,7 @@ defmodule WeGoNext.Silver.DamageTaken do
       :source_is_npc
     ])
     |> validate_required([
-      :encounter_id,
+      :encounter_dim_id,
       :target_guid,
       :source_guid,
       :spell_id,
@@ -50,7 +50,7 @@ defmodule WeGoNext.Silver.DamageTaken do
       :overkill_total,
       :source_is_npc
     ])
-    |> unique_constraint([:encounter_id, :target_guid, :source_guid, :spell_id],
+    |> unique_constraint([:encounter_dim_id, :target_guid, :source_guid, :spell_id],
       name: :silver_damage_taken_natural_key
     )
   end

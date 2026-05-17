@@ -6,7 +6,7 @@ defmodule WeGoNext.Silver.InterruptOpportunity do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias WeGoNext.Encounters.Encounter
+  alias WeGoNext.Gold.DimEncounter
 
   @schema_prefix "silver"
 
@@ -18,7 +18,7 @@ defmodule WeGoNext.Silver.InterruptOpportunity do
     field(:interrupter_guid, :string)
     field(:interrupting_spell_id, :integer)
 
-    belongs_to(:encounter, Encounter)
+    belongs_to(:encounter, DimEncounter, foreign_key: :encounter_dim_id)
 
     timestamps(updated_at: false, type: :utc_datetime_usec)
   end
@@ -27,7 +27,7 @@ defmodule WeGoNext.Silver.InterruptOpportunity do
   def changeset(interrupt_opportunity, attrs) do
     interrupt_opportunity
     |> cast(attrs, [
-      :encounter_id,
+      :encounter_dim_id,
       :target_npc_guid,
       :interrupted_spell_id,
       :opportunity_ms_into_fight,
@@ -36,14 +36,14 @@ defmodule WeGoNext.Silver.InterruptOpportunity do
       :interrupting_spell_id
     ])
     |> validate_required([
-      :encounter_id,
+      :encounter_dim_id,
       :target_npc_guid,
       :interrupted_spell_id,
       :opportunity_ms_into_fight,
       :success
     ])
     |> unique_constraint(
-      [:encounter_id, :target_npc_guid, :interrupted_spell_id, :opportunity_ms_into_fight],
+      [:encounter_dim_id, :target_npc_guid, :interrupted_spell_id, :opportunity_ms_into_fight],
       name: :silver_interrupt_opportunity_natural_key
     )
   end
