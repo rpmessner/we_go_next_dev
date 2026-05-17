@@ -7,7 +7,7 @@ defmodule WeGoNext.Accounts do
 
   alias WeGoNext.{CombatLogFile, Repo}
   alias WeGoNext.Accounts.User
-  alias WeGoNext.Bronze.FileFingerprint
+  alias WeGoNext.Bronze.{CombatLogReconciler, FileFingerprint}
 
   @log_sources [
     %{source: :live, directory: nil, prefix: "WoWCombatLog-"},
@@ -130,6 +130,7 @@ defmodule WeGoNext.Accounts do
   defp log_entry(directory_path, filename, source, user) do
     full_path = Path.join(directory_path, filename)
     stat = File.stat!(full_path)
+    maybe_reconcile_archive_move(full_path, source, user)
     maybe_backfill_head_sha256(full_path, user)
 
     # Convert erlang datetime tuple to NaiveDateTime for sorting
@@ -169,4 +170,18 @@ defmodule WeGoNext.Accounts do
         :ok
     end
   end
+
+  defp maybe_reconcile_archive_move(full_path, :warcraftlogs_archive, %User{id: user_id}) do
+    case CombatLogReconciler.reconcile_archive_move(full_path, user_id) do
+      {:ok, _combat_log_file_or_nil} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to reconcile archived combat log #{full_path}: #{inspect(reason)}")
+
+        :ok
+    end
+  end
+
+  defp maybe_reconcile_archive_move(_full_path, _source, _user), do: :ok
 end

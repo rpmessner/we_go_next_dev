@@ -8,6 +8,7 @@ defmodule WeGoNext.Importer do
   alias WeGoNext.{Repo, CombatLogFile, Encounter, CombatLogParser}
   alias WeGoNext.Encounters.Encounter, as: EncounterRecord
   alias WeGoNext.Analyzers.AnalysisCache
+  alias WeGoNext.Bronze.CombatLogReconciler
   import Ecto.Query
 
   @doc """
@@ -145,14 +146,14 @@ defmodule WeGoNext.Importer do
   defp get_or_create_combat_log_file(file_path, user_id) do
     case Repo.get_by(CombatLogFile, file_path: file_path) do
       nil ->
-        case CombatLogFile.attrs_from_file(file_path, user_id) do
-          {:ok, attrs} ->
-            %CombatLogFile{}
-            |> CombatLogFile.changeset(attrs)
-            |> Repo.insert()
-
-          {:error, reason} ->
-            {:error, reason}
+        with {:ok, nil} <- CombatLogReconciler.reconcile_archive_move(file_path, user_id),
+             {:ok, attrs} <- CombatLogFile.attrs_from_file(file_path, user_id) do
+          %CombatLogFile{}
+          |> CombatLogFile.changeset(attrs)
+          |> Repo.insert()
+        else
+          {:ok, %CombatLogFile{} = combat_log_file} -> {:ok, combat_log_file}
+          {:error, reason} -> {:error, reason}
         end
 
       existing ->
@@ -175,11 +176,16 @@ defmodule WeGoNext.Importer do
 
           # Broadcast progress
           if progress_topic do
-            Phoenix.PubSub.broadcast(WeGoNext.PubSub, progress_topic, {:import_progress, %{
-              bytes_read: boundary.end_byte,
-              total_bytes: end_byte,
-              encounters_found: idx
-            }})
+            Phoenix.PubSub.broadcast(
+              WeGoNext.PubSub,
+              progress_topic,
+              {:import_progress,
+               %{
+                 bytes_read: boundary.end_byte,
+                 total_bytes: end_byte,
+                 encounters_found: idx
+               }}
+            )
           end
         end)
 
@@ -247,7 +253,12 @@ defmodule WeGoNext.Importer do
     clf = Repo.get!(CombatLogFile, record.combat_log_file_id)
 
     # Parse events from the log file using byte offsets
-    case CombatLogParser.parse_events(clf.file_path, record.start_byte, record.end_byte, format_timestamp(record.start_time)) do
+    case CombatLogParser.parse_events(
+           clf.file_path,
+           record.start_byte,
+           record.end_byte,
+           format_timestamp(record.start_time)
+         ) do
       {:ok, events} ->
         # Build Encounter struct with parsed events
         encounter = %Encounter{
@@ -340,30 +351,34 @@ defmodule WeGoNext.Importer do
         [time_str, ms_str] = String.split(time_part, ".")
         [hour, minute, second] = String.split(time_str, ":")
 
-        {:ok, naive} = NaiveDateTime.new(
-          String.to_integer(year),
-          String.to_integer(month),
-          String.to_integer(day),
-          String.to_integer(hour),
-          String.to_integer(minute),
-          String.to_integer(second),
-          String.to_integer(ms_str) * 1000
-        )
+        {:ok, naive} =
+          NaiveDateTime.new(
+            String.to_integer(year),
+            String.to_integer(month),
+            String.to_integer(day),
+            String.to_integer(hour),
+            String.to_integer(minute),
+            String.to_integer(second),
+            String.to_integer(ms_str) * 1000
+          )
 
         DateTime.from_naive!(naive, "Etc/UTC")
 
-      _ -> nil
+      _ ->
+        nil
     end
   end
 
   # Format a DateTime back to the WoW timestamp format for CombatLogParser
   defp format_timestamp(%DateTime{} = dt) do
     ms = div(dt.microsecond |> elem(0), 1000)
+
     "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
   end
 
   defp format_timestamp(%NaiveDateTime{} = dt) do
     ms = div(dt.microsecond |> elem(0), 1000)
+
     "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
   end
 
@@ -386,7 +401,11 @@ defmodule WeGoNext.Importer do
     # This avoids a race condition where WoW writes more data between
     # parsing and this update, causing us to skip content.
     {:ok, %{mtime: mtime}} = File.stat(clf.file_path)
-    mtime_dt = NaiveDateTime.from_erl!(mtime) |> DateTime.from_naive!("Etc/UTC") |> DateTime.truncate(:second)
+
+    mtime_dt =
+      NaiveDateTime.from_erl!(mtime)
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.truncate(:second)
 
     clf
     |> Ecto.Changeset.change(%{
