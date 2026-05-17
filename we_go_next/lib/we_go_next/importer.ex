@@ -178,37 +178,44 @@ defmodule WeGoNext.Importer do
 
     case CombatLogParser.scan_boundaries(clf.file_path, start_byte) do
       {:ok, boundaries, end_byte} ->
-        count = length(boundaries)
+        results =
+          boundaries
+          |> Enum.with_index(1)
+          |> Enum.map(fn {boundary, idx} ->
+            result = insert_or_fetch_encounter_from_boundary(boundary, clf)
 
-        boundaries
-        |> Enum.with_index(1)
-        |> Enum.each(fn {boundary, idx} ->
-          insert_encounter_from_boundary(boundary, clf)
+            # Broadcast progress
+            if progress_topic do
+              Phoenix.PubSub.broadcast(
+                WeGoNext.PubSub,
+                progress_topic,
+                {:import_progress,
+                 %{
+                   bytes_read: boundary.end_byte,
+                   total_bytes: end_byte,
+                   encounters_found: idx
+                 }}
+              )
+            end
 
-          # Broadcast progress
-          if progress_topic do
-            Phoenix.PubSub.broadcast(
-              WeGoNext.PubSub,
-              progress_topic,
-              {:import_progress,
-               %{
-                 bytes_read: boundary.end_byte,
-                 total_bytes: end_byte,
-                 encounters_found: idx
-               }}
-            )
-          end
-        end)
+            result
+          end)
+
+        new_encounters =
+          Enum.count(results, fn
+            {:inserted, %EncounterRecord{}} -> true
+            {:existing, %EncounterRecord{}} -> false
+          end)
 
         # Final progress update
         {:ok, updated_clf} = update_file_progress(clf, end_byte)
 
         # Compute analysis for newly imported encounters
-        if count > 0 do
+        if new_encounters > 0 do
           spawn_analysis_task(updated_clf.id)
         end
 
-        {:ok, %{file: updated_clf, new_encounters: count}}
+        {:ok, %{file: updated_clf, new_encounters: new_encounters}}
 
       {:error, reason} ->
         updated_clf = Repo.get!(CombatLogFile, clf.id)
@@ -324,7 +331,7 @@ defmodule WeGoNext.Importer do
     end
   end
 
-  defp insert_encounter_from_boundary(boundary, clf) do
+  defp insert_or_fetch_encounter_from_boundary(boundary, clf) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
     # Parse the start timestamp to get a NaiveDateTime for the encounter record
@@ -353,16 +360,30 @@ defmodule WeGoNext.Importer do
       updated_at: now
     }
 
-    # Insert, skipping duplicates
-    Repo.insert_all(
-      EncounterRecord,
-      [encounter_attrs],
-      on_conflict: :nothing,
-      conflict_target: [:combat_log_file_id, :start_time]
-    )
+    {inserted_count, _result} =
+      Repo.insert_all(
+        EncounterRecord,
+        [encounter_attrs],
+        on_conflict: :nothing,
+        conflict_target: [:combat_log_file_id, :start_time]
+      )
 
     # Update last_parsed_byte after each encounter
     update_file_progress(clf, boundary.end_byte)
+
+    encounter = fetch_encounter_for_boundary!(clf.id, start_time)
+
+    case inserted_count do
+      1 -> {:inserted, encounter}
+      0 -> {:existing, encounter}
+    end
+  end
+
+  defp fetch_encounter_for_boundary!(combat_log_file_id, start_time) do
+    Repo.get_by!(EncounterRecord,
+      combat_log_file_id: combat_log_file_id,
+      start_time: start_time
+    )
   end
 
   # Compute analysis for an encounter at import time

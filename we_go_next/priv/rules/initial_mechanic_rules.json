@@ -1,0 +1,27 @@
+{
+  "ruleset": {
+    "name": "Initial Mechanic Rules",
+    "version": 1,
+    "status": "draft"
+  },
+  "criteria": [
+    {
+      "spell_id": 1214081,
+      "spell_name": "Arcane Expulsion",
+      "mechanic_type": "avoidable",
+      "threshold": {
+        "max_hits": 0
+      },
+      "notes": "Seeded from local Warcraft Logs exports: data/naazindhri_mythic/mittwoch_damage_taken.csv and docs/sessions/2025-11-28_pull_summary_and_integration_planning.md identify Arcane Expulsion as a major damage/death cause. Spell id resolved from tools/spell_names.json current-season entry."
+    },
+    {
+      "spell_id": 1269183,
+      "spell_name": "Void Burst",
+      "mechanic_type": "avoidable",
+      "threshold": {
+        "max_hits": 0
+      },
+      "notes": "Seeded from local Warcraft Logs exports: data/naazindhri_mythic/mittwoch_damage_taken.csv lists Void Burst as high damage taken. Spell id resolved from tools/spell_names.json."
+    }
+  ]
+}
