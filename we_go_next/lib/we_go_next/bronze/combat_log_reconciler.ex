@@ -6,6 +6,7 @@ defmodule WeGoNext.Bronze.CombatLogReconciler do
   import Ecto.Query
   require Logger
 
+  alias WeGoNext.Accounts.User
   alias WeGoNext.{CombatLogFile, Repo}
 
   @live_prefix "WoWCombatLog-"
@@ -32,6 +33,24 @@ defmodule WeGoNext.Bronze.CombatLogReconciler do
   end
 
   def reconcile_archive_move(_archive_path, _user_id), do: {:ok, nil}
+
+  @doc """
+  Attempts to find an archived replacement for a missing live combat log row.
+  """
+  def reconcile_missing_file(%CombatLogFile{source: :live} = combat_log_file) do
+    with {:ok, :missing} <- missing_file(combat_log_file.file_path),
+         %User{wow_logs_path: base_path} when is_binary(base_path) <-
+           Repo.get(User, combat_log_file.user_id),
+         archive_path <- archive_path_for(base_path, combat_log_file.file_path),
+         true <- File.regular?(archive_path) do
+      reconcile_archive_move(archive_path, combat_log_file.user_id)
+    else
+      {:ok, :present} -> {:ok, combat_log_file}
+      _ -> {:ok, nil}
+    end
+  end
+
+  def reconcile_missing_file(%CombatLogFile{}), do: {:ok, nil}
 
   defp matching_live_file(archive_path, user_id, archive_attrs) do
     archive_suffix = archive_suffix(archive_path)
@@ -88,4 +107,17 @@ defmodule WeGoNext.Bronze.CombatLogReconciler do
 
   defp recorded_size(%CombatLogFile{file_size: size}) when is_integer(size), do: size
   defp recorded_size(_combat_log_file), do: 0
+
+  defp missing_file(file_path) do
+    if File.regular?(file_path), do: {:ok, :present}, else: {:ok, :missing}
+  end
+
+  defp archive_path_for(base_path, live_path) do
+    archive_name =
+      live_path
+      |> Path.basename()
+      |> String.replace_prefix(@live_prefix, @archive_prefix)
+
+    Path.join([base_path, "warcraftlogsarchive", archive_name])
+  end
 end

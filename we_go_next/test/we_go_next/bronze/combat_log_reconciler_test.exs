@@ -6,7 +6,7 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
   alias WeGoNext.Accounts
   alias WeGoNext.Accounts.User
   alias WeGoNext.Bronze.CombatLogReconciler
-  alias WeGoNext.{CombatLogFile, Importer, Repo}
+  alias WeGoNext.{CombatLogFile, FileWatcher, Importer, Repo}
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
@@ -22,6 +22,8 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
       })
 
     on_exit(fn -> File.rm_rf!(dir) end)
+    on_exit(fn -> FileWatcher.stop_watching() end)
+    FileWatcher.stop_watching()
 
     {:ok, dir: dir, archive_dir: archive_dir, user: user}
   end
@@ -157,6 +159,66 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
     assert updated.last_parsed_byte == 12
   end
 
+  test "Accounts discovery refreshes FileWatcher when it reconciles the tracked row", %{
+    dir: dir,
+    archive_dir: archive_dir,
+    user: user
+  } do
+    content = "COMBAT_LOG_VERSION,22\n"
+    live_path = Path.join(dir, "WoWCombatLog-051626_111133.txt")
+    archive_path = Path.join(archive_dir, "Archive-WoWCombatLog-051626_111133.txt")
+    File.write!(archive_path, content)
+
+    live =
+      insert_combat_log_file!(%{
+        file_path: live_path,
+        file_size: byte_size(content),
+        source: :live,
+        user_id: user.id,
+        head_sha256: sha256(content)
+      })
+
+    FileWatcher.watch(live)
+
+    assert {:ok, _logs} = Accounts.list_combat_logs(user)
+    assert %CombatLogFile{id: id, file_path: ^archive_path} = FileWatcher.current_file()
+    assert id == live.id
+  end
+
+  test "Accounts discovery does not refresh FileWatcher for a different row", %{
+    dir: dir,
+    archive_dir: archive_dir,
+    user: user
+  } do
+    content = "COMBAT_LOG_VERSION,22\n"
+    watched_path = Path.join(dir, "WoWCombatLog-watched.txt")
+    moved_live_path = Path.join(dir, "WoWCombatLog-051626_111133.txt")
+    archive_path = Path.join(archive_dir, "Archive-WoWCombatLog-051626_111133.txt")
+    File.write!(archive_path, content)
+
+    watched =
+      insert_combat_log_file!(%{
+        file_path: watched_path,
+        file_size: 1,
+        source: :live,
+        user_id: user.id
+      })
+
+    insert_combat_log_file!(%{
+      file_path: moved_live_path,
+      file_size: byte_size(content),
+      source: :live,
+      user_id: user.id,
+      head_sha256: sha256(content)
+    })
+
+    FileWatcher.watch(watched)
+
+    assert {:ok, _logs} = Accounts.list_combat_logs(user)
+    assert %CombatLogFile{id: id, file_path: ^watched_path} = FileWatcher.current_file()
+    assert id == watched.id
+  end
+
   test "Importer reuses reconciled archive row instead of inserting a new one", %{
     dir: dir,
     archive_dir: archive_dir,
@@ -182,6 +244,59 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
     assert file.id == live.id
     assert file.file_path == archive_path
     assert Repo.aggregate(CombatLogFile, :count) == 1
+  end
+
+  test "Importer sync recovers a missing live path from archive", %{
+    dir: dir,
+    archive_dir: archive_dir,
+    user: user
+  } do
+    content = "not a parseable combat log"
+    live_path = Path.join(dir, "WoWCombatLog-051626_111133.txt")
+    archive_path = Path.join(archive_dir, "Archive-WoWCombatLog-051626_111133.txt")
+    File.write!(archive_path, content)
+
+    live =
+      insert_combat_log_file!(%{
+        file_path: live_path,
+        file_size: byte_size(content),
+        source: :live,
+        user_id: user.id,
+        last_parsed_byte: 5,
+        head_sha256: sha256(content)
+      })
+
+    assert {:ok, %{file: file, new_encounters: 0}} = Importer.sync_log(live)
+
+    assert file.id == live.id
+    assert file.file_path == archive_path
+    assert file.source == :warcraftlogs_archive
+    assert Repo.aggregate(CombatLogFile, :count) == 1
+  end
+
+  test "Importer sync skips a missing live path when no archive match exists", %{
+    dir: dir,
+    user: user
+  } do
+    live_path = Path.join(dir, "WoWCombatLog-051626_111133.txt")
+
+    live =
+      insert_combat_log_file!(%{
+        file_path: live_path,
+        file_size: 20,
+        source: :live,
+        user_id: user.id,
+        last_parsed_byte: 5
+      })
+
+    log =
+      capture_log(fn ->
+        assert {:ok, %{file: file, new_encounters: 0}} = Importer.sync_log(live)
+        assert file.id == live.id
+        assert file.file_path == live_path
+      end)
+
+    assert log =~ "no archived replacement found"
   end
 
   defp insert_combat_log_file!(attrs) do

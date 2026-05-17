@@ -5,7 +5,7 @@ defmodule WeGoNext.Accounts do
 
   require Logger
 
-  alias WeGoNext.{CombatLogFile, Repo}
+  alias WeGoNext.{CombatLogFile, FileWatcher, Repo}
   alias WeGoNext.Accounts.User
   alias WeGoNext.Bronze.{CombatLogReconciler, FileFingerprint}
 
@@ -173,7 +173,11 @@ defmodule WeGoNext.Accounts do
 
   defp maybe_reconcile_archive_move(full_path, :warcraftlogs_archive, %User{id: user_id}) do
     case CombatLogReconciler.reconcile_archive_move(full_path, user_id) do
-      {:ok, _combat_log_file_or_nil} ->
+      {:ok, %CombatLogFile{} = combat_log_file} ->
+        FileWatcher.refresh_if_tracking(combat_log_file)
+        :ok
+
+      {:ok, nil} ->
         :ok
 
       {:error, reason} ->

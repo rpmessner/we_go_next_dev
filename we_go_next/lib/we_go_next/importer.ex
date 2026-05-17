@@ -10,6 +10,7 @@ defmodule WeGoNext.Importer do
   alias WeGoNext.Analyzers.AnalysisCache
   alias WeGoNext.Bronze.CombatLogReconciler
   import Ecto.Query
+  require Logger
 
   @doc """
   Imports a combat log file, creating or updating the CombatLogFile record.
@@ -162,6 +163,16 @@ defmodule WeGoNext.Importer do
   end
 
   defp do_import(%CombatLogFile{} = clf, opts \\ []) do
+    case ensure_importable_file(clf) do
+      {:ok, %CombatLogFile{} = importable_clf} ->
+        do_import_existing_file(importable_clf, opts)
+
+      {:skip, %CombatLogFile{} = skipped_clf} ->
+        {:ok, %{file: skipped_clf, new_encounters: 0}}
+    end
+  end
+
+  defp do_import_existing_file(%CombatLogFile{} = clf, opts) do
     start_byte = clf.last_parsed_byte || 0
     progress_topic = Keyword.get(opts, :progress_topic)
 
@@ -202,6 +213,31 @@ defmodule WeGoNext.Importer do
       {:error, reason} ->
         updated_clf = Repo.get!(CombatLogFile, clf.id)
         {:error, %{reason: reason, file: updated_clf}}
+    end
+  end
+
+  defp ensure_importable_file(%CombatLogFile{} = clf) do
+    if File.regular?(clf.file_path) do
+      {:ok, clf}
+    else
+      case CombatLogReconciler.reconcile_missing_file(clf) do
+        {:ok, %CombatLogFile{} = reconciled_clf} ->
+          {:ok, reconciled_clf}
+
+        {:ok, nil} ->
+          Logger.warning(
+            "Skipping missing combat log #{clf.file_path}; no archived replacement found"
+          )
+
+          {:skip, clf}
+
+        {:error, reason} ->
+          Logger.warning(
+            "Skipping missing combat log #{clf.file_path}; archive reconciliation failed: #{inspect(reason)}"
+          )
+
+          {:skip, clf}
+      end
     end
   end
 

@@ -53,6 +53,13 @@ defmodule WeGoNext.FileWatcher do
   end
 
   @doc """
+  Refreshes the tracked struct only when it is tracking the same database row.
+  """
+  def refresh_if_tracking(%CombatLogFile{} = clf) do
+    GenServer.call(__MODULE__, {:refresh_if_tracking, clf})
+  end
+
+  @doc """
   Returns the directory of the current log file.
   """
   def watched_directory do
@@ -97,6 +104,18 @@ defmodule WeGoNext.FileWatcher do
   @impl true
   def handle_call(:current_file, _from, state) do
     {:reply, state.clf, state}
+  end
+
+  @impl true
+  def handle_call({:refresh_if_tracking, %CombatLogFile{} = clf}, _from, state) do
+    if state.clf && state.clf.id == clf.id do
+      logs_dir = Path.dirname(clf.file_path)
+      Logger.info("FileWatcher: Refreshed tracking for #{Path.basename(clf.file_path)}")
+
+      {:reply, true, %{state | clf: clf, logs_dir: logs_dir, user_id: clf.user_id}}
+    else
+      {:reply, false, state}
+    end
   end
 
   @impl true
