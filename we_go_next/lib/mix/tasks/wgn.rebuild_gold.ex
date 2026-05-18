@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
 
   import Ecto.Query
 
-  alias WeGoNext.Gold.{DimEncounter, FactFailure}
+  alias WeGoNext.Gold.{DimEncounter, RebuildEncounter}
   alias WeGoNext.Repo
 
   @shortdoc "Rebuild gold.fact_failure from silver rows"
@@ -33,8 +33,8 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
 
     totals =
       Enum.reduce(encounter_ids, %{deleted: 0, inserted: 0}, fn encounter_id, totals ->
-        case FactFailure.rebuild_for_encounter(encounter_id, rebuild_opts) do
-          {:ok, result} ->
+        case RebuildEncounter.rebuild(encounter_id, rebuild_opts) do
+          {:ok, %{fact_failure: result}} ->
             %{
               deleted: totals.deleted + result.deleted,
               inserted: totals.inserted + result.inserted

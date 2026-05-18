@@ -96,6 +96,7 @@ defmodule WeGoNext.ImporterTest do
              medallion_result.silver_counts
 
     assert %{inserted: 1} = medallion_result.fact_failure
+    assert %{fact_failure: %{inserted: 1}} = medallion_result.gold
 
     dim_encounter = Repo.get!(DimEncounter, medallion_result.dim_encounter_id)
     assert dim_encounter.wow_encounter_id == "2887"
@@ -123,6 +124,13 @@ defmodule WeGoNext.ImporterTest do
     assert Repo.aggregate(DimEncounter, :count) == 1
     assert Repo.aggregate(DamageTaken, :count) == 2
     assert Repo.aggregate(FactFailure, :count) == 1
+  end
+
+  test "importer delegates gold rebuilds through the gold encounter boundary" do
+    importer_source = File.read!("lib/we_go_next/importer.ex")
+
+    refute importer_source =~ "FactFailure.rebuild_for_encounter"
+    assert importer_source =~ "RebuildEncounter.rebuild"
   end
 
   test "import_log reconciles live log moved to archive and continues from preserved byte", %{
@@ -171,9 +179,7 @@ defmodule WeGoNext.ImporterTest do
     File.write!(archive_path, live_content <> "\n" <> continuation_content)
 
     assert {:ok, %{file: continued_file, new_encounters: 1}} =
-             Importer.import_log(archive_path, user.id,
-               progress_topic: topic
-             )
+             Importer.import_log(archive_path, user.id, progress_topic: topic)
 
     assert_receive {:import_progress,
                     %{

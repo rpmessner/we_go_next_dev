@@ -8,7 +8,7 @@ defmodule WeGoNext.Importer do
   alias WeGoNext.{Repo, CombatLogFile, Encounter, CombatLogParser, Silver}
   alias WeGoNext.Encounters.Encounter, as: EncounterRecord
   alias WeGoNext.Bronze.CombatLogReconciler
-  alias WeGoNext.Gold.{DimEncounter, FactFailure}
+  alias WeGoNext.Gold.{DimEncounter, RebuildEncounter}
   import Ecto.Query
   require Logger
 
@@ -278,13 +278,14 @@ defmodule WeGoNext.Importer do
          {:ok, dim_encounter} <- get_or_create_dim_encounter(encounter, clf),
          {:ok, %{counts: silver_counts}} <-
            Silver.project_and_persist(dim_encounter, events: events),
-         {:ok, fact_result} <- rebuild_fact_failures(dim_encounter) do
+         {:ok, gold_result} <- RebuildEncounter.rebuild(dim_encounter) do
       {:ok,
        %{
          encounter_id: encounter.id,
          dim_encounter_id: dim_encounter.id,
          silver_counts: silver_counts,
-         fact_failure: fact_result
+         fact_failure: gold_result.fact_failure,
+         gold: gold_result
        }}
     end
   end
@@ -344,19 +345,6 @@ defmodule WeGoNext.Importer do
       start_byte: encounter.start_byte,
       end_byte: encounter.end_byte
     }
-  end
-
-  defp rebuild_fact_failures(%DimEncounter{} = dim_encounter) do
-    case FactFailure.rebuild_for_encounter(dim_encounter.id) do
-      {:ok, result} ->
-        {:ok, result}
-
-      {:error, :active_ruleset_not_found} ->
-        {:ok, %{deleted: 0, inserted: 0, skipped: :active_ruleset_not_found}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
   end
 
   defp insert_or_fetch_encounter_from_boundary(boundary, clf) do
