@@ -99,7 +99,7 @@ defmodule WeGoNextWeb.SettingsLive do
   @impl true
   def handle_event("stop_watching", _params, socket) do
     FileWatcher.stop_watching()
-    {:noreply, assign(socket, :watching_file, nil) |> put_flash(:info, "Stopped watching")}
+    {:noreply, assign(socket, :watching_file, nil) |> put_flash(:info, "Cleared current log")}
   end
 
   @impl true
@@ -112,7 +112,7 @@ defmodule WeGoNextWeb.SettingsLive do
          socket
          |> assign(:importing, false)
          |> assign(:watching_file, watching_file)
-         |> put_flash(:info, "Imported #{count} encounters - Now watching for changes")}
+         |> put_flash(:info, "Imported #{count} encounters")}
 
       {:error, reason} ->
         {:noreply,
@@ -137,14 +137,14 @@ defmodule WeGoNextWeb.SettingsLive do
 
   @impl true
   def handle_info({:log_rotated, new_clf, count}, socket) do
-    # Log rotation detected - update watching file indicator
+    # Log rotation detected - update current file indicator
     {:noreply,
      socket
      |> assign(:watching_file, new_clf)
      |> assign(:log_files, reload_log_files(socket.assigns.user))
      |> put_flash(
        :info,
-       "Log rotation! Now watching #{Path.basename(new_clf.file_path)} (#{count} encounters)"
+       "Loaded rotated log #{Path.basename(new_clf.file_path)} (#{count} encounters)"
      )}
   end
 
@@ -183,7 +183,7 @@ defmodule WeGoNextWeb.SettingsLive do
 
       <h1 class="text-2xl font-bold text-wow-gold">Settings</h1>
 
-      <%!-- Watching Status Banner --%>
+      <%!-- Current Log Status Banner --%>
       <div :if={@watching_file} class="bg-green-900/50 border border-green-700 rounded-lg p-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -192,7 +192,7 @@ defmodule WeGoNextWeb.SettingsLive do
               <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
             </span>
             <div>
-              <p class="text-green-300 font-medium">Watching for new encounters</p>
+              <p class="text-green-300 font-medium">Current log</p>
               <p class="text-green-400/70 text-sm">{Path.basename(@watching_file.file_path)}</p>
             </div>
           </div>
@@ -200,7 +200,7 @@ defmodule WeGoNextWeb.SettingsLive do
             phx-click="stop_watching"
             class="px-3 py-1.5 bg-green-800 text-green-200 text-sm rounded hover:bg-green-700"
           >
-            Stop Watching
+            Clear
           </button>
         </div>
       </div>
@@ -259,16 +259,16 @@ defmodule WeGoNextWeb.SettingsLive do
         </form>
       </div>
 
-      <%!-- File Watching Section --%>
+      <%!-- Log Import Section --%>
       <div :if={@log_files != []} class="bg-zinc-800 rounded-lg p-6 border border-zinc-700">
-        <h2 class="text-lg font-semibold text-zinc-100 mb-4">Start Watching</h2>
+        <h2 class="text-lg font-semibold text-zinc-100 mb-4">Import Logs</h2>
 
         <p class="text-sm text-zinc-400 mb-4">
-          Select a combat log file to import and watch for new encounters.
-          The file watcher will automatically detect when WoW writes new encounter data.
+          Import the most recent combat log for current play, or load an older log for review.
+          WoW only appends to the newest active log.
         </p>
 
-        <%!-- Quick Action: Watch Most Recent --%>
+        <%!-- Quick Action: Import Most Recent --%>
         <div class="mb-4">
           <button
             phx-click="watch_most_recent"
@@ -279,7 +279,7 @@ defmodule WeGoNextWeb.SettingsLive do
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
             </svg>
             <span :if={@importing}>Importing...</span>
-            <span :if={!@importing}>Watch Most Recent Log</span>
+            <span :if={!@importing}>Import Most Recent Log</span>
           </button>
           <p class="text-xs text-zinc-500 mt-1 text-center">
             {if Enum.at(@log_files, 0), do: Path.basename(Enum.at(@log_files, 0).filename), else: ""}
@@ -313,7 +313,7 @@ defmodule WeGoNextWeb.SettingsLive do
             disabled={@importing || !@selected_log}
             class="w-full px-4 py-2 bg-zinc-700 text-zinc-200 font-medium rounded hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {if @importing, do: "Importing...", else: "Import & Watch Selected"}
+            {if @importing, do: "Importing...", else: "Import Selected Log"}
           </button>
         </form>
       </div>
@@ -333,7 +333,7 @@ defmodule WeGoNextWeb.SettingsLive do
             </dd>
           </div>
           <div class="flex">
-            <dt class="text-zinc-500 w-40">Currently Watching:</dt>
+            <dt class="text-zinc-500 w-40">Current Log:</dt>
             <dd class={if @watching_file, do: "text-green-400", else: "text-zinc-500"}>
               {if @watching_file, do: Path.basename(@watching_file.file_path), else: "None"}
             </dd>

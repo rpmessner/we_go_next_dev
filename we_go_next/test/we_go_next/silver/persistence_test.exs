@@ -158,6 +158,50 @@ defmodule WeGoNext.Silver.PersistenceTest do
            } = Repo.one!(InterruptOpportunity)
   end
 
+  test "project_and_persist deduplicates rows that share a natural key in one batch", %{
+    encounter: encounter
+  } do
+    duplicate_cast =
+      CombatLogEventFixtures.spell_cast_success_event(
+        time_into_fight: 4.0,
+        source_guid: "Creature-Caster",
+        source_name: "Caster",
+        target_guid: "Player-Dps",
+        target_name: "Dps-Realm",
+        spell_id: 777,
+        spell_name: "Duplicate Cast"
+      )
+
+    events = [
+      duplicate_cast,
+      duplicate_cast,
+      CombatLogEventFixtures.unit_died_event(
+        time_into_fight: 5.0,
+        target_guid: "Player-Dps",
+        target_name: "Dps-Realm"
+      ),
+      CombatLogEventFixtures.unit_died_event(
+        time_into_fight: 5.0,
+        target_guid: "Player-Dps",
+        target_name: "Dps-Realm"
+      )
+    ]
+
+    assert {:ok, %{counts: counts}} = Silver.project_and_persist(encounter, events: events)
+
+    assert counts.interrupt_opportunity == 1
+    assert counts.death == 1
+    assert Repo.aggregate(InterruptOpportunity, :count) == 1
+    assert Repo.aggregate(Death, :count) == 1
+
+    assert %InterruptOpportunity{
+             target_npc_guid: "Creature-Caster",
+             interrupted_spell_id: 777,
+             opportunity_ms_into_fight: 4000,
+             success: false
+           } = Repo.one!(InterruptOpportunity)
+  end
+
   defp insert_dim_encounter! do
     %DimEncounter{}
     |> DimEncounter.changeset(%{

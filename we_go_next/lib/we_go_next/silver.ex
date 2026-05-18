@@ -114,6 +114,7 @@ defmodule WeGoNext.Silver do
       Enum.map(rows, fn row ->
         Map.put(row, :inserted_at, now)
       end)
+      |> dedupe_rows(conflict_target)
 
     {count, _result} =
       Repo.insert_all(
@@ -124,5 +125,15 @@ defmodule WeGoNext.Silver do
       )
 
     count
+  end
+
+  defp dedupe_rows(rows, conflict_target) do
+    rows
+    |> Map.new(fn row ->
+      key = Enum.map(conflict_target, &Map.fetch!(row, &1))
+
+      {key, row}
+    end)
+    |> Map.values()
   end
 end
