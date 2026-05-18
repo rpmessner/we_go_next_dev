@@ -18,22 +18,25 @@ defmodule WeGoNext.Encounters.Encounter do
   }
 
   schema "encounters" do
-    field :wow_encounter_id, :string
-    field :name, :string
-    field :difficulty_id, :integer
-    field :difficulty_name, :string
-    field :group_size, :integer
-    field :instance_id, :string
-    field :start_time, :utc_datetime_usec
-    field :end_time, :utc_datetime_usec
-    field :success, :boolean
-    field :fight_time_ms, :integer
-    field :start_byte, :integer
-    field :end_byte, :integer
+    field(:wow_encounter_id, :string)
+    field(:name, :string)
+    field(:difficulty_id, :integer)
+    field(:difficulty_name, :string)
+    field(:group_size, :integer)
+    field(:instance_id, :string)
+    field(:start_time, :utc_datetime_usec)
+    field(:end_time, :utc_datetime_usec)
+    field(:success, :boolean)
+    field(:fight_time_ms, :integer)
+    field(:start_byte, :integer)
+    field(:end_byte, :integer)
     # Mark as reset (intentional boss reset to clear debuffs)
-    field :is_reset, :boolean, default: false
+    field(:is_reset, :boolean, default: false)
+    # Explicit bridge target for medallion UI routes. This is not persisted on
+    # public.encounters; it is attached by WeGoNext.Gold.EncounterIdentity.
+    field(:dim_encounter_id, :integer, virtual: true)
 
-    belongs_to :combat_log_file, CombatLogFile
+    belongs_to(:combat_log_file, CombatLogFile)
 
     timestamps()
   end
@@ -117,11 +120,13 @@ defmodule WeGoNext.Encounters.Encounter do
 
   defp format_timestamp_for_zig(%DateTime{} = dt) do
     ms = div(elem(dt.microsecond, 0), 1000)
+
     "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
   end
 
   defp format_timestamp_for_zig(%NaiveDateTime{} = dt) do
     ms = div(elem(dt.microsecond, 0), 1000)
+
     "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
   end
 

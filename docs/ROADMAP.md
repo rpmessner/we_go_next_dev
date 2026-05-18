@@ -35,14 +35,11 @@ The immediate problem is operability with real logs. Users need to understand an
    - explain no matching silver observations,
    - explain no/stale gold facts.
 
-4. `#48 Key medallion encounter views by gold encounter identity`
-   - make UI navigation use `gold.dim_encounter.id` where appropriate.
-
-5. `#51 Fence remaining legacy analyzers behind reference-only boundaries`
+4. `#51 Fence remaining legacy analyzers behind reference-only boundaries`
    - keep legacy analyzers available for comparison/research,
    - prevent new UI from depending on analyzer cache or legacy public criteria.
 
-6. `#32 Build medallion encounter detail shell`
+5. `#32 Build medallion encounter detail shell`
    - build replacement encounter detail UI against silver/gold/rules read models.
 
 These tasks are the current product path. They should make the frontend capable of driving the warehouse instead of merely displaying whatever the backend happened to compute.

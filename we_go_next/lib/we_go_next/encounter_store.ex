@@ -9,6 +9,7 @@ defmodule WeGoNext.EncounterStore do
 
   alias WeGoNext.{Importer, Repo, CombatLogFile, FileWatcher}
   alias WeGoNext.Encounters.Encounter, as: EncounterRecord
+  alias WeGoNext.Gold.EncounterIdentity
 
   @doc """
   Imports a combat log file into the database.
@@ -86,7 +87,7 @@ defmodule WeGoNext.EncounterStore do
   def list_encounter_records do
     case current_combat_log_file() do
       nil -> []
-      clf -> Importer.list_encounters(clf)
+      clf -> clf |> Importer.list_encounters() |> EncounterIdentity.attach_dim_encounter_ids(clf)
     end
   end
 

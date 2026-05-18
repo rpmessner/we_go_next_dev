@@ -154,12 +154,15 @@ Use the smallest necessary rebuild:
 Active routes:
 
 - `/` — encounter list and log import.
+- `/encounters/:id` — medallion encounter detail shell keyed by `gold.dim_encounter.id`.
 - `/failures` — gold-backed mechanic failures.
 - `/settings` — logs path and current-log import convenience.
+
+The home page still lists transitional `public.encounters` rows for import/catalog operations such as reset marking. Navigation into medallion analysis must cross the explicit `WeGoNext.Gold.EncounterIdentity` bridge and use the resulting `gold.dim_encounter.id`. New detail read models should use `WeGoNext.Gold.EncounterDetail` or similar gold/silver read models, not `public.encounters.id`.
 
 The next medallion UI work should add:
 
 - rules status/bootstrap controls,
 - medallion rebuild/recompute controls,
 - failures empty-state diagnostics,
-- a new encounter detail shell keyed by `gold.dim_encounter`.
+- richer encounter detail sections behind the gold-keyed shell.

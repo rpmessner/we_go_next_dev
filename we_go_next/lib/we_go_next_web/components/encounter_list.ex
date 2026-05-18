@@ -105,7 +105,16 @@ defmodule WeGoNextWeb.Components.EncounterList do
         <div class="flex-1 flex items-center gap-3">
           <span class="text-zinc-500 font-mono text-sm w-6">{@idx}.</span>
           <div>
-            <span class="font-semibold text-zinc-100">{@encounter.name}</span>
+            <.link
+              :if={@encounter.dim_encounter_id}
+              navigate={"/encounters/#{@encounter.dim_encounter_id}"}
+              class="font-semibold text-zinc-100 hover:text-wow-gold"
+            >
+              {@encounter.name}
+            </.link>
+            <span :if={!@encounter.dim_encounter_id} class="font-semibold text-zinc-100">
+              {@encounter.name}
+            </span>
             <span :if={@encounter.is_reset} class="ml-2 text-xs text-yellow-500">(Reset)</span>
           </div>
         </div>
