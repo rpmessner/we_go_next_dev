@@ -18,7 +18,6 @@ defmodule WeGoNextWeb.Router do
     pipe_through(:browser)
 
     live("/", EncounterLive.Index, :index)
-    live("/encounters/:id", EncounterLive.Show, :show)
     live("/failures", FailureLive.Index, :index)
     live("/settings", SettingsLive, :index)
   end

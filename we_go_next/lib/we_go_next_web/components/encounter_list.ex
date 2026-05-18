@@ -11,12 +11,12 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
   alias WeGoNext.GameData.Instances
 
-  attr :encounter_records, :list, required: true
-  attr :show_resets, :boolean, required: true
-  attr :open_menu_id, :any, default: nil
-  attr :is_admin, :boolean, required: true
-  attr :log_files, :list, default: []
-  attr :loading, :boolean, default: false
+  attr(:encounter_records, :list, required: true)
+  attr(:show_resets, :boolean, required: true)
+  attr(:open_menu_id, :any, default: nil)
+  attr(:is_admin, :boolean, required: true)
+  attr(:log_files, :list, default: [])
+  attr(:loading, :boolean, default: false)
 
   def render(assigns) do
     groups = group_encounters(assigns.encounter_records, assigns.show_resets)
@@ -51,9 +51,9 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
   # ── Instance Group ──
 
-  attr :group, :map, required: true
-  attr :is_admin, :boolean, required: true
-  attr :open_menu_id, :any, default: nil
+  attr(:group, :map, required: true)
+  attr(:is_admin, :boolean, required: true)
+  attr(:open_menu_id, :any, default: nil)
 
   defp instance_group(assigns) do
     ~H"""
@@ -93,16 +93,15 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
   # ── Encounter Card ──
 
-  attr :encounter, :map, required: true
-  attr :idx, :integer, required: true
-  attr :is_admin, :boolean, required: true
-  attr :open_menu_id, :any, default: nil
+  attr(:encounter, :map, required: true)
+  attr(:idx, :integer, required: true)
+  attr(:is_admin, :boolean, required: true)
+  attr(:open_menu_id, :any, default: nil)
 
   defp encounter_card(assigns) do
     ~H"""
-    <div class={["encounter-card relative", if(@encounter.is_reset, do: "opacity-50", else: "")]}>
-      <.link href={"/encounters/#{@encounter.id}"} class="absolute inset-0 z-0"></.link>
-      <div class="flex items-center justify-between relative z-10 pointer-events-none">
+    <div class={["encounter-card cursor-default", if(@encounter.is_reset, do: "opacity-50", else: "")]}>
+      <div class="flex items-center justify-between">
         <div class="flex-1 flex items-center gap-3">
           <span class="text-zinc-500 font-mono text-sm w-6">{@idx}.</span>
           <div>
@@ -123,14 +122,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
           <span class="text-zinc-400 font-mono text-sm">
             {format_duration(@encounter)}
           </span>
-          <span class="text-zinc-500 text-sm">
-            <%= if analysis_pending?(@encounter) do %>
-              <span class="text-yellow-500 animate-pulse" title="Analysis in progress">analyzing...</span>
-            <% else %>
-              {death_count_from_record(@encounter)} deaths
-            <% end %>
-          </span>
-          <div :if={@is_admin} class="pointer-events-auto">
+          <div :if={@is_admin}>
             <.gear_menu encounter={@encounter} open_menu_id={@open_menu_id} />
           </div>
         </div>
@@ -141,8 +133,8 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
   # ── Gear Menu ──
 
-  attr :encounter, :map, required: true
-  attr :open_menu_id, :any, default: nil
+  attr(:encounter, :map, required: true)
+  attr(:open_menu_id, :any, default: nil)
 
   defp gear_menu(assigns) do
     ~H"""
@@ -217,8 +209,11 @@ defmodule WeGoNextWeb.Components.EncounterList do
     boss_names = encounters |> Enum.map(& &1.name) |> Enum.uniq()
 
     case boss_names do
-      [single] -> single
-      multiple -> Enum.join(Enum.take(multiple, 2), ", ") <> if(length(multiple) > 2, do: "...", else: "")
+      [single] ->
+        single
+
+      multiple ->
+        Enum.join(Enum.take(multiple, 2), ", ") <> if(length(multiple) > 2, do: "...", else: "")
     end
   end
 
@@ -236,23 +231,6 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
   defp maybe_filter_resets(records, false) do
     Enum.reject(records, & &1.is_reset)
-  end
-
-  # ── Helpers ──
-
-  defp analysis_pending?(record) do
-    case record.analysis do
-      nil -> true
-      analysis when analysis == %{} -> true
-      _ -> false
-    end
-  end
-
-  defp death_count_from_record(record) do
-    case record.analysis do
-      %{"deaths" => deaths} when is_list(deaths) -> length(deaths)
-      _ -> 0
-    end
   end
 
   defp visible_count(records, show_resets) do

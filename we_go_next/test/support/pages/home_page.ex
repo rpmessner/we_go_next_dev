@@ -75,9 +75,7 @@ defmodule WeGoNext.Integration.Pages.HomePage do
   def wait_for_encounter_count(session, expected_count, timeout_ms) when timeout_ms <= 0 do
     actual = encounter_count(session)
 
-    ExUnit.Assertions.flunk(
-      "Timed out waiting for #{expected_count} encounters, got #{actual}"
-    )
+    ExUnit.Assertions.flunk("Timed out waiting for #{expected_count} encounters, got #{actual}")
   end
 
   def wait_for_encounter_count(session, expected_count, timeout_ms) do
@@ -109,35 +107,6 @@ defmodule WeGoNext.Integration.Pages.HomePage do
     session
     |> encounter_texts()
     |> Enum.any?(&String.contains?(&1, boss_name))
-  end
-
-  def click_encounter(session, boss_name) do
-    card =
-      session
-      |> encounter_cards()
-      |> Enum.find(fn card ->
-        String.contains?(Wallaby.Element.text(card), boss_name)
-      end)
-
-    if card do
-      Wallaby.Element.click(card)
-      Process.sleep(1000)
-      session
-    else
-      ExUnit.Assertions.flunk("Could not find encounter: #{boss_name}")
-    end
-  end
-
-  def click_first_encounter(session) do
-    cards = encounter_cards(session)
-
-    if length(cards) > 0 do
-      Wallaby.Element.click(hd(cards))
-      Process.sleep(1000)
-      session
-    else
-      ExUnit.Assertions.flunk("No encounters to click")
-    end
   end
 
   # Assertions
@@ -210,30 +179,36 @@ defmodule WeGoNext.Integration.Pages.HomePage do
 
   def assert_log_shows_complete(session) do
     session
-    |> Browser.execute_script("""
-      var select = document.querySelector('select[name="log_path"]');
-      return select.options[select.selectedIndex].text;
-    """, fn option_text ->
-      ExUnit.Assertions.assert(
-        is_binary(option_text) and String.contains?(option_text, "(complete)"),
-        "Expected selected log to show '(complete)', got: #{inspect(option_text)}"
-      )
-    end)
+    |> Browser.execute_script(
+      """
+        var select = document.querySelector('select[name="log_path"]');
+        return select.options[select.selectedIndex].text;
+      """,
+      fn option_text ->
+        ExUnit.Assertions.assert(
+          is_binary(option_text) and String.contains?(option_text, "(complete)"),
+          "Expected selected log to show '(complete)', got: #{inspect(option_text)}"
+        )
+      end
+    )
 
     session
   end
 
   def assert_log_shows_incomplete(session) do
     session
-    |> Browser.execute_script("""
-      var select = document.querySelector('select[name="log_path"]');
-      return select.options[select.selectedIndex].text;
-    """, fn option_text ->
-      ExUnit.Assertions.assert(
-        is_binary(option_text) and String.contains?(option_text, "(incomplete)"),
-        "Expected selected log to show '(incomplete)', got: #{inspect(option_text)}"
-      )
-    end)
+    |> Browser.execute_script(
+      """
+        var select = document.querySelector('select[name="log_path"]');
+        return select.options[select.selectedIndex].text;
+      """,
+      fn option_text ->
+        ExUnit.Assertions.assert(
+          is_binary(option_text) and String.contains?(option_text, "(incomplete)"),
+          "Expected selected log to show '(incomplete)', got: #{inspect(option_text)}"
+        )
+      end
+    )
 
     session
   end

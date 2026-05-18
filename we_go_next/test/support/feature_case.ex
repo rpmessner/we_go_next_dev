@@ -12,7 +12,6 @@ defmodule WeGoNextWeb.FeatureCase do
 
       alias WeGoNext.Repo
       alias WeGoNext.Integration.Pages.HomePage
-      alias WeGoNext.Integration.Pages.EncounterDetailPage
       alias WeGoNext.Integration.Pages.SettingsPage
 
       import Ecto

@@ -80,13 +80,6 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
     IO.puts("After sync: 2 encounters")
     take_screenshot(session, name: "sync_05_verified")
 
-    # Step 5: Click on new encounter and verify details
-    session
-    |> HomePage.click_encounter("Second Boss")
-    |> take_screenshot(name: "sync_06_second_boss_detail")
-    |> EncounterDetailPage.ensure_page_loaded("Second Boss")
-    |> EncounterDetailPage.assert_is_kill()
-
     IO.puts("Live sync test completed successfully!")
   end
 

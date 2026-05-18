@@ -163,7 +163,9 @@ New patch/season mechanic source data should be handled by a later bronze/source
 
 ### Legacy Boundary
 
-The existing frontend import flow, `public.encounters`, and `public.mechanic_criteria` are transitional/legacy app-domain surfaces. New medallion code should not read or import legacy public criteria. The old UI can continue to exist while the frontend is rebuilt, but new analytics/read models should target silver/gold/rules.
+The existing frontend import flow and `public.encounters` are transitional app-domain surfaces used to load combat logs and bridge into the medallion pipeline. `public.mechanic_criteria`, legacy analyzer JSON cache output, and the old encounter detail analysis tabs are legacy-only and must not be used for new medallion views.
+
+The legacy `/encounters/:id` analysis page has been pruned from active routing. Any replacement analysis page should be rebuilt against silver/gold/rules read models, not resurrected from cached analyzer output or the old public criteria flow.
 
 ### Rules Layer Decisions
 
@@ -311,6 +313,13 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - **Diagrams**: Image generation with minimap backgrounds (future)
 
 ## Recent Updates
+
+### 2026-05-18: Failures View and Legacy Analysis Pruning
+
+- Added `/failures` as the first medallion-backed UI, reading grouped mechanic failures from `gold.fact_failure` and gold dimensions.
+- Closed the PR1 backend acceptance gate and moved PR2 UI work behind medallion read models.
+- Pruned the legacy encounter detail route and tab components that read cached analyzer JSON and `public.mechanic_criteria`.
+- Changed importer legacy JSON analysis cache computation to opt-in only; medallion imports remain the default path for new analytics.
 
 ### 2026-05-17: Medallion and Rules Foundation
 

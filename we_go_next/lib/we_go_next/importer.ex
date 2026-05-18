@@ -20,7 +20,7 @@ defmodule WeGoNext.Importer do
   Options:
     - :progress_topic - PubSub topic to broadcast progress updates to
     - :force_reimport - If true, deletes existing encounters and starts from byte 0
-    - :compute_legacy_analysis - If false, skips the legacy JSON analysis cache task
+    - :compute_legacy_analysis - If true, runs the quarantined legacy JSON analysis cache task
   """
   def import_log(file_path, user_id, opts \\ []) do
     case get_or_create_combat_log_file(file_path, user_id) do
@@ -220,8 +220,8 @@ defmodule WeGoNext.Importer do
 
         medallion_results = run_medallion_imports(inserted_encounters, updated_clf)
 
-        # Compute analysis for newly imported encounters
-        if new_encounters > 0 and Keyword.get(opts, :compute_legacy_analysis, true) do
+        # Legacy JSON analysis is opt-in while remaining views move to gold-tier read models.
+        if new_encounters > 0 and Keyword.get(opts, :compute_legacy_analysis, false) do
           spawn_analysis_task(updated_clf.id)
         end
 
