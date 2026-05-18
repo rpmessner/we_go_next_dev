@@ -5,10 +5,11 @@ defmodule WeGoNext.Importer do
   Tracks byte offsets so subsequent imports only parse new content.
   """
 
-  alias WeGoNext.{Repo, CombatLogFile, Encounter, CombatLogParser}
+  alias WeGoNext.{Repo, CombatLogFile, Encounter, CombatLogParser, Silver}
   alias WeGoNext.Encounters.Encounter, as: EncounterRecord
   alias WeGoNext.Analyzers.AnalysisCache
   alias WeGoNext.Bronze.CombatLogReconciler
+  alias WeGoNext.Gold.{DimEncounter, FactFailure}
   import Ecto.Query
   require Logger
 
@@ -19,6 +20,7 @@ defmodule WeGoNext.Importer do
   Options:
     - :progress_topic - PubSub topic to broadcast progress updates to
     - :force_reimport - If true, deletes existing encounters and starts from byte 0
+    - :compute_legacy_analysis - If false, skips the legacy JSON analysis cache task
   """
   def import_log(file_path, user_id, opts \\ []) do
     case get_or_create_combat_log_file(file_path, user_id) do
@@ -207,15 +209,28 @@ defmodule WeGoNext.Importer do
             {:existing, %EncounterRecord{}} -> false
           end)
 
+        inserted_encounters =
+          Enum.flat_map(results, fn
+            {:inserted, %EncounterRecord{} = encounter} -> [encounter]
+            {:existing, %EncounterRecord{}} -> []
+          end)
+
         # Final progress update
         {:ok, updated_clf} = update_file_progress(clf, end_byte)
 
+        medallion_results = run_medallion_imports(inserted_encounters, updated_clf)
+
         # Compute analysis for newly imported encounters
-        if new_encounters > 0 do
+        if new_encounters > 0 and Keyword.get(opts, :compute_legacy_analysis, true) do
           spawn_analysis_task(updated_clf.id)
         end
 
-        {:ok, %{file: updated_clf, new_encounters: new_encounters}}
+        {:ok,
+         %{
+           file: updated_clf,
+           new_encounters: new_encounters,
+           medallion_results: medallion_results
+         }}
 
       {:error, reason} ->
         updated_clf = Repo.get!(CombatLogFile, clf.id)
@@ -245,6 +260,108 @@ defmodule WeGoNext.Importer do
 
           {:skip, clf}
       end
+    end
+  end
+
+  defp run_medallion_imports(encounters, %CombatLogFile{} = clf) do
+    Enum.map(encounters, fn encounter ->
+      case run_medallion_import(encounter, clf) do
+        {:ok, _result} = ok ->
+          ok
+
+        {:error, reason} = error ->
+          Logger.warning(
+            "Failed medallion import for encounter #{encounter.id}: #{inspect(reason)}"
+          )
+
+          error
+      end
+    end)
+  end
+
+  defp run_medallion_import(%EncounterRecord{} = encounter, %CombatLogFile{} = clf) do
+    with {:ok, events} <- parse_events_for_encounter(clf, encounter),
+         {:ok, dim_encounter} <- get_or_create_dim_encounter(encounter, clf),
+         {:ok, %{counts: silver_counts}} <-
+           Silver.project_and_persist(dim_encounter, events: events),
+         {:ok, fact_result} <- rebuild_fact_failures(dim_encounter) do
+      {:ok,
+       %{
+         encounter_id: encounter.id,
+         dim_encounter_id: dim_encounter.id,
+         silver_counts: silver_counts,
+         fact_failure: fact_result
+       }}
+    end
+  end
+
+  defp parse_events_for_encounter(%CombatLogFile{} = clf, %EncounterRecord{} = encounter) do
+    CombatLogParser.parse_events(
+      clf.file_path,
+      encounter.start_byte,
+      encounter.end_byte,
+      format_timestamp(encounter.start_time)
+    )
+  end
+
+  defp get_or_create_dim_encounter(%EncounterRecord{} = encounter, %CombatLogFile{} = clf) do
+    case fetch_dim_encounter(encounter, clf) do
+      %DimEncounter{} = dim_encounter ->
+        {:ok, dim_encounter}
+
+      nil ->
+        %DimEncounter{}
+        |> DimEncounter.changeset(dim_encounter_attrs(encounter, clf))
+        |> Repo.insert()
+    end
+  end
+
+  defp fetch_dim_encounter(%EncounterRecord{} = encounter, %CombatLogFile{} = clf) do
+    query =
+      DimEncounter
+      |> where([d], d.start_byte == ^encounter.start_byte)
+      |> order_by([d], asc: d.id)
+      |> limit(1)
+
+    query =
+      if is_binary(clf.head_sha256) do
+        where(query, [d], d.source_head_sha256 == ^clf.head_sha256)
+      else
+        where(query, [d], d.source_file_path == ^clf.file_path)
+      end
+
+    Repo.one(query)
+  end
+
+  defp dim_encounter_attrs(%EncounterRecord{} = encounter, %CombatLogFile{} = clf) do
+    %{
+      source_file_path: clf.file_path,
+      source_head_sha256: clf.head_sha256,
+      wow_encounter_id: encounter.wow_encounter_id,
+      name: encounter.name,
+      difficulty_id: encounter.difficulty_id,
+      difficulty_name: encounter.difficulty_name,
+      group_size: encounter.group_size,
+      instance_id: encounter.instance_id,
+      start_time: encounter.start_time,
+      end_time: encounter.end_time,
+      success: encounter.success,
+      fight_time_ms: encounter.fight_time_ms,
+      start_byte: encounter.start_byte,
+      end_byte: encounter.end_byte
+    }
+  end
+
+  defp rebuild_fact_failures(%DimEncounter{} = dim_encounter) do
+    case FactFailure.rebuild_for_encounter(dim_encounter.id) do
+      {:ok, result} ->
+        {:ok, result}
+
+      {:error, :active_ruleset_not_found} ->
+        {:ok, %{deleted: 0, inserted: 0, skipped: :active_ruleset_not_found}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
