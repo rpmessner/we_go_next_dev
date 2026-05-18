@@ -7,7 +7,6 @@ defmodule WeGoNext.Importer do
 
   alias WeGoNext.{Repo, CombatLogFile, Encounter, CombatLogParser, Silver}
   alias WeGoNext.Encounters.Encounter, as: EncounterRecord
-  alias WeGoNext.Analyzers.AnalysisCache
   alias WeGoNext.Bronze.CombatLogReconciler
   alias WeGoNext.Gold.{DimEncounter, FactFailure}
   import Ecto.Query
@@ -20,7 +19,6 @@ defmodule WeGoNext.Importer do
   Options:
     - :progress_topic - PubSub topic to broadcast progress updates to
     - :force_reimport - If true, deletes existing encounters and starts from byte 0
-    - :compute_legacy_analysis - If true, runs the quarantined legacy JSON analysis cache task
   """
   def import_log(file_path, user_id, opts \\ []) do
     case get_or_create_combat_log_file(file_path, user_id) do
@@ -220,11 +218,6 @@ defmodule WeGoNext.Importer do
 
         medallion_results = run_medallion_imports(inserted_encounters, updated_clf)
 
-        # Legacy JSON analysis is opt-in while remaining views move to gold-tier read models.
-        if new_encounters > 0 and Keyword.get(opts, :compute_legacy_analysis, false) do
-          spawn_analysis_task(updated_clf.id)
-        end
-
         {:ok,
          %{
            file: updated_clf,
@@ -365,89 +358,6 @@ defmodule WeGoNext.Importer do
     end
   end
 
-  # Spawn a background task to compute analysis for encounters missing it
-  defp spawn_analysis_task(combat_log_file_id) do
-    Task.Supervisor.start_child(WeGoNext.ImportTaskSupervisor, fn ->
-      compute_pending_analyses(combat_log_file_id)
-    end)
-  end
-
-  @doc """
-  Computes analysis for all encounters in a log file that don't have it yet.
-  Called async after import completes.
-  """
-  def compute_pending_analyses(combat_log_file_id) do
-    # Find encounters with empty analysis
-    encounters =
-      EncounterRecord
-      |> where([e], e.combat_log_file_id == ^combat_log_file_id)
-      |> where([e], is_nil(e.analysis) or e.analysis == ^%{})
-      |> order_by([e], asc: e.start_time)
-      |> Repo.all()
-
-    total = length(encounters)
-
-    if total > 0 do
-      require Logger
-      Logger.info("Computing analysis for #{total} encounter(s)...")
-
-      encounters
-      |> Enum.with_index(1)
-      |> Enum.each(fn {record, idx} ->
-        compute_and_save_analysis(record)
-
-        # Broadcast progress for UI updates
-        Phoenix.PubSub.broadcast(
-          WeGoNext.PubSub,
-          "encounters",
-          {:analysis_computed, record.id, idx, total}
-        )
-      end)
-
-      Logger.info("Analysis computation complete for #{total} encounter(s)")
-    end
-  end
-
-  defp compute_and_save_analysis(%EncounterRecord{} = record) do
-    # Load the combat log file to get the path
-    clf = Repo.get!(CombatLogFile, record.combat_log_file_id)
-
-    # Parse events from the log file using byte offsets
-    case CombatLogParser.parse_events(
-           clf.file_path,
-           record.start_byte,
-           record.end_byte,
-           format_timestamp(record.start_time)
-         ) do
-      {:ok, events} ->
-        # Build Encounter struct with parsed events
-        encounter = %Encounter{
-          id: record.wow_encounter_id,
-          name: record.name,
-          difficulty_id: record.difficulty_id,
-          difficulty_name: record.difficulty_name,
-          group_size: record.group_size,
-          instance_id: record.instance_id,
-          start_time: record.start_time && DateTime.to_naive(record.start_time),
-          end_time: record.end_time && DateTime.to_naive(record.end_time),
-          success: record.success,
-          fight_time_ms: record.fight_time_ms,
-          events: events
-        }
-
-        analysis = compute_analysis(encounter)
-
-        record
-        |> Ecto.Changeset.change(%{analysis: analysis})
-        |> Repo.update()
-
-      {:error, reason} ->
-        require Logger
-        Logger.warning("Failed to parse events for analysis: #{inspect(reason)}")
-        {:ok, record}
-    end
-  end
-
   defp insert_or_fetch_encounter_from_boundary(boundary, clf) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
 
@@ -472,7 +382,6 @@ defmodule WeGoNext.Importer do
       end_byte: boundary.end_byte,
       combat_log_file_id: clf.id,
       is_reset: detect_reset?(boundary),
-      analysis: %{},
       inserted_at: now,
       updated_at: now
     }
@@ -501,17 +410,6 @@ defmodule WeGoNext.Importer do
       combat_log_file_id: combat_log_file_id,
       start_time: start_time
     )
-  end
-
-  # Compute analysis for an encounter at import time
-  defp compute_analysis(%Encounter{} = encounter) do
-    AnalysisCache.compute(encounter)
-  rescue
-    e ->
-      # Log error but don't fail import - analysis can be computed later
-      require Logger
-      Logger.warning("Failed to compute analysis: #{Exception.message(e)}")
-      %{}
   end
 
   # Parse WoW timestamp string "M/DD/YYYY HH:MM:SS.mmm-TZ" into DateTime
