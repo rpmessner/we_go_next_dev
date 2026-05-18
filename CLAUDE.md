@@ -153,7 +153,7 @@ New patch/season mechanic source data should be handled by a later bronze/source
 ### Layer Ownership
 
 - **Bronze/log ingestion** owns raw WoW combat log files and provenance. `combat_log_files` remains the operational catalog for live and Warcraft Logs archive files.
-- **Silver** owns deterministic encounter-grain projections under the `silver` Postgres schema: damage taken, damage done, deaths, interrupt opportunities, debuff applications, and player info.
+- **Silver** owns deterministic projections under the `silver` Postgres schema: damage taken, damage taken events, damage done, deaths, interrupt opportunities, debuff applications, and player info. Event-grain silver rows are allowed only for named downstream rule-review, classifier, fact, or UI needs; silver must not become a generic raw combat-log event warehouse.
 - **Gold** owns analytic dimensions/facts under the `gold` schema. Current fact proof: `gold.fact_failure`.
 - **Rules** owns authored mechanic business configuration under the `rules` schema. Rules are not silver event data and are not mutable gold facts.
 
@@ -164,6 +164,7 @@ New patch/season mechanic source data should be handled by a later bronze/source
 - `gold.dim_player` is conformed from `silver.player_info`.
 - `gold.dim_mechanic_criterion` is the criterion snapshot table that facts reference.
 - `gold.fact_failure` uses `(encounter_dim_id, player_dim_id, criterion_dim_id)` as its composite key.
+- `silver.damage_taken_event` stores one row per player-targeted damage taken hit for the current damage-taken event families. It is broad within that family, but intentionally excludes player damage done, healing, casts, resources, buffs, and generic raw event payloads.
 
 ### Legacy Boundary
 

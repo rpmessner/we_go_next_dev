@@ -32,11 +32,12 @@ Bronze owns raw operational inputs and provenance.
 
 ### Silver
 
-Silver owns deterministic encounter-grain projections under the `silver` PostgreSQL schema.
+Silver owns deterministic projections under the `silver` PostgreSQL schema. Most silver tables are encounter-grain aggregates or compact event-like observations, not raw combat-log storage.
 
 Current tables:
 
 - `silver.damage_taken`
+- `silver.damage_taken_event`
 - `silver.damage_done`
 - `silver.death`
 - `silver.interrupt_opportunity`
@@ -46,6 +47,26 @@ Current tables:
 Silver rows are keyed by `encounter_dim_id`, not legacy `public.encounters.id`. Projection currently happens in Elixir from normalized events returned by `CombatLogParser.parse_events/4`; the parser owns byte scanning and event normalization.
 
 Silver persistence is idempotent by natural key. Each insert batch is deduplicated by the same conflict target used by `Repo.insert_all/3`, then upserted.
+
+#### Event-Grain Policy
+
+Silver is allowed to store event-grain rows only when a named downstream workflow needs individual events. It is not a general combat-log archive.
+
+The previous `encounter_events` design stored broad normalized combat-log events in Postgres and then read them back into analyzers. That created raw-event volume without producing clean fact/dimension read models. The current medallion shape keeps raw logs in bronze and writes only typed silver projections that serve rules, facts, review, or UI queries.
+
+`silver.damage_taken_event` is the deliberately narrow event-grain observation table. It stores one row per player-targeted damage taken hit for these event families:
+
+- `SPELL_DAMAGE`
+- `SPELL_PERIODIC_DAMAGE`
+- `SWING_DAMAGE`
+- `RANGE_DAMAGE`
+- `ENVIRONMENTAL_DAMAGE`
+
+This means multiple hits from the same spell become multiple rows. The table does not store player damage done, healing, casts, resources, buffs, or generic raw event payloads. It exists for rule review, classifier evidence, and future facts that need to inspect specific hits. The aggregate `silver.damage_taken` table remains the fact input for current avoidable failure counts.
+
+Deaths, debuff applications, and interrupt opportunities are already stored at event-like grains. They are not duplicated into a generic raw-event table.
+
+Before adding another event-grain silver table, name the downstream workflow and confirm that aggregate silver, existing event-like tables, or reparsing bronze logs would not be sufficient. If volume becomes a problem, tighten event-grain damage storage before expanding it: likely by NPC-source filtering, tank-melee exclusion, rule/candidate spell scoping, partitioning, or retention.
 
 ### Gold
 

@@ -18,20 +18,53 @@ defmodule WeGoNext.Silver.Projector do
   @unknown_player_name "__UNKNOWN_PLAYER__"
 
   @doc """
-  Returns table-shaped row lists for the six silver tables.
+  Returns table-shaped row lists for the silver tables.
   """
   def project(encounter_dim_id, events) when is_integer(encounter_dim_id) and is_list(events) do
-    events = Enum.sort_by(events, &time_ms/1)
+    indexed_events =
+      events
+      |> Enum.with_index()
+      |> Enum.sort_by(fn {event, index} -> {time_ms(event), index} end)
+
+    events = Enum.map(indexed_events, &elem(&1, 0))
     tank_guids = detect_tank_guids(events)
 
     %Projection{
       damage_taken: project_damage_taken(encounter_dim_id, events),
+      damage_taken_event: project_damage_taken_events(encounter_dim_id, indexed_events),
       damage_done: project_damage_done(encounter_dim_id, events),
       death: project_deaths(encounter_dim_id, events),
       interrupt_opportunity: project_interrupt_opportunities(encounter_dim_id, events),
       debuff_application: project_debuff_applications(encounter_dim_id, events),
       player_info: project_player_info(encounter_dim_id, events, tank_guids)
     }
+  end
+
+  defp project_damage_taken_events(encounter_dim_id, indexed_events) do
+    indexed_events
+    |> Enum.filter(fn {event, _index} ->
+      event_type(event) in @damage_taken_types and player_guid?(event_value(event, :target_guid))
+    end)
+    |> Enum.map(fn {event, index} ->
+      %{
+        encounter_dim_id: encounter_dim_id,
+        combat_log_event_index: index,
+        event_type: event_type(event),
+        occurred_at_ms_into_fight: time_ms(event),
+        timestamp: event_value(event, :timestamp),
+        target_guid: normalize_guid(event_value(event, :target_guid), @unknown_target_guid),
+        target_name: clean_optional_name(event_value(event, :target_name)),
+        source_guid: normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
+        source_name: event_value(event, :source_name),
+        source_is_npc: npc_guid?(event_value(event, :source_guid)),
+        spell_id: normalize_spell_id(event_value(event, :spell_id)),
+        spell_name: event_value(event, :spell_name) || "Melee",
+        spell_school: normalize_optional_integer(event_value(event, :spell_school)) || 1,
+        amount: non_negative_integer(event_value(event, :amount)),
+        overkill: non_negative_integer(event_value(event, :overkill))
+      }
+    end)
+    |> Enum.sort_by(&{&1.occurred_at_ms_into_fight, &1.combat_log_event_index})
   end
 
   defp project_damage_taken(encounter_dim_id, events) do
@@ -457,6 +490,18 @@ defmodule WeGoNext.Silver.Projector do
   end
 
   defp clean_player_name(_name), do: @unknown_player_name
+
+  defp clean_optional_name(name) when is_binary(name) do
+    name
+    |> String.split("-")
+    |> List.first()
+    |> case do
+      "" -> nil
+      clean_name -> clean_name
+    end
+  end
+
+  defp clean_optional_name(_name), do: nil
 
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, _key, @unknown_player_name), do: map

@@ -1,6 +1,8 @@
 defmodule WeGoNext.Silver.PersistenceTest do
   use ExUnit.Case, async: false
 
+  import Ecto.Query
+
   alias WeGoNext.Fixtures.CombatLogEventFixtures
   alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Repo
@@ -9,6 +11,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
   alias WeGoNext.Silver.{
     DamageDone,
     DamageTaken,
+    DamageTakenEvent,
     Death,
     DebuffApplication,
     InterruptOpportunity,
@@ -32,6 +35,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
 
     assert counts == %{
              damage_taken: 2,
+             damage_taken_event: 4,
              damage_done: 1,
              death: 1,
              interrupt_opportunity: 2,
@@ -40,6 +44,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
            }
 
     assert Repo.aggregate(DamageTaken, :count) == 2
+    assert Repo.aggregate(DamageTakenEvent, :count) == 4
     assert Repo.aggregate(DamageDone, :count) == 1
     assert Repo.aggregate(Death, :count) == 1
     assert Repo.aggregate(InterruptOpportunity, :count) == 2
@@ -52,6 +57,22 @@ defmodule WeGoNext.Silver.PersistenceTest do
                target_guid: "Player-Victim",
                source_guid: "Creature-Boss",
                spell_id: 123
+             )
+
+    assert %DamageTakenEvent{
+             occurred_at_ms_into_fight: 2500,
+             target_guid: "Player-Victim",
+             target_name: "Victim",
+             source_guid: "Creature-Boss",
+             source_name: "Boss",
+             spell_id: 123,
+             spell_name: "Bad",
+             amount: 400,
+             overkill: 50
+           } =
+             Repo.get_by!(DamageTakenEvent,
+               encounter_dim_id: encounter.id,
+               combat_log_event_index: 4
              )
 
     assert %PlayerInfo{player_name: "Tank", detected_role: "tank"} =
@@ -70,6 +91,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
     assert {:ok, _result} = Silver.project_and_persist(encounter, events: events)
 
     assert Repo.aggregate(DamageTaken, :count) == 2
+    assert Repo.aggregate(DamageTakenEvent, :count) == 4
     assert Repo.aggregate(DamageDone, :count) == 1
     assert Repo.aggregate(Death, :count) == 1
     assert Repo.aggregate(InterruptOpportunity, :count) == 2
@@ -142,6 +164,21 @@ defmodule WeGoNext.Silver.PersistenceTest do
              hit_count: 2,
              max_hit: 222
            } = Repo.one!(DamageTaken)
+
+    assert [
+             %DamageTakenEvent{
+               combat_log_event_index: 0,
+               source_guid: "__UNKNOWN_SOURCE_GUID__",
+               spell_id: 0,
+               amount: 111
+             },
+             %DamageTakenEvent{
+               combat_log_event_index: 1,
+               source_guid: "__UNKNOWN_SOURCE_GUID__",
+               spell_id: 0,
+               amount: 222
+             }
+           ] = Repo.all(from(event in DamageTakenEvent, order_by: event.combat_log_event_index))
 
     assert %DamageDone{spell_id: 0, total_amount: 333, hit_count: 1} = Repo.one!(DamageDone)
 
@@ -230,6 +267,28 @@ defmodule WeGoNext.Silver.PersistenceTest do
             :max_hit,
             :overkill_total,
             :source_is_npc
+          ])
+        )
+        |> Enum.sort(),
+      damage_taken_event:
+        DamageTakenEvent
+        |> Repo.all()
+        |> Enum.map(
+          &Map.take(&1, [
+            :combat_log_event_index,
+            :event_type,
+            :occurred_at_ms_into_fight,
+            :timestamp,
+            :target_guid,
+            :target_name,
+            :source_guid,
+            :source_name,
+            :source_is_npc,
+            :spell_id,
+            :spell_name,
+            :spell_school,
+            :amount,
+            :overkill
           ])
         )
         |> Enum.sort(),

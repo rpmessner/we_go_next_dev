@@ -10,6 +10,7 @@ defmodule WeGoNext.ImporterTest do
   alias WeGoNext.Silver.{
     DamageDone,
     DamageTaken,
+    DamageTakenEvent,
     Death,
     DebuffApplication,
     InterruptOpportunity,
@@ -92,7 +93,13 @@ defmodule WeGoNext.ImporterTest do
     assert {:ok, %{new_encounters: 1, medallion_results: [{:ok, medallion_result}]}} =
              Importer.import_log(log_path, user.id)
 
-    assert %{damage_taken: 2, damage_done: 1, death: 1, interrupt_opportunity: 1} =
+    assert %{
+             damage_taken: 2,
+             damage_taken_event: 2,
+             damage_done: 1,
+             death: 1,
+             interrupt_opportunity: 1
+           } =
              medallion_result.silver_counts
 
     assert %{inserted: 1} = medallion_result.fact_failure
@@ -104,6 +111,7 @@ defmodule WeGoNext.ImporterTest do
 
     assert Repo.aggregate(DimEncounter, :count) == 1
     assert Repo.aggregate(DamageTaken, :count) == 2
+    assert Repo.aggregate(DamageTakenEvent, :count) == 2
     assert Repo.aggregate(DamageDone, :count) == 1
     assert Repo.aggregate(Death, :count) == 1
     assert Repo.aggregate(InterruptOpportunity, :count) == 1
@@ -123,6 +131,7 @@ defmodule WeGoNext.ImporterTest do
 
     assert Repo.aggregate(DimEncounter, :count) == 1
     assert Repo.aggregate(DamageTaken, :count) == 2
+    assert Repo.aggregate(DamageTakenEvent, :count) == 2
     assert Repo.aggregate(FactFailure, :count) == 1
   end
 

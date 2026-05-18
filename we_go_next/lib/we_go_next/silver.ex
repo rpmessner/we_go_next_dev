@@ -9,6 +9,7 @@ defmodule WeGoNext.Silver do
   alias WeGoNext.Silver.{
     DamageDone,
     DamageTaken,
+    DamageTakenEvent,
     Death,
     DebuffApplication,
     InterruptOpportunity,
@@ -53,6 +54,28 @@ defmodule WeGoNext.Silver do
             now,
             [:encounter_dim_id, :target_guid, :source_guid, :spell_id],
             [:total_amount, :hit_count, :max_hit, :overkill_total, :source_is_npc]
+          ),
+        damage_taken_event:
+          insert_rows(
+            DamageTakenEvent,
+            projection.damage_taken_event,
+            now,
+            [:encounter_dim_id, :combat_log_event_index],
+            [
+              :event_type,
+              :occurred_at_ms_into_fight,
+              :timestamp,
+              :target_guid,
+              :target_name,
+              :source_guid,
+              :source_name,
+              :source_is_npc,
+              :spell_id,
+              :spell_name,
+              :spell_school,
+              :amount,
+              :overkill
+            ]
           ),
         damage_done:
           insert_rows(

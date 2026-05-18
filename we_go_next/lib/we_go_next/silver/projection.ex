@@ -5,6 +5,7 @@ defmodule WeGoNext.Silver.Projection do
 
   @enforce_keys [
     :damage_taken,
+    :damage_taken_event,
     :damage_done,
     :death,
     :interrupt_opportunity,
@@ -14,6 +15,7 @@ defmodule WeGoNext.Silver.Projection do
 
   defstruct [
     :damage_taken,
+    :damage_taken_event,
     :damage_done,
     :death,
     :interrupt_opportunity,
@@ -23,6 +25,7 @@ defmodule WeGoNext.Silver.Projection do
 
   @type t :: %__MODULE__{
           damage_taken: [map()],
+          damage_taken_event: [map()],
           damage_done: [map()],
           death: [map()],
           interrupt_opportunity: [map()],

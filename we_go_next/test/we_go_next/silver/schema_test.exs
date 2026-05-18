@@ -4,6 +4,7 @@ defmodule WeGoNext.Silver.SchemaTest do
   alias WeGoNext.Silver.{
     DamageDone,
     DamageTaken,
+    DamageTakenEvent,
     Death,
     DebuffApplication,
     InterruptOpportunity,
@@ -12,6 +13,7 @@ defmodule WeGoNext.Silver.SchemaTest do
 
   test "silver schemas use dedicated schema prefix and clean table names" do
     assert DamageTaken.__schema__(:source) == "damage_taken"
+    assert DamageTakenEvent.__schema__(:source) == "damage_taken_event"
     assert DamageDone.__schema__(:source) == "damage_done"
     assert Death.__schema__(:source) == "death"
     assert InterruptOpportunity.__schema__(:source) == "interrupt_opportunity"
@@ -21,6 +23,7 @@ defmodule WeGoNext.Silver.SchemaTest do
     assert Enum.all?(
              [
                DamageTaken,
+               DamageTakenEvent,
                DamageDone,
                Death,
                InterruptOpportunity,
@@ -43,6 +46,21 @@ defmodule WeGoNext.Silver.SchemaTest do
         max_hit: 75,
         overkill_total: 0,
         source_is_npc: true
+      })
+    )
+
+    assert_changeset_valid(
+      DamageTakenEvent.changeset(%DamageTakenEvent{}, %{
+        encounter_dim_id: 1,
+        combat_log_event_index: 10,
+        event_type: "SPELL_DAMAGE",
+        occurred_at_ms_into_fight: 12_345,
+        target_guid: "Player-1",
+        source_guid: "Creature-1",
+        source_is_npc: true,
+        spell_id: 123,
+        amount: 100,
+        overkill: 0
       })
     )
 

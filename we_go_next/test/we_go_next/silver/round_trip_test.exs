@@ -18,6 +18,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
 
   alias WeGoNext.Silver.{
     DamageTaken,
+    DamageTakenEvent,
     Death,
     DebuffApplication,
     InterruptOpportunity,
@@ -57,6 +58,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
 
     assert counts == %{
              damage_taken: 2,
+             damage_taken_event: 4,
              damage_done: 1,
              death: 1,
              interrupt_opportunity: 2,
@@ -65,6 +67,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
            }
 
     assert silver_damage_taken_totals(dim_encounter) == legacy_damage_taken_totals(damage_taken)
+    assert Repo.aggregate(DamageTakenEvent, :count) == 4
     assert silver_deaths(dim_encounter) == legacy_deaths(deaths)
 
     assert silver_interrupt_opportunities(dim_encounter) ==

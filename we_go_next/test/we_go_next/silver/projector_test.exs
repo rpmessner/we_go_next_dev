@@ -40,6 +40,55 @@ defmodule WeGoNext.Silver.ProjectorTest do
     assert [
              %{
                encounter_dim_id: @encounter_dim_id,
+               combat_log_event_index: 1,
+               event_type: "SWING_DAMAGE",
+               occurred_at_ms_into_fight: 1_000,
+               target_guid: "Player-Tank",
+               target_name: "Tank",
+               source_guid: "Creature-Boss",
+               source_name: "Boss",
+               source_is_npc: true,
+               spell_id: 0,
+               spell_name: "Melee",
+               spell_school: 1,
+               amount: 5_000,
+               overkill: 0
+             },
+             %{
+               combat_log_event_index: 2,
+               event_type: "SWING_DAMAGE",
+               occurred_at_ms_into_fight: 1_500,
+               target_guid: "Player-Tank",
+               source_guid: "Creature-Boss",
+               spell_id: 0,
+               amount: 4_000
+             },
+             %{
+               combat_log_event_index: 3,
+               event_type: "SPELL_DAMAGE",
+               occurred_at_ms_into_fight: 2_000,
+               target_guid: "Player-Victim",
+               source_guid: "Creature-Boss",
+               spell_id: 123,
+               spell_name: "Bad",
+               amount: 300,
+               overkill: 0
+             },
+             %{
+               combat_log_event_index: 4,
+               event_type: "SPELL_DAMAGE",
+               occurred_at_ms_into_fight: 2_500,
+               target_guid: "Player-Victim",
+               source_guid: "Creature-Boss",
+               spell_id: 123,
+               amount: 400,
+               overkill: 50
+             }
+           ] = projection.damage_taken_event
+
+    assert [
+             %{
+               encounter_dim_id: @encounter_dim_id,
                source_guid: "Player-Dps",
                target_guid: "Creature-Boss",
                spell_id: 456,

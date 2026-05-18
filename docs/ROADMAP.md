@@ -55,13 +55,12 @@ After the real-data operator path is usable:
 2. `#50 Add patch and build validity metadata to rules and facts`
 3. `#36 Add DBM Bulk Source Import`
 4. `#37 Ingest Spell and Encounter Reference Metadata`
-5. `#47 Define minimal event-grain silver observations`
-6. `#38 Build Inferred Mechanic Candidate Read Model`
-7. `#39 Persist Candidate Overrides Across Refreshes`
-8. `#40 Cross-Reference Candidates With Observed Silver Events`
-9. `#41 Build Mechanic Candidate Review UI`
-10. `#42 Promote Accepted Candidates Into Draft Rules`
-11. `#43 Add Source-Data Build Diff Review`
+5. `#38 Build Inferred Mechanic Candidate Read Model`
+6. `#39 Persist Candidate Overrides Across Refreshes`
+7. `#40 Cross-Reference Candidates With Observed Silver Events`
+8. `#41 Build Mechanic Candidate Review UI`
+9. `#42 Promote Accepted Candidates Into Draft Rules`
+10. `#43 Add Source-Data Build Diff Review`
 
 ## Additional Fact Semantics
 
@@ -69,15 +68,17 @@ After the real-data operator path is usable:
 
 - accepted candidates can become draft rules,
 - the gold rebuild orchestrator exists,
-- minimal event-grain silver observations are defined,
 - rules/facts have patch/build validity metadata.
 
 Avoidable and interrupt semantics are implemented today. Soak, spread, stack, tank, healer, dispel, deaths, and interrupt coverage should be added only when the supporting silver grain and fact semantics are defensible.
+
+Event-grain silver expansion should stay tied to these fact and review workflows. `silver.damage_taken_event` is allowed because rule review and classifier evidence need individual damage hits. Do not add broad player-damage, healing, cast, aura, or resource event tables without a specific fact/read-model need and a volume plan.
 
 ## Guiding Constraints
 
 - Do not reintroduce `public.mechanic_criteria` or analyzer-cache tabs.
 - Do not write active rules or gold facts directly from source-data inference.
 - Keep raw combat-log bronze separate from patch/source-data bronze.
+- Do not rebuild a generic raw-event warehouse under silver; event-grain silver rows require a named downstream workflow.
 - Prefer gold rebuilds over log reparse when only rules or gold logic changed.
 - Prefer force reimport over ad hoc database edits when silver or parser logic changed.
