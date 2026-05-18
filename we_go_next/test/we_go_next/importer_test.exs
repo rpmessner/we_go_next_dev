@@ -51,8 +51,7 @@ defmodule WeGoNext.ImporterTest do
     existing =
       insert_encounter!(%{
         combat_log_file_id: combat_log_file.id,
-        start_time: ~U[2025-11-27 12:00:01.000000Z],
-        analysis: %{"source" => "existing"}
+        start_time: ~U[2025-11-27 12:00:01.000000Z]
       })
 
     assert {:ok, %{new_encounters: 0}} = Importer.sync_log(combat_log_file)
@@ -63,7 +62,6 @@ defmodule WeGoNext.ImporterTest do
     assert Repo.aggregate(FactFailure, :count) == 0
 
     persisted = Repo.get!(EncounterRecord, existing.id)
-    assert persisted.analysis == %{"source" => "existing"}
     assert persisted.end_byte == existing.end_byte
   end
 
@@ -92,7 +90,7 @@ defmodule WeGoNext.ImporterTest do
     assert criterion.source_rule_id == rule.id
 
     assert {:ok, %{new_encounters: 1, medallion_results: [{:ok, medallion_result}]}} =
-             Importer.import_log(log_path, user.id, compute_legacy_analysis: false)
+             Importer.import_log(log_path, user.id)
 
     assert %{damage_taken: 2, damage_done: 1, death: 1, interrupt_opportunity: 1} =
              medallion_result.silver_counts
@@ -120,7 +118,7 @@ defmodule WeGoNext.ImporterTest do
              )
 
     assert {:ok, %{new_encounters: 0, medallion_results: []}} =
-             Importer.import_log(log_path, user.id, compute_legacy_analysis: false)
+             Importer.import_log(log_path, user.id)
 
     assert Repo.aggregate(DimEncounter, :count) == 1
     assert Repo.aggregate(DamageTaken, :count) == 2
@@ -143,7 +141,7 @@ defmodule WeGoNext.ImporterTest do
     File.write!(live_path, live_content)
 
     assert {:ok, %{file: live_file, new_encounters: 1}} =
-             Importer.import_log(live_path, user.id, compute_legacy_analysis: false)
+             Importer.import_log(live_path, user.id)
 
     first_encounter = Repo.get_by!(EncounterRecord, combat_log_file_id: live_file.id)
     live_last_parsed_byte = live_file.last_parsed_byte
@@ -158,7 +156,7 @@ defmodule WeGoNext.ImporterTest do
     File.write!(archive_path, live_content)
 
     assert {:ok, %{file: archived_file, new_encounters: 0}} =
-             Importer.import_log(archive_path, user.id, compute_legacy_analysis: false)
+             Importer.import_log(archive_path, user.id)
 
     assert archived_file.id == live_file.id
     assert archived_file.source == :warcraftlogs_archive
@@ -174,7 +172,6 @@ defmodule WeGoNext.ImporterTest do
 
     assert {:ok, %{file: continued_file, new_encounters: 1}} =
              Importer.import_log(archive_path, user.id,
-               compute_legacy_analysis: false,
                progress_topic: topic
              )
 
@@ -238,8 +235,7 @@ defmodule WeGoNext.ImporterTest do
           fight_time_ms: 44_000,
           start_byte: 240,
           end_byte: 2_569,
-          is_reset: false,
-          analysis: %{}
+          is_reset: false
         },
         attrs
       )

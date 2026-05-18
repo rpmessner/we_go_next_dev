@@ -1,7 +1,6 @@
 defmodule WeGoNext.Gold.FactFailureTest do
   use ExUnit.Case, async: false
 
-  alias WeGoNext.Criteria.MechanicCriteria
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Repo
   alias WeGoNext.Rules
@@ -280,26 +279,6 @@ defmodule WeGoNext.Gold.FactFailureTest do
              encounter_dim_id: encounter.id,
              criterion_dim_id: criterion.id
            )
-  end
-
-  test "rebuild_for_encounter ignores legacy public mechanic criteria", %{
-    encounter: encounter
-  } do
-    {:ok, _legacy_criterion} =
-      %MechanicCriteria{}
-      |> MechanicCriteria.changeset(%{
-        spell_id: 909,
-        spell_name: "Legacy Bad",
-        mechanic_type: "avoidable",
-        threshold: %{"max_hits" => 0}
-      })
-      |> Repo.insert()
-
-    insert_player_info!(encounter, "Player-One", "One")
-    insert_damage_taken!(encounter, "Player-One", "Creature-A", 909, 100, 1)
-
-    assert {:ok, %{inserted: 0}} = FactFailure.rebuild_for_encounter(encounter.id)
-    refute Repo.get_by(FactFailure, encounter_dim_id: encounter.id)
   end
 
   defp insert_dim_encounter!(wow_encounter_id, difficulty_id) do

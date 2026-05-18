@@ -3,7 +3,6 @@ defmodule WeGoNext.RulesTest do
 
   alias WeGoNext.Repo
   alias WeGoNext.Rules
-  alias WeGoNext.Criteria.MechanicCriteria
   alias WeGoNext.Gold.DimMechanicCriterion
   alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
   import Ecto.Query
@@ -300,17 +299,7 @@ defmodule WeGoNext.RulesTest do
     assert Repo.aggregate(DimMechanicCriterion, :count) == 2
   end
 
-  test "promotion uses rules criteria and ignores legacy public mechanic criteria" do
-    {:ok, legacy_criterion} =
-      %MechanicCriteria{}
-      |> MechanicCriteria.changeset(%{
-        spell_id: 777,
-        spell_name: "Legacy Public Rule",
-        mechanic_type: "avoidable",
-        threshold: %{"max_hits" => 0}
-      })
-      |> Repo.insert()
-
+  test "promotion uses rules criteria" do
     {:ok, ruleset} = Rules.create_ruleset(%{name: "Active Rules", status: "active"})
 
     {:ok, rule_criterion} =
@@ -326,8 +315,6 @@ defmodule WeGoNext.RulesTest do
 
     assert snapshot.source_rule_id == rule_criterion.id
     assert snapshot.spell_id == 888
-
-    refute Repo.get_by(DimMechanicCriterion, spell_id: legacy_criterion.spell_id)
   end
 
   defp criterion_attrs(%Ruleset{} = ruleset, overrides) do

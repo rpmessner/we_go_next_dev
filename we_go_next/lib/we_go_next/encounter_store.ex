@@ -93,7 +93,7 @@ defmodule WeGoNext.EncounterStore do
   @doc """
   Returns all encounters for display (lightweight, no parsed events).
   These are Encounter structs with basic metadata but empty events list.
-  Use get_encounter/1 to get a fully parsed encounter with events for analysis.
+  Use get_encounter/1 to get a fully parsed encounter with events.
   """
   def list_encounters do
     records = list_encounter_records()
@@ -102,8 +102,7 @@ defmodule WeGoNext.EncounterStore do
 
   @doc """
   Returns a single fully-parsed encounter by database ID.
-  This parses all events from raw_log - use for analysis on detail pages.
-  Only use this when you need the events list (e.g., computing fresh analysis).
+  This parses all events from the source combat log using stored byte offsets.
   """
   def get_encounter(id) when is_integer(id) do
     case Importer.get_encounter(id) do
@@ -114,7 +113,6 @@ defmodule WeGoNext.EncounterStore do
 
   @doc """
   Returns a lightweight encounter by database ID - no raw_log parsing.
-  Use this when you have cached analysis and don't need the events list.
   Much faster than get_encounter/1.
   """
   def get_encounter_lightweight(id) when is_integer(id) do
@@ -129,28 +127,6 @@ defmodule WeGoNext.EncounterStore do
   """
   def get_encounter_record(id) when is_integer(id) do
     Importer.get_encounter(id)
-  end
-
-  @doc """
-  Returns cached analysis for an encounter by database ID.
-  Returns the analysis map if available, nil otherwise.
-  """
-  def get_cached_analysis(id) when is_integer(id) do
-    case get_encounter_record(id) do
-      nil -> nil
-      record -> Map.get(record, :analysis)
-    end
-  end
-
-  @doc """
-  Returns true if the encounter has pre-computed analysis cached.
-  """
-  def has_cached_analysis?(id) when is_integer(id) do
-    case get_cached_analysis(id) do
-      nil -> false
-      analysis when analysis == %{} -> false
-      _analysis -> true
-    end
   end
 
   @doc """

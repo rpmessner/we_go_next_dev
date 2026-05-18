@@ -6,14 +6,12 @@ defmodule WeGoNextWeb.EncounterComponents do
   - `wowhead_link/1` - Links to Wowhead spell pages with tooltips
   - `player_name/1` - Player names with WoW class colors
   - `tab_button/1` - Tab navigation buttons
-  - `criteria_modal/1` - Modal for tracking mechanics
 
   Also provides formatting helpers for common display patterns.
   """
   use Phoenix.Component
 
   alias WeGoNext.WowClass
-  alias WeGoNext.Criteria.MechanicCriteria
 
   # ============================================================================
   # Wowhead Link Component
@@ -127,76 +125,6 @@ defmodule WeGoNextWeb.EncounterComponents do
   end
 
   # ============================================================================
-  # Criteria Modal Component
-  # ============================================================================
-
-  @doc """
-  Renders a modal for selecting mechanic criteria type.
-
-  Used when marking a spell as "avoidable", "must interrupt", etc.
-  """
-  attr :spell_name, :string, required: true
-  attr :spell_id, :integer, required: true
-
-  def criteria_modal(assigns) do
-    ~H"""
-    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" phx-click="close_modal">
-      <div class="bg-zinc-800 rounded-lg p-6 max-w-md w-full mx-4 border border-zinc-600" phx-click-away="close_modal">
-        <h3 class="text-lg font-semibold text-wow-gold mb-2">Track Mechanic</h3>
-        <p class="text-zinc-400 mb-4">
-          Mark <span class="text-zinc-200 font-medium">{@spell_name}</span> as:
-        </p>
-
-        <div class="space-y-2">
-          <button
-            phx-click="create_criteria"
-            phx-value-mechanic_type="avoidable"
-            class="w-full text-left px-4 py-3 rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
-          >
-            <span class="text-red-400 font-medium">Avoidable Damage</span>
-            <p class="text-sm text-zinc-400">Damage players should avoid (standing in fire)</p>
-          </button>
-
-          <button
-            phx-click="create_criteria"
-            phx-value-mechanic_type="interrupt"
-            class="w-full text-left px-4 py-3 rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
-          >
-            <span class="text-yellow-400 font-medium">Must Interrupt</span>
-            <p class="text-sm text-zinc-400">Casts that must be kicked</p>
-          </button>
-
-          <button
-            phx-click="create_criteria"
-            phx-value-mechanic_type="soak"
-            class="w-full text-left px-4 py-3 rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
-          >
-            <span class="text-blue-400 font-medium">Soak Mechanic</span>
-            <p class="text-sm text-zinc-400">Damage that needs to be shared</p>
-          </button>
-
-          <button
-            phx-click="create_criteria"
-            phx-value-mechanic_type="spread"
-            class="w-full text-left px-4 py-3 rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
-          >
-            <span class="text-purple-400 font-medium">Spread Out</span>
-            <p class="text-sm text-zinc-400">Players need to spread apart</p>
-          </button>
-        </div>
-
-        <button
-          phx-click="close_modal"
-          class="mt-4 w-full px-4 py-2 text-zinc-400 hover:text-zinc-200 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-    """
-  end
-
-  # ============================================================================
   # Formatting Helpers
   # ============================================================================
 
@@ -259,41 +187,10 @@ defmodule WeGoNextWeb.EncounterComponents do
     Calendar.strftime(timestamp, "%M:%S")
   end
 
-  # ============================================================================
-  # Criteria Helpers
-  # ============================================================================
-
-  @doc "Get mechanic type color class"
-  def mechanic_type_color("avoidable"), do: "text-red-400"
-  def mechanic_type_color("interrupt"), do: "text-yellow-400"
-  def mechanic_type_color("soak"), do: "text-blue-400"
-  def mechanic_type_color("spread"), do: "text-purple-400"
-  def mechanic_type_color(_), do: "text-zinc-200"
-
   @doc "Get severity badge color classes"
   def severity_badge_color(:critical), do: "bg-red-900 text-red-300"
   def severity_badge_color(:high), do: "bg-orange-900 text-orange-300"
   def severity_badge_color(:medium), do: "bg-yellow-900 text-yellow-300"
   def severity_badge_color(:low), do: "bg-zinc-700 text-zinc-300"
   def severity_badge_color(_), do: "bg-zinc-700 text-zinc-300"
-
-  @doc "Get a criteria from the spell lookup map"
-  def get_criteria(criteria_by_spell, spell_id) when is_integer(spell_id) do
-    case Map.get(criteria_by_spell, spell_id) do
-      [criteria | _] -> criteria
-      _ -> nil
-    end
-  end
-
-  def get_criteria(_, _), do: nil
-
-  @doc "Get the color class for a tracked criteria"
-  def criteria_color(criteria_by_spell, spell_id) when is_integer(spell_id) do
-    case get_criteria(criteria_by_spell, spell_id) do
-      nil -> "text-zinc-200"
-      criteria -> MechanicCriteria.type_color(criteria.mechanic_type)
-    end
-  end
-
-  def criteria_color(_, _), do: "text-zinc-200"
 end
