@@ -5,7 +5,13 @@ defmodule WeGoNext.SourceDataTest do
 
   alias WeGoNext.Repo
   alias WeGoNext.SourceData
-  alias WeGoNext.SourceData.{DbmMechanicCandidate, SourceImport}
+
+  alias WeGoNext.SourceData.{
+    DbmMechanicCandidate,
+    EncounterReference,
+    SourceImport,
+    SpellReference
+  }
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
@@ -19,6 +25,14 @@ defmodule WeGoNext.SourceDataTest do
     assert DbmMechanicCandidate.__schema__(:prefix) == "source_data"
     assert DbmMechanicCandidate.__schema__(:source) == "dbm_mechanic_candidate"
     assert DbmMechanicCandidate.__schema__(:association, :source_import).related == SourceImport
+
+    assert SpellReference.__schema__(:prefix) == "source_data"
+    assert SpellReference.__schema__(:source) == "spell_reference"
+    assert SpellReference.__schema__(:association, :source_import).related == SourceImport
+
+    assert EncounterReference.__schema__(:prefix) == "source_data"
+    assert EncounterReference.__schema__(:source) == "encounter_reference"
+    assert EncounterReference.__schema__(:association, :source_import).related == SourceImport
   end
 
   test "imports a DBM file idempotently with source and line provenance" do
@@ -104,6 +118,99 @@ defmodule WeGoNext.SourceDataTest do
     assert SourceData.list_dbm_candidates()
            |> Enum.map(& &1.spell_id)
            |> Enum.sort() == [111, 222]
+  end
+
+  test "spell reference lookup honors source priority and build-separated channels" do
+    attrs = %{
+      spell_id: 123_456,
+      current_name: "Low Priority Name",
+      localized_names: %{"enUS" => "Low Priority Name"},
+      product: "wow",
+      channel: "retail",
+      build_key: "11.2.0",
+      locale: "enUS",
+      source_system: "low_priority",
+      source_priority: 50
+    }
+
+    assert {:ok, _reference} = SourceData.upsert_spell_reference(attrs)
+
+    assert {:ok, _reference} =
+             SourceData.upsert_spell_reference(%{
+               attrs
+               | current_name: "High Priority Name",
+                 source_system: "high_priority",
+                 source_priority: 10
+             })
+
+    assert {:ok, _reference} =
+             SourceData.upsert_spell_reference(%{
+               attrs
+               | current_name: "Beta Name",
+                 channel: "beta",
+                 source_system: "beta_source",
+                 source_priority: 1
+             })
+
+    assert {:ok, _reference} =
+             SourceData.upsert_spell_reference(%{
+               attrs
+               | current_name: "PTR Name",
+                 channel: "ptr",
+                 source_system: "ptr_source",
+                 source_priority: 1
+             })
+
+    assert SourceData.resolve_spell_name(123_456, build_key: "11.2.0") ==
+             "High Priority Name"
+
+    assert SourceData.resolve_spell_name(123_456, build_key: "11.2.0", channel: "beta") ==
+             "Beta Name"
+
+    assert SourceData.resolve_spell_name(123_456, build_key: "11.2.0", channel: "ptr") ==
+             "PTR Name"
+
+    assert Repo.aggregate(SpellReference, :count) == 4
+  end
+
+  test "encounter reference lookup keeps build scope and zone context" do
+    attrs = %{
+      encounter_id: 3180,
+      current_name: "Retail Boss",
+      localized_names: %{"enUS" => "Retail Boss"},
+      zone_id: 2912,
+      zone_name: "Manaforge Omega",
+      instance_id: 1307,
+      instance_name: "Manaforge Omega",
+      product: "wow",
+      channel: "retail",
+      build_key: "11.2.0",
+      locale: "enUS",
+      source_system: "encounter_journal",
+      source_priority: 20
+    }
+
+    assert {:ok, _reference} = SourceData.upsert_encounter_reference(attrs)
+
+    assert {:ok, _reference} =
+             SourceData.upsert_encounter_reference(%{
+               attrs
+               | current_name: "PTR Boss",
+                 channel: "ptr",
+                 build_key: "11.2.5",
+                 source_priority: 1
+             })
+
+    assert SourceData.resolve_encounter_name("3180", build_key: "11.2.0") == "Retail Boss"
+
+    assert SourceData.resolve_encounter_name(3180, build_key: "11.2.5", channel: "ptr") ==
+             "PTR Boss"
+
+    reference = SourceData.get_encounter_reference(3180, build_key: "11.2.0")
+    assert reference.zone_id == 2912
+    assert reference.instance_id == 1307
+
+    assert Repo.aggregate(EncounterReference, :count) == 2
   end
 
   defp write_dbm_fixture(body) do

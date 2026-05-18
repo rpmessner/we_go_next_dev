@@ -16,6 +16,7 @@ defmodule WeGoNext.SourceData.SourceImport do
     field(:source_system, :string)
     field(:source_path, :string)
     field(:product, :string)
+    field(:channel, :string, default: "retail")
     field(:build_version, :string)
     field(:build_key, :string)
     field(:addon_revision, :string)
@@ -34,6 +35,7 @@ defmodule WeGoNext.SourceData.SourceImport do
       :source_system,
       :source_path,
       :product,
+      :channel,
       :build_version,
       :build_key,
       :addon_revision,
@@ -46,6 +48,7 @@ defmodule WeGoNext.SourceData.SourceImport do
       :source_system,
       :source_path,
       :product,
+      :channel,
       :content_hash,
       :metadata,
       :imported_at

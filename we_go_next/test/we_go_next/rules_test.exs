@@ -3,6 +3,7 @@ defmodule WeGoNext.RulesTest do
 
   alias WeGoNext.Repo
   alias WeGoNext.Rules
+  alias WeGoNext.SourceData
   alias WeGoNext.Gold.DimMechanicCriterion
   alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
   import Ecto.Query
@@ -315,6 +316,58 @@ defmodule WeGoNext.RulesTest do
 
     assert snapshot.source_rule_id == rule_criterion.id
     assert snapshot.spell_id == 888
+  end
+
+  test "promotion can resolve spell and encounter names from source references" do
+    {:ok, ruleset} = Rules.create_ruleset(%{name: "Reference Rules", version: 1})
+
+    assert {:ok, _reference} =
+             SourceData.upsert_spell_reference(%{
+               spell_id: 555,
+               current_name: "Referenced Spell",
+               localized_names: %{"enUS" => "Referenced Spell"},
+               product: "wow",
+               channel: "retail",
+               build_key: "11.2.0",
+               locale: "enUS",
+               source_system: "game_data",
+               source_priority: 10
+             })
+
+    assert {:ok, _reference} =
+             SourceData.upsert_encounter_reference(%{
+               encounter_id: 3180,
+               current_name: "Referenced Boss",
+               localized_names: %{"enUS" => "Referenced Boss"},
+               zone_id: 2912,
+               zone_name: "Manaforge Omega",
+               instance_id: 1307,
+               instance_name: "Manaforge Omega",
+               product: "wow",
+               channel: "retail",
+               build_key: "11.2.0",
+               locale: "enUS",
+               source_system: "game_data",
+               source_priority: 10
+             })
+
+    {:ok, rule_criterion} =
+      Rules.create_mechanic_criterion(%{
+        ruleset_id: ruleset.id,
+        spell_id: 555,
+        spell_name: "Static Spell",
+        mechanic_type: "avoidable",
+        boss_encounter_id: "3180",
+        boss_name: "Static Boss",
+        threshold: %{"max_hits" => 0}
+      })
+
+    assert {:ok, %{criteria: [snapshot]}} =
+             Rules.promote_ruleset_to_gold(ruleset, build_key: "11.2.0")
+
+    assert snapshot.source_rule_id == rule_criterion.id
+    assert snapshot.spell_name == "Referenced Spell"
+    assert snapshot.boss_name == "Referenced Boss"
   end
 
   defp criterion_attrs(%Ruleset{} = ruleset, overrides) do

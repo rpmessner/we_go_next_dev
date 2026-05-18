@@ -120,9 +120,13 @@ Current source-data groundwork:
 
 - `source_data.source_import`
 - `source_data.dbm_mechanic_candidate`
+- `source_data.spell_reference`
+- `source_data.encounter_reference`
 - `WeGoNext.SourceData.DBM.Parser`
 
 DBM imports create inferred mechanic candidates with source file, line number, module metadata, warning constructor, role filters, labels, comments, confidence, and review status. These are evidence, not active rules. They do not write gold facts directly.
+
+Spell and encounter references are conformed, build-scoped source-data dimensions used by rules and gold promotion code to resolve display names and encounter scope without relying on static JSON names. Reference rows carry product, channel, build key/version, locale, source system, source priority, optional `source_import_id`, and metadata. Retail, beta, and PTR rows coexist by channel/build scope; lookups prefer lower `source_priority` values within an explicit build scope.
 
 ## Import Flow
 

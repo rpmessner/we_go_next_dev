@@ -11,6 +11,7 @@ defmodule WeGoNext.Rules do
   alias WeGoNext.Gold.DimMechanicCriterion
   alias WeGoNext.Repo
   alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
+  alias WeGoNext.SourceData
 
   @initial_rules_path Application.compile_env(
                         :we_go_next,
@@ -118,7 +119,15 @@ defmodule WeGoNext.Rules do
   Promotion is idempotent by `source_rule_id`: running it again updates the
   existing gold snapshot for each rule rather than creating duplicates.
   """
-  def promote_ruleset_to_gold(%Ruleset{} = ruleset) do
+  def promote_ruleset_to_gold(%Ruleset{} = ruleset), do: promote_ruleset_to_gold(ruleset, [])
+
+  def promote_ruleset_to_gold(ruleset_id) when is_integer(ruleset_id) do
+    ruleset_id
+    |> get_ruleset!()
+    |> promote_ruleset_to_gold()
+  end
+
+  def promote_ruleset_to_gold(%Ruleset{} = ruleset, opts) do
     Repo.transaction(fn ->
       ruleset = Repo.preload(ruleset, :mechanic_criteria)
 
@@ -126,7 +135,7 @@ defmodule WeGoNext.Rules do
         ruleset.mechanic_criteria
         |> Enum.sort_by(& &1.id)
         |> Enum.reduce_while([], fn criterion, promoted ->
-          case upsert_gold_mechanic_criterion(ruleset, criterion) do
+          case upsert_gold_mechanic_criterion(ruleset, criterion, opts) do
             {:ok, snapshot} -> {:cont, [snapshot | promoted]}
             {:error, changeset} -> {:halt, Repo.rollback(changeset)}
           end
@@ -137,10 +146,10 @@ defmodule WeGoNext.Rules do
     end)
   end
 
-  def promote_ruleset_to_gold(ruleset_id) do
+  def promote_ruleset_to_gold(ruleset_id, opts) when is_integer(ruleset_id) do
     ruleset_id
     |> get_ruleset!()
-    |> promote_ruleset_to_gold()
+    |> promote_ruleset_to_gold(opts)
   end
 
   @doc """
@@ -175,20 +184,20 @@ defmodule WeGoNext.Rules do
   updated through the normal changeset. New criteria are inserted through the
   same path.
   """
-  def seed_rules_from_file(path) when is_binary(path) do
+  def seed_rules_from_file(path, opts \\ []) when is_binary(path) do
     with {:ok, body} <- File.read(path),
          {:ok, payload} <- Jason.decode(body) do
-      seed_rules(payload)
+      seed_rules(payload, opts)
     end
   end
 
-  def seed_rules(%{} = payload) do
+  def seed_rules(%{} = payload, opts \\ []) do
     Repo.transaction(fn ->
       ruleset_attrs = map_get(payload, "ruleset", %{})
       criteria = map_get(payload, "criteria", [])
 
       with {:ok, ruleset} <- get_or_create_seed_ruleset(ruleset_attrs),
-           {:ok, seeded_criteria} <- seed_mechanic_criteria(ruleset, criteria) do
+           {:ok, seeded_criteria} <- seed_mechanic_criteria(ruleset, criteria, opts) do
         %{ruleset: ruleset, criteria: seeded_criteria}
       else
         {:error, reason} -> Repo.rollback(reason)
@@ -217,10 +226,10 @@ defmodule WeGoNext.Rules do
     }
   end
 
-  defp seed_mechanic_criteria(%Ruleset{} = ruleset, criteria) when is_list(criteria) do
+  defp seed_mechanic_criteria(%Ruleset{} = ruleset, criteria, opts) when is_list(criteria) do
     criteria
     |> Enum.reduce_while({:ok, []}, fn attrs, {:ok, seeded} ->
-      case upsert_seed_mechanic_criterion(ruleset, attrs) do
+      case upsert_seed_mechanic_criterion(ruleset, attrs, opts) do
         {:ok, criterion} -> {:cont, {:ok, [criterion | seeded]}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
@@ -231,10 +240,11 @@ defmodule WeGoNext.Rules do
     end
   end
 
-  defp seed_mechanic_criteria(_ruleset, _criteria), do: {:error, :invalid_criteria}
+  defp seed_mechanic_criteria(_ruleset, _criteria, _opts), do: {:error, :invalid_criteria}
 
-  defp upsert_seed_mechanic_criterion(%Ruleset{} = ruleset, attrs) when is_map(attrs) do
+  defp upsert_seed_mechanic_criterion(%Ruleset{} = ruleset, attrs, opts) when is_map(attrs) do
     attrs = Map.put(attrs, "ruleset_id", ruleset.id)
+    attrs = apply_reference_names(attrs, opts)
 
     case get_seed_mechanic_criterion(ruleset.id, attrs) do
       %MechanicCriterion{} = criterion -> update_mechanic_criterion(criterion, attrs)
@@ -242,10 +252,14 @@ defmodule WeGoNext.Rules do
     end
   end
 
-  defp upsert_seed_mechanic_criterion(_ruleset, _attrs), do: {:error, :invalid_criterion}
+  defp upsert_seed_mechanic_criterion(_ruleset, _attrs, _opts), do: {:error, :invalid_criterion}
 
-  defp upsert_gold_mechanic_criterion(%Ruleset{} = ruleset, %MechanicCriterion{} = criterion) do
-    attrs = gold_snapshot_attrs(ruleset, criterion)
+  defp upsert_gold_mechanic_criterion(
+         %Ruleset{} = ruleset,
+         %MechanicCriterion{} = criterion,
+         opts
+       ) do
+    attrs = gold_snapshot_attrs(ruleset, criterion, opts)
 
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(attrs)
@@ -271,22 +285,39 @@ defmodule WeGoNext.Rules do
     )
   end
 
-  defp gold_snapshot_attrs(%Ruleset{} = ruleset, %MechanicCriterion{} = criterion) do
+  defp gold_snapshot_attrs(%Ruleset{} = ruleset, %MechanicCriterion{} = criterion, opts) do
     %{
       source_rule_id: criterion.id,
       ruleset_id: ruleset.id,
       ruleset_version: ruleset.version,
       spell_id: criterion.spell_id,
-      spell_name: criterion.spell_name,
+      spell_name: SourceData.resolve_spell_name(criterion.spell_id, opts) || criterion.spell_name,
       mechanic_type: criterion.mechanic_type,
       boss_encounter_id: criterion.boss_encounter_id,
-      boss_name: criterion.boss_name,
+      boss_name:
+        SourceData.resolve_encounter_name(criterion.boss_encounter_id, opts) ||
+          criterion.boss_name,
       difficulty_id: criterion.difficulty_id,
       threshold: criterion.threshold,
       notes: criterion.notes,
       active: criterion.active
     }
   end
+
+  defp apply_reference_names(attrs, opts) do
+    attrs
+    |> put_if_present(
+      "spell_name",
+      SourceData.resolve_spell_name(map_get(attrs, "spell_id"), opts)
+    )
+    |> put_if_present(
+      "boss_name",
+      SourceData.resolve_encounter_name(map_get(attrs, "boss_encounter_id"), opts)
+    )
+  end
+
+  defp put_if_present(attrs, _key, nil), do: attrs
+  defp put_if_present(attrs, key, value), do: Map.put(attrs, key, value)
 
   defp get_seed_mechanic_criterion(ruleset_id, attrs) do
     spell_id = map_get(attrs, "spell_id")
