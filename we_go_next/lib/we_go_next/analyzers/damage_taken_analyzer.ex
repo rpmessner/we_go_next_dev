@@ -240,7 +240,7 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
     |> Enum.take(n)
   end
 
-  # Handle fresh analysis format: list of PlayerDamage structs
+  # Handle analyzer output format: list of PlayerDamage structs.
   def top_abilities(players, n) when is_list(players) do
     players
     |> Enum.flat_map(fn %PlayerDamage{player_name: player_name, by_ability: by_ability} ->
@@ -262,7 +262,8 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
 
   @doc """
   Returns top abilities for non-tanks only (avoidable damage).
-  Handles both fresh analysis (:dps_healers) and cached/deserialized data (:non_tanks).
+  Handles current analyzer output (:dps_healers) and historical map-shaped data
+  used by older command-line diagnostics (:non_tanks).
   """
   def top_avoidable_abilities(stats, n \\ 10)
 

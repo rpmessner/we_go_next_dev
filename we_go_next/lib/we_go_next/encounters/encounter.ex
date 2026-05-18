@@ -82,7 +82,8 @@ defmodule WeGoNext.Encounters.Encounter do
   end
 
   @doc """
-  Converts this Ecto record back to an in-memory Encounter struct for analysis.
+  Converts this Ecto record back to an in-memory Encounter struct for legacy
+  diagnostics and projection parity checks.
   Parses events from the combat log file using stored byte offsets.
   """
   def to_encounter_struct(%__MODULE__{} = enc) do

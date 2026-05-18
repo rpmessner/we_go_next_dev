@@ -1,6 +1,6 @@
 defmodule WeGoNextWeb.EncounterComponents do
   @moduledoc """
-  Shared UI components for encounter analysis views.
+  Shared UI components for encounter and gold-backed diagnostic views.
 
   These components are used across multiple tabs and pages:
   - `wowhead_link/1` - Links to Wowhead spell pages with tooltips

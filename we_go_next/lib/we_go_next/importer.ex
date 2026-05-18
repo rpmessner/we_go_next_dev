@@ -136,7 +136,8 @@ defmodule WeGoNext.Importer do
   end
 
   @doc """
-  Converts an Ecto encounter record to the in-memory struct for analysis.
+  Converts an Ecto encounter record to the in-memory struct for legacy
+  diagnostics and silver projection parity checks.
   """
   def to_encounter_struct(%EncounterRecord{} = enc) do
     EncounterRecord.to_encounter_struct(enc)

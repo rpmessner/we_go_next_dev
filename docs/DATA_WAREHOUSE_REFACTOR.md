@@ -10,9 +10,9 @@ Re-derived from first principles:
 - **What's forbidden:** event-grain in Postgres (rejected in April 2026 — `encounter_events` was dropped in migration `20260409175732`).
 - **What's available:** a 1145-line Zig parser that already does the expensive work in-process. Its output today is consumed by six analyzers in parallel and then discarded.
 
-This iteration introduces silver as **a Zig projection step that writes coarse-grain rows into Postgres**, plus one gold fact table to prove the end-to-end pattern. The existing `encounters.analysis` JSON cache stays as the per-encounter fast path; silver + gold power cross-encounter analytics.
+This iteration introduced silver as **a projection step that writes coarse-grain rows into Postgres**, plus gold dimensions/facts to prove the end-to-end pattern. The old `encounters.analysis` JSON cache has been retired from active code; active analysis/read-model work should target silver/gold/rules.
 
-Out of scope (deliberately): dbt-postgres, retiring `parse_events`, replacing the JSON cache, SCD2 history on dimensions, full dim mirrors for entities that already have surrogate-keyed Postgres tables.
+Out of scope (deliberately): dbt-postgres, retiring `parse_events`, SCD2 history on dimensions, and broad dimension modeling beyond the current encounter/player/mechanic criterion dimensions.
 
 **Bronze is dual-source from day one.** Two folders under WoW's Logs directory both produce identical-format combat logs:
 
@@ -43,12 +43,13 @@ Silver:  silver.damage_taken
                 │
                 │ SQL transform (Elixir, this iteration — dbt later)
                 ▼
-Gold:    gold.fact_failure           (separate schema)
-
-         encounters.analysis         (JSON cache, retained as per-encounter fast path)
+Gold:    gold.dim_encounter
+         gold.dim_player
+         gold.dim_mechanic_criterion
+         gold.fact_failure
 ```
 
-Silver runs **alongside** the existing analyzer pipeline. No analyzer code changes. The JSON cache continues to be written exactly as today. Gold's `fact_failure` is rebuilt from silver after each import.
+Silver is populated from bronze encounter boundaries and normalized combat-log events. Gold's `fact_failure` is rebuilt from silver plus rules-backed criterion snapshots after each import.
 
 ---
 
@@ -118,18 +119,18 @@ CREATE TABLE gold.dim_player (
 );
 
 CREATE TABLE gold.fact_failure (
-  encounter_id   bigint NOT NULL REFERENCES encounters(id) ON DELETE CASCADE,
-  player_dim_id  bigint NOT NULL REFERENCES gold.dim_player(id),
-  criterion_id   bigint NOT NULL REFERENCES mechanic_criteria(id),
-  failure_count  int NOT NULL,
-  total_damage   bigint NOT NULL DEFAULT 0,
-  PRIMARY KEY (encounter_id, player_dim_id, criterion_id)
+  encounter_dim_id  bigint NOT NULL REFERENCES gold.dim_encounter(id) ON DELETE CASCADE,
+  player_dim_id     bigint NOT NULL REFERENCES gold.dim_player(id),
+  criterion_dim_id  bigint NOT NULL REFERENCES gold.dim_mechanic_criterion(id),
+  failure_count     int NOT NULL,
+  total_damage      bigint NOT NULL DEFAULT 0,
+  PRIMARY KEY (encounter_dim_id, player_dim_id, criterion_dim_id)
 );
 ```
 
-`dim_player` is the only new dimension table this iteration. The other two entities `fact_failure` joins to (`encounters`, `mechanic_criteria`) already exist in `public` with surrogate IDs and descriptive attributes — they play dim roles via direct FK without a duplicate `gold.dim_*` mirror. (Mirroring them is a follow-on if the gold schema needs to be self-contained for dbt or external query tools.)
+`gold.dim_encounter` is the analytics encounter grain, `gold.dim_player` is conformed from `silver.player_info`, and `gold.dim_mechanic_criterion` snapshots authored `rules.mechanic_criterion` rows. `public.encounters` remains only as transitional import bookkeeping and is not a fact grain.
 
-**Raid-level failures (sentinel pattern).** `FailureAnalyzer.analyze_missed_interrupts` (`failure_analyzer.ex:175`) records missed interrupts with `player_guid: nil` and `player_name: "Raid"` because no specific player is assigned. To keep `fact_failure.player_dim_id` NOT NULL while preserving this semantic, `dim_player` is seeded with a sentinel row at migration time:
+**Raid-level failures (sentinel pattern).** Missed interrupts are currently raid-level facts because no specific player is assigned. To keep `fact_failure.player_dim_id` NOT NULL while preserving this semantic, `dim_player` is seeded with a sentinel row at migration time:
 
 ```sql
 INSERT INTO gold.dim_player (player_guid, player_name, class_id, spec_id)
@@ -143,9 +144,9 @@ The fact builder maps `player_guid IS NULL` (from `silver.interrupt_opportunity`
 **Build order per import:**
 1. `Silver.project_and_persist(encounter)` writes the six silver tables.
 2. `Gold.DimPlayer.upsert_from_silver(encounter_id)` upserts `dim_player` rows from `silver.player_info` for this encounter (the sentinel `__RAID__` row is seeded once at migration time, not per import).
-3. `Gold.FactFailure.rebuild_for_encounter(encounter_id)` joins `silver.damage_taken` (filtered `silver.player_info.detected_role <> 'tank'`) + `silver.interrupt_opportunity` (where `success = false`, mapped to the `__RAID__` sentinel) + `mechanic_criteria` + `gold.dim_player`, writes `fact_failure` rows with surrogate keys throughout.
+3. `Gold.FactFailure.rebuild_for_encounter(encounter_dim_id)` joins `silver.damage_taken` (filtered `silver.player_info.detected_role <> 'tank'`) + `silver.interrupt_opportunity` (where `success = false`, mapped to the `__RAID__` sentinel) + `gold.dim_mechanic_criterion` + `gold.dim_player`, writes `fact_failure` rows with surrogate keys throughout.
 
-**Why `source_is_npc` is NOT filtered in `fact_failure`** — even though `silver.damage_taken` carries the column, the current `FailureAnalyzer.analyze_avoidable_damage/2` (`failure_analyzer.ex:90-108`) does not filter avoidable damage by NPC source — it just iterates non-tank players and checks per-spell damage against the criteria thresholds. Adding `source_is_npc = true` to the SQL would diverge from current behavior and break parity, even though it would arguably be a correctness improvement (avoidable mechanics are always cast by NPCs in practice). Decision: preserve parity now; treat the NPC filter as a follow-on improvement that we'd ship with an explicit "diverges from `FailureAnalyzer` here" note. The column stays in silver for future facts.
+**Why `source_is_npc` is NOT filtered in `fact_failure`** — even though `silver.damage_taken` carries the column, current failure semantics check non-tank player damage by spell against rules thresholds. Adding `source_is_npc = true` would be a behavior change. The column stays in silver for future facts.
 
 Why this is the right minimum:
 
@@ -165,7 +166,7 @@ Why this is the right minimum:
 3. `<ts>_create_gold_schema.exs` — `execute "CREATE SCHEMA gold"` + downgrade.
 4. `<ts>_create_gold_dim_player.exs` — `gold.dim_player` with unique index on `player_guid`.
 5. `<ts>_seed_raid_sentinel_dim_player.exs` — INSERTs the `__RAID__` sentinel into `gold.dim_player`. Must run after #4 (table exists) and before #6 (the FK target).
-6. `<ts>_create_gold_fact_failure.exs` — `gold.fact_failure` with surrogate-key FKs to `gold.dim_player`, `encounters`, `mechanic_criteria`.
+6. `<ts>_create_gold_fact_failure.exs` — `gold.fact_failure` with surrogate-key FKs to `gold.dim_encounter`, `gold.dim_player`, and `gold.dim_mechanic_criterion`.
 
 **Zig** (`we_go_next/priv/native/combat_log_parser.zig`):
 - Add a `project_silver(file_path, start_byte, end_byte) -> {damage_taken, damage_done, deaths, interrupts, debuff_applications, player_info}` NIF.
@@ -180,12 +181,12 @@ Why this is the right minimum:
 
 **Gold Elixir module** (`we_go_next/lib/we_go_next/gold/`):
 - `dim_player.ex` — Ecto schema (`@schema_prefix "gold"`) + `upsert_from_silver(encounter_id)` that reads `silver.player_info` rows for the encounter and `INSERT … ON CONFLICT (player_guid) DO UPDATE` into `gold.dim_player`.
-- `fact_failure.ex` — Ecto schema (`@schema_prefix "gold"`, `@primary_key false`) with `belongs_to` to `gold.dim_player`, `Encounter`, and `MechanicCriterion`.
-- `fact_failure_builder.ex` — `rebuild_for_encounter(encounter_id)`. One SQL `INSERT … ON CONFLICT DO UPDATE` that reads `silver.damage_taken` + `silver.player_info` (for `detected_role` filter) + `silver.interrupt_opportunity` + `mechanic_criteria` + `gold.dim_player`, grouped by `(encounter_id, player_dim_id, criterion_id)`. Reuse the criteria-matching logic from `failure_analyzer.ex` translated to SQL, including `Criteria.criteria_by_spell_id/2` difficulty inheritance and `threshold["max_hits"]` semantics. Prefer separate avoidable-damage and missed-interrupt SELECT branches combined with `UNION ALL` before the final aggregate so damage and interrupt rows cannot multiply each other in a broad join.
+- `fact_failure.ex` — Ecto schema (`@schema_prefix "gold"`, `@primary_key false`) with `belongs_to` to `gold.dim_encounter`, `gold.dim_player`, and `gold.dim_mechanic_criterion`.
+- `fact_failure.ex` — `rebuild_for_encounter(encounter_dim_id)`. One SQL `INSERT … ON CONFLICT DO UPDATE` that reads `silver.damage_taken` + `silver.player_info` (for `detected_role` filter) + `silver.interrupt_opportunity` + `gold.dim_mechanic_criterion` + `gold.dim_player`, grouped by `(encounter_dim_id, player_dim_id, criterion_dim_id)`. Ruleset-aware criteria matching is resolved through the promoted gold criterion snapshots.
 
 **Importer hook** (`we_go_next/lib/we_go_next/importer.ex`):
 - `insert_encounter_from_boundary/2` currently calls `Repo.insert_all(..., on_conflict: :nothing)` at line 310 and returns nothing useful. Refactor to `insert_or_fetch_encounter_from_boundary/2` returning `{:inserted, %Encounter{}}` | `{:existing, %Encounter{}}`. Implementation: `INSERT ... ON CONFLICT (combat_log_file_id, start_time) DO UPDATE SET updated_at = EXCLUDED.updated_at RETURNING id, xmax = 0 AS inserted` — the `xmax = 0` trick distinguishes a real insert from a no-op update. Falls back to a `Repo.get_by` if RETURNING isn't viable.
-- After `:inserted`: spawn `Silver.project_and_persist(encounter)` → `Gold.DimPlayer.upsert_from_silver(encounter.id)` → `Gold.FactFailure.rebuild_for_encounter(encounter.id)`. Existing `spawn_analysis_task/1` stays — silver/gold and the JSON-cache analysis run independently.
+- After `:inserted`: run `Silver.project_and_persist(dim_encounter)` → `Gold.FactFailure.rebuild_for_encounter(dim_encounter.id)`. Legacy JSON-cache analysis is removed; medallion tables are the active read-model path.
 - After `:existing`: do nothing by default. A future explicit rebuild flow (`mix wgn.rebuild_silver --encounter ID` or a Settings-page "rebuild" button) re-runs the silver/gold pipeline against the existing row without re-importing.
 - This makes the trigger condition for silver/gold rebuild explicit and prevents duplicate imports from silently re-enqueuing potentially expensive rebuilds.
 
@@ -235,24 +236,24 @@ Why this is the right minimum:
 
 ## Verification
 
-1. **Parity contract (gate before merge).** `gold.fact_failure` must be byte-exact equivalent to `FailureAnalyzer.analyze/2` on a fixture set that covers all three failure paths: avoidable damage (non-tank players hit by tracked mechanics), missed interrupts (raid-level failures via sentinel), and the "no criteria configured" trivial case. The test asserts that for every fixture encounter:
+1. **Failure fact contract.** `gold.fact_failure` must be deterministic from silver rows plus `gold.dim_mechanic_criterion` snapshots. Fixture coverage should include avoidable damage (non-tank players hit by tracked mechanics), missed interrupts (raid-level failures via sentinel), and the "no criteria configured" trivial case. The test asserts that for every fixture encounter:
 
    ```sql
-   SELECT dp.player_guid, ff.criterion_id, ff.failure_count, ff.total_damage
+   SELECT dp.player_guid, ff.criterion_dim_id, ff.failure_count, ff.total_damage
    FROM gold.fact_failure ff
    JOIN gold.dim_player dp ON dp.id = ff.player_dim_id
-   WHERE ff.encounter_id = $1
-   ORDER BY dp.player_guid, ff.criterion_id
+   WHERE ff.encounter_dim_id = $1
+   ORDER BY dp.player_guid, ff.criterion_dim_id
    ```
 
-   …equals the projected `FailureAnalyzer.analyze/2` output for the same encounter, where analyzer `%Failure{}` records are mapped as:
+   …matches the expected aggregate rows:
 
    - `player_guid: nil` / `player_name: "Raid"` → `player_guid = '__RAID__'` (sentinel)
-   - Group by `(player_guid, criteria_id)` and aggregate:
-     - `failure_count = SUM(hit_count)` — works uniformly for both failure types. Avoidable failures emit one `%Failure{}` per (player, criterion) with `hit_count = N` hits; missed-interrupt failures emit one `%Failure{}` per missed cast with `hit_count = 1`. Summing yields the right count either way.
-     - `total_damage = SUM(total_damage)` — avoidable contributes the analyzer's `%Failure.total_damage`; missed interrupts contribute 0 per the analyzer (`failure_analyzer.ex:186`).
+   - Group by `(player_guid, criterion_dim_id)` and aggregate:
+     - `failure_count = SUM(hit_count)` for avoidable hits and missed casts
+     - `total_damage = SUM(total_damage)` for avoidable damage; missed interrupts contribute 0
 
-   This is the contract that proves the SQL rewrite of failure logic preserves semantics. If parity fails, the silver schema or the SQL transform is wrong — don't loosen the test.
+   This is the contract that proves failure facts preserve the intended rules semantics. If it fails, fix the silver projection, criterion snapshot selection, or SQL transform.
 
 2. **Round-trip equality (silver-only).** For a fixture encounter, assert `SUM(silver.damage_taken.total_amount)` per `(target_guid, spell_id)` equals the corresponding `DamageTakenAnalyzer.analyze/1` output. Repeat for deaths (count + killing-blow match), interrupt opportunities (success + missed counts match), debuffs (count match). And: `silver.player_info` rows where `detected_role = 'tank'` exactly equal the set of `player_guid`s in `DamageTakenAnalyzer.analyze(encounter).tanks` (comparing against the public analyzer output, not the private `detect_tanks/1`).
 3. **Idempotency.** Re-import the same combat log file → silver row counts identical, no duplicate-key errors. Re-running the importer with `:existing` tag does NOT rebuild silver. The `ON CONFLICT` keys are doing what they should.
@@ -293,10 +294,10 @@ Rationale: PR 1 is the dangerous one — if the parity contract doesn't hold, th
 ## What This Does Not Do
 
 - No dbt-postgres. One fact table doesn't earn dbt's overhead yet; revisit when fact count ≥ 3.
-- No `parse_events` retirement. Kept for diagnostic use; analyzer pipeline unchanged.
-- No `encounters.analysis` JSON deprecation. It's the per-encounter fast path; silver+gold serve cross-encounter only.
+- No `parse_events` retirement. Kept for diagnostic use and projection rebuilds.
+- No resurrection of `encounters.analysis`. The legacy JSON cache is no longer an active read-model path; new per-encounter analysis should be rebuilt against silver/gold/rules.
 - No `dim_spell` mirror. Spell IDs in facts are integers from WoW; descriptive lookups (spell name, school) can fetch from `silver_*` rows or the existing spell-name tooling. Promote to a real `dim_spell` when a fact needs to filter/group by spell attributes.
-- No `gold.dim_encounter` or `gold.dim_mechanic_criterion` mirrors. The `public.encounters` and `public.mechanic_criteria` tables play these roles directly — they already have surrogate IDs and the right attributes. Mirror them when the gold schema needs to be self-contained for external tools (dbt, DuckDB).
+- No dependency on `public.mechanic_criteria`. Mechanic business configuration lives under `rules`, and `gold.dim_mechanic_criterion` stores immutable snapshots for facts.
 - No SCD2 on `dim_player`. Class/spec changes overwrite. Historical facts implicitly join the player's current attributes, not their attributes at encounter time. Real SCD2 (`valid_from`/`valid_to`/`is_current`) is the documented next step.
 
 Each of these is a logical follow-on iteration. They get cheaper to add once silver exists.

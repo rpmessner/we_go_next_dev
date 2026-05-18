@@ -1,8 +1,10 @@
 defmodule WeGoNext do
   @moduledoc """
-  Main module for parsing and analyzing WoW combat logs.
+  Legacy diagnostic helpers for parsing and analyzing WoW combat logs.
 
-  Focused on raid diagnostics: deaths, damage taken, interrupts, mechanic failures.
+  These analyzer-backed functions are retained for command-line inspection and
+  silver projection parity checks. New UI and read-model work should use the
+  bronze/silver/gold/rules pipeline instead of adding dependencies here.
   """
 
   alias WeGoNext.{CombatLogParser, Encounter}

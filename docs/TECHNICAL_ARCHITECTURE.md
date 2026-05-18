@@ -1,7 +1,7 @@
 # Technical Architecture
 
 **Project:** WeGoNext — WoW Combat Log Analysis Tool
-**Last Updated:** 2026-05-16
+**Last Updated:** 2026-05-18
 
 This document describes the architecture *as it stands today* — the Zig-NIF parser, Postgres-backed encounter store, and Phoenix LiveView UI. Earlier design notes (ETS-backed storage, in-Elixir parser, JSON boss profiles) are superseded; the relevant rewrite session is in [`../2026-04-09_zig_parser_rewrite.md`](../2026-04-09_zig_parser_rewrite.md).
 
@@ -24,34 +24,34 @@ For *why* this shape (vs. damage meters, Warcraft Logs, etc.) see [VISION.md](VI
 │                                          │                │ + events     │
 │                                          ▼                ▼              │
 │                                  ┌─────────────────────────────┐         │
-│                                  │  Encounters (PostgreSQL)    │         │
+│                                  │  public.encounters          │         │
+│                                  │  transitional import rows   │         │
 │                                  │  — wow_encounter_id, name,  │         │
 │                                  │    difficulty, success, ms  │         │
 │                                  │  — start_byte / end_byte    │         │
-│                                  │  — analysis (JSON cache)    │         │
 │                                  └─────────────────────────────┘         │
 │                                                │                         │
-│                                                │ to_encounter_struct/1   │
-│                                                │ re-parses events from   │
-│                                                │ log file using offsets  │
 │                                                ▼                         │
 │                                  ┌─────────────────────────────┐         │
-│                                  │  Analyzers (parallel)       │         │
-│                                  │  Death / DamageTaken /      │         │
-│                                  │  Interrupt / Debuff /       │         │
-│                                  │  Failure / PullSummary /    │         │
-│                                  │  DamageDone / PlayerInfo    │         │
+│                                  │  Silver projections         │         │
+│                                  │  damage/death/interrupt/    │         │
+│                                  │  debuff/player rows keyed   │         │
+│                                  │  by gold.dim_encounter.id   │         │
+│                                  └─────────────────────────────┘         │
+│                                                │                         │
+│                                                ▼                         │
+│                                  ┌─────────────────────────────┐         │
+│                                  │  Gold read models           │         │
+│                                  │  dim_encounter / dim_player │         │
+│                                  │  dim_mechanic_criterion /   │         │
+│                                  │  fact_failure               │         │
 │                                  └─────────────────────────────┘         │
 │                                                │                         │
 │                                                ▼                         │
 │                                  ┌─────────────────────────────┐         │
 │                                  │  LiveView (Phoenix)         │         │
 │                                  │  Index (encounter list)     │         │
-│                                  │  Show (tabs: Summary /      │         │
-│                                  │    Failures / Deaths /      │         │
-│                                  │    DamageTaken /            │         │
-│                                  │    DamageDone / Interrupts /│         │
-│                                  │    Debuffs / BetweenPull)   │         │
+│                                  │  Failures (gold facts)      │         │
 │                                  │  Settings                   │         │
 │                                  └─────────────────────────────┘         │
 │                                                                          │
@@ -68,7 +68,7 @@ For *why* this shape (vs. damage meters, Warcraft Logs, etc.) see [VISION.md](VI
 | ----------- | --------------------------------------- | ------------------------------------------------------------------------------ |
 | BEAM        | Elixir 1.19 + Erlang/OTP 27             | GenServers, supervisors, PubSub, hot reload. Strong existing expertise.        |
 | Web         | Phoenix 1.8 + LiveView 1.0              | Server-rendered UI, push-on-change without writing JS.                          |
-| Database    | PostgreSQL + Ecto 3                     | Encounter metadata, cached analysis JSON, criteria persistence.                |
+| Database    | PostgreSQL + Ecto 3                     | Import bookkeeping plus bronze/silver/gold/rules persistence.                  |
 | Parser      | Zig 0.15.x via Zigler 0.15              | Native NIF; a 344 MB log scans in ~5 s where pure Elixir took minutes.          |
 | Styling     | Tailwind 0.4 (Phoenix integration)      | Utility-first, precompiled.                                                    |
 | Tests       | ExUnit + Wallaby (page objects)         | Unit + browser-driven feature tests.                                           |
@@ -80,11 +80,12 @@ For *why* this shape (vs. damage meters, Warcraft Logs, etc.) see [VISION.md](VI
 ### What lives in Postgres
 
 - **`combat_log_files`** — one row per imported `WoWCombatLog-*.txt`, with `last_parsed_byte` for incremental imports and `file_size` for rotation detection.
-- **`encounters`** — boss + dungeon encounter records:
+- **`encounters`** — transitional boss + dungeon import records:
   - `wow_encounter_id`, `name`, `difficulty_id`, `group_size`, `instance_id`, `success`, `fight_time_ms`
   - `start_byte`, `end_byte` — byte offsets into the parent combat log file
-  - `analysis` (JSON, cached per-encounter result of running all analyzers)
-- **`criteria`** — abilities the user has marked as tracked mechanics (per boss, per difficulty, with difficulty inheritance — Heroic criteria apply on Mythic unless overridden).
+- **`silver.*`** — deterministic encounter-grain projections for damage taken, damage done, deaths, interrupt opportunities, debuff applications, and player info.
+- **`gold.*`** — analytic dimensions/facts. Current UI fact path: `gold.fact_failure`, keyed by `gold.dim_encounter`, `gold.dim_player`, and `gold.dim_mechanic_criterion`.
+- **`rules.*`** — authored mechanic configuration. `rules.mechanic_criterion` rows are promoted into immutable gold criterion snapshots before facts use them.
 - **`users`** — minimal: name, `wow_logs_path`, `last_loaded_log`, `character_name`, `is_admin`.
 
 ### What does *not* live in Postgres
@@ -93,7 +94,7 @@ For *why* this shape (vs. damage meters, Warcraft Logs, etc.) see [VISION.md](VI
 
 ### Why no per-event table
 
-The previous design wrote thousands of rows per encounter and then immediately read them back to run analyzers. The UI only ever read the cached `analysis` JSON anyway, so the event rows were dead weight. Removing the table made imports an order of magnitude faster and eliminated a class of migration/vacuum problems.
+The previous design wrote thousands of event rows per encounter and then immediately read them back to run analyzers. The current medallion shape stores coarse-grain silver projections instead: enough structure for deterministic rebuilds and SQL facts without taking on event-grain volume.
 
 ---
 
@@ -138,13 +139,15 @@ The parser handles WoW's CSV quoting, hex flag parsing, the 19-field "advanced c
 Glue between FileWatcher events and the database.
 
 - Calls `CombatLogParser.scan_boundaries/2` from the last-parsed byte.
-- Inserts one `encounters` row per boundary (idempotent on `wow_encounter_id + combat_log_file_id`).
+- Inserts or fetches one transitional `encounters` row per boundary.
+- Upserts the corresponding `gold.dim_encounter` row.
+- Projects silver rows and rebuilds gold failure facts for newly inserted encounters.
 - Updates `last_parsed_byte` after each encounter so failures resume cleanly.
 - Broadcasts progress over PubSub.
 
 ### Analyzers (`WeGoNext.Analyzers.*`)
 
-Pure functions taking a `%WeGoNext.Encounter{}` (with events loaded) and returning a result map. The full set:
+Legacy diagnostic helpers taking a `%WeGoNext.Encounter{}` with events loaded and returning a result map. They are retained for command-line inspection and projection parity tests, not as active UI read models.
 
 | Module                  | Output                                                                          |
 | ----------------------- | ------------------------------------------------------------------------------- |
@@ -153,37 +156,28 @@ Pure functions taking a `%WeGoNext.Encounter{}` (with events loaded) and returni
 | `DamageDoneAnalyzer`    | Per-player damage done; per-target breakdown                                    |
 | `InterruptAnalyzer`     | Per-player interrupt counts; missed-kick detection                              |
 | `DebuffAnalyzer`        | Debuff applications by player/spell                                             |
-| `FailureAnalyzer`       | Mechanic failures matched against the criteria table                            |
 | `PlayerInfoAnalyzer`    | Player classes/specs from `COMBATANT_INFO`                                      |
-| `PullSummary`           | Aggregates the above into the Summary-tab payload                               |
 
-Independent analyzers run concurrently via `Task.await_many` in [`AnalysisCache.Serializer`](../we_go_next/lib/we_go_next/analyzers/analysis_cache/serializer.ex). `FailureAnalyzer` depends on `DamageTakenAnalyzer` and `InterruptAnalyzer` outputs; the serializer passes them in via opts instead of recomputing.
+The legacy analyzer JSON cache, `FailureAnalyzer`, and `PullSummary` were removed during the medallion refactor. New analysis views should query silver/gold/rules read models.
 
-### Criteria System
+### Rules and Failure Facts
 
-User-flagged mechanics, stored in Postgres.
+Authored mechanics live in the `rules` schema, not in public UI-model tables.
 
-- A criterion is `{encounter_id, difficulty_id, spell_id, type, threshold}` where `type` is `:avoidable` / `:must_interrupt` / `:soak` / etc.
-- Created by clicking an ability in the Damage Taken tab and picking a type from a modal.
-- **Difficulty inheritance:** a Heroic-tagged criterion applies on Mythic unless explicitly overridden at Mythic. Implemented in `WeGoNext.Encounters.Criteria.criteria_by_spell_id/2`.
-- `FailureAnalyzer` walks events against the active criteria for the current boss/difficulty and emits failure records.
+- `rules.ruleset` tracks draft, active, and archived rulesets.
+- `rules.mechanic_criterion` stores authored criteria and threshold semantics.
+- `gold.dim_mechanic_criterion` snapshots rule rows for fact stability.
+- `gold.fact_failure` rebuilds from silver projections plus selected gold criterion snapshots.
 
 ### LiveView UI
 
 ```
 WeGoNextWeb.EncounterLive.Index   → /             (encounter list, grouped by instance)
-WeGoNextWeb.EncounterLive.Show    → /encounters/:id
+WeGoNextWeb.FailureLive.Index     → /failures     (gold-backed mechanic failures)
 WeGoNextWeb.SettingsLive          → /settings     (logs path, character name, file watcher status)
 ```
 
-`Show` renders the per-encounter tabs in `we_go_next/lib/we_go_next_web/components/tabs/`:
-
-- `SummaryTab` (default) — Pull Summary output
-- `FailuresTab` — criteria failures by player and by mechanic
-- `DeathsTab` — deaths with recap
-- `DamageTakenTab` — per-ability damage with class colors + spell icons (also the criteria entry point)
-- `DamageDoneTab`, `InterruptsTab`, `DebuffsTab`
-- `BetweenPullTab` — scaffolded for the M+ "between-pull" view; not rendered by any route yet
+The legacy `/encounters/:id` analyzer-cache tab UI has been pruned. Any replacement encounter detail page should be built against silver/gold/rules read models.
 
 ### M+ Support (in progress)
 
@@ -213,38 +207,39 @@ CombatLogParser.scan_boundaries(path, last_parsed_byte)
         │
         ▼ for each boundary
 Importer.insert_single_encounter/3   ──►  encounters row
+        │
+        ▼
+gold.dim_encounter upsert
+        │
+        ▼
+silver projection rows
+        │
+        ▼
+gold.fact_failure rebuild
+        │
+        ▼
 Importer.update_file_progress/2      ──►  last_parsed_byte
         │
         ▼ broadcasts {:import_progress, ...}
 LiveView (Index)  ──►  refreshes encounter list
 ```
 
-### Viewing an encounter
+### Viewing failure facts
 
 ```
-User opens /encounters/:id
+User opens /failures
         │
         ▼
-EncounterLive.Show.mount/3
-  • loads encounters row + cached analysis JSON (if present)
-  • if analysis missing: kicks off background AnalysisCache.Serializer.compute/1
-        │
-        ▼  compute (only if cache miss)
-to_encounter_struct/1
-  → CombatLogParser.parse_events(path, start_byte, end_byte, start_ts)
-        │
-        ▼ runs concurrently
-Death / DamageTaken / Interrupt / Debuff / PlayerInfo
-        │
-        ▼ runs sequentially after the above
-Failure (uses damage_stats + interrupt_stats from above)
-PullSummary (aggregates everything)
+FailureLive.Index.mount/3
         │
         ▼
-analysis JSON cached on encounters row
+Gold.FailureSummary.list_failures/0
         │
-        ▼ PubSub broadcast
-LiveView (Show)  ──►  renders the active tab
+        ▼
+gold.fact_failure + gold dimensions
+        │
+        ▼
+LiveView renders grouped failures by encounter, mechanic, and player
 ```
 
 ---
@@ -263,7 +258,7 @@ WeGoNext.Supervisor (one_for_one)
 └── WeGoNextWeb.Endpoint                 Phoenix HTTP
 ```
 
-No `ProfileManager`, no `CriteriaRegistry`, no per-encounter `DynamicSupervisor`. Earlier design notes referenced these — they were never built; criteria persist in Postgres and analyses run synchronously inside the `Show` LiveView's mount path.
+No `ProfileManager`, no `CriteriaRegistry`, no per-encounter `DynamicSupervisor`. Earlier design notes referenced these, but they were never built. Mechanic rules persist in Postgres under `rules`, and active analysis views read gold facts.
 
 ---
 
@@ -275,8 +270,8 @@ Measured against a 344 MB combat log with 8 encounters and ~1.2 M lines (Manafor
 | ---------------------------------- | -------------- |
 | `scan_boundaries` (full file)      | ~4 s           |
 | `parse_events` (~109K events)      | ~800 ms        |
-| Parallel analyzer pass             | ~340 ms        |
-| **End-to-end import + analysis**   | **~5 s**       |
+| Legacy analyzer pass               | ~340 ms        |
+| **End-to-end boundary scan**        | **~5 s**       |
 
 For comparison the prior pure-Elixir implementation took minutes on the same file. The win comes from (a) avoiding the per-event DB roundtrip entirely and (b) doing the CSV/timestamp/hex parsing in Zig with `std.heap.page_allocator`.
 

@@ -217,9 +217,7 @@ we_go_next_dev/
 │   │   │   │   ├── death_analyzer.ex      # Death tracking ✓
 │   │   │   │   ├── damage_taken_analyzer.ex # Damage tracking ✓
 │   │   │   │   ├── interrupt_analyzer.ex  # Interrupt tracking ✓
-│   │   │   │   ├── debuff_analyzer.ex     # Debuff tracking ✓
-│   │   │   │   ├── failure_analyzer.ex    # Criteria-based failure detection ✓
-│   │   │   │   └── pull_summary.ex        # Between-pull report generation ✓
+│   │   │   │   └── debuff_analyzer.ex     # Debuff tracking ✓
 │   │   │   ├── encounter.ex               # Encounter data structure
 │   │   │   ├── encounter_store.ex         # ETS-backed encounter cache
 │   │   │   ├── log_reader.ex              # File parsing with byte offsets
@@ -319,7 +317,7 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - Added `/failures` as the first medallion-backed UI, reading grouped mechanic failures from `gold.fact_failure` and gold dimensions.
 - Closed the PR1 backend acceptance gate and moved PR2 UI work behind medallion read models.
 - Pruned the legacy encounter detail route and tab components that read cached analyzer JSON and `public.mechanic_criteria`.
-- Changed importer legacy JSON analysis cache computation to opt-in only; medallion imports remain the default path for new analytics.
+- Removed the legacy public criteria/context, spell-preference model, analyzer JSON cache modules, and analysis backfill path. `public.encounters` remains only as transitional import bookkeeping.
 
 ### 2026-05-17: Medallion and Rules Foundation
 
@@ -333,7 +331,7 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - Refactored importer encounter insertion to distinguish inserted vs existing rows so future rebuild hooks run only for new encounters.
 - Created `docs/rules_layer_refactor.md` for the broader rules-layer plan.
 
-### 2025-11-28: MVP Core Complete - Pull Summary Implementation
+### 2025-11-28: MVP Core Complete - Pull Summary Implementation (Legacy, Since Pruned)
 
 - Implemented `PullSummary` analyzer that aggregates all analyzer outputs
 - Added "Summary" tab as default view in encounter detail LiveView
@@ -342,7 +340,7 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - Created `docs/INTEGRATION_ROADMAP.md` for end-to-end testing plan
 - Next step: wire up log selection UI and live file watching for real-time demo
 
-### 2025-11-27: Criteria System and Failure Detection
+### 2025-11-27: Criteria System and Failure Detection (Legacy, Since Pruned)
 
 - Implemented criteria system for tracking specific mechanics
 - Added FailureAnalyzer that checks damage/interrupts against criteria
