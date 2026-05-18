@@ -38,13 +38,21 @@ defmodule WeGoNext.MixProject do
         "esbuild we_go_next --minify",
         "phx.digest"
       ],
+      quality: [
+        "format --check-formatted",
+        "compile --warnings-as-errors",
+        "credo --only warning",
+        "ecto.create --quiet",
+        "ecto.migrate --quiet",
+        "test"
+      ],
       test: ["test"]
     ]
   end
 
   # Ensure test always runs in test env, even if MIX_ENV is set in shell
   def cli do
-    [preferred_envs: [test: :test]]
+    [preferred_envs: [quality: :test, test: :test]]
   end
 
   defp deps do

@@ -90,10 +90,15 @@ we_go_next_dev/
 
 ```bash
 cd we_go_next
+mix quality
 mix test
 mix test test/features/
-mix credo
+mix credo --only warning
 ```
+
+`mix quality` is the local CI gate. It checks formatting for active hand-written
+Elixir files, treats compiler warnings as errors, runs Credo warning checks,
+prepares the test database, and runs the test suite.
 
 Feature tests use page objects from `test/support/pages/`.
 
