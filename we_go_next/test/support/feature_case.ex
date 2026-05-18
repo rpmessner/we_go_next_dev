@@ -11,6 +11,7 @@ defmodule WeGoNextWeb.FeatureCase do
       use Wallaby.Feature
 
       alias WeGoNext.Repo
+      alias WeGoNext.Integration.Pages.FailuresPage
       alias WeGoNext.Integration.Pages.HomePage
       alias WeGoNext.Integration.Pages.SettingsPage
 
