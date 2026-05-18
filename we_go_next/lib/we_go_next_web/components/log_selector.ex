@@ -13,17 +13,17 @@ defmodule WeGoNextWeb.Components.LogSelector do
 
   import WeGoNextWeb.EncounterComponents, only: [format_size: 1]
 
-  attr :user, :map, required: true
-  attr :log_files, :list, required: true
-  attr :selected_log, :string, default: nil
-  attr :imported_logs, :list, required: true
-  attr :loading, :boolean, required: true
-  attr :syncing, :boolean, required: true
-  attr :confirm_reimport, :boolean, required: true
-  attr :import_progress, :map, default: nil
-  attr :log_path, :string, default: nil
-  attr :combat_log_file, :any, default: nil
-  attr :error, :string, default: nil
+  attr(:user, :map, required: true)
+  attr(:log_files, :list, required: true)
+  attr(:selected_log, :string, default: nil)
+  attr(:imported_logs, :list, required: true)
+  attr(:loading, :boolean, required: true)
+  attr(:syncing, :boolean, required: true)
+  attr(:confirm_reimport, :boolean, required: true)
+  attr(:import_progress, :map, default: nil)
+  attr(:log_path, :string, default: nil)
+  attr(:combat_log_file, :any, default: nil)
+  attr(:error, :string, default: nil)
 
   def render(assigns) do
     ~H"""
@@ -81,10 +81,10 @@ defmodule WeGoNextWeb.Components.LogSelector do
 
   # Sub-components
 
-  attr :loading, :boolean, required: true
-  attr :selected_log, :string, default: nil
-  attr :imported_logs, :list, required: true
-  attr :confirm_reimport, :boolean, required: true
+  attr(:loading, :boolean, required: true)
+  attr(:selected_log, :string, default: nil)
+  attr(:imported_logs, :list, required: true)
+  attr(:confirm_reimport, :boolean, required: true)
 
   defp import_buttons(assigns) do
     ~H"""
@@ -132,7 +132,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
     """
   end
 
-  attr :progress, :map, required: true
+  attr(:progress, :map, required: true)
 
   defp progress_bar(assigns) do
     ~H"""
@@ -162,11 +162,11 @@ defmodule WeGoNextWeb.Components.LogSelector do
     """
   end
 
-  attr :log_path, :string, required: true
-  attr :combat_log_file, :any, required: true
-  attr :imported_logs, :list, required: true
-  attr :log_files, :list, required: true
-  attr :syncing, :boolean, required: true
+  attr(:log_path, :string, required: true)
+  attr(:combat_log_file, :any, required: true)
+  attr(:imported_logs, :list, required: true)
+  attr(:log_files, :list, required: true)
+  attr(:syncing, :boolean, required: true)
 
   defp current_log_info(assigns) do
     ~H"""
@@ -190,7 +190,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
     """
   end
 
-  attr :user, :map, required: true
+  attr(:user, :map, required: true)
 
   defp empty_state(assigns) do
     ~H"""
@@ -225,9 +225,14 @@ defmodule WeGoNextWeb.Components.LogSelector do
 
   defp import_button_class(selected_log, imported_logs) do
     cond do
-      partially_imported?(selected_log, imported_logs) -> "bg-yellow-600 text-white hover:bg-yellow-500"
-      complete_log?(selected_log, imported_logs) -> "bg-zinc-600 text-zinc-300 hover:bg-zinc-500"
-      true -> "bg-wow-gold text-zinc-900 hover:bg-yellow-400"
+      partially_imported?(selected_log, imported_logs) ->
+        "bg-yellow-600 text-white hover:bg-yellow-500"
+
+      complete_log?(selected_log, imported_logs) ->
+        "bg-zinc-600 text-zinc-300 hover:bg-zinc-500"
+
+      true ->
+        "bg-wow-gold text-zinc-900 hover:bg-yellow-400"
     end
   end
 
@@ -264,7 +269,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
         case File.stat(file_path) do
           {:ok, %{size: disk_size}} ->
             parsed = log.last_parsed_byte || 0
-            parsed > 0 and (disk_size - parsed) > 100
+            parsed > 0 and disk_size - parsed > 100
 
           {:error, _} ->
             false
@@ -274,7 +279,9 @@ defmodule WeGoNextWeb.Components.LogSelector do
 
   defp dead_log?(file_path, log_files) when is_list(log_files) do
     case log_files do
-      [] -> false
+      [] ->
+        false
+
       logs ->
         newest = hd(logs)
         newest.full_path != file_path

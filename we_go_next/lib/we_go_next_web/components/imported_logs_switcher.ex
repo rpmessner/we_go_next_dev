@@ -7,8 +7,8 @@ defmodule WeGoNextWeb.Components.ImportedLogsSwitcher do
   """
   use Phoenix.Component
 
-  attr :imported_logs, :list, required: true
-  attr :combat_log_file, :any, default: nil
+  attr(:imported_logs, :list, required: true)
+  attr(:combat_log_file, :any, default: nil)
 
   def render(assigns) do
     ~H"""
@@ -23,8 +23,8 @@ defmodule WeGoNextWeb.Components.ImportedLogsSwitcher do
     """
   end
 
-  attr :clf, :map, required: true
-  attr :is_current, :boolean, required: true
+  attr(:clf, :map, required: true)
+  attr(:is_current, :boolean, required: true)
 
   defp log_button(assigns) do
     ~H"""

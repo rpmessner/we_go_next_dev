@@ -38,7 +38,11 @@ defmodule WeGoNext.TrashPull do
   Takes a file path and a trash segment map (with start_byte, end_byte,
   start_timestamp) and returns a list of TrashPull structs.
   """
-  def segment_pulls(file_path, %{start_byte: start_byte, end_byte: end_byte, start_timestamp: start_ts}) do
+  def segment_pulls(file_path, %{
+        start_byte: start_byte,
+        end_byte: end_byte,
+        start_timestamp: start_ts
+      }) do
     case CombatLogParser.parse_events(file_path, start_byte, end_byte, start_ts) do
       {:ok, events} ->
         events
@@ -123,8 +127,13 @@ defmodule WeGoNext.TrashPull do
         target_name = Map.get(event, :target_name, "")
 
         names = []
-        names = if MythicPlusRun.extract_npc_id(source_guid), do: [source_name | names], else: names
-        names = if MythicPlusRun.extract_npc_id(target_guid), do: [target_name | names], else: names
+
+        names =
+          if MythicPlusRun.extract_npc_id(source_guid), do: [source_name | names], else: names
+
+        names =
+          if MythicPlusRun.extract_npc_id(target_guid), do: [target_name | names], else: names
+
         names
       end)
       |> Enum.uniq()
@@ -163,7 +172,8 @@ defmodule WeGoNext.TrashPull do
     %__MODULE__{
       start_time: first && first.time_into_fight,
       end_time: last && last.time_into_fight,
-      duration_seconds: if(first && last, do: last.time_into_fight - first.time_into_fight, else: 0),
+      duration_seconds:
+        if(first && last, do: last.time_into_fight - first.time_into_fight, else: 0),
       events: events,
       npc_ids: npc_ids,
       npc_names: npc_names,

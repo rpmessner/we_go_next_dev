@@ -25,9 +25,9 @@ defmodule WeGoNextWeb.EncounterComponents do
       <.wowhead_link spell_id={12345} name="Fireball" />
       <.wowhead_link spell_id={12345} name="Fireball" class="text-red-400" />
   """
-  attr :spell_id, :integer, required: true
-  attr :name, :string, required: true
-  attr :class, :string, default: nil
+  attr(:spell_id, :integer, required: true)
+  attr(:name, :string, required: true)
+  attr(:class, :string, default: nil)
 
   def wowhead_link(assigns) do
     ~H"""
@@ -59,9 +59,9 @@ defmodule WeGoNextWeb.EncounterComponents do
 
       <.player_name name="Mittwoch-WyrmrestAccord" player_classes={%{"Mittwoch" => 9}} />
   """
-  attr :name, :string, required: true
-  attr :player_classes, :map, required: true
-  attr :class, :string, default: nil
+  attr(:name, :string, required: true)
+  attr(:player_classes, :map, required: true)
+  attr(:class, :string, default: nil)
 
   def player_name(assigns) do
     # Strip realm suffix for lookup (player_classes uses short names like "Zeddigos",
@@ -96,11 +96,11 @@ defmodule WeGoNextWeb.EncounterComponents do
         Failures
       </.tab_button>
   """
-  attr :tab, :atom, required: true
-  attr :active, :atom, required: true
-  attr :count, :any, default: nil
-  attr :highlight, :boolean, default: false
-  slot :inner_block, required: true
+  attr(:tab, :atom, required: true)
+  attr(:active, :atom, required: true)
+  attr(:count, :any, default: nil)
+  attr(:highlight, :boolean, default: false)
+  slot(:inner_block, required: true)
 
   def tab_button(assigns) do
     ~H"""

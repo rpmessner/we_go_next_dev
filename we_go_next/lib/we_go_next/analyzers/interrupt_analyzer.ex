@@ -18,9 +18,11 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
       :interrupter_guid,
       :target_name,
       :target_guid,
-      :interrupt_spell_name,    # The interrupt ability used (Kick, Pummel, etc.)
+      # The interrupt ability used (Kick, Pummel, etc.)
+      :interrupt_spell_name,
       :interrupt_spell_id,
-      :interrupted_spell_name,  # The enemy ability that was interrupted
+      # The enemy ability that was interrupted
+      :interrupted_spell_name,
       :interrupted_spell_id
     ]
   end
@@ -34,7 +36,8 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
       :caster_guid,
       :spell_name,
       :spell_id,
-      :was_interrupted       # true if this cast was later interrupted
+      # true if this cast was later interrupted
+      :was_interrupted
     ]
   end
 
@@ -44,7 +47,8 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
       :player_name,
       :player_guid,
       total_interrupts: 0,
-      by_spell: %{}           # %{spell_name => count}
+      # %{spell_name => count}
+      by_spell: %{}
     ]
   end
 
@@ -55,7 +59,8 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
       :spell_id,
       total_casts: 0,
       interrupted_count: 0,
-      completed_count: 0      # Casts that went off (missed interrupts)
+      # Casts that went off (missed interrupts)
+      completed_count: 0
     ]
   end
 
@@ -94,7 +99,10 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
   end
 
   # Process SPELL_INTERRUPT events - now using normalized event fields
-  defp process_event(%{type: "SPELL_INTERRUPT"} = event, {interrupts, cast_starts, cast_successes}) do
+  defp process_event(
+         %{type: "SPELL_INTERRUPT"} = event,
+         {interrupts, cast_starts, cast_successes}
+       ) do
     interrupter_guid = event.source_guid
     interrupter_name = event.source_name
     target_guid = event.target_guid
@@ -118,6 +126,7 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
         interrupted_spell_name: interrupted_spell_name,
         interrupted_spell_id: interrupted_spell_id
       }
+
       {[interrupt | interrupts], cast_starts, cast_successes}
     else
       {interrupts, cast_starts, cast_successes}
@@ -125,7 +134,10 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
   end
 
   # Process SPELL_CAST_START - enemy begins casting (interruptible)
-  defp process_event(%{type: "SPELL_CAST_START"} = event, {interrupts, cast_starts, cast_successes}) do
+  defp process_event(
+         %{type: "SPELL_CAST_START"} = event,
+         {interrupts, cast_starts, cast_successes}
+       ) do
     caster_guid = event.source_guid
     caster_name = event.source_name
     spell_id = event.spell_id
@@ -141,6 +153,7 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
         spell_name: spell_name,
         spell_id: spell_id
       }
+
       key = {caster_guid, spell_id}
       updated_starts = Map.put(cast_starts, key, cast_info)
       {interrupts, updated_starts, cast_successes}
@@ -150,7 +163,10 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
   end
 
   # Process SPELL_CAST_SUCCESS - cast completed (missed interrupt if was interruptible)
-  defp process_event(%{type: "SPELL_CAST_SUCCESS"} = event, {interrupts, cast_starts, cast_successes}) do
+  defp process_event(
+         %{type: "SPELL_CAST_SUCCESS"} = event,
+         {interrupts, cast_starts, cast_successes}
+       ) do
     caster_guid = event.source_guid
     caster_name = event.source_name
     spell_id = event.spell_id
@@ -165,6 +181,7 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
         spell_name: spell_name,
         spell_id: spell_id
       }
+
       {interrupts, cast_starts, [cast_info | cast_successes]}
     else
       {interrupts, cast_starts, cast_successes}
@@ -194,13 +211,14 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
           interrupts
           |> Enum.count(&(&1.interrupted_spell_id == spell_id))
 
-        {spell_name, %SpellStats{
-          spell_name: spell_name,
-          spell_id: spell_id,
-          total_casts: length(casts) + interrupt_count,
-          interrupted_count: interrupt_count,
-          completed_count: length(casts)
-        }}
+        {spell_name,
+         %SpellStats{
+           spell_name: spell_name,
+           spell_id: spell_id,
+           total_casts: length(casts) + interrupt_count,
+           interrupted_count: interrupt_count,
+           completed_count: length(casts)
+         }}
       end)
       |> Enum.into(%{})
 
@@ -213,6 +231,7 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
           acc
         else
           spell_id = List.first(spell_interrupts).interrupted_spell_id
+
           Map.put(acc, spell_name, %SpellStats{
             spell_name: spell_name,
             spell_id: spell_id,
@@ -252,9 +271,10 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
       guid = interrupt.interrupter_guid
 
       Map.update(acc, guid, new_player_stats(interrupt), fn stats ->
-        %{stats |
-          total_interrupts: stats.total_interrupts + 1,
-          by_spell: Map.update(stats.by_spell, interrupt.interrupted_spell_name, 1, &(&1 + 1))
+        %{
+          stats
+          | total_interrupts: stats.total_interrupts + 1,
+            by_spell: Map.update(stats.by_spell, interrupt.interrupted_spell_name, 1, &(&1 + 1))
         }
       end)
     end)
@@ -279,7 +299,11 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
   @doc """
   Formats interrupt summary for display.
   """
-  def format_interrupt_summary(%{by_player: by_player, by_spell: by_spell, missed_casts: missed_casts}) do
+  def format_interrupt_summary(%{
+        by_player: by_player,
+        by_spell: by_spell,
+        missed_casts: missed_casts
+      }) do
     player_section = format_player_interrupts(by_player)
     spell_section = format_spell_stats(by_spell)
     missed_section = format_missed_casts(missed_casts)
@@ -323,7 +347,7 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
       by_spell
       |> Map.values()
       |> Enum.filter(&(&1.interrupted_count > 0 or &1.completed_count > 0))
-      |> Enum.sort_by(&(&1.completed_count), :desc)
+      |> Enum.sort_by(& &1.completed_count, :desc)
 
     if Enum.empty?(interruptible) do
       ""
@@ -333,17 +357,19 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
       spell_lines =
         interruptible
         |> Enum.map(fn stats ->
-          rate = if stats.total_casts > 0 do
-            Float.round(stats.interrupted_count / stats.total_casts * 100, 0) |> trunc()
-          else
-            0
-          end
+          rate =
+            if stats.total_casts > 0 do
+              Float.round(stats.interrupted_count / stats.total_casts * 100, 0) |> trunc()
+            else
+              0
+            end
 
-          status = cond do
-            stats.completed_count == 0 -> "[ALL KICKED]"
-            stats.interrupted_count == 0 -> "[NONE KICKED]"
-            true -> "[#{stats.completed_count} MISSED]"
-          end
+          status =
+            cond do
+              stats.completed_count == 0 -> "[ALL KICKED]"
+              stats.interrupted_count == 0 -> "[NONE KICKED]"
+              true -> "[#{stats.completed_count} MISSED]"
+            end
 
           "      #{stats.spell_name}: #{stats.interrupted_count}/#{stats.total_casts} interrupted (#{rate}%) #{status}"
         end)

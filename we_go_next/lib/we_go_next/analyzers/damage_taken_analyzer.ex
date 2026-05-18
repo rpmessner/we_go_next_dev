@@ -16,11 +16,15 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
     defstruct [
       :player_name,
       :player_guid,
-      :role,              # :tank or :dps_healer
+      # :tank or :dps_healer
+      :role,
       total: 0,
-      melee_from_npcs: 0, # Used for tank detection
-      by_ability: %{},    # %{ability_name => %{total: N, hits: N, ability_id: id}}
-      by_source: %{}      # %{source_name => total_damage}
+      # Used for tank detection
+      melee_from_npcs: 0,
+      # %{ability_name => %{total: N, hits: N, ability_id: id}}
+      by_ability: %{},
+      # %{source_name => total_damage}
+      by_source: %{}
     ]
   end
 
@@ -82,7 +86,13 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
 
   # Process damage events - now using normalized event fields
   defp process_event(%{type: type} = event, players)
-       when type in ["SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE", "SWING_DAMAGE", "RANGE_DAMAGE", "ENVIRONMENTAL_DAMAGE"] do
+       when type in [
+              "SPELL_DAMAGE",
+              "SPELL_PERIODIC_DAMAGE",
+              "SWING_DAMAGE",
+              "RANGE_DAMAGE",
+              "ENVIRONMENTAL_DAMAGE"
+            ] do
     target_guid = event.target_guid
     target_name = event.target_name
     source_guid = event.source_guid
@@ -93,7 +103,17 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
 
     if player_guid?(target_guid) do
       is_npc_melee = type == "SWING_DAMAGE" and npc_guid?(source_guid)
-      update_player_damage(players, target_guid, target_name, source_name, ability_name, ability_id, amount, is_npc_melee)
+
+      update_player_damage(
+        players,
+        target_guid,
+        target_name,
+        source_name,
+        ability_name,
+        ability_id,
+        amount,
+        is_npc_melee
+      )
     else
       players
     end
@@ -101,22 +121,38 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
 
   defp process_event(_event, players), do: players
 
-  defp update_player_damage(players, guid, name, source, ability, ability_id, amount, is_npc_melee) do
-    Map.update(players, guid, new_player_damage(guid, name, source, ability, ability_id, amount, is_npc_melee), fn player ->
-      %{player |
-        total: player.total + amount,
-        melee_from_npcs: player.melee_from_npcs + if(is_npc_melee, do: amount, else: 0),
-        by_ability: update_ability_damage(player.by_ability, ability, ability_id, amount),
-        by_source: Map.update(player.by_source, source, amount, &(&1 + amount))
-      }
-    end)
+  defp update_player_damage(
+         players,
+         guid,
+         name,
+         source,
+         ability,
+         ability_id,
+         amount,
+         is_npc_melee
+       ) do
+    Map.update(
+      players,
+      guid,
+      new_player_damage(guid, name, source, ability, ability_id, amount, is_npc_melee),
+      fn player ->
+        %{
+          player
+          | total: player.total + amount,
+            melee_from_npcs: player.melee_from_npcs + if(is_npc_melee, do: amount, else: 0),
+            by_ability: update_ability_damage(player.by_ability, ability, ability_id, amount),
+            by_source: Map.update(player.by_source, source, amount, &(&1 + amount))
+        }
+      end
+    )
   end
 
   defp new_player_damage(guid, name, source, ability, ability_id, amount, is_npc_melee) do
     %PlayerDamage{
       player_guid: guid,
       player_name: name,
-      role: nil,  # Set later after tank detection
+      # Set later after tank detection
+      role: nil,
       total: amount,
       melee_from_npcs: if(is_npc_melee, do: amount, else: 0),
       by_ability: %{ability => %{total: amount, hits: 1, ability_id: ability_id}},
@@ -125,9 +161,14 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
   end
 
   defp update_ability_damage(by_ability, ability, ability_id, amount) do
-    Map.update(by_ability, ability, %{total: amount, hits: 1, ability_id: ability_id}, fn existing ->
-      %{existing | total: existing.total + amount, hits: existing.hits + 1}
-    end)
+    Map.update(
+      by_ability,
+      ability,
+      %{total: amount, hits: 1, ability_id: ability_id},
+      fn existing ->
+        %{existing | total: existing.total + amount, hits: existing.hits + 1}
+      end
+    )
   end
 
   defp player_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Player-")
@@ -145,24 +186,30 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
     top_n = Keyword.get(opts, :top, 10)
     show_abilities = Keyword.get(opts, :show_abilities, 5)
 
-    tank_section = if Enum.empty?(tanks) do
-      ""
-    else
-      tank_str = tanks
-        |> Enum.map(&format_player(&1, show_abilities))
-        |> Enum.join("\n")
-      "   TANKS (expected damage):\n#{tank_str}\n"
-    end
+    tank_section =
+      if Enum.empty?(tanks) do
+        ""
+      else
+        tank_str =
+          tanks
+          |> Enum.map(&format_player(&1, show_abilities))
+          |> Enum.join("\n")
 
-    dps_section = if Enum.empty?(dps_healers) do
-      ""
-    else
-      dps_str = dps_healers
-        |> Enum.take(top_n)
-        |> Enum.map(&format_player(&1, show_abilities))
-        |> Enum.join("\n")
-      "   DPS/HEALERS (avoidable?):\n#{dps_str}"
-    end
+        "   TANKS (expected damage):\n#{tank_str}\n"
+      end
+
+    dps_section =
+      if Enum.empty?(dps_healers) do
+        ""
+      else
+        dps_str =
+          dps_healers
+          |> Enum.take(top_n)
+          |> Enum.map(&format_player(&1, show_abilities))
+          |> Enum.join("\n")
+
+        "   DPS/HEALERS (avoidable?):\n#{dps_str}"
+      end
 
     tank_section <> dps_section
   end
@@ -203,9 +250,11 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
   defp format_number(num) when is_integer(num) and num >= 1_000_000 do
     "#{Float.round(num / 1_000_000, 1)}M"
   end
+
   defp format_number(num) when is_integer(num) and num >= 1000 do
     "#{Float.round(num / 1000, 0) |> trunc()}k"
   end
+
   defp format_number(num), do: to_string(num)
 
   @doc """
@@ -227,13 +276,19 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
       hits = Map.get(stats, :hits, 0)
       id = Map.get(stats, :ability_id)
 
-      Map.update(acc, name, %{total: total, hits: hits, ability_id: id, players: MapSet.new([player_name])}, fn existing ->
-        %{existing |
-          total: existing.total + total,
-          hits: existing.hits + hits,
-          players: MapSet.put(existing.players, player_name)
-        }
-      end)
+      Map.update(
+        acc,
+        name,
+        %{total: total, hits: hits, ability_id: id, players: MapSet.new([player_name])},
+        fn existing ->
+          %{
+            existing
+            | total: existing.total + total,
+              hits: existing.hits + hits,
+              players: MapSet.put(existing.players, player_name)
+          }
+        end
+      )
     end)
     |> Enum.map(fn {name, stats} -> {name, %{stats | players: MapSet.size(stats.players)}} end)
     |> Enum.sort_by(fn {_name, %{total: total}} -> total end, :desc)
@@ -246,14 +301,21 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
     |> Enum.flat_map(fn %PlayerDamage{player_name: player_name, by_ability: by_ability} ->
       Enum.map(by_ability, fn {name, stats} -> {name, stats, player_name} end)
     end)
-    |> Enum.reduce(%{}, fn {name, %{total: total, hits: hits, ability_id: id}, player_name}, acc ->
-      Map.update(acc, name, %{total: total, hits: hits, ability_id: id, players: MapSet.new([player_name])}, fn existing ->
-        %{existing |
-          total: existing.total + total,
-          hits: existing.hits + hits,
-          players: MapSet.put(existing.players, player_name)
-        }
-      end)
+    |> Enum.reduce(%{}, fn {name, %{total: total, hits: hits, ability_id: id}, player_name},
+                           acc ->
+      Map.update(
+        acc,
+        name,
+        %{total: total, hits: hits, ability_id: id, players: MapSet.new([player_name])},
+        fn existing ->
+          %{
+            existing
+            | total: existing.total + total,
+              hits: existing.hits + hits,
+              players: MapSet.put(existing.players, player_name)
+          }
+        end
+      )
     end)
     |> Enum.map(fn {name, stats} -> {name, %{stats | players: MapSet.size(stats.players)}} end)
     |> Enum.sort_by(fn {_name, %{total: total}} -> total end, :desc)

@@ -17,10 +17,12 @@ defmodule WeGoNext.Analyzers.DamageDoneAnalyzer do
     defstruct [
       :player_name,
       :player_guid,
-      :role,           # :tank or :dps_healer
+      # :tank or :dps_healer
+      :role,
       total: 0,
       dps: 0.0,
-      active_time: 0.0 # seconds (full fight or time until death)
+      # seconds (full fight or time until death)
+      active_time: 0.0
     ]
   end
 
@@ -74,7 +76,8 @@ defmodule WeGoNext.Analyzers.DamageDoneAnalyzer do
   Returns list of %{player_name, dps, median_dps, percent_of_median, reason}
   """
   def identify_underperformers(damage_done, deaths, opts \\ []) do
-    threshold = Keyword.get(opts, :threshold, 0.7)  # 70% of median
+    # 70% of median
+    threshold = Keyword.get(opts, :threshold, 0.7)
 
     # Get set of players who died
     dead_guids = deaths |> Enum.map(& &1.player_guid) |> MapSet.new()
@@ -83,9 +86,10 @@ defmodule WeGoNext.Analyzers.DamageDoneAnalyzer do
     dps_healers = damage_done.dps_healers
 
     # Split into survivors and dead
-    {survivors, _dead} = Enum.split_with(dps_healers, fn p ->
-      not MapSet.member?(dead_guids, p.player_guid)
-    end)
+    {survivors, _dead} =
+      Enum.split_with(dps_healers, fn p ->
+        not MapSet.member?(dead_guids, p.player_guid)
+      end)
 
     # Need at least 3 survivors to calculate meaningful median
     if length(survivors) < 3 do
@@ -131,10 +135,11 @@ defmodule WeGoNext.Analyzers.DamageDoneAnalyzer do
       end)
     end
 
-    %{damage_done |
-      tanks: annotate_list.(damage_done.tanks),
-      dps_healers: annotate_list.(damage_done.dps_healers),
-      all: annotate_list.(damage_done.all)
+    %{
+      damage_done
+      | tanks: annotate_list.(damage_done.tanks),
+        dps_healers: annotate_list.(damage_done.dps_healers),
+        all: annotate_list.(damage_done.all)
     }
   end
 
@@ -177,6 +182,7 @@ defmodule WeGoNext.Analyzers.DamageDoneAnalyzer do
   defp npc_guid?(_), do: false
 
   defp median([]), do: 0
+
   defp median(list) do
     sorted = Enum.sort(list)
     len = length(sorted)
@@ -208,8 +214,10 @@ defmodule WeGoNext.Analyzers.DamageDoneAnalyzer do
   def format_damage(num) when is_integer(num) and num >= 1_000_000 do
     "#{Float.round(num / 1_000_000, 1)}M"
   end
+
   def format_damage(num) when is_integer(num) and num >= 1000 do
     "#{Float.round(num / 1000, 0) |> trunc()}k"
   end
+
   def format_damage(num), do: to_string(num)
 end

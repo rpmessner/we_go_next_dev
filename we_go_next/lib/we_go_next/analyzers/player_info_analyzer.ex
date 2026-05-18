@@ -37,6 +37,7 @@ defmodule WeGoNext.Analyzers.PlayerInfoAnalyzer do
       case process_event(event) do
         {:ok, player_guid, class_id} when not is_nil(class_id) ->
           Map.put(acc, player_guid, class_id)
+
         _ ->
           acc
       end

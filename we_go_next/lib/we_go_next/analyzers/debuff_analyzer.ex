@@ -20,8 +20,10 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
       :spell_id,
       :source_name,
       :source_guid,
-      :duration,           # nil until removed, then seconds
-      :removed_at          # timestamp when removed, nil if still active
+      # nil until removed, then seconds
+      :duration,
+      # timestamp when removed, nil if still active
+      :removed_at
     ]
   end
 
@@ -31,7 +33,8 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
       :player_name,
       :player_guid,
       total_debuffs: 0,
-      by_spell: %{}        # %{spell_name => %{count: N, total_duration: N, applications: []}}
+      # %{spell_name => %{count: N, total_duration: N, applications: []}}
+      by_spell: %{}
     ]
   end
 
@@ -44,7 +47,8 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
       :source_name,
       total_applications: 0,
       players_affected: 0,
-      by_player: %{}       # %{player_guid => count}
+      # %{player_guid => count}
+      by_player: %{}
     ]
   end
 
@@ -106,6 +110,7 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
         duration: nil,
         removed_at: nil
       }
+
       key = {dest_guid, event.spell_id}
       updated_pending = Map.update(pending, key, [app], &[app | &1])
       {applications, updated_pending}
@@ -130,11 +135,12 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
           completed_app = %{app | duration: duration, removed_at: event.timestamp}
 
           # Update pending map
-          updated_pending = if Enum.empty?(rest) do
-            Map.delete(pending, key)
-          else
-            Map.put(pending, key, rest)
-          end
+          updated_pending =
+            if Enum.empty?(rest) do
+              Map.delete(pending, key)
+            else
+              Map.put(pending, key, rest)
+            end
 
           {[completed_app | applications], updated_pending}
 
@@ -165,6 +171,7 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
         duration: nil,
         removed_at: nil
       }
+
       # Add directly to applications (stacks are instant, no duration tracking needed)
       {[app | applications], pending}
     else
@@ -200,16 +207,22 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
   end
 
   defp update_player_stats(stats, app) do
-    %{stats |
-      total_debuffs: stats.total_debuffs + 1,
-      by_spell: Map.update(stats.by_spell, app.spell_name,
-        %{count: 1, total_duration: app.duration || 0, spell_id: app.spell_id},
-        fn existing ->
-          %{existing |
-            count: existing.count + 1,
-            total_duration: existing.total_duration + (app.duration || 0)
-          }
-        end)
+    %{
+      stats
+      | total_debuffs: stats.total_debuffs + 1,
+        by_spell:
+          Map.update(
+            stats.by_spell,
+            app.spell_name,
+            %{count: 1, total_duration: app.duration || 0, spell_id: app.spell_id},
+            fn existing ->
+              %{
+                existing
+                | count: existing.count + 1,
+                  total_duration: existing.total_duration + (app.duration || 0)
+              }
+            end
+          )
     }
   end
 
@@ -237,10 +250,12 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
 
   defp update_spell_stats(stats, app) do
     updated_by_player = Map.update(stats.by_player, app.player_guid, 1, &(&1 + 1))
-    %{stats |
-      total_applications: stats.total_applications + 1,
-      players_affected: map_size(updated_by_player),
-      by_player: updated_by_player
+
+    %{
+      stats
+      | total_applications: stats.total_applications + 1,
+        players_affected: map_size(updated_by_player),
+        by_player: updated_by_player
     }
   end
 

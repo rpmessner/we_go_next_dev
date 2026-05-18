@@ -7,11 +7,11 @@ defmodule WeGoNextWeb.CoreComponents do
   @doc """
   Renders a header with title.
   """
-  attr :class, :string, default: nil
+  attr(:class, :string, default: nil)
 
-  slot :inner_block, required: true
-  slot :subtitle
-  slot :actions
+  slot(:inner_block, required: true)
+  slot(:subtitle)
+  slot(:actions)
 
   def header(assigns) do
     ~H"""
@@ -32,8 +32,8 @@ defmodule WeGoNextWeb.CoreComponents do
   @doc """
   Renders a back navigation link.
   """
-  attr :navigate, :any, required: true
-  slot :inner_block, required: true
+  attr(:navigate, :any, required: true)
+  slot(:inner_block, required: true)
 
   def back(assigns) do
     ~H"""
@@ -51,15 +51,15 @@ defmodule WeGoNextWeb.CoreComponents do
   @doc """
   Renders a simple table.
   """
-  attr :id, :string, required: true
-  attr :rows, :list, required: true
-  attr :row_id, :any, default: nil, doc: "the function for generating the row id"
-  attr :row_click, :any, default: nil, doc: "the function for handling row clicks"
-  attr :row_class, :any, default: nil, doc: "the function for generating row classes"
+  attr(:id, :string, required: true)
+  attr(:rows, :list, required: true)
+  attr(:row_id, :any, default: nil, doc: "the function for generating the row id")
+  attr(:row_click, :any, default: nil, doc: "the function for handling row clicks")
+  attr(:row_class, :any, default: nil, doc: "the function for generating row classes")
 
   slot :col, required: true do
-    attr :label, :string
-    attr :class, :string
+    attr(:label, :string)
+    attr(:class, :string)
   end
 
   def table(assigns) do
@@ -113,13 +113,13 @@ defmodule WeGoNextWeb.CoreComponents do
   @doc """
   Renders flash notices.
   """
-  attr :id, :string, doc: "the optional id of flash container"
-  attr :flash, :map, default: %{}, doc: "the map of flash messages"
-  attr :kind, :atom, values: [:info, :error], doc: "used for styling and aria attributes"
-  attr :title, :string, default: nil
-  attr :rest, :global, doc: "the arbitrary HTML attributes to add to the flash container"
+  attr(:id, :string, doc: "the optional id of flash container")
+  attr(:flash, :map, default: %{}, doc: "the map of flash messages")
+  attr(:kind, :atom, values: [:info, :error], doc: "used for styling and aria attributes")
+  attr(:title, :string, default: nil)
+  attr(:rest, :global, doc: "the arbitrary HTML attributes to add to the flash container")
 
-  slot :inner_block, doc: "the optional inner block that renders the flash message"
+  slot(:inner_block, doc: "the optional inner block that renders the flash message")
 
   def flash(assigns) do
     assigns = assign_new(assigns, :id, fn -> "flash-#{assigns.kind}" end)
@@ -150,8 +150,8 @@ defmodule WeGoNextWeb.CoreComponents do
   @doc """
   Shows the flash group with standard titles and content.
   """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
-  attr :id, :string, default: "flash-group", doc: "the optional id of flash container"
+  attr(:flash, :map, required: true, doc: "the map of flash messages")
+  attr(:id, :string, default: "flash-group", doc: "the optional id of flash container")
 
   def flash_group(assigns) do
     ~H"""
