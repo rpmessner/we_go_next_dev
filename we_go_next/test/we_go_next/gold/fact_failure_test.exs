@@ -1,24 +1,29 @@
 defmodule WeGoNext.Gold.FactFailureTest do
   use ExUnit.Case, async: false
 
+  alias WeGoNext.Criteria.MechanicCriteria
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Repo
+  alias WeGoNext.Rules
+  alias WeGoNext.Rules.Ruleset
   alias WeGoNext.Silver.{DamageTaken, InterruptOpportunity, PlayerInfo}
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
 
+    ruleset = insert_ruleset!("Active Ruleset", "active")
     encounter = insert_dim_encounter!("boss-one", 16)
     other_encounter = insert_dim_encounter!("boss-two", 16)
 
-    {:ok, encounter: encounter, other_encounter: other_encounter}
+    {:ok, ruleset: ruleset, encounter: encounter, other_encounter: other_encounter}
   end
 
   test "rebuild_for_encounter builds avoidable facts from aggregated silver damage", %{
+    ruleset: ruleset,
     encounter: encounter
   } do
     criterion =
-      insert_criteria!(%{
+      insert_criteria!(ruleset, %{
         spell_id: 101,
         spell_name: "Swirl",
         mechanic_type: "avoidable",
@@ -46,10 +51,11 @@ defmodule WeGoNext.Gold.FactFailureTest do
   end
 
   test "rebuild_for_encounter preserves criteria specificity and difficulty inheritance", %{
+    ruleset: ruleset,
     encounter: encounter
   } do
     global =
-      insert_criteria!(%{
+      insert_criteria!(ruleset, %{
         spell_id: 303,
         spell_name: "Global Swirl",
         mechanic_type: "avoidable",
@@ -57,7 +63,7 @@ defmodule WeGoNext.Gold.FactFailureTest do
       })
 
     heroic =
-      insert_criteria!(%{
+      insert_criteria!(ruleset, %{
         spell_id: 303,
         spell_name: "Heroic Swirl",
         mechanic_type: "avoidable",
@@ -67,7 +73,7 @@ defmodule WeGoNext.Gold.FactFailureTest do
       })
 
     mythic =
-      insert_criteria!(%{
+      insert_criteria!(ruleset, %{
         spell_id: 303,
         spell_name: "Mythic Swirl",
         mechanic_type: "avoidable",
@@ -87,10 +93,11 @@ defmodule WeGoNext.Gold.FactFailureTest do
   end
 
   test "rebuild_for_encounter maps missed interrupts to the raid sentinel", %{
+    ruleset: ruleset,
     encounter: encounter
   } do
     criterion =
-      insert_criteria!(%{
+      insert_criteria!(ruleset, %{
         spell_id: 404,
         spell_name: "Shadow Volley",
         mechanic_type: "interrupt",
@@ -115,11 +122,12 @@ defmodule WeGoNext.Gold.FactFailureTest do
   end
 
   test "rebuild_for_encounter replaces stale facts only for the requested encounter", %{
+    ruleset: ruleset,
     encounter: encounter,
     other_encounter: other_encounter
   } do
     criterion =
-      insert_criteria!(%{
+      insert_criteria!(ruleset, %{
         spell_id: 505,
         spell_name: "Bad",
         mechanic_type: "avoidable",
@@ -128,7 +136,7 @@ defmodule WeGoNext.Gold.FactFailureTest do
       })
 
     other_criterion =
-      insert_criteria!(%{
+      insert_criteria!(ruleset, %{
         spell_id: 606,
         spell_name: "Other Bad",
         mechanic_type: "avoidable",
@@ -179,6 +187,119 @@ defmodule WeGoNext.Gold.FactFailureTest do
              player_dim_id: other_player.id,
              criterion_dim_id: other_criterion.id
            )
+  end
+
+  test "rebuild_for_encounter accepts explicit active ruleset selection", %{
+    ruleset: ruleset,
+    encounter: encounter
+  } do
+    criterion =
+      insert_criteria!(ruleset, %{
+        spell_id: 707,
+        spell_name: "Active Bad",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
+      })
+
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", "Creature-A", 707, 100, 1)
+
+    assert {:ok, %{inserted: 1}} =
+             FactFailure.rebuild_for_encounter(encounter.id, ruleset: :active)
+
+    assert Repo.get_by(FactFailure,
+             encounter_dim_id: encounter.id,
+             criterion_dim_id: criterion.id
+           )
+  end
+
+  test "rebuild_for_encounter accepts explicit ruleset id and keeps other rulesets intact", %{
+    ruleset: active_ruleset,
+    encounter: encounter
+  } do
+    explicit_ruleset = insert_ruleset!("Explicit Ruleset", "draft")
+
+    active_criterion =
+      insert_criteria!(active_ruleset, %{
+        spell_id: 808,
+        spell_name: "Active Rule",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
+      })
+
+    explicit_criterion =
+      insert_criteria!(explicit_ruleset, %{
+        spell_id: 808,
+        spell_name: "Explicit Rule",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
+      })
+
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", "Creature-A", 808, 100, 1)
+
+    assert {:ok, %{inserted: 1}} =
+             FactFailure.rebuild_for_encounter(encounter.id, ruleset_id: explicit_ruleset.id)
+
+    assert Repo.get_by(FactFailure,
+             encounter_dim_id: encounter.id,
+             criterion_dim_id: explicit_criterion.id
+           )
+
+    refute Repo.get_by(FactFailure,
+             encounter_dim_id: encounter.id,
+             criterion_dim_id: active_criterion.id
+           )
+
+    assert {:ok, %{inserted: 1}} = FactFailure.rebuild_for_encounter(encounter.id)
+
+    assert Repo.get_by(FactFailure,
+             encounter_dim_id: encounter.id,
+             criterion_dim_id: explicit_criterion.id
+           )
+
+    assert Repo.get_by(FactFailure,
+             encounter_dim_id: encounter.id,
+             criterion_dim_id: active_criterion.id
+           )
+  end
+
+  test "rebuild_for_encounter uses promoted seeded local rules", %{encounter: encounter} do
+    {:ok, %{ruleset: seeded_ruleset}} = Rules.seed_initial_rules()
+    {:ok, active_ruleset} = Rules.activate_ruleset(seeded_ruleset)
+    {:ok, %{criteria: promoted_criteria}} = Rules.promote_ruleset_to_gold(active_ruleset)
+
+    criterion = Enum.find(promoted_criteria, &(&1.spell_id == 1_214_081))
+
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", "Creature-A", 1_214_081, 100, 1)
+
+    assert {:ok, %{inserted: 1}} = FactFailure.rebuild_for_encounter(encounter.id)
+
+    assert Repo.get_by(FactFailure,
+             encounter_dim_id: encounter.id,
+             criterion_dim_id: criterion.id
+           )
+  end
+
+  test "rebuild_for_encounter ignores legacy public mechanic criteria", %{
+    encounter: encounter
+  } do
+    {:ok, _legacy_criterion} =
+      %MechanicCriteria{}
+      |> MechanicCriteria.changeset(%{
+        spell_id: 909,
+        spell_name: "Legacy Bad",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
+      })
+      |> Repo.insert()
+
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", "Creature-A", 909, 100, 1)
+
+    assert {:ok, %{inserted: 0}} = FactFailure.rebuild_for_encounter(encounter.id)
+    refute Repo.get_by(FactFailure, encounter_dim_id: encounter.id)
   end
 
   defp insert_dim_encounter!(wow_encounter_id, difficulty_id) do
@@ -250,13 +371,19 @@ defmodule WeGoNext.Gold.FactFailureTest do
     |> Repo.insert!()
   end
 
-  defp insert_criteria!(attrs) do
+  defp insert_ruleset!(name, status) do
+    %Ruleset{}
+    |> Ruleset.changeset(%{name: name, status: status})
+    |> Repo.insert!()
+  end
+
+  defp insert_criteria!(%Ruleset{} = ruleset, attrs) do
     attrs =
       Map.merge(
         %{
           source_rule_id: System.unique_integer([:positive]),
-          ruleset_id: 1,
-          ruleset_version: 1
+          ruleset_id: ruleset.id,
+          ruleset_version: ruleset.version
         },
         attrs
       )

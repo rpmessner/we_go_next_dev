@@ -9,6 +9,7 @@ defmodule WeGoNext.Gold.FactFailure do
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer}
   alias WeGoNext.Repo
+  alias WeGoNext.Rules.Ruleset
 
   @primary_key false
   @schema_prefix "gold"
@@ -49,11 +50,18 @@ defmodule WeGoNext.Gold.FactFailure do
   @doc """
   Rebuilds mechanic failure facts for one gold encounter dimension.
   """
-  @spec rebuild_for_encounter(pos_integer()) ::
+  @spec rebuild_for_encounter(pos_integer(), keyword()) ::
           {:ok, %{deleted: non_neg_integer(), inserted: non_neg_integer()}} | {:error, term()}
-  def rebuild_for_encounter(encounter_dim_id) when is_integer(encounter_dim_id) do
+  def rebuild_for_encounter(encounter_dim_id, opts \\ [ruleset: :active])
+      when is_integer(encounter_dim_id) and is_list(opts) do
     Repo.transaction(fn ->
       ensure_raid_sentinel!()
+
+      ruleset_id =
+        case resolve_ruleset_id(opts) do
+          {:ok, ruleset_id} -> ruleset_id
+          {:error, reason} -> Repo.rollback(reason)
+        end
 
       dim_encounter =
         case Repo.get(DimEncounter, encounter_dim_id) do
@@ -64,10 +72,15 @@ defmodule WeGoNext.Gold.FactFailure do
       DimPlayer.upsert_from_silver(dim_encounter.id)
 
       {deleted, _} =
-        from(failure in __MODULE__, where: failure.encounter_dim_id == ^dim_encounter.id)
+        from(failure in __MODULE__,
+          join: criterion in assoc(failure, :criterion),
+          where:
+            failure.encounter_dim_id == ^dim_encounter.id and
+              criterion.ruleset_id == ^ruleset_id
+        )
         |> Repo.delete_all()
 
-      case Repo.query(rebuild_sql(), [dim_encounter.id]) do
+      case Repo.query(rebuild_sql(), [dim_encounter.id, ruleset_id]) do
         {:ok, %{num_rows: inserted}} -> %{deleted: deleted, inserted: inserted}
         {:error, reason} -> Repo.rollback(reason)
       end
@@ -86,6 +99,35 @@ defmodule WeGoNext.Gold.FactFailure do
       on_conflict: :nothing,
       conflict_target: [:player_guid]
     )
+  end
+
+  defp resolve_ruleset_id(opts) do
+    cond do
+      Keyword.has_key?(opts, :ruleset_id) ->
+        opts
+        |> Keyword.fetch!(:ruleset_id)
+        |> get_ruleset_id()
+
+      Keyword.get(opts, :ruleset, :active) == :active ->
+        get_active_ruleset_id()
+
+      true ->
+        {:error, :unsupported_ruleset_option}
+    end
+  end
+
+  defp get_ruleset_id(ruleset_id) do
+    case Repo.get(Ruleset, ruleset_id) do
+      %Ruleset{id: id} -> {:ok, id}
+      nil -> {:error, :ruleset_not_found}
+    end
+  end
+
+  defp get_active_ruleset_id do
+    case Repo.get_by(Ruleset, status: "active") do
+      %Ruleset{id: id} -> {:ok, id}
+      nil -> {:error, :active_ruleset_not_found}
+    end
   end
 
   defp rebuild_sql do
@@ -116,6 +158,7 @@ defmodule WeGoNext.Gold.FactFailure do
         FROM gold.dim_mechanic_criterion c
         JOIN encounter_scope e ON TRUE
         WHERE c.active = TRUE
+          AND c.ruleset_id = $2
           AND (
             c.boss_encounter_id IS NULL
             OR (
