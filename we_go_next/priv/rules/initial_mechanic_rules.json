@@ -12,7 +12,7 @@
       "threshold": {
         "max_hits": 0
       },
-      "notes": "Seeded from local Warcraft Logs exports: data/naazindhri_mythic/mittwoch_damage_taken.csv and docs/sessions/2025-11-28_pull_summary_and_integration_planning.md identify Arcane Expulsion as a major damage/death cause. Spell id resolved from tools/spell_names.json current-season entry."
+      "notes": "Seeded from historical Warcraft Logs export evidence and docs/sessions/2025-11-28_pull_summary_and_integration_planning.md, which identify Arcane Expulsion as a major damage/death cause. Spell id resolved from tools/spell_names.json current-season entry. The old ad hoc data/ CSV folder has been removed; new external evidence should enter through source-data ingestion."
     },
     {
       "spell_id": 1269183,
@@ -21,7 +21,7 @@
       "threshold": {
         "max_hits": 0
       },
-      "notes": "Seeded from local Warcraft Logs exports: data/naazindhri_mythic/mittwoch_damage_taken.csv lists Void Burst as high damage taken. Spell id resolved from tools/spell_names.json."
+      "notes": "Seeded from historical Warcraft Logs export evidence identifying Void Burst as high damage taken. Spell id resolved from tools/spell_names.json. The old ad hoc data/ CSV folder has been removed; new external evidence should enter through source-data ingestion."
     }
   ]
 }

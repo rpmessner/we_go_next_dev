@@ -120,25 +120,18 @@ This is the **only** data source the parser uses. These are raw combat log files
 11/22/2025 11:40:38.319-5  UNIT_DIED,0000000000000000,nil,...,Player-3676-0E1BB922,"Favikul-Area52-US",...
 ```
 
-### Warcraft Logs CSV Exports
+### Removed: Warcraft Logs CSV Exports
 
-**Location:** `./data/` directory
+The historical `./data/` directory of manually downloaded Warcraft Logs CSV exports has been removed from the active repository.
 
-The `data/` folder contains processed CSV exports from warcraftlogs.com. They are **not** bronze parser input and must not be treated like raw combat logs. They are currently acceptable as curated evidence for initial mechanic rule seeds when the spell ID can be resolved from local reference data.
-
-Example content:
-
-```csv
-"Name","Amount","Casts","Avg Cast",...
-"Diabolic Ritual","694526998$26.47%694.53m","-","-",...
-```
+Those exports were never bronze parser input and should not be reintroduced as an active data dependency. Historical session logs still mention them because they were used during early research and initial rule-seed curation.
 
 Current bundled rules seed uses only local evidence that can be resolved confidently:
 
-- `Arcane Expulsion` spell `1214081`, avoidable, from `data/naazindhri_mythic/mittwoch_damage_taken.csv` and pull-summary docs
-- `Void Burst` spell `1269183`, avoidable, from `data/naazindhri_mythic/mittwoch_damage_taken.csv`
+- `Arcane Expulsion` spell `1214081`, avoidable, from historical Warcraft Logs export evidence and pull-summary docs
+- `Void Burst` spell `1269183`, avoidable, from historical Warcraft Logs export evidence
 
-Do not invent rule rows for CSV spell names that do not have a reliable local spell ID mapping.
+Do not invent rule rows for old CSV spell names that do not have a reliable local spell ID mapping. New external evidence should enter through explicit source-data ingestion, not a checked-in ad hoc `data/` folder.
 
 ### Future: Strategy Diagrams
 
@@ -251,7 +244,6 @@ we_go_next_dev/
 │   ├── priv/rules/                        # Static curated rules seed JSON
 │   ├── mix.exs                            # Project config
 │   └── priv/repo/migrations/              # Database migrations
-├── data/                           # Warcraft Logs CSV exports used only as curated seed evidence
 ├── tools/                          # Local spell/dungeon reference JSON
 ├── docs/
 │   ├── sessions/                   # Immutable session logs

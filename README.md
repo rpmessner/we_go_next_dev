@@ -81,7 +81,6 @@ we_go_next_dev/
 ├── docs/                        # active durable documentation
 │   ├── sessions/                # immutable session logs
 │   └── historical/              # archived plans and research
-├── data/                        # local Warcraft Logs CSV evidence
 ├── tools/                       # local extraction/reference tools
 ├── CLAUDE.md                    # durable AI-agent project context
 └── AGENTS.md                    # agent instructions
