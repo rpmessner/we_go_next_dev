@@ -1051,6 +1051,10 @@ select {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.flex-col {
+  flex-direction: column;
+}
+
 .flex-wrap {
   flex-wrap: wrap;
 }
@@ -1159,6 +1163,10 @@ select {
 
 .overflow-hidden {
   overflow: hidden;
+}
+
+.overflow-x-auto {
+  overflow-x: auto;
 }
 
 .overflow-y-auto {
@@ -1281,6 +1289,10 @@ select {
 
 .border-zinc-700\/50 {
   border-color: rgb(63 63 70 / 0.5);
+}
+
+.border-zinc-700\/60 {
+  border-color: rgb(63 63 70 / 0.6);
 }
 
 .bg-black\/50 {
@@ -1464,6 +1476,10 @@ select {
   padding: 1.5rem;
 }
 
+.p-8 {
+  padding: 2rem;
+}
+
 .px-1 {
   padding-left: 0.25rem;
   padding-right: 0.25rem;
@@ -1619,6 +1635,10 @@ select {
 
 .uppercase {
   text-transform: uppercase;
+}
+
+.capitalize {
+  text-transform: capitalize;
 }
 
 .leading-5 {
@@ -1787,6 +1807,11 @@ select {
 .text-zinc-900 {
   --tw-text-opacity: 1;
   color: rgb(24 24 27 / var(--tw-text-opacity));
+}
+
+.text-zinc-950 {
+  --tw-text-opacity: 1;
+  color: rgb(9 9 11 / var(--tw-text-opacity));
 }
 
 .antialiased {
@@ -2032,6 +2057,10 @@ select {
   color: rgb(161 161 170 / var(--tw-text-opacity));
 }
 
+.last\:border-0:last-child {
+  border-width: 0px;
+}
+
 .hover\:cursor-pointer:hover {
   cursor: pointer;
 }
@@ -2097,6 +2126,11 @@ select {
 .hover\:bg-zinc-750:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(50 50 56 / var(--tw-bg-opacity));
+}
+
+.hover\:bg-yellow-300:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(253 224 71 / var(--tw-bg-opacity));
 }
 
 .hover\:text-blue-300:hover {
@@ -2189,6 +2223,34 @@ select {
 @media (min-width: 640px) {
   .sm\:w-96 {
     width: 24rem;
+  }
+
+  .sm\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sm\:grid-cols-\[1fr_1fr_auto_auto\] {
+    grid-template-columns: 1fr 1fr auto auto;
+  }
+
+  .sm\:flex-row {
+    flex-direction: row;
+  }
+
+  .sm\:items-start {
+    align-items: flex-start;
+  }
+
+  .sm\:items-end {
+    align-items: flex-end;
+  }
+
+  .sm\:items-center {
+    align-items: center;
+  }
+
+  .sm\:justify-between {
+    justify-content: space-between;
   }
 
   .sm\:overflow-visible {

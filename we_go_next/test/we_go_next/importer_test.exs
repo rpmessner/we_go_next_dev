@@ -127,6 +127,85 @@ defmodule WeGoNext.ImporterTest do
     assert Repo.aggregate(FactFailure, :count) == 1
   end
 
+  test "import_log reconciles live log moved to archive and continues from preserved byte", %{
+    dir: dir,
+    user: user
+  } do
+    live_content = File.read!(fixture_path("WoWCombatLog-112725_120000.txt"))
+    continuation_content = File.read!(fixture_path("second_encounter.txt"))
+
+    archive_dir = Path.join(dir, "warcraftlogsarchive")
+    File.mkdir_p!(archive_dir)
+
+    live_path = Path.join(dir, "WoWCombatLog-112725_120000.txt")
+    archive_path = Path.join(archive_dir, "Archive-WoWCombatLog-112725_120000.txt")
+
+    File.write!(live_path, live_content)
+
+    assert {:ok, %{file: live_file, new_encounters: 1}} =
+             Importer.import_log(live_path, user.id, compute_legacy_analysis: false)
+
+    first_encounter = Repo.get_by!(EncounterRecord, combat_log_file_id: live_file.id)
+    live_last_parsed_byte = live_file.last_parsed_byte
+
+    assert live_file.source == :live
+    assert live_file.file_path == live_path
+    assert live_last_parsed_byte == byte_size(live_content)
+    assert Repo.aggregate(CombatLogFile, :count) == 1
+    assert Repo.aggregate(EncounterRecord, :count) == 1
+
+    File.rm!(live_path)
+    File.write!(archive_path, live_content)
+
+    assert {:ok, %{file: archived_file, new_encounters: 0}} =
+             Importer.import_log(archive_path, user.id, compute_legacy_analysis: false)
+
+    assert archived_file.id == live_file.id
+    assert archived_file.source == :warcraftlogs_archive
+    assert archived_file.file_path == archive_path
+    assert archived_file.last_parsed_byte == live_last_parsed_byte
+    assert Repo.aggregate(CombatLogFile, :count) == 1
+    assert Repo.aggregate(EncounterRecord, :count) == 1
+
+    topic = "importer-move-continuation-#{System.unique_integer([:positive])}"
+    Phoenix.PubSub.subscribe(WeGoNext.PubSub, topic)
+
+    File.write!(archive_path, live_content <> "\n" <> continuation_content)
+
+    assert {:ok, %{file: continued_file, new_encounters: 1}} =
+             Importer.import_log(archive_path, user.id,
+               compute_legacy_analysis: false,
+               progress_topic: topic
+             )
+
+    assert_receive {:import_progress,
+                    %{
+                      encounters_found: 1,
+                      bytes_read: bytes_read,
+                      total_bytes: total_bytes
+                    }}
+
+    refute_receive {:import_progress, %{encounters_found: 2}}, 50
+
+    assert bytes_read == continued_file.last_parsed_byte
+    assert total_bytes == continued_file.last_parsed_byte
+    assert bytes_read > live_last_parsed_byte
+
+    assert continued_file.id == live_file.id
+    assert continued_file.file_path == archive_path
+    assert continued_file.source == :warcraftlogs_archive
+    assert Repo.aggregate(CombatLogFile, :count) == 1
+    assert Repo.aggregate(EncounterRecord, :count) == 2
+
+    assert Repo.get!(EncounterRecord, first_encounter.id).combat_log_file_id == live_file.id
+
+    assert %EncounterRecord{wow_encounter_id: "2888"} =
+             Repo.get_by!(EncounterRecord,
+               combat_log_file_id: live_file.id,
+               start_time: ~U[2025-11-27 12:05:00.000000Z]
+             )
+  end
+
   defp insert_combat_log_file!(attrs) do
     attrs =
       Map.merge(
@@ -168,5 +247,9 @@ defmodule WeGoNext.ImporterTest do
     %EncounterRecord{}
     |> EncounterRecord.changeset(attrs)
     |> Repo.insert!()
+  end
+
+  defp fixture_path(name) do
+    Path.expand("../fixtures/#{name}", __DIR__)
   end
 end

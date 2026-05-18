@@ -65,6 +65,8 @@ defmodule WeGoNext.Silver.PersistenceTest do
     events = CombatLogEventFixtures.canonical_projection_events()
 
     assert {:ok, _result} = Silver.project_and_persist(encounter, events: events)
+    before_second_projection = persisted_projection_snapshot()
+
     assert {:ok, _result} = Silver.project_and_persist(encounter, events: events)
 
     assert Repo.aggregate(DamageTaken, :count) == 2
@@ -73,6 +75,87 @@ defmodule WeGoNext.Silver.PersistenceTest do
     assert Repo.aggregate(InterruptOpportunity, :count) == 2
     assert Repo.aggregate(DebuffApplication, :count) == 2
     assert Repo.aggregate(PlayerInfo, :count) == 3
+
+    assert persisted_projection_snapshot() == before_second_projection
+  end
+
+  test "project_and_persist keeps normalized sentinel keys idempotent", %{encounter: encounter} do
+    events = [
+      CombatLogEventFixtures.swing_damage_event(
+        time_into_fight: 1.0,
+        source_guid: nil,
+        source_name: nil,
+        target_guid: "Player-MeleeVictim",
+        target_name: "MeleeVictim-Realm",
+        spell_id: nil,
+        amount: 111
+      ),
+      CombatLogEventFixtures.swing_damage_event(
+        time_into_fight: 1.5,
+        source_guid: nil,
+        source_name: nil,
+        target_guid: "Player-MeleeVictim",
+        target_name: "MeleeVictim-Realm",
+        spell_id: nil,
+        amount: 222
+      ),
+      CombatLogEventFixtures.swing_damage_event(
+        time_into_fight: 2.0,
+        source_guid: "Player-MeleeDps",
+        source_name: "MeleeDps-Realm",
+        target_guid: "Creature-Boss",
+        target_name: "Boss",
+        spell_id: nil,
+        amount: 333
+      ),
+      CombatLogEventFixtures.debuff_applied_event(
+        time_into_fight: 3.0,
+        source_guid: nil,
+        source_name: nil,
+        target_guid: "Player-MeleeVictim",
+        target_name: "MeleeVictim-Realm",
+        spell_id: nil,
+        spell_name: nil
+      ),
+      CombatLogEventFixtures.spell_interrupt_event(
+        time_into_fight: 4.0,
+        source_guid: "Player-MeleeDps",
+        source_name: "MeleeDps-Realm",
+        target_guid: nil,
+        target_name: nil,
+        extra_spell_id: nil,
+        spell_id: nil
+      )
+    ]
+
+    assert {:ok, _result} = Silver.project_and_persist(encounter, events: events)
+    before_second_projection = persisted_projection_snapshot()
+
+    assert {:ok, _result} = Silver.project_and_persist(encounter, events: events)
+
+    assert persisted_projection_snapshot() == before_second_projection
+
+    assert %DamageTaken{
+             source_guid: "__UNKNOWN_SOURCE_GUID__",
+             spell_id: 0,
+             total_amount: 333,
+             hit_count: 2,
+             max_hit: 222
+           } = Repo.one!(DamageTaken)
+
+    assert %DamageDone{spell_id: 0, total_amount: 333, hit_count: 1} = Repo.one!(DamageDone)
+
+    assert %DebuffApplication{
+             source_guid: "__UNKNOWN_SOURCE_GUID__",
+             spell_id: 0,
+             applied_at_ms_into_fight: 3000
+           } = Repo.one!(DebuffApplication)
+
+    assert %InterruptOpportunity{
+             target_npc_guid: "__UNKNOWN_TARGET_GUID__",
+             interrupted_spell_id: 0,
+             interrupting_spell_id: 0
+           } = Repo.one!(InterruptOpportunity)
   end
 
   defp insert_dim_encounter! do
@@ -86,5 +169,95 @@ defmodule WeGoNext.Silver.PersistenceTest do
       instance_id: "test-instance"
     })
     |> Repo.insert!()
+  end
+
+  defp persisted_projection_snapshot do
+    %{
+      damage_taken:
+        DamageTaken
+        |> Repo.all()
+        |> Enum.map(
+          &Map.take(&1, [
+            :target_guid,
+            :source_guid,
+            :spell_id,
+            :total_amount,
+            :hit_count,
+            :max_hit,
+            :overkill_total,
+            :source_is_npc
+          ])
+        )
+        |> Enum.sort(),
+      damage_done:
+        DamageDone
+        |> Repo.all()
+        |> Enum.map(
+          &Map.take(&1, [
+            :source_guid,
+            :target_guid,
+            :spell_id,
+            :total_amount,
+            :hit_count,
+            :max_hit
+          ])
+        )
+        |> Enum.sort(),
+      death:
+        Death
+        |> Repo.all()
+        |> Enum.map(
+          &Map.take(&1, [
+            :target_guid,
+            :died_at_ms_into_fight,
+            :killing_blow_spell_id,
+            :killing_blow_source_guid,
+            :damage_recap
+          ])
+        )
+        |> Enum.sort(),
+      interrupt_opportunity:
+        InterruptOpportunity
+        |> Repo.all()
+        |> Enum.map(
+          &Map.take(&1, [
+            :target_npc_guid,
+            :interrupted_spell_id,
+            :opportunity_ms_into_fight,
+            :success,
+            :interrupter_guid,
+            :interrupting_spell_id
+          ])
+        )
+        |> Enum.sort(),
+      debuff_application:
+        DebuffApplication
+        |> Repo.all()
+        |> Enum.map(
+          &Map.take(&1, [
+            :target_guid,
+            :source_guid,
+            :spell_id,
+            :applied_at_ms_into_fight,
+            :duration_ms,
+            :stack_count
+          ])
+        )
+        |> Enum.sort(),
+      player_info:
+        PlayerInfo
+        |> Repo.all()
+        |> Enum.map(
+          &Map.take(&1, [
+            :player_guid,
+            :player_name,
+            :class_id,
+            :spec_id,
+            :item_level,
+            :detected_role
+          ])
+        )
+        |> Enum.sort()
+    }
   end
 end

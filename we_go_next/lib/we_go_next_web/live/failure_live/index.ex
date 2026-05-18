@@ -1,0 +1,223 @@
+defmodule WeGoNextWeb.FailureLive.Index do
+  @moduledoc """
+  Cross-encounter mechanic failure dashboard backed by gold facts.
+  """
+
+  use WeGoNextWeb, :live_view
+
+  alias WeGoNext.Gold.FailureSummary
+
+  @impl true
+  def mount(_params, _session, socket) do
+    {:ok,
+     socket
+     |> assign(:page_title, "Mechanic Failures")
+     |> assign(:filters, %{start_date: nil, end_date: nil})
+     |> assign(:filter_values, %{"start_date" => "", "end_date" => ""})
+     |> assign(:rows, [])
+     |> assign(:player_groups, [])}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    filters = parse_filters(params)
+    rows = FailureSummary.list_grouped_failures(filters)
+
+    {:noreply,
+     socket
+     |> assign(:filters, filters)
+     |> assign(:filter_values, filter_values(filters))
+     |> assign(:rows, rows)
+     |> assign(:player_groups, FailureSummary.group_by_player(rows))}
+  end
+
+  @impl true
+  def handle_event("filter", %{"filters" => filter_params}, socket) do
+    {:noreply, push_patch(socket, to: ~p"/failures?#{clean_filter_params(filter_params)}")}
+  end
+
+  @impl true
+  def handle_event("clear_filters", _params, socket) do
+    {:noreply, push_patch(socket, to: ~p"/failures")}
+  end
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <div class="space-y-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <.back navigate={~p"/"}>Back to encounters</.back>
+          <h1 class="mt-3 text-2xl font-bold text-wow-gold">Mechanic Failures</h1>
+          <p class="mt-1 text-sm text-zinc-400">
+            Cross-encounter failure totals from gold facts.
+          </p>
+        </div>
+
+        <.link navigate={~p"/settings"} class="text-sm text-zinc-400 hover:text-zinc-200">
+          Settings
+        </.link>
+      </div>
+
+      <section class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+        <form phx-submit="filter" class="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end">
+          <div>
+            <label for="failure-start-date" class="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+              Start Date
+            </label>
+            <input
+              id="failure-start-date"
+              name="filters[start_date]"
+              type="date"
+              value={@filter_values["start_date"]}
+              class="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+            />
+          </div>
+
+          <div>
+            <label for="failure-end-date" class="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+              End Date
+            </label>
+            <input
+              id="failure-end-date"
+              name="filters[end_date]"
+              type="date"
+              value={@filter_values["end_date"]}
+              class="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="rounded bg-wow-gold px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-yellow-300"
+          >
+            Apply
+          </button>
+
+          <button
+            type="button"
+            phx-click="clear_filters"
+            class="rounded border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+          >
+            Clear
+          </button>
+        </form>
+      </section>
+
+      <section class="grid gap-4 sm:grid-cols-3">
+        <div class="stat-block">
+          <div class="stat-value">{total_failures(@rows)}</div>
+          <div class="stat-label">Failures</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value">{length(@player_groups)}</div>
+          <div class="stat-label">Players</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-value">{format_number(total_damage(@rows))}</div>
+          <div class="stat-label">Damage</div>
+        </div>
+      </section>
+
+      <div :if={@player_groups == []} class="rounded-lg border border-zinc-700 bg-zinc-800 p-8 text-center">
+        <p class="text-sm text-zinc-400">No mechanic failures found for this date range.</p>
+      </div>
+
+      <section :for={group <- @player_groups} class="rounded-lg border border-zinc-700 bg-zinc-800">
+        <div class="flex flex-col gap-1 border-b border-zinc-700 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-lg font-semibold text-zinc-100">{group.player_name}</h2>
+            <p class="text-xs font-mono text-zinc-500">{group.player_guid}</p>
+          </div>
+          <div class="text-sm text-zinc-400">
+            <span class="font-semibold text-zinc-100">{group.failure_count}</span>
+            failures
+            <span :if={group.total_damage > 0}>
+              &bull; {format_number(group.total_damage)} damage
+            </span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-zinc-700 text-left text-xs uppercase tracking-wide text-zinc-500">
+                <th class="px-4 py-2">Mechanic</th>
+                <th class="px-4 py-2">Type</th>
+                <th class="px-4 py-2 text-right">Failures</th>
+                <th class="px-4 py-2 text-right">Damage</th>
+                <th class="px-4 py-2 text-right">Encounters</th>
+                <th class="px-4 py-2">Latest</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={failure <- group.failures} class="border-b border-zinc-700/60 last:border-0">
+                <td class="px-4 py-3">
+                  <div class="font-medium text-zinc-100">{failure.spell_name}</div>
+                  <div class="text-xs text-zinc-500">
+                    Spell {failure.spell_id}
+                    <span :if={failure.boss_name}> &bull; {failure.boss_name}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-sm text-zinc-300">{format_mechanic_type(failure.mechanic_type)}</td>
+                <td class="px-4 py-3 text-right font-mono text-wow-death">{failure.failure_count}</td>
+                <td class="px-4 py-3 text-right font-mono text-zinc-300">{format_number(failure.total_damage)}</td>
+                <td class="px-4 py-3 text-right font-mono text-zinc-300">{failure.encounter_count}</td>
+                <td class="px-4 py-3 text-sm text-zinc-400">{format_date_time(failure.latest_start_time)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+    """
+  end
+
+  defp parse_filters(params) do
+    %{}
+    |> maybe_put_date(:start_date, Map.get(params, "start_date"))
+    |> maybe_put_date(:end_date, Map.get(params, "end_date"))
+  end
+
+  defp maybe_put_date(filters, _key, value) when value in [nil, ""], do: filters
+
+  defp maybe_put_date(filters, key, value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> Map.put(filters, key, date)
+      {:error, _reason} -> filters
+    end
+  end
+
+  defp filter_values(filters) do
+    %{
+      "start_date" => format_date_input(Map.get(filters, :start_date)),
+      "end_date" => format_date_input(Map.get(filters, :end_date))
+    }
+  end
+
+  defp clean_filter_params(params) do
+    params
+    |> Enum.filter(fn {_key, value} -> is_binary(value) and String.trim(value) != "" end)
+    |> Map.new()
+  end
+
+  defp format_date_input(%Date{} = date), do: Date.to_iso8601(date)
+  defp format_date_input(_date), do: ""
+
+  defp total_failures(rows), do: rows |> Enum.map(& &1.failure_count) |> Enum.sum()
+  defp total_damage(rows), do: rows |> Enum.map(& &1.total_damage) |> Enum.sum()
+
+  defp format_mechanic_type(type) when is_binary(type) do
+    type
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
+
+  defp format_mechanic_type(_type), do: "Unknown"
+
+  defp format_date_time(%DateTime{} = datetime) do
+    Calendar.strftime(datetime, "%Y-%m-%d %H:%M")
+  end
+
+  defp format_date_time(_datetime), do: "Unknown"
+end

@@ -238,11 +238,19 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
   @impl true
   def handle_info({:import_progress, :saving}, socket) do
-    {:noreply, assign(socket, :import_progress, %{percent: 100, encounters_found: socket.assigns.import_progress[:encounters_found] || 0, status: :saving})}
+    {:noreply,
+     assign(socket, :import_progress, %{
+       percent: 100,
+       encounters_found: socket.assigns.import_progress[:encounters_found] || 0,
+       status: :saving
+     })}
   end
 
   @impl true
-  def handle_info({:import_progress, %{bytes_read: bytes, total_bytes: total, encounters_found: found}}, socket) do
+  def handle_info(
+        {:import_progress, %{bytes_read: bytes, total_bytes: total, encounters_found: found}},
+        socket
+      ) do
     percent = if total > 0, do: round(bytes / total * 100), else: 0
     prev_found = socket.assigns.import_progress[:encounters_found] || 0
 
@@ -255,7 +263,12 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         socket
       end
 
-    {:noreply, assign(socket, :import_progress, %{percent: percent, encounters_found: found, status: :parsing})}
+    {:noreply,
+     assign(socket, :import_progress, %{
+       percent: percent,
+       encounters_found: found,
+       status: :parsing
+     })}
   end
 
   @impl true
@@ -267,7 +280,10 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:combat_log_file, new_clf)
      |> assign(:log_files, reload_log_files(socket.assigns.user))
      |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-     |> put_flash(:info, "Log rotation detected! Switched to #{Path.basename(new_clf.file_path)} (#{count} encounters)")}
+     |> put_flash(
+       :info,
+       "Log rotation detected! Switched to #{Path.basename(new_clf.file_path)} (#{count} encounters)"
+     )}
   end
 
   # ============================================================================
@@ -341,9 +357,14 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     <div class="space-y-6">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-wow-gold">WoW Raid Diagnostic Tool</h1>
-        <.link navigate={~p"/settings"} class="text-sm text-zinc-400 hover:text-zinc-200">
-          Settings
-        </.link>
+        <div class="flex items-center gap-4">
+          <.link navigate={~p"/failures"} class="text-sm text-zinc-400 hover:text-zinc-200">
+            Failures
+          </.link>
+          <.link navigate={~p"/settings"} class="text-sm text-zinc-400 hover:text-zinc-200">
+            Settings
+          </.link>
+        </div>
       </div>
 
       <LogSelector.render
@@ -447,7 +468,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         case File.stat(file_path) do
           {:ok, %{size: disk_size}} ->
             parsed = log.last_parsed_byte || 0
-            parsed > 0 and (disk_size - parsed) > 100
+            parsed > 0 and disk_size - parsed > 100
 
           {:error, _} ->
             false
