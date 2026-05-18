@@ -1,0 +1,30 @@
+# WeGoNext Docs
+
+This directory contains current durable documentation for the project. Historical plans and research notes live in [`historical/`](historical/); session logs live in [`sessions/`](sessions/).
+
+## Active Docs
+
+- [`VISION.md`](VISION.md) — product direction, audience, and priorities.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — current medallion warehouse, rules, source-data, and LiveView architecture.
+- [`OPERATIONS.md`](OPERATIONS.md) — everyday import, rules, rebuild, and reimport workflows.
+- [`ROADMAP.md`](ROADMAP.md) — current board-aligned execution order.
+
+## Documentation Rules
+
+- Keep active docs current and concise. They should describe the architecture and workflow as it exists now or as the current board intends it.
+- Move obsolete plans, old research, and superseded design docs to `historical/` instead of leaving them beside active docs.
+- Do not edit old session logs except for the explicit correction process documented in `CLAUDE.md`; create a new session note instead.
+- Prefer linking to code paths and task IDs over duplicating implementation details that will drift.
+
+## Current North Star
+
+WeGoNext is a local-first WoW combat-log diagnostic tool for raid progression and Mythic+ review. The active backend direction is a medallion-style warehouse:
+
+```text
+Bronze combat logs and source metadata
+  -> Silver encounter-grain projections
+  -> Gold dimensions and facts
+  -> Rules-backed LiveView read models
+```
+
+The short-term product goal is to make real combat logs usable through the medallion path: import logs, activate/promote rules, rebuild derived facts, diagnose empty states, and then build encounter detail views on silver/gold read models. After that, the roadmap expands fact/dimension/criterion coverage through conformed reference dimensions, patch/build validity, reviewed source-data candidates, and additional mechanic fact semantics.

@@ -4,8 +4,8 @@
 
 A diagnostic tool for raid progression and Mythic+ dungeons. Diagnoses mechanic failures, coaches players privately, and improves group performance. Built for Hand of Algalon on Wyrmrest Accord.
 
-**Primary Focus:** Raid progression (MVP for Midnight launch)
-**Secondary Focus:** Mythic+ analysis (works automatically, enhanced features post-MVP)
+**Primary Focus:** Build a usable frontend over the medallion warehouse so real combat logs can drive rules, rebuilds, diagnostics, and encounter review.
+**Secondary Focus:** Expand fact/dimension/criterion coverage once the operator workflow is solid.
 
 ## Long-Term Vision
 
@@ -17,12 +17,16 @@ A diagnostic tool for raid progression and Mythic+ dungeons. Diagnoses mechanic 
 
 **Note on "Live" Updates:** WoW buffers combat log writes during active combat (can delay minutes). True real-time during pulls would require an in-game addon. Our tool focuses on **instant analysis when encounters end** - the log flushes on `ENCOUNTER_END` and we process immediately. This is when feedback is actionable anyway (during runback/rebuff).
 
-### Target Launch: Midnight Expansion Raids
+### Current Product Target
 
-- **Midnight release:** March 2, 2026
-- **Raid opening:** Mid-March 2026 (typically 1-2 weeks after expansion launch)
-- **First raids:** The Voidspire (6 bosses), The Dreamrift (1 boss), March of Quel'Danas (2 bosses)
-- **MVP Goal:** Working diagnostic tool ready for Day 1 raid progression
+The old Midnight launch deadline has passed. The project is no longer organized around a date-driven MVP. The current target is a working local analysis loop over real data:
+
+1. Import live and archived combat logs.
+2. Make ruleset state visible and controllable from the UI.
+3. Rebuild gold facts explicitly when rules or fact semantics change.
+4. Explain empty and stale medallion states without requiring SQL.
+5. Build encounter detail views from silver/gold/rules read models.
+6. Expand fact/dim/criterion coverage when the supporting data grain is defensible.
 
 ### Mythic+ Support
 
@@ -35,9 +39,9 @@ The same combat log powers both raid and M+ analysis. Core features work identic
 **MVP:** M+ analysis works out of the box (same analyzers as raid)
 **Post-MVP:** M+-specific features (death timer cost, affix tracking, dungeon summaries)
 
-### Current Phase: Medallion Warehouse and Rules Foundation
+### Current Phase: Medallion Frontend and Fact/Dimension Buildout
 
-The original analyzer/UI MVP exists, but the current architecture work is moving new analytics onto a medallion-style backend:
+The original analyzer/UI MVP has been pruned from active routing. The current architecture work is moving new analytics onto a medallion-style backend:
 
 - ✅ Working Elixir parser that reads WoW combat logs
 - ✅ Parses encounter boundaries and combat events
@@ -55,7 +59,7 @@ The original analyzer/UI MVP exists, but the current architecture work is moving
 - ✅ Gold `fact_failure` proof-of-concept derived from silver/gold tables
 - ✅ Rules schema foundation for authored mechanic criteria
 
-**Current board focus:** finish rules-backed gold criterion snapshots, make `gold.fact_failure` ruleset-aware, then hook silver/gold rebuilds into importer. PR1 acceptance is gated on this path plus silver/move-detection verification.
+**Current board focus:** build the UI and operations layer around the completed PR1 medallion backend. Near-term tasks are rules status/bootstrap UI, medallion rebuild/recompute controls, failures empty-state diagnostics, gold-keyed encounter navigation, and then the replacement encounter detail shell. After those flows are usable, the roadmap moves into conformed spell/encounter dimensions, patch/build validity, source-data candidate review, and additional fact semantics.
 
 ### Key Differentiator
 
@@ -250,9 +254,11 @@ we_go_next_dev/
 ├── tools/                          # Local spell/dungeon reference JSON
 ├── docs/
 │   ├── sessions/                   # Immutable session logs
-│   ├── ROADMAP.md                  # Development roadmap
-│   ├── TECHNICAL_ARCHITECTURE.md   # Tech stack details
-│   └── WOW_MCP_INTEGRATION_ROADMAP.md  # MCP for addon development
+│   ├── historical/                 # Archived plans and research
+│   ├── ARCHITECTURE.md             # Current medallion warehouse architecture
+│   ├── OPERATIONS.md               # Import, rules, rebuild, and reimport workflows
+│   ├── ROADMAP.md                  # Current board-aligned roadmap
+│   └── VISION.md                   # Product direction and priorities
 ├── CLAUDE.md                       # This file
 └── analysis_output_*.txt           # Parser output files
 ```
@@ -277,9 +283,12 @@ we_go_next_dev/
 
 ### Documentation
 
-- **Roadmap**: `docs/ROADMAP.md` - Development phases and priorities
-- **Integration**: `docs/INTEGRATION_ROADMAP.md` - End-to-end testing plan
-- **Architecture**: `docs/TECHNICAL_ARCHITECTURE.md` - Tech stack decisions
+- **Docs Index**: `docs/README.md` - Active documentation map
+- **Vision**: `docs/VISION.md` - Product direction and priorities
+- **Architecture**: `docs/ARCHITECTURE.md` - Current medallion warehouse architecture
+- **Operations**: `docs/OPERATIONS.md` - Import, rules, rebuild, and reimport workflows
+- **Roadmap**: `docs/ROADMAP.md` - Current board-aligned roadmap
+- **Historical Archive**: `docs/historical/` - Superseded plans and research
 - **Sessions**: `docs/sessions/` - Historical session logs
 
 ### Running the App
@@ -329,7 +338,7 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - Added idempotent rules seed path via `priv/rules/initial_mechanic_rules.json` and `mix we_go_next.seed_rules`.
 - Seeded initial local evidence rules for `Arcane Expulsion` and `Void Burst`.
 - Refactored importer encounter insertion to distinguish inserted vs existing rows so future rebuild hooks run only for new encounters.
-- Created `docs/rules_layer_refactor.md` for the broader rules-layer plan.
+- Documented the broader rules-layer plan; this plan is now archived at `docs/historical/rules_layer_refactor.md`.
 
 ### 2025-11-28: MVP Core Complete - Pull Summary Implementation (Legacy, Since Pruned)
 
@@ -337,7 +346,7 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 - Added "Summary" tab as default view in encounter detail LiveView
 - Summary includes: wipe cause, deaths breakdown, critical failures, players needing coaching, recommendations
 - Updated roadmap: all non-negotiable MVP features now complete
-- Created `docs/INTEGRATION_ROADMAP.md` for end-to-end testing plan
+- Documented the end-to-end testing plan; this plan is now archived at `docs/historical/INTEGRATION_ROADMAP.md`
 - Next step: wire up log selection UI and live file watching for real-time demo
 
 ### 2025-11-27: Criteria System and Failure Detection (Legacy, Since Pruned)
@@ -371,7 +380,7 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 ### 2025-11-24: Project Pivot to Diagnostic Tool
 
 - Shifted from personal DPS analysis to raid-wide diagnostic focus
-- Target launch: Midnight expansion raids (early 2026)
+- Former launch-driven framing was tied to Midnight expansion raids; current work is board-driven medallion UI and fact/dimension buildout
 - Three output modes: live dashboard, between-pull analysis, strategy diagrams
 - Iterative boss criteria building for progression
 - Private coaching focus (not public callouts)
@@ -390,25 +399,24 @@ mix run test_parse.exs      # CLI: Analyzes most recent combat log
 
 ## Development Philosophy
 
-### PRIME DIRECTIVE: MVP for Midnight Raids
+### PRIME DIRECTIVE: Real Data Through Medallion UI
 
-**The tool MUST be usable for Day 1 Midnight progression (late Jan - March 2026).**
+The tool must make real combat logs usable through the medallion path without requiring IEx, SQL, or manual database repair.
 
 When making scope decisions:
 
-- Cut features before missing the launch window
-- "Good enough" beats "perfect but late"
-- Core loop (deaths → failures → reports) is non-negotiable
-- Everything else is negotiable
+- Prefer frontend flows that unblock real-data dogfooding over deeper backend modeling in isolation.
+- Keep fact/dim/criterion semantics explicit and rebuildable.
+- Build facts only when the supporting silver grain and rule semantics are defensible.
+- Make stale, missing, and empty states diagnosable in the UI.
+- Do not reintroduce legacy analyzer-cache tabs or `public.mechanic_criteria`.
 
-If falling behind schedule:
+If scope pressure appears:
 
-1. Cut strategy diagrams (Phase 6)
-2. Simplify criteria system (hardcode common mechanics)
-3. Skip polish (Phase 7)
-4. Reduce report tiers to just "raid lead" view
-
-**Post-Midnight:** After launch, deadline pressure is off. Take time for polish and new features without a hard target.
+1. Ship rules status/bootstrap and gold rebuild controls before broader rules authoring.
+2. Ship clear empty-state diagnostics before adding more failure types.
+3. Add encounter-detail read models before polish or sharing workflows.
+4. Defer source-data inference automation until reviewed candidates can become draft rules cleanly.
 
 ### Other Principles
 

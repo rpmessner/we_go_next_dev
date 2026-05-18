@@ -1,82 +1,54 @@
-# WeGoNext — Product Vision
+# Product Vision
 
-*Captured 2026-04-09 after data loss and rebuild. This replaces assumptions from the original build.*
+WeGoNext is a local-first WoW combat-log diagnostic tool for raid progression and Mythic+ review. It runs next to the game and answers what happened on the last pull while the information is still actionable.
 
-## What Is This
+It is not a damage meter. WoW already has aggregate damage, healing, and interrupt views. WeGoNext focuses on the context those views leave out:
 
-A WoW combat log analysis tool that runs alongside the game on a second monitor. Parses combat logs in near-real-time (logs flush to disk after each encounter ends) and provides actionable analysis between pulls.
+- what killed a player,
+- which mechanics became failures,
+- whether the group is improving across pulls,
+- which deaths or missed interrupts matter,
+- what a player or raid lead should adjust before the next pull.
+
+## Primary User
+
+The first user is Mittwoch, Warlock for Hand of Algalon on Wyrmrest Accord US, dogfooding during raid progression and Mythic+.
+
+The product should work as a local second-monitor tool before it tries to become a hosted service or in-game addon ecosystem.
 
 ## Priority Stack
 
-1. **My play, this pull** — What did I do wrong? What killed me? Where did my rotation break down? Uptime gaps not caused by phase changes?
-2. **My play, over time** — Am I improving pull-over-pull? Am I dying to the same things? Trend tracking across attempts.
-3. **Raid-wide diagnosis** — What killed us? Who failed mechanics? Who needs to improve?
-4. **Sharing** — Give analysis to raid leads, let players see their own data via hosted site or in-game addon link.
+1. Raid and Mythic+ diagnostic loop after a pull or dungeon segment.
+2. Personal improvement over repeated attempts.
+3. Raid-lead review of mechanic failures and group trends.
+4. Shareable or private reports for guild use.
+5. Optional in-game addon distribution.
 
-The original build jumped straight to #3 and skipped #1 and #2.
+## Between-Pull Model
 
-## The Gap This Fills
+WoW buffers combat log writes during combat. WeGoNext should optimize for the moment after an encounter or pull ends, when the log flushes and feedback is useful during runback, rebuff, or dungeon downtime.
 
-WoW's built-in damage meter (new in War Within) covers basics: DPS by ability, damage taken, interrupts, deaths. But it's all aggregate. It does NOT show:
+The app should make the current state obvious:
 
-- **Per-target DPS** — are we DPSing adds at the right time, or tunneling the boss?
-- **Per-phase / time-window breakdowns** — what was my DPS during the burn window?
-- **Contextual "why" questions** — who was hitting the boss when they should've been on adds?
-- **Rotation analysis** — uptime, downtime not from phase changes, cooldown usage
-- **Pull-over-pull trends** — am I improving or dying to the same thing every attempt?
+- which log is loaded,
+- whether the medallion data is ready,
+- whether rules exist and are active,
+- what needs to be rebuilt when logic changes.
 
-The old third-party addons (Details!, Skada) could do some of this but the built-in meter simplified it away.
+## Product Direction
 
-**WeGoNext = the analysis layer that answers "why" questions, not another damage meter.**
+The original app proved the parsing and analyzer ideas with direct LiveView tabs and cached analyzer output. The current product direction is a medallion-backed analytics application:
 
-## Two Content Modes
+- import logs once,
+- project stable silver rows,
+- rebuild gold facts from silver and rules,
+- build UI views from silver/gold read models,
+- infer future mechanics from source data without making inferred evidence active truth.
 
-### After a Wipe (Diagnostic)
-Focus on what went wrong:
-- Deaths — what killed us, who died to what
-- Mechanic failures — who stood in fire, who missed interrupts
-- What to fix for the next pull
-- "What did *I* do wrong" front and center
+## Non-Goals
 
-### After a Kill (Evaluative)
-Focus on how we did:
-- Performance breakdown, personal bests
-- Comparison to previous wipe pulls on the same boss
-- Celebratory but useful — who crushed it, what improved
-
-### Before First Pull / During Pull
-- Boss info, historical data from previous sessions
-- Last wipe/kill summary if available
-
-## M+ Is First-Class
-
-Not secondary to raids. Especially valuable for failed keys — understanding what went wrong across an entire dungeon run.
-
-Key differences from raid analysis:
-- Multiple encounters/pulls in a single session, not repeated attempts on one boss
-- Death cost is concrete (time penalty) — knowing which deaths cost the key
-- Interrupt coverage is life or death (kick rotations)
-- Avoidable damage across the whole run
-- Dungeon run = aggregate view; individual pulls/bosses = drill-down
-
-## Who Uses This
-
-### Now
-Solo tool — the developer (Mittwoch, Warlock, Hand of Algalon on Wyrmrest Accord) dogfooding during raids and pugs. Not a raid leader, but wants to improve own play and offer analysis to the raid team.
-
-### Soon
-Guild sharing — Hand of Algalon has multiple raid teams that would use it if it proves valuable.
-
-### Later
-- Hosted version with role-based access (raid leads see everything, players see own data)
-- In-game addon that links players to their private analysis on the web
-
-## Physical Setup
-
-- WoW fullscreen on primary monitor
-- Browser on second monitor (~1920px) pointing at localhost (WSL2 running Elixir server)
-- Quick glanceability matters — glancing between pulls, not studying complex dashboards
-
-## Development Philosophy
-
-Build incrementally from felt needs during actual gameplay. Don't design features up-front from imagination. The tool should grow from "I wish I could see X right now" moments during raids and M+.
+- Do not become a replacement for Warcraft Logs.
+- Do not warehouse every WoW data table before a downstream workflow needs it.
+- Do not require manual tagging of every mechanic forever.
+- Do not treat DBM, Warcraft Logs, or datamined sources as unreviewable active truth.
+- Do not optimize for true in-combat real-time alerts; the game client and in-game addons own that space.
