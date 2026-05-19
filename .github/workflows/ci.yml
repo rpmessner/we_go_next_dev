@@ -53,15 +53,14 @@ jobs:
           zig version
           echo "ZIG_EXECUTABLE_PATH=$(command -v zig)" >> "$GITHUB_ENV"
 
-      - name: Cache dependencies and build
+      - name: Cache dependencies
         uses: actions/cache@v4
         with:
           path: |
             we_go_next/deps
-            we_go_next/_build
-          key: ${{ runner.os }}-mix-${{ hashFiles('we_go_next/mix.lock') }}
+          key: ${{ runner.os }}-mix-deps-${{ hashFiles('we_go_next/mix.lock') }}
           restore-keys: |
-            ${{ runner.os }}-mix-
+            ${{ runner.os }}-mix-deps-
 
       - name: Install Hex and Rebar
         run: |
