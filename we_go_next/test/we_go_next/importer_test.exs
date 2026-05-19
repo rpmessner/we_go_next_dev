@@ -38,7 +38,7 @@ defmodule WeGoNext.ImporterTest do
     dir: dir,
     user: user
   } do
-    source_path = Path.expand("../fixtures/WoWCombatLog-112725_120000.txt", __DIR__)
+    source_path = fixture_path("combat_log_base.txt")
     log_path = Path.join(dir, "WoWCombatLog-112725_120000.txt")
     File.cp!(source_path, log_path)
 
@@ -70,7 +70,7 @@ defmodule WeGoNext.ImporterTest do
     dir: dir,
     user: user
   } do
-    source_path = Path.expand("../fixtures/WoWCombatLog-112725_120000.txt", __DIR__)
+    source_path = fixture_path("combat_log_base.txt")
     log_path = Path.join(dir, "WoWCombatLog-112725_120000.txt")
     File.cp!(source_path, log_path)
 
@@ -146,7 +146,7 @@ defmodule WeGoNext.ImporterTest do
     dir: dir,
     user: user
   } do
-    live_content = File.read!(fixture_path("WoWCombatLog-112725_120000.txt"))
+    live_content = File.read!(fixture_path("combat_log_base.txt"))
     continuation_content = File.read!(fixture_path("second_encounter.txt"))
 
     archive_dir = Path.join(dir, "warcraftlogsarchive")

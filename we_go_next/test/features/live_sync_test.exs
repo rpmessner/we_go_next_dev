@@ -11,7 +11,7 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
   use WeGoNextWeb.FeatureCase, async: false
 
   @fixtures_path Path.expand("../fixtures", __DIR__)
-  @base_log_fixture Path.join(@fixtures_path, "WoWCombatLog-112725_120000.txt")
+  @base_log_fixture Path.join(@fixtures_path, "combat_log_base.txt")
   @second_encounter_fixture Path.join(@fixtures_path, "second_encounter.txt")
 
   setup do
