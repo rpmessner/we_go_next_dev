@@ -43,13 +43,22 @@ jobs:
           otp-version: "28"
           elixir-version: "1.19"
 
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: "0.15.2"
+
+      - name: Configure Zigler
+        run: |
+          zig version
+          echo "ZIG_EXECUTABLE_PATH=$(command -v zig)" >> "$GITHUB_ENV"
+
       - name: Cache dependencies and build
         uses: actions/cache@v4
         with:
           path: |
             we_go_next/deps
             we_go_next/_build
-            ~/.cache/zigler
           key: ${{ runner.os }}-mix-${{ hashFiles('we_go_next/mix.lock') }}
           restore-keys: |
             ${{ runner.os }}-mix-
@@ -61,20 +70,6 @@ jobs:
 
       - name: Fetch dependencies
         run: mix deps.get
-
-      - name: Install Zig toolchain
-        run: |
-          mix zig.get
-          for i in {1..30}; do
-            if [ -x "$HOME/.cache/zigler/zig-x86_64-linux-0.15.2/zig" ]; then
-              "$HOME/.cache/zigler/zig-x86_64-linux-0.15.2/zig" version
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Zig executable was not installed where Zigler expects it"
-          find "$HOME/.cache/zigler" -maxdepth 3 -type f -name zig -print || true
-          exit 1
 
       - name: Run quality gate
         run: mix quality
