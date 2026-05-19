@@ -8,35 +8,42 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   use WeGoNextWeb, :live_view
 
+  alias WeGoNext.Accounts
   alias WeGoNext.Gold.EncounterDetail
   alias WeGoNext.WowClass
   import WeGoNextWeb.EncounterComponents, only: [format_duration: 1, format_number: 1]
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
-    case EncounterDetail.get(id) do
+    user = Accounts.get_or_create_default_user()
+
+    case EncounterDetail.get(id, character_name: user.character_name) do
       {:ok, detail} ->
         {:ok,
          socket
          |> assign(:page_title, detail.encounter.name)
+         |> assign(:user, user)
          |> assign(:detail, detail)
          |> assign(:encounter, detail.encounter)
          |> assign(:counts, detail.counts)
          |> assign(:roster, detail.roster)
          |> assign(:deaths, detail.deaths)
          |> assign(:interrupt_coverage, detail.interrupt_coverage)
+         |> assign_personal_summary(detail.personal_pull_summary)
          |> assign(:active_tab, :overview)}
 
       {:error, reason} ->
         {:ok,
          socket
          |> assign(:page_title, "Encounter Not Found")
+         |> assign(:user, user)
          |> assign(:detail, nil)
          |> assign(:encounter, nil)
          |> assign(:counts, %{})
          |> assign(:roster, [])
          |> assign(:deaths, [])
          |> assign(:interrupt_coverage, %{spell_coverage: [], player_contributions: []})
+         |> assign_personal_summary(%{selected_player_guid: nil, players: []})
          |> assign(:active_tab, :overview)
          |> assign(:error, not_found_message(reason))}
     end
@@ -45,6 +52,19 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   @impl true
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
     {:noreply, assign(socket, :active_tab, parse_tab(tab))}
+  end
+
+  @impl true
+  def handle_event("select_personal_player", params, socket) do
+    player_guid = get_in(params, ["personal", "player_guid"]) || Map.get(params, "player_guid")
+
+    {:noreply,
+     socket
+     |> assign(:selected_personal_player_guid, player_guid)
+     |> assign(
+       :selected_personal_player,
+       selected_personal_player(socket.assigns.personal_pull_summary.players, player_guid)
+     )}
   end
 
   @impl true
@@ -347,11 +367,120 @@ defmodule WeGoNextWeb.EncounterLive.Show do
         </div>
       </section>
 
-      <.placeholder_panel
-        :if={@active_tab == :personal}
-        title="Personal Pulls"
-        body="This slot is reserved for player-scoped pull summaries built from medallion facts."
-      />
+      <section :if={@active_tab == :personal} class="space-y-6">
+        <div class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Personal Pull Summary</h2>
+              <p class="mt-2 text-sm text-zinc-400">
+                Player-scoped rollup from silver damage, death, and interrupt rows plus gold mechanic failure facts.
+              </p>
+            </div>
+
+            <form
+              :if={@personal_pull_summary.players != []}
+              phx-change="select_personal_player"
+              class="sm:min-w-64"
+            >
+              <label for="personal-player-guid" class="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                Player
+              </label>
+              <select
+                id="personal-player-guid"
+                name="personal[player_guid]"
+                class="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+              >
+                <option
+                  :for={player <- @personal_pull_summary.players}
+                  value={player.player_guid}
+                  selected={player.player_guid == @selected_personal_player_guid}
+                >
+                  {player.player_name}
+                </option>
+              </select>
+            </form>
+          </div>
+        </div>
+
+        <div :if={@selected_personal_player == nil} class="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-6 text-sm text-zinc-400">
+          No silver player roster rows exist for this gold encounter.
+        </div>
+
+        <div :if={@selected_personal_player} class="space-y-6">
+          <section class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h3 class="text-xl font-semibold" style={player_class_style(@selected_personal_player.class_id)}>
+                  {@selected_personal_player.player_name}
+                </h3>
+                <p class="text-xs font-mono text-zinc-500">{@selected_personal_player.player_guid}</p>
+              </div>
+              <div class="text-sm text-zinc-400">
+                {format_role(@selected_personal_player.detected_role)}
+                <span class="text-zinc-600">&bull;</span>
+                {format_class(@selected_personal_player.class_id)}
+                <span class="text-zinc-600">&bull;</span>
+                {format_spec(@selected_personal_player.spec_id)}
+              </div>
+            </div>
+          </section>
+
+          <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <.metric_item label="Damage Done" value={format_number(@selected_personal_player.damage_done)} />
+            <.metric_item label="Damage Taken" value={format_number(@selected_personal_player.damage_taken)} />
+            <.metric_item label="Mechanic Failures" value={to_string(@selected_personal_player.mechanic_failures)} />
+            <.metric_item label="Failure Damage" value={format_number(@selected_personal_player.failure_damage)} />
+            <.metric_item label="Successful Interrupts" value={to_string(@selected_personal_player.successful_interrupts)} />
+            <.metric_item label="Deaths" value={to_string(@selected_personal_player.death_count)} />
+            <.metric_item label="First Death" value={format_optional_ms(@selected_personal_player.first_death_ms)} />
+            <.metric_item label="Max Damage Taken" value={format_number(@selected_personal_player.max_damage_taken_hit)} />
+          </section>
+
+          <section class="rounded-lg border border-zinc-700 bg-zinc-800">
+            <div class="border-b border-zinc-700 px-4 py-3">
+              <h3 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Raw Pull Totals</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="border-b border-zinc-700 text-left text-xs uppercase tracking-wide text-zinc-500">
+                    <th class="px-4 py-2">Category</th>
+                    <th class="px-4 py-2 text-right">Amount</th>
+                    <th class="px-4 py-2 text-right">Events</th>
+                    <th class="px-4 py-2 text-right">Max Hit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-b border-zinc-700/60">
+                    <td class="px-4 py-3 text-sm text-zinc-100">Damage Done</td>
+                    <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                      {format_number(@selected_personal_player.damage_done)}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                      {@selected_personal_player.damage_done_hits}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                      {format_number(@selected_personal_player.max_damage_done_hit)}
+                    </td>
+                  </tr>
+                  <tr class="border-b border-zinc-700/60 last:border-0">
+                    <td class="px-4 py-3 text-sm text-zinc-100">Damage Taken</td>
+                    <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                      {format_number(@selected_personal_player.damage_taken)}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                      {@selected_personal_player.damage_taken_hits}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                      {format_number(@selected_personal_player.max_damage_taken_hit)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
     </div>
     """
   end
@@ -417,6 +546,18 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     """
   end
 
+  attr(:label, :string, required: true)
+  attr(:value, :string, required: true)
+
+  defp metric_item(assigns) do
+    ~H"""
+    <div class="rounded border border-zinc-700 bg-zinc-800 px-3 py-2">
+      <div class="text-xs font-medium uppercase tracking-wide text-zinc-500">{@label}</div>
+      <div class="mt-1 text-lg font-semibold text-zinc-100">{@value}</div>
+    </div>
+    """
+  end
+
   defp parse_tab("deaths"), do: :deaths
   defp parse_tab("interrupts"), do: :interrupts
   defp parse_tab("personal"), do: :personal
@@ -451,6 +592,9 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   end
 
   defp format_ms(_ms), do: "0:00"
+
+  defp format_optional_ms(nil), do: "None"
+  defp format_optional_ms(ms), do: format_ms(ms)
 
   defp format_killing_blow(%{killing_blow: %{} = killing_blow}) do
     spell_name = recap_value(killing_blow, "spell_name") || "Unknown"
@@ -490,6 +634,22 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   defp format_datetime(datetime) do
     Calendar.strftime(datetime, "%b %d, %Y %I:%M %p")
+  end
+
+  defp assign_personal_summary(socket, summary) do
+    selected_player_guid = summary.selected_player_guid
+
+    socket
+    |> assign(:personal_pull_summary, summary)
+    |> assign(:selected_personal_player_guid, selected_player_guid)
+    |> assign(
+      :selected_personal_player,
+      selected_personal_player(summary.players, selected_player_guid)
+    )
+  end
+
+  defp selected_personal_player(players, selected_player_guid) do
+    Enum.find(players, &(&1.player_guid == selected_player_guid))
   end
 
   defp not_found_message(:invalid_id), do: "Encounter IDs must be positive gold encounter IDs."

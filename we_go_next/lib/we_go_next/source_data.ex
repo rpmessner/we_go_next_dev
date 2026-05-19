@@ -23,6 +23,17 @@ defmodule WeGoNext.SourceData do
   @default_product "wow"
   @default_channel "retail"
   @default_locale "enUS"
+  @default_dbm_midnight_roots [
+    "/mnt/e/World of Warcraft/_retail_/Interface/AddOns/DBM-Raids-Midnight",
+    "/mnt/e/World of Warcraft/_retail_/Interface/AddOns/DBM-Party-Midnight",
+    "/mnt/e/World of Warcraft/_retail_/Interface/AddOns/DBM-Midnight",
+    "/mnt/e/World of Warcraft/_retail_/Interface/AddOns/DBM-Delves-Midnight"
+  ]
+
+  @doc """
+  Returns the installed DBM Midnight addon roots used by the default bulk import.
+  """
+  def default_dbm_midnight_roots, do: @default_dbm_midnight_roots
 
   @doc """
   Imports one DBM Lua module into source-data tables.
@@ -31,12 +42,17 @@ defmodule WeGoNext.SourceData do
     with {:ok, parsed_module} <- Parser.parse_file(path),
          {:ok, content_hash} <- file_sha256(path) do
       Repo.transaction(fn ->
+        source_import_action = source_import_action(path, content_hash, opts)
         source_import = upsert_source_import!(path, content_hash, parsed_module, opts)
         candidates = replace_dbm_candidates!(source_import, parsed_module, path)
+        candidate_count = length(candidates)
 
         %{
           source_import: source_import,
-          candidates: candidates
+          source_import_action: source_import_action,
+          candidates: candidates,
+          inserted_candidate_count: inserted_count(source_import_action, candidate_count),
+          updated_candidate_count: updated_count(source_import_action, candidate_count)
         }
       end)
     end
@@ -68,6 +84,42 @@ defmodule WeGoNext.SourceData do
     end
   end
 
+  @doc """
+  Imports all configured DBM Midnight addon roots and returns an operator summary.
+
+  This source-data import only records source imports and inferred DBM mechanic
+  candidates. It does not promote rules or rebuild gold facts.
+  """
+  def import_dbm_midnight_sources(opts \\ []) do
+    opts
+    |> Keyword.get(:roots, @default_dbm_midnight_roots)
+    |> import_dbm_directories(opts)
+  end
+
+  @doc """
+  Imports DBM Lua modules under each root and returns an aggregate summary.
+  """
+  def import_dbm_directories(roots, opts \\ []) when is_list(roots) do
+    roots = Enum.map(roots, &Path.expand/1)
+
+    case Enum.reject(roots, &File.dir?/1) do
+      [] ->
+        roots
+        |> Enum.reduce_while({:ok, empty_dbm_import_summary(roots)}, fn root, {:ok, summary} ->
+          case import_dbm_directory(root, opts) do
+            {:ok, imports} ->
+              {:cont, {:ok, merge_dbm_import_summary(summary, root, imports)}}
+
+            {:error, reason} ->
+              {:halt, {:error, reason}}
+          end
+        end)
+
+      missing_roots ->
+        {:error, {:missing_roots, missing_roots}}
+    end
+  end
+
   def list_dbm_candidates(opts \\ []) do
     query =
       DbmMechanicCandidate
@@ -92,6 +144,26 @@ defmodule WeGoNext.SourceData do
       end
 
     Repo.all(query)
+  end
+
+  defp source_import_action(path, content_hash, opts) do
+    source_system = Keyword.get(opts, :source_system, @dbm_source_system)
+
+    if source_import_exists?(source_system, path, content_hash) do
+      :updated
+    else
+      :inserted
+    end
+  end
+
+  defp source_import_exists?(source_system, path, content_hash) do
+    SourceImport
+    |> where(
+      [source_import],
+      source_import.source_system == ^source_system and source_import.source_path == ^path and
+        source_import.content_hash == ^content_hash
+    )
+    |> Repo.exists?()
   end
 
   defp upsert_source_import!(path, content_hash, parsed_module, opts) do
@@ -195,6 +267,43 @@ defmodule WeGoNext.SourceData do
       updated_at: now
     }
   end
+
+  defp inserted_count(:inserted, count), do: count
+  defp inserted_count(:updated, _count), do: 0
+
+  defp updated_count(:updated, count), do: count
+  defp updated_count(:inserted, _count), do: 0
+
+  defp empty_dbm_import_summary(roots) do
+    %{
+      roots: roots,
+      files_imported: 0,
+      source_imports_inserted: 0,
+      source_imports_updated: 0,
+      candidates_inserted: 0,
+      candidates_updated: 0,
+      imports: []
+    }
+  end
+
+  defp merge_dbm_import_summary(summary, root, imports) do
+    Enum.reduce(imports, %{summary | imports: summary.imports ++ [{root, imports}]}, fn import,
+                                                                                        acc ->
+      %{
+        acc
+        | files_imported: acc.files_imported + 1,
+          source_imports_inserted:
+            acc.source_imports_inserted + action_count(import.source_import_action, :inserted),
+          source_imports_updated:
+            acc.source_imports_updated + action_count(import.source_import_action, :updated),
+          candidates_inserted: acc.candidates_inserted + import.inserted_candidate_count,
+          candidates_updated: acc.candidates_updated + import.updated_candidate_count
+      }
+    end)
+  end
+
+  defp action_count(action, action), do: 1
+  defp action_count(_actual, _expected), do: 0
 
   @doc """
   Upserts one build-scoped spell reference row.

@@ -10,7 +10,7 @@ defmodule WeGoNext.Gold.EncounterDetailTest do
   }
 
   alias WeGoNext.Repo
-  alias WeGoNext.Silver.{Death, InterruptOpportunity, PlayerInfo}
+  alias WeGoNext.Silver.{DamageDone, DamageTaken, Death, InterruptOpportunity, PlayerInfo}
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
@@ -150,6 +150,71 @@ defmodule WeGoNext.Gold.EncounterDetailTest do
     assert [%{spell_id: 777, count: 1}] = player.by_spell
   end
 
+  test "get returns selected personal pull summary from configured character name" do
+    encounter = insert_dim_encounter!()
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-Main",
+      player_name: "Mittwoch",
+      class_id: 9,
+      spec_id: 266,
+      detected_role: "dps"
+    })
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-Other",
+      player_name: "Other",
+      class_id: 1,
+      spec_id: 73,
+      detected_role: "tank"
+    })
+
+    insert_damage_done!(encounter, "Player-Main", 501, 3_000, 3, 1_500)
+    insert_damage_taken!(encounter, "Player-Main", 601, 900, 2, 600)
+
+    insert_interrupt_opportunity!(encounter, %{
+      target_npc_guid: "Creature-Caster",
+      interrupted_spell_id: 777,
+      opportunity_ms_into_fight: 1_000,
+      success: true,
+      interrupter_guid: "Player-Main",
+      interrupting_spell_id: 1766
+    })
+
+    insert_death!(encounter, %{
+      target_guid: "Player-Main",
+      died_at_ms_into_fight: 90_000,
+      damage_recap: []
+    })
+
+    insert_player_failure!(encounter, "Player-Main", "Mittwoch", 501, "Bad", 2, 700)
+
+    assert {:ok,
+            %{
+              personal_pull_summary: %{
+                selected_player_guid: "Player-Main",
+                players: players
+              }
+            }} = EncounterDetail.get(encounter.id, character_name: "mittwoch-wyrmrestaccord")
+
+    main = Enum.find(players, &(&1.player_guid == "Player-Main"))
+
+    assert main.player_name == "Mittwoch"
+    assert main.damage_done == 3_000
+    assert main.damage_done_hits == 3
+    assert main.max_damage_done_hit == 1_500
+    assert main.damage_taken == 900
+    assert main.damage_taken_hits == 2
+    assert main.max_damage_taken_hit == 600
+    assert main.successful_interrupts == 1
+    assert main.interrupted_spell_count == 1
+    assert main.death_count == 1
+    assert main.first_death_ms == 90_000
+    assert main.mechanic_failures == 2
+    assert main.failure_damage == 700
+    assert main.failed_mechanic_count == 1
+  end
+
   defp insert_dim_encounter! do
     %DimEncounter{}
     |> DimEncounter.changeset(%{
@@ -192,6 +257,50 @@ defmodule WeGoNext.Gold.EncounterDetailTest do
 
     %Death{}
     |> Death.changeset(attrs)
+    |> Repo.insert!()
+  end
+
+  defp insert_damage_done!(
+         %DimEncounter{} = encounter,
+         source_guid,
+         spell_id,
+         total_amount,
+         hit_count,
+         max_hit
+       ) do
+    %DamageDone{}
+    |> DamageDone.changeset(%{
+      encounter_dim_id: encounter.id,
+      source_guid: source_guid,
+      target_guid: "Creature-Boss",
+      spell_id: spell_id,
+      total_amount: total_amount,
+      hit_count: hit_count,
+      max_hit: max_hit
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_damage_taken!(
+         %DimEncounter{} = encounter,
+         target_guid,
+         spell_id,
+         total_amount,
+         hit_count,
+         max_hit
+       ) do
+    %DamageTaken{}
+    |> DamageTaken.changeset(%{
+      encounter_dim_id: encounter.id,
+      target_guid: target_guid,
+      source_guid: "Creature-Boss",
+      spell_id: spell_id,
+      total_amount: total_amount,
+      hit_count: hit_count,
+      max_hit: max_hit,
+      overkill_total: 0,
+      source_is_npc: true
+    })
     |> Repo.insert!()
   end
 
@@ -248,6 +357,53 @@ defmodule WeGoNext.Gold.EncounterDetailTest do
       build_key: criterion.build_key,
       failure_count: failure_count,
       total_damage: 0
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_player_failure!(
+         %DimEncounter{} = encounter,
+         player_guid,
+         player_name,
+         spell_id,
+         spell_name,
+         failure_count,
+         total_damage
+       ) do
+    player =
+      %DimPlayer{}
+      |> DimPlayer.changeset(%{
+        player_guid: player_guid,
+        player_name: player_name
+      })
+      |> Repo.insert!()
+
+    criterion =
+      %DimMechanicCriterion{}
+      |> DimMechanicCriterion.changeset(%{
+        source_rule_id: System.unique_integer([:positive]),
+        ruleset_id: System.unique_integer([:positive]),
+        ruleset_version: 1,
+        spell_id: spell_id,
+        spell_name: spell_name,
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
+      })
+      |> Repo.insert!()
+
+    %FactFailure{}
+    |> FactFailure.changeset(%{
+      encounter_dim_id: encounter.id,
+      player_dim_id: player.id,
+      criterion_dim_id: criterion.id,
+      ruleset_id: criterion.ruleset_id,
+      ruleset_version: criterion.ruleset_version,
+      product: criterion.product,
+      channel: criterion.channel,
+      build_version: criterion.build_version,
+      build_key: criterion.build_key,
+      failure_count: failure_count,
+      total_damage: total_damage
     })
     |> Repo.insert!()
   end

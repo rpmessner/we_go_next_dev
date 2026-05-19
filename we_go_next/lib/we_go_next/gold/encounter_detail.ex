@@ -30,6 +30,10 @@ defmodule WeGoNext.Gold.EncounterDetail do
           interrupt_coverage: %{
             spell_coverage: [map()],
             player_contributions: [map()]
+          },
+          personal_pull_summary: %{
+            selected_player_guid: String.t() | nil,
+            players: [map()]
           }
         }
 
@@ -37,16 +41,20 @@ defmodule WeGoNext.Gold.EncounterDetail do
   Returns a compact encounter detail shell read model for a gold encounter ID.
   """
   @spec get(pos_integer() | String.t()) :: {:ok, t()} | {:error, :not_found | :invalid_id}
-  def get(id) do
+  def get(id, opts \\ []) do
     with {:ok, id} <- parse_id(id),
          %DimEncounter{} = encounter <- Repo.get(DimEncounter, id) do
+      roster = roster(id)
+
       {:ok,
        %{
          encounter: encounter,
          counts: counts(id),
-         roster: roster(id),
+         roster: roster,
          deaths: deaths(id),
-         interrupt_coverage: interrupt_coverage(id)
+         interrupt_coverage: interrupt_coverage(id),
+         personal_pull_summary:
+           personal_pull_summary(id, roster, Keyword.get(opts, :character_name))
        }}
     else
       nil -> {:error, :not_found}
@@ -247,6 +255,176 @@ defmodule WeGoNext.Gold.EncounterDetail do
   defp spell_name(_spell_id, %{spell_name: spell_name}) when is_binary(spell_name), do: spell_name
 
   defp spell_name(spell_id, _rule_failure), do: Spells.name(spell_id)
+
+  defp personal_pull_summary(encounter_dim_id, roster, preferred_character_name) do
+    players =
+      roster
+      |> Enum.map(fn player ->
+        Map.merge(
+          %{
+            player_guid: player.player_guid,
+            player_name: player.player_name,
+            class_id: player.class_id,
+            spec_id: player.spec_id,
+            detected_role: player.detected_role
+          },
+          personal_totals(encounter_dim_id, player.player_guid)
+        )
+      end)
+      |> Enum.sort_by(&{role_rank(&1.detected_role), String.downcase(&1.player_name || "")})
+
+    %{
+      selected_player_guid: selected_personal_player_guid(players, preferred_character_name),
+      players: players
+    }
+  end
+
+  defp personal_totals(encounter_dim_id, player_guid) do
+    %{}
+    |> Map.merge(damage_taken_totals(encounter_dim_id, player_guid))
+    |> Map.merge(damage_done_totals(encounter_dim_id, player_guid))
+    |> Map.merge(interrupt_totals(encounter_dim_id, player_guid))
+    |> Map.merge(death_totals(encounter_dim_id, player_guid))
+    |> Map.merge(failure_totals(encounter_dim_id, player_guid))
+  end
+
+  defp damage_taken_totals(encounter_dim_id, player_guid) do
+    result =
+      DamageTaken
+      |> where(
+        [row],
+        row.encounter_dim_id == ^encounter_dim_id and row.target_guid == ^player_guid
+      )
+      |> select([row], %{
+        damage_taken: coalesce(sum(row.total_amount), 0),
+        damage_taken_hits: coalesce(sum(row.hit_count), 0),
+        max_damage_taken_hit: coalesce(max(row.max_hit), 0),
+        overkill_total: coalesce(sum(row.overkill_total), 0)
+      })
+      |> Repo.one()
+
+    %{
+      damage_taken: integer_value(result.damage_taken),
+      damage_taken_hits: integer_value(result.damage_taken_hits),
+      max_damage_taken_hit: integer_value(result.max_damage_taken_hit),
+      overkill_total: integer_value(result.overkill_total)
+    }
+  end
+
+  defp damage_done_totals(encounter_dim_id, player_guid) do
+    result =
+      DamageDone
+      |> where(
+        [row],
+        row.encounter_dim_id == ^encounter_dim_id and row.source_guid == ^player_guid
+      )
+      |> select([row], %{
+        damage_done: coalesce(sum(row.total_amount), 0),
+        damage_done_hits: coalesce(sum(row.hit_count), 0),
+        max_damage_done_hit: coalesce(max(row.max_hit), 0)
+      })
+      |> Repo.one()
+
+    %{
+      damage_done: integer_value(result.damage_done),
+      damage_done_hits: integer_value(result.damage_done_hits),
+      max_damage_done_hit: integer_value(result.max_damage_done_hit)
+    }
+  end
+
+  defp interrupt_totals(encounter_dim_id, player_guid) do
+    result =
+      InterruptOpportunity
+      |> where(
+        [row],
+        row.encounter_dim_id == ^encounter_dim_id and row.interrupter_guid == ^player_guid and
+          row.success == true
+      )
+      |> select([row], %{
+        successful_interrupts: count(row.id),
+        interrupted_spell_count: count(row.interrupted_spell_id, :distinct)
+      })
+      |> Repo.one()
+
+    %{
+      successful_interrupts: integer_value(result.successful_interrupts),
+      interrupted_spell_count: integer_value(result.interrupted_spell_count)
+    }
+  end
+
+  defp death_totals(encounter_dim_id, player_guid) do
+    result =
+      Death
+      |> where(
+        [row],
+        row.encounter_dim_id == ^encounter_dim_id and row.target_guid == ^player_guid
+      )
+      |> select([row], %{
+        death_count: count(row.id),
+        first_death_ms: min(row.died_at_ms_into_fight)
+      })
+      |> Repo.one()
+
+    %{
+      death_count: integer_value(result.death_count),
+      first_death_ms: nullable_integer_value(result.first_death_ms)
+    }
+  end
+
+  defp failure_totals(encounter_dim_id, player_guid) do
+    result =
+      FactFailure
+      |> join(:inner, [failure], player in assoc(failure, :player))
+      |> where(
+        [failure, player],
+        failure.encounter_dim_id == ^encounter_dim_id and player.player_guid == ^player_guid
+      )
+      |> select([failure, player], %{
+        mechanic_failures: coalesce(sum(failure.failure_count), 0),
+        failure_damage: coalesce(sum(failure.total_damage), 0),
+        failed_mechanic_count: count(failure.criterion_dim_id, :distinct)
+      })
+      |> Repo.one()
+
+    %{
+      mechanic_failures: integer_value(result.mechanic_failures),
+      failure_damage: integer_value(result.failure_damage),
+      failed_mechanic_count: integer_value(result.failed_mechanic_count)
+    }
+  end
+
+  defp integer_value(nil), do: 0
+  defp integer_value(%Decimal{} = value), do: Decimal.to_integer(value)
+  defp integer_value(value) when is_integer(value), do: value
+
+  defp nullable_integer_value(nil), do: nil
+  defp nullable_integer_value(value), do: integer_value(value)
+
+  defp selected_personal_player_guid([], _preferred_character_name), do: nil
+
+  defp selected_personal_player_guid(players, preferred_character_name)
+       when is_binary(preferred_character_name) do
+    normalized = normalize_name(preferred_character_name)
+
+    case Enum.find(players, &(normalize_name(&1.player_name) == normalized)) do
+      %{player_guid: player_guid} -> player_guid
+      nil -> selected_personal_player_guid(players, nil)
+    end
+  end
+
+  defp selected_personal_player_guid([player | _players], _preferred_character_name) do
+    player.player_guid
+  end
+
+  defp normalize_name(name) when is_binary(name) do
+    name
+    |> String.split("-")
+    |> List.first()
+    |> String.trim()
+    |> String.downcase()
+  end
+
+  defp normalize_name(_name), do: ""
 
   defp parse_id(id) when is_integer(id) and id > 0, do: {:ok, id}
 

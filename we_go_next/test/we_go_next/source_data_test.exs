@@ -138,6 +138,77 @@ defmodule WeGoNext.SourceDataTest do
            |> Enum.sort() == [111, 222]
   end
 
+  test "imports DBM roots with aggregate inserted and refreshed candidate counts" do
+    first_root = make_dbm_root!("DBM-Raids-Midnight")
+    second_root = make_dbm_root!("DBM-Party-Midnight")
+
+    write_dbm_module!(
+      first_root,
+      "BossOne.lua",
+      """
+      local mod = DBM:NewMod(2737, "DBM-Raids-Midnight", 3, 1307)
+      mod:SetRevision("1")
+      mod:SetEncounterID(3180)
+      local specWarnOne = mod:NewSpecialWarningInterrupt(111, "HasInterrupt", nil, nil, 1, 2)
+      """
+    )
+
+    write_dbm_module!(
+      first_root,
+      "BossWithoutWarnings.lua",
+      """
+      local mod = DBM:NewMod(2738, "DBM-Raids-Midnight", 3, 1307)
+      mod:SetRevision("1")
+      mod:SetEncounterID(3181)
+      """
+    )
+
+    write_dbm_module!(
+      second_root,
+      "BossTwo.lua",
+      """
+      local mod = DBM:NewMod(2740, "DBM-Party-Midnight", 3, 1308)
+      mod:SetRevision("1")
+      mod:SetEncounterID(3182)
+      local specWarnTwo = mod:NewSpecialWarningDodge(222, nil, nil, DBM_COMMON_L.DODGES, 1, 2)
+      """
+    )
+
+    assert {:ok, first_summary} =
+             SourceData.import_dbm_midnight_sources(
+               roots: [first_root, second_root],
+               build_key: "11.2.5"
+             )
+
+    assert first_summary.files_imported == 2
+    assert first_summary.source_imports_inserted == 2
+    assert first_summary.source_imports_updated == 0
+    assert first_summary.candidates_inserted == 2
+    assert first_summary.candidates_updated == 0
+
+    assert {:ok, second_summary} =
+             SourceData.import_dbm_midnight_sources(
+               roots: [first_root, second_root],
+               build_key: "11.2.5"
+             )
+
+    assert second_summary.files_imported == 2
+    assert second_summary.source_imports_inserted == 0
+    assert second_summary.source_imports_updated == 2
+    assert second_summary.candidates_inserted == 0
+    assert second_summary.candidates_updated == 2
+
+    assert Repo.aggregate(DbmMechanicCandidate, :count) == 2
+  end
+
+  test "DBM bulk import reports missing roots" do
+    missing_root =
+      Path.join(System.tmp_dir!(), "wgn-missing-#{System.unique_integer([:positive])}")
+
+    assert {:error, {:missing_roots, [^missing_root]}} =
+             SourceData.import_dbm_midnight_sources(roots: [missing_root])
+  end
+
   test "spell reference lookup honors source priority and build-separated channels" do
     attrs = %{
       spell_id: 123_456,
@@ -239,6 +310,26 @@ defmodule WeGoNext.SourceDataTest do
 
     on_exit(fn -> File.rm_rf(directory) end)
 
+    path
+  end
+
+  defp make_dbm_root!(name) do
+    directory =
+      Path.join([
+        System.tmp_dir!(),
+        "wgn-dbm-roots-#{System.unique_integer([:positive])}",
+        name
+      ])
+
+    File.mkdir_p!(directory)
+    on_exit(fn -> File.rm_rf(Path.dirname(directory)) end)
+    directory
+  end
+
+  defp write_dbm_module!(root, relative_path, body) do
+    path = Path.join(root, relative_path)
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, body)
     path
   end
 end
