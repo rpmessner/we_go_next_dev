@@ -40,6 +40,7 @@ defmodule WeGoNext.MixProject do
       ],
       quality: [
         "format --check-formatted",
+        "zig.get",
         "compile --warnings-as-errors",
         "credo --only warning",
         "ecto.create --quiet",
