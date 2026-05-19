@@ -13,6 +13,12 @@ defmodule WeGoNext.Gold.FactFailure do
   @schema_prefix "gold"
 
   schema "fact_failure" do
+    field(:ruleset_id, :integer)
+    field(:ruleset_version, :integer)
+    field(:product, :string, default: "wow")
+    field(:channel, :string, default: "retail")
+    field(:build_version, :string)
+    field(:build_key, :string)
     field(:failure_count, :integer)
     field(:total_damage, :integer, default: 0)
 
@@ -32,6 +38,12 @@ defmodule WeGoNext.Gold.FactFailure do
       :encounter_dim_id,
       :player_dim_id,
       :criterion_dim_id,
+      :ruleset_id,
+      :ruleset_version,
+      :product,
+      :channel,
+      :build_version,
+      :build_key,
       :failure_count,
       :total_damage
     ])
@@ -39,6 +51,10 @@ defmodule WeGoNext.Gold.FactFailure do
       :encounter_dim_id,
       :player_dim_id,
       :criterion_dim_id,
+      :ruleset_id,
+      :ruleset_version,
+      :product,
+      :channel,
       :failure_count,
       :total_damage
     ])

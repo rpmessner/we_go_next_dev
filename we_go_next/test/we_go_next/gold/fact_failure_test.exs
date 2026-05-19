@@ -49,6 +49,40 @@ defmodule WeGoNext.Gold.FactFailureTest do
              )
   end
 
+  test "rebuild_for_encounter snapshots ruleset and build context on facts", %{
+    ruleset: ruleset,
+    encounter: encounter
+  } do
+    criterion =
+      insert_criteria!(ruleset, %{
+        spell_id: 111,
+        spell_name: "Build Scoped Swirl",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
+      })
+
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", "Creature-A", 111, 100, 1)
+
+    assert {:ok, %{inserted: 1}} = FactFailure.rebuild_for_encounter(encounter.id)
+
+    assert %FactFailure{
+             ruleset_id: ruleset_id,
+             ruleset_version: ruleset_version,
+             product: "wow",
+             channel: "retail",
+             build_version: "11.2.0.99999",
+             build_key: "11.2.0"
+           } =
+             Repo.get_by!(FactFailure,
+               encounter_dim_id: encounter.id,
+               criterion_dim_id: criterion.id
+             )
+
+    assert ruleset_id == ruleset.id
+    assert ruleset_version == ruleset.version
+  end
+
   test "rebuild_for_encounter preserves criteria specificity and difficulty inheritance", %{
     ruleset: ruleset,
     encounter: encounter
@@ -216,7 +250,7 @@ defmodule WeGoNext.Gold.FactFailureTest do
     ruleset: active_ruleset,
     encounter: encounter
   } do
-    explicit_ruleset = insert_ruleset!("Explicit Ruleset", "draft")
+    explicit_ruleset = insert_ruleset!("Explicit Ruleset", "draft", build_key: "11.2.5")
 
     active_criterion =
       insert_criteria!(active_ruleset, %{
@@ -244,6 +278,15 @@ defmodule WeGoNext.Gold.FactFailureTest do
              encounter_dim_id: encounter.id,
              criterion_dim_id: explicit_criterion.id
            )
+
+    explicit_fact =
+      Repo.get_by!(FactFailure,
+        encounter_dim_id: encounter.id,
+        criterion_dim_id: explicit_criterion.id
+      )
+
+    assert explicit_fact.ruleset_id == explicit_ruleset.id
+    assert explicit_fact.build_key == "11.2.5"
 
     refute Repo.get_by(FactFailure,
              encounter_dim_id: encounter.id,
@@ -350,9 +393,21 @@ defmodule WeGoNext.Gold.FactFailureTest do
     |> Repo.insert!()
   end
 
-  defp insert_ruleset!(name, status) do
+  defp insert_ruleset!(name, status, attrs \\ []) do
     %Ruleset{}
-    |> Ruleset.changeset(%{name: name, status: status})
+    |> Ruleset.changeset(
+      Map.merge(
+        %{
+          name: name,
+          status: status,
+          product: "wow",
+          channel: "retail",
+          build_version: "11.2.0.99999",
+          build_key: "11.2.0"
+        },
+        Map.new(attrs)
+      )
+    )
     |> Repo.insert!()
   end
 
@@ -362,7 +417,11 @@ defmodule WeGoNext.Gold.FactFailureTest do
         %{
           source_rule_id: System.unique_integer([:positive]),
           ruleset_id: ruleset.id,
-          ruleset_version: ruleset.version
+          ruleset_version: ruleset.version,
+          product: ruleset.product,
+          channel: ruleset.channel,
+          build_version: ruleset.build_version,
+          build_key: ruleset.build_key
         },
         attrs
       )

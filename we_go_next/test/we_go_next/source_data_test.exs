@@ -53,10 +53,24 @@ defmodule WeGoNext.SourceDataTest do
       end
       """)
 
-    assert {:ok, first_import} = SourceData.import_dbm_file(path)
+    assert {:ok, first_import} =
+             SourceData.import_dbm_file(path,
+               product: "wow",
+               channel: "ptr",
+               build_version: "11.2.5.12345",
+               build_key: "11.2.5"
+             )
+
     assert length(first_import.candidates) == 2
 
-    assert {:ok, second_import} = SourceData.import_dbm_file(path)
+    assert {:ok, second_import} =
+             SourceData.import_dbm_file(path,
+               product: "wow",
+               channel: "ptr",
+               build_version: "11.2.5.12345",
+               build_key: "11.2.5"
+             )
+
     assert second_import.source_import.id == first_import.source_import.id
     assert length(second_import.candidates) == 2
 
@@ -80,6 +94,10 @@ defmodule WeGoNext.SourceDataTest do
     assert dodge.review_status == "inferred"
     assert dodge.source_file == path
     assert dodge.source_line > 0
+    assert dodge.product == "wow"
+    assert dodge.channel == "ptr"
+    assert dodge.build_version == "11.2.5.12345"
+    assert dodge.build_key == "11.2.5"
 
     assert SourceData.list_dbm_candidates(inferred_mechanic_type: "soak")
            |> Enum.map(& &1.spell_id) == [1_276_368]

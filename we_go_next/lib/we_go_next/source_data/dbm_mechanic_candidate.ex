@@ -44,6 +44,11 @@ defmodule WeGoNext.SourceData.DbmMechanicCandidate do
     field(:raw_args, :string)
     field(:comment, :string)
 
+    field(:product, :string, default: "wow")
+    field(:channel, :string, default: "retail")
+    field(:build_version, :string)
+    field(:build_key, :string)
+
     timestamps(type: :utc_datetime_usec)
   end
 
@@ -73,7 +78,11 @@ defmodule WeGoNext.SourceData.DbmMechanicCandidate do
       :source_line,
       :source_line_text,
       :raw_args,
-      :comment
+      :comment,
+      :product,
+      :channel,
+      :build_version,
+      :build_key
     ])
     |> validate_required([
       :source_import_id,
@@ -89,7 +98,9 @@ defmodule WeGoNext.SourceData.DbmMechanicCandidate do
       :source_file,
       :source_line,
       :source_line_text,
-      :raw_args
+      :raw_args,
+      :product,
+      :channel
     ])
     |> validate_inclusion(:confidence, @confidence_levels)
     |> validate_inclusion(:review_status, @review_statuses)

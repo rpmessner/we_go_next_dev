@@ -5,6 +5,9 @@ defmodule WeGoNext do
   These analyzer-backed functions are retained for command-line inspection and
   silver projection parity checks. New UI and read-model work should use the
   bronze/silver/gold/rules pipeline instead of adding dependencies here.
+
+  This module is the intentional compatibility boundary for
+  `WeGoNext.Analyzers.*` calls in application code.
   """
 
   alias WeGoNext.{CombatLogParser, Encounter}

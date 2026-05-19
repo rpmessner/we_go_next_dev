@@ -56,6 +56,9 @@ defmodule WeGoNext.RulesTest do
   test "creates mechanic criteria as authored rules scoped to a ruleset" do
     {:ok, ruleset} = Rules.create_ruleset(%{name: "Draft Rules"})
 
+    assert ruleset.product == "wow"
+    assert ruleset.channel == "retail"
+
     assert {:ok, criterion} =
              Rules.create_mechanic_criterion(%{
                ruleset_id: ruleset.id,
@@ -244,7 +247,15 @@ defmodule WeGoNext.RulesTest do
   end
 
   test "promotes ruleset criteria to idempotent gold snapshots" do
-    {:ok, ruleset} = Rules.create_ruleset(%{name: "Promoted Rules", version: 3})
+    {:ok, ruleset} =
+      Rules.create_ruleset(%{
+        name: "Promoted Rules",
+        version: 3,
+        product: "wow",
+        channel: "ptr",
+        build_version: "11.2.5.12345",
+        build_key: "11.2.5"
+      })
 
     {:ok, avoidable_rule} =
       Rules.create_mechanic_criterion(%{
@@ -273,6 +284,10 @@ defmodule WeGoNext.RulesTest do
 
     assert Enum.all?(first_snapshots, &(&1.ruleset_id == ruleset.id))
     assert Enum.all?(first_snapshots, &(&1.ruleset_version == 3))
+    assert Enum.all?(first_snapshots, &(&1.product == "wow"))
+    assert Enum.all?(first_snapshots, &(&1.channel == "ptr"))
+    assert Enum.all?(first_snapshots, &(&1.build_version == "11.2.5.12345"))
+    assert Enum.all?(first_snapshots, &(&1.build_key == "11.2.5"))
 
     avoidable_snapshot = Enum.find(first_snapshots, &(&1.source_rule_id == avoidable_rule.id))
     assert avoidable_snapshot.spell_id == 1_214_081
@@ -319,7 +334,14 @@ defmodule WeGoNext.RulesTest do
   end
 
   test "promotion can resolve spell and encounter names from source references" do
-    {:ok, ruleset} = Rules.create_ruleset(%{name: "Reference Rules", version: 1})
+    {:ok, ruleset} =
+      Rules.create_ruleset(%{
+        name: "Reference Rules",
+        version: 1,
+        product: "wow",
+        channel: "retail",
+        build_key: "11.2.0"
+      })
 
     assert {:ok, _reference} =
              SourceData.upsert_spell_reference(%{
@@ -362,12 +384,12 @@ defmodule WeGoNext.RulesTest do
         threshold: %{"max_hits" => 0}
       })
 
-    assert {:ok, %{criteria: [snapshot]}} =
-             Rules.promote_ruleset_to_gold(ruleset, build_key: "11.2.0")
+    assert {:ok, %{criteria: [snapshot]}} = Rules.promote_ruleset_to_gold(ruleset)
 
     assert snapshot.source_rule_id == rule_criterion.id
     assert snapshot.spell_name == "Referenced Spell"
     assert snapshot.boss_name == "Referenced Boss"
+    assert snapshot.build_key == "11.2.0"
   end
 
   defp criterion_attrs(%Ruleset{} = ruleset, overrides) do

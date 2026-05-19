@@ -18,6 +18,8 @@ defmodule WeGoNext.Silver do
     Projector
   }
 
+  @insert_all_parameter_limit 60_000
+
   @type persist_result :: %{
           projection: Projection.t(),
           counts: %{atom() => non_neg_integer()}
@@ -139,15 +141,19 @@ defmodule WeGoNext.Silver do
       end)
       |> dedupe_rows(conflict_target)
 
-    {count, _result} =
-      Repo.insert_all(
-        schema,
-        rows,
-        on_conflict: {:replace, replace_fields},
-        conflict_target: conflict_target
-      )
+    rows
+    |> Enum.chunk_every(insert_all_chunk_size(rows))
+    |> Enum.reduce(0, fn chunk, total ->
+      {count, _result} =
+        Repo.insert_all(
+          schema,
+          chunk,
+          on_conflict: {:replace, replace_fields},
+          conflict_target: conflict_target
+        )
 
-    count
+      total + count
+    end)
   end
 
   defp dedupe_rows(rows, conflict_target) do
@@ -158,5 +164,14 @@ defmodule WeGoNext.Silver do
       {key, row}
     end)
     |> Map.values()
+  end
+
+  defp insert_all_chunk_size(rows) do
+    column_count =
+      rows
+      |> Enum.map(&map_size/1)
+      |> Enum.max()
+
+    max(1, div(@insert_all_parameter_limit, column_count))
   end
 end

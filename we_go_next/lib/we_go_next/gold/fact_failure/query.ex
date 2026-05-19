@@ -4,7 +4,8 @@ defmodule WeGoNext.Gold.FactFailure.Query do
 
   Mechanic builders emit CTEs with a shared row shape:
   `encounter_dim_id`, `player_dim_id`, `criterion_dim_id`,
-  `failure_count`, and `total_damage`.
+  `failure_count`, and `total_damage`. Build and ruleset metadata are copied
+  from the selected criterion snapshot at insert time.
   """
 
   @doc """
@@ -39,17 +40,40 @@ defmodule WeGoNext.Gold.FactFailure.Query do
       encounter_dim_id,
       player_dim_id,
       criterion_dim_id,
+      ruleset_id,
+      ruleset_version,
+      product,
+      channel,
+      build_version,
+      build_key,
       failure_count,
       total_damage
     )
     SELECT
-      encounter_dim_id,
-      player_dim_id,
-      criterion_dim_id,
+      rows.encounter_dim_id,
+      rows.player_dim_id,
+      rows.criterion_dim_id,
+      criterion.ruleset_id,
+      criterion.ruleset_version,
+      criterion.product,
+      criterion.channel,
+      criterion.build_version,
+      criterion.build_key,
       sum(failure_count)::integer AS failure_count,
       sum(total_damage)::bigint AS total_damage
-    FROM fact_rows
-    GROUP BY encounter_dim_id, player_dim_id, criterion_dim_id
+    FROM fact_rows rows
+    JOIN gold.dim_mechanic_criterion criterion
+      ON criterion.id = rows.criterion_dim_id
+    GROUP BY
+      rows.encounter_dim_id,
+      rows.player_dim_id,
+      rows.criterion_dim_id,
+      criterion.ruleset_id,
+      criterion.ruleset_version,
+      criterion.product,
+      criterion.channel,
+      criterion.build_version,
+      criterion.build_key
     """
   end
 

@@ -187,6 +187,10 @@ defmodule WeGoNext.SourceData do
       source_line_text: warning.source_line_text,
       raw_args: warning.raw_args,
       comment: warning.comment,
+      product: source_import.product,
+      channel: source_import.channel,
+      build_version: source_import.build_version,
+      build_key: source_import.build_key,
       inserted_at: now,
       updated_at: now
     }

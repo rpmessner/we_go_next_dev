@@ -1,5 +1,11 @@
 defmodule WeGoNext.Analyzers.DeathAnalyzer do
   @moduledoc """
+  Legacy reference-only analyzer for deaths and death recaps.
+
+  Retained for command-line diagnostics, migration reference, and parity checks.
+  New medallion UI, gold facts, and silver/gold read models must not depend on
+  this module or its in-memory output shape.
+
   Analyzes deaths in combat encounters.
 
   Tracks damage taken by each player and builds a "death recap" showing

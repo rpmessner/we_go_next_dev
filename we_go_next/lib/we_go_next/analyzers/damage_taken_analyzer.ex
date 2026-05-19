@@ -1,5 +1,11 @@
 defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
   @moduledoc """
+  Legacy reference-only analyzer for damage taken.
+
+  Retained for command-line diagnostics, migration reference, and parity checks.
+  New medallion UI, gold facts, and silver/gold read models must not depend on
+  this module or its in-memory output shape.
+
   Analyzes damage taken by players during combat encounters.
 
   Tracks total damage, damage by ability, and damage by source.

@@ -14,6 +14,10 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
     field(:source_rule_id, :integer)
     field(:ruleset_id, :integer)
     field(:ruleset_version, :integer)
+    field(:product, :string, default: "wow")
+    field(:channel, :string, default: "retail")
+    field(:build_version, :string)
+    field(:build_key, :string)
     field(:spell_id, :integer)
     field(:spell_name, :string)
     field(:mechanic_type, :string)
@@ -34,6 +38,10 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
       :source_rule_id,
       :ruleset_id,
       :ruleset_version,
+      :product,
+      :channel,
+      :build_version,
+      :build_key,
       :spell_id,
       :spell_name,
       :mechanic_type,
@@ -48,6 +56,8 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
       :source_rule_id,
       :ruleset_id,
       :ruleset_version,
+      :product,
+      :channel,
       :spell_id,
       :spell_name,
       :mechanic_type,

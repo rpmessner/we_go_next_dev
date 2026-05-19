@@ -54,6 +54,8 @@ defmodule WeGoNext.Gold.SchemaTest do
         source_rule_id: 1,
         ruleset_id: 1,
         ruleset_version: 1,
+        product: "wow",
+        channel: "retail",
         spell_id: 123,
         spell_name: "Bad",
         mechanic_type: "avoidable",
@@ -68,6 +70,10 @@ defmodule WeGoNext.Gold.SchemaTest do
         encounter_dim_id: 1,
         player_dim_id: 1,
         criterion_dim_id: 1,
+        ruleset_id: 1,
+        ruleset_version: 1,
+        product: "wow",
+        channel: "retail",
         failure_count: 2,
         total_damage: 12_345
       })

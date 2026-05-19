@@ -127,6 +127,12 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
         encounter_dim_id: encounter.id,
         player_dim_id: player.id,
         criterion_dim_id: criterion.id,
+        ruleset_id: criterion.ruleset_id,
+        ruleset_version: criterion.ruleset_version,
+        product: criterion.product,
+        channel: criterion.channel,
+        build_version: criterion.build_version,
+        build_key: criterion.build_key,
         failure_count: 1,
         total_damage: 100
       })

@@ -1,5 +1,11 @@
 defmodule WeGoNext.Analyzers.PlayerInfoAnalyzer do
   @moduledoc """
+  Legacy reference-only analyzer for player class/spec hints.
+
+  Retained for command-line diagnostics, migration reference, and parity checks.
+  New medallion UI, gold facts, and silver/gold read models must not depend on
+  this module or its in-memory output shape.
+
   Extracts player information (class, spec) from COMBATANT_INFO events.
 
   COMBATANT_INFO is logged at the start of each encounter and contains:

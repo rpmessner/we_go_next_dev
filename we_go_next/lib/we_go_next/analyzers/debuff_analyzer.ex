@@ -1,5 +1,11 @@
 defmodule WeGoNext.Analyzers.DebuffAnalyzer do
   @moduledoc """
+  Legacy reference-only analyzer for debuff applications.
+
+  Retained for command-line diagnostics, migration reference, and parity checks.
+  New medallion UI, gold facts, and silver/gold read models must not depend on
+  this module or its in-memory output shape.
+
   Analyzes debuff applications in combat encounters.
 
   Tracks which debuffs are applied to players, how often, and for how long.

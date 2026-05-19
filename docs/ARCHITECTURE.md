@@ -164,6 +164,17 @@ Active routes:
 
 The home page still lists transitional `public.encounters` rows for import/catalog operations such as reset marking. Navigation into medallion analysis must cross the explicit `WeGoNext.Gold.EncounterIdentity` bridge and use the resulting `gold.dim_encounter.id`. New detail read models should use `WeGoNext.Gold.EncounterDetail` or similar gold/silver read models, not `public.encounters.id`.
 
+## Legacy Analyzer Boundary
+
+`WeGoNext.Analyzers.*` modules are reference-only tooling. They remain available for command-line diagnostics, migration reference, and silver parity checks while the medallion warehouse reaches feature parity.
+
+Intentional references are limited to:
+
+- `WeGoNext` — compatibility facade for CLI-style inspection helpers.
+- `test/we_go_next/silver/round_trip_test.exs` — parity assertions between silver projections and legacy analyzer output.
+
+New Phoenix routes, LiveViews, gold facts, silver/gold read models, and rules/source-data workflows must not call legacy analyzers or read cached analyzer output. They should use bronze/silver/gold/rules tables and read-model modules instead.
+
 The next medallion UI work should add:
 
 - rules status/bootstrap controls,

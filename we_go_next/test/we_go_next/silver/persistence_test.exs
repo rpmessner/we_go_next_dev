@@ -239,6 +239,29 @@ defmodule WeGoNext.Silver.PersistenceTest do
            } = Repo.one!(InterruptOpportunity)
   end
 
+  test "project_and_persist chunks large silver inserts below PostgreSQL parameter limit", %{
+    encounter: encounter
+  } do
+    events =
+      Enum.map(1..5_000, fn index ->
+        CombatLogEventFixtures.spell_damage_event(
+          time_into_fight: index / 10,
+          source_guid: "Creature-Boss",
+          source_name: "Boss",
+          target_guid: "Player-Chunked",
+          target_name: "Chunked-Realm",
+          spell_id: 900_000 + index,
+          spell_name: "Chunked Hit #{index}",
+          amount: index
+        )
+      end)
+
+    assert {:ok, %{counts: counts}} = Silver.project_and_persist(encounter, events: events)
+
+    assert counts.damage_taken_event == 5_000
+    assert Repo.aggregate(DamageTakenEvent, :count) == 5_000
+  end
+
   defp insert_dim_encounter! do
     %DimEncounter{}
     |> DimEncounter.changeset(%{

@@ -269,6 +269,10 @@ defmodule WeGoNext.Rules do
          [
            :ruleset_id,
            :ruleset_version,
+           :product,
+           :channel,
+           :build_version,
+           :build_key,
            :spell_id,
            :spell_name,
            :mechanic_type,
@@ -290,6 +294,10 @@ defmodule WeGoNext.Rules do
       source_rule_id: criterion.id,
       ruleset_id: ruleset.id,
       ruleset_version: ruleset.version,
+      product: ruleset_scope_value(ruleset, opts, :product),
+      channel: ruleset_scope_value(ruleset, opts, :channel),
+      build_version: ruleset_scope_value(ruleset, opts, :build_version),
+      build_key: ruleset_scope_value(ruleset, opts, :build_key),
       spell_id: criterion.spell_id,
       spell_name: SourceData.resolve_spell_name(criterion.spell_id, opts) || criterion.spell_name,
       mechanic_type: criterion.mechanic_type,
@@ -302,6 +310,10 @@ defmodule WeGoNext.Rules do
       notes: criterion.notes,
       active: criterion.active
     }
+  end
+
+  defp ruleset_scope_value(%Ruleset{} = ruleset, opts, key) do
+    Keyword.get(opts, key, Map.fetch!(ruleset, key))
   end
 
   defp apply_reference_names(attrs, opts) do

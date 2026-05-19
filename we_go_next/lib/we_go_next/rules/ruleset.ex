@@ -20,6 +20,10 @@ defmodule WeGoNext.Rules.Ruleset do
     field(:name, :string)
     field(:status, :string, default: "draft")
     field(:version, :integer, default: 1)
+    field(:product, :string, default: "wow")
+    field(:channel, :string, default: "retail")
+    field(:build_version, :string)
+    field(:build_key, :string)
     field(:activated_at, :utc_datetime_usec)
     field(:archived_at, :utc_datetime_usec)
 
@@ -31,8 +35,18 @@ defmodule WeGoNext.Rules.Ruleset do
   @doc false
   def changeset(ruleset, attrs) do
     ruleset
-    |> cast(attrs, [:name, :status, :version, :activated_at, :archived_at])
-    |> validate_required([:name, :status, :version])
+    |> cast(attrs, [
+      :name,
+      :status,
+      :version,
+      :product,
+      :channel,
+      :build_version,
+      :build_key,
+      :activated_at,
+      :archived_at
+    ])
+    |> validate_required([:name, :status, :version, :product, :channel])
     |> validate_inclusion(:status, @statuses)
     |> validate_number(:version, greater_than: 0)
     |> unique_constraint(:status, name: :ruleset_one_active_index)
