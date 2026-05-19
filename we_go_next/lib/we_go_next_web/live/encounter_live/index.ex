@@ -10,7 +10,9 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   """
   use WeGoNextWeb, :live_view
 
-  alias WeGoNext.{EncounterStore, Accounts, Repo, CombatLogFile, Importer, ImportWorker}
+  alias WeGoNext.{EncounterStore, Accounts, Repo, CombatLogFile, Importer, ImportWorker, Rules}
+  alias WeGoNext.Gold.Rebuilds
+  alias WeGoNext.Rules.Ruleset
   alias WeGoNextWeb.Components.{LogSelector, ImportedLogsSwitcher, EncounterList}
   import Ecto.Query
 
@@ -70,7 +72,10 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:syncing, false)
      |> assign(:error, nil)
      |> assign(:import_progress, import_progress)
-     |> assign(:confirm_reimport, false)}
+     |> assign(:confirm_reimport, false)
+     |> assign(:rebuilding_gold, false)
+     |> assign_rules_status()
+     |> assign_medallion_status()}
   end
 
   # ============================================================================
@@ -126,6 +131,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         {:noreply,
          socket
          |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+         |> assign_medallion_status()
          |> put_flash(:info, "Purged #{Path.basename(path)}")}
     end
   end
@@ -190,6 +196,100 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     {:noreply, assign(socket, :show_resets, not socket.assigns.show_resets)}
   end
 
+  @impl true
+  def handle_event("seed_initial_rules", _params, socket) do
+    case Rules.seed_initial_rules() do
+      {:ok, %{ruleset: ruleset, criteria: criteria}} ->
+        {:noreply,
+         socket
+         |> assign_rules_status()
+         |> put_flash(
+           :info,
+           "Seeded #{length(criteria)} rule(s) into #{ruleset.name} v#{ruleset.version}."
+         )}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, "Failed to seed bundled rules: #{format_reason(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_event("activate_ruleset", %{"id" => id}, socket) do
+    with {ruleset_id, ""} <- Integer.parse(id),
+         %Ruleset{} = ruleset <- Rules.get_ruleset(ruleset_id),
+         {:ok, active_ruleset} <- Rules.activate_ruleset(ruleset) do
+      {:noreply,
+       socket
+       |> assign_rules_status()
+       |> put_flash(:info, "Activated #{active_ruleset.name} v#{active_ruleset.version}.")}
+    else
+      nil ->
+        {:noreply, put_flash(socket, :error, "Ruleset not found.")}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, "Failed to activate ruleset: #{format_reason(reason)}")}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid ruleset id.")}
+    end
+  end
+
+  @impl true
+  def handle_event("promote_active_ruleset", _params, socket) do
+    case Rules.promote_active_ruleset_to_gold() do
+      {:ok, %{ruleset: ruleset, criteria: criteria}} ->
+        {:noreply,
+         socket
+         |> assign_rules_status()
+         |> assign_medallion_status()
+         |> put_flash(
+           :info,
+           "Promoted #{length(criteria)} rule(s) from #{ruleset.name} v#{ruleset.version}."
+         )}
+
+      {:error, :active_ruleset_not_found} ->
+        {:noreply, put_flash(socket, :error, "Activate a ruleset before promoting rules.")}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, "Failed to promote active rules: #{format_reason(reason)}")}
+    end
+  end
+
+  @impl true
+  def handle_event("rebuild_gold_facts", _params, socket) do
+    cond do
+      socket.assigns.rebuilding_gold ->
+        {:noreply, socket}
+
+      is_nil(socket.assigns.rules_status.active_ruleset) ->
+        {:noreply, put_flash(socket, :error, "Activate a ruleset before rebuilding gold facts.")}
+
+      socket.assigns.medallion_status.gold_encounters_count == 0 ->
+        {:noreply, put_flash(socket, :error, "Import a log before rebuilding gold facts.")}
+
+      true ->
+        {:noreply,
+         socket
+         |> assign(:rebuilding_gold, true)
+         |> assign(:error, nil)
+         |> start_async(:rebuild_gold, fn -> Rebuilds.rebuild_all(ruleset: :active) end)}
+    end
+  end
+
+  @impl true
+  def handle_event("force_reimport_selected_log", _params, socket) do
+    case selected_reimport_path(socket.assigns.selected_log, socket.assigns.log_path) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Select a log before forcing reimport.")}
+
+      path ->
+        do_import(socket, path, force_reimport: true)
+    end
+  end
+
   # ============================================================================
   # Info Handlers (PubSub)
   # ============================================================================
@@ -206,6 +306,8 @@ defmodule WeGoNextWeb.EncounterLive.Index do
          |> assign(:log_path, EncounterStore.current_log_path())
          |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
          |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+         |> assign_rules_status()
+         |> assign_medallion_status()
          |> put_flash(:info, "Imported #{count} encounters")}
 
       {:error, reason} ->
@@ -219,7 +321,10 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
   @impl true
   def handle_info({:encounters_loaded, _count}, socket) do
-    {:noreply, assign(socket, :encounter_records, EncounterStore.list_encounter_records())}
+    {:noreply,
+     socket
+     |> assign(:encounter_records, EncounterStore.list_encounter_records())
+     |> assign_medallion_status()}
   end
 
   @impl true
@@ -245,6 +350,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         socket
         |> assign(:encounter_records, EncounterStore.list_encounter_records())
         |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+        |> assign_medallion_status()
       else
         socket
       end
@@ -266,6 +372,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:combat_log_file, new_clf)
      |> assign(:log_files, reload_log_files(socket.assigns.user))
      |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+     |> assign_medallion_status()
      |> put_flash(
        :info,
        "Log rotation detected! Switched to #{Path.basename(new_clf.file_path)} (#{count} encounters)"
@@ -287,6 +394,8 @@ defmodule WeGoNextWeb.EncounterLive.Index do
          |> assign(:syncing, false)
          |> assign(:encounter_records, EncounterStore.list_encounter_records())
          |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
+         |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+         |> assign_medallion_status()
          |> put_flash(:info, message)}
 
       {:error, reason} ->
@@ -315,6 +424,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
          |> assign(:encounter_records, EncounterStore.list_encounter_records())
          |> assign(:log_path, EncounterStore.current_log_path())
          |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
+         |> assign_medallion_status()
          |> put_flash(:info, "Loaded #{count} encounters from database")}
 
       {:error, reason} ->
@@ -331,6 +441,37 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      socket
      |> assign(:loading, false)
      |> assign(:error, "Failed to load: #{inspect(reason)}")}
+  end
+
+  @impl true
+  def handle_async(:rebuild_gold, {:ok, result}, socket) do
+    case result do
+      {:ok, totals} ->
+        {:noreply,
+         socket
+         |> assign(:rebuilding_gold, false)
+         |> assign_medallion_status()
+         |> put_flash(:info, rebuild_message(totals))}
+
+      {:error, %{encounter_id: encounter_id, reason: reason}} ->
+        {:noreply,
+         socket
+         |> assign(:rebuilding_gold, false)
+         |> assign_medallion_status()
+         |> put_flash(
+           :error,
+           "Failed to rebuild gold facts for encounter #{encounter_id}: #{format_reason(reason)}"
+         )}
+    end
+  end
+
+  @impl true
+  def handle_async(:rebuild_gold, {:exit, reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:rebuilding_gold, false)
+     |> assign_medallion_status()
+     |> put_flash(:error, "Failed to rebuild gold facts: #{inspect(reason)}")}
   end
 
   # ============================================================================
@@ -372,6 +513,16 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         combat_log_file={@combat_log_file}
       />
 
+      <.rules_operations status={@rules_status} />
+
+      <.medallion_operations
+        status={@medallion_status}
+        active_ruleset={@rules_status.active_ruleset}
+        rebuilding_gold={@rebuilding_gold}
+        loading={@loading}
+        selected_log={selected_reimport_path(@selected_log, @log_path)}
+      />
+
       <EncounterList.render
         encounter_records={@encounter_records}
         show_resets={@show_resets}
@@ -387,6 +538,144 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   # ============================================================================
   # Private Helpers
   # ============================================================================
+
+  defp rules_operations(assigns) do
+    ~H"""
+    <section class="rounded-lg border border-zinc-700 bg-zinc-900/70 p-4">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+            Rules Operations
+          </h2>
+          <div class="mt-2 flex flex-wrap gap-2 text-sm">
+            <span class={status_badge_class(@status.active_ruleset)}>
+              {active_ruleset_label(@status.active_ruleset)}
+            </span>
+            <span class="rounded border border-zinc-700 px-3 py-1 text-zinc-300">
+              {@status.authored_rules_count} authored rule{plural(@status.authored_rules_count)}
+            </span>
+            <span class="rounded border border-zinc-700 px-3 py-1 text-zinc-300">
+              {@status.promoted_snapshots_count} gold snapshot{plural(@status.promoted_snapshots_count)}
+            </span>
+          </div>
+          <p :if={@status.active_ruleset} class="mt-2 text-sm text-zinc-500">
+            Active ruleset has {@status.active_authored_rules_count} authored rule{plural(@status.active_authored_rules_count)}
+            and {@status.active_promoted_snapshots_count} promoted snapshot{plural(@status.active_promoted_snapshots_count)}.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            phx-click="seed_initial_rules"
+            class="rounded bg-zinc-700 px-3 py-2 text-sm font-semibold text-zinc-100 hover:bg-zinc-600"
+          >
+            Seed Bundled Rules
+          </button>
+          <button
+            type="button"
+            phx-click="promote_active_ruleset"
+            disabled={is_nil(@status.active_ruleset)}
+            class="rounded bg-wow-gold px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Promote Active Rules
+          </button>
+        </div>
+      </div>
+
+      <div :if={@status.rulesets != []} class="mt-4 overflow-hidden rounded border border-zinc-800">
+        <div class="grid grid-cols-[1fr_auto_auto] gap-3 bg-zinc-950 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          <span>Ruleset</span>
+          <span>Status</span>
+          <span>Action</span>
+        </div>
+        <div
+          :for={ruleset <- @status.rulesets}
+          class="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-t border-zinc-800 px-3 py-2 text-sm"
+        >
+          <div>
+            <span class="font-medium text-zinc-100">{ruleset.name}</span>
+            <span class="ml-2 text-zinc-500">v{ruleset.version}</span>
+          </div>
+          <span class="text-zinc-400">{ruleset.status}</span>
+          <button
+            :if={ruleset.status != "active"}
+            type="button"
+            phx-click="activate_ruleset"
+            phx-value-id={ruleset.id}
+            class="rounded border border-zinc-600 px-2 py-1 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
+          >
+            Activate
+          </button>
+          <span :if={ruleset.status == "active"} class="text-xs text-zinc-500">Active</span>
+        </div>
+      </div>
+    </section>
+    """
+  end
+
+  defp assign_rules_status(socket) do
+    assign(socket, :rules_status, Rules.operations_status())
+  end
+
+  defp medallion_operations(assigns) do
+    ~H"""
+    <section class="rounded-lg border border-zinc-700 bg-zinc-900/70 p-4">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+            Medallion Recompute
+          </h2>
+          <div class="mt-2 flex flex-wrap gap-2 text-sm">
+            <span class="rounded border border-zinc-700 px-3 py-1 text-zinc-300">
+              {@status.gold_encounters_count} gold encounter{plural(@status.gold_encounters_count)}
+            </span>
+            <span class="rounded border border-zinc-700 px-3 py-1 text-zinc-300">
+              {@status.failure_facts_count} failure fact{plural(@status.failure_facts_count)}
+            </span>
+            <span class="rounded border border-zinc-700 px-3 py-1 text-zinc-300">
+              {selected_log_label(@selected_log)}
+            </span>
+          </div>
+          <div class="mt-3 grid gap-2 text-sm text-zinc-500 lg:grid-cols-2">
+            <p>
+              Use gold rebuild after rules, promotions, or gold fact logic changed. It reads existing silver rows and keeps imported parser output.
+            </p>
+            <p>
+              Use force reimport after parser or silver projection logic changed. It reparses the selected log and recomputes derived rows.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            phx-click="rebuild_gold_facts"
+            disabled={
+              @rebuilding_gold or is_nil(@active_ruleset) or @status.gold_encounters_count == 0
+            }
+            class="rounded bg-wow-gold px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {if @rebuilding_gold, do: "Rebuilding Gold...", else: "Rebuild Gold Facts"}
+          </button>
+          <button
+            type="button"
+            phx-click="force_reimport_selected_log"
+            disabled={@loading or is_nil(@selected_log)}
+            data-confirm="Force reimport this log? Existing encounters for the selected log will be replaced before parsing."
+            class="rounded bg-zinc-700 px-3 py-2 text-sm font-semibold text-zinc-100 hover:bg-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Force Reimport Log
+          </button>
+        </div>
+      </div>
+    </section>
+    """
+  end
+
+  defp assign_medallion_status(socket) do
+    assign(socket, :medallion_status, Rebuilds.status())
+  end
 
   defp do_import(socket, path, opts) do
     Accounts.set_last_loaded_log(socket.assigns.user, path)
@@ -461,4 +750,39 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         end
     end
   end
+
+  defp active_ruleset_label(nil), do: "No active ruleset"
+
+  defp active_ruleset_label(%Ruleset{name: name, version: version}),
+    do: "Active: #{name} v#{version}"
+
+  defp status_badge_class(nil) do
+    "rounded border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-amber-300"
+  end
+
+  defp status_badge_class(%Ruleset{}) do
+    "rounded border border-green-500/40 bg-green-500/10 px-3 py-1 text-green-300"
+  end
+
+  defp plural(1), do: ""
+  defp plural(_count), do: "s"
+
+  defp selected_reimport_path(selected_log, log_path) do
+    cond do
+      is_binary(selected_log) and String.trim(selected_log) != "" -> selected_log
+      is_binary(log_path) and String.trim(log_path) != "" -> log_path
+      true -> nil
+    end
+  end
+
+  defp selected_log_label(nil), do: "No log selected"
+  defp selected_log_label(path), do: Path.basename(path)
+
+  defp rebuild_message(totals) do
+    "Rebuilt gold facts for #{totals.encounters} encounter#{plural(totals.encounters)}. " <>
+      "Deleted #{totals.deleted} stale row#{plural(totals.deleted)}, inserted #{totals.inserted} row#{plural(totals.inserted)}."
+  end
+
+  defp format_reason(%Ecto.Changeset{} = changeset), do: inspect(changeset.errors)
+  defp format_reason(reason), do: inspect(reason)
 end

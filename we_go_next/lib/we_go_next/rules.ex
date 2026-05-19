@@ -35,6 +35,22 @@ defmodule WeGoNext.Rules do
     Repo.get_by(Ruleset, status: "active")
   end
 
+  @doc """
+  Returns the near-term operator status for rules-backed gold facts.
+  """
+  def operations_status do
+    active_ruleset = get_active_ruleset()
+
+    %{
+      active_ruleset: active_ruleset,
+      rulesets: list_rulesets(),
+      authored_rules_count: Repo.aggregate(MechanicCriterion, :count),
+      promoted_snapshots_count: Repo.aggregate(DimMechanicCriterion, :count),
+      active_authored_rules_count: count_active_authored_rules(active_ruleset),
+      active_promoted_snapshots_count: count_active_promoted_snapshots(active_ruleset)
+    }
+  end
+
   def create_ruleset(attrs \\ %{}) do
     %Ruleset{}
     |> Ruleset.changeset(attrs)
@@ -314,6 +330,22 @@ defmodule WeGoNext.Rules do
 
   defp ruleset_scope_value(%Ruleset{} = ruleset, opts, key) do
     Keyword.get(opts, key, Map.fetch!(ruleset, key))
+  end
+
+  defp count_active_authored_rules(nil), do: 0
+
+  defp count_active_authored_rules(%Ruleset{id: ruleset_id}) do
+    MechanicCriterion
+    |> where([c], c.ruleset_id == ^ruleset_id)
+    |> Repo.aggregate(:count)
+  end
+
+  defp count_active_promoted_snapshots(nil), do: 0
+
+  defp count_active_promoted_snapshots(%Ruleset{id: ruleset_id, version: version}) do
+    DimMechanicCriterion
+    |> where([c], c.ruleset_id == ^ruleset_id and c.ruleset_version == ^version)
+    |> Repo.aggregate(:count)
   end
 
   defp apply_reference_names(attrs, opts) do

@@ -14,10 +14,9 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
 
   use Mix.Task
 
-  import Ecto.Query
-
-  alias WeGoNext.Gold.{DimEncounter, RebuildEncounter}
+  alias WeGoNext.Gold.{DimEncounter, Rebuilds}
   alias WeGoNext.Repo
+  import Ecto.Query
 
   @shortdoc "Rebuild gold.fact_failure from silver rows"
 
@@ -32,20 +31,15 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
     ruleset_label = ruleset_label(rebuild_opts)
 
     totals =
-      Enum.reduce(encounter_ids, %{deleted: 0, inserted: 0}, fn encounter_id, totals ->
-        case RebuildEncounter.rebuild(encounter_id, rebuild_opts) do
-          {:ok, %{fact_failure: result}} ->
-            %{
-              deleted: totals.deleted + result.deleted,
-              inserted: totals.inserted + result.inserted
-            }
+      case Rebuilds.rebuild_encounters(encounter_ids, rebuild_opts) do
+        {:ok, totals} ->
+          totals
 
-          {:error, reason} ->
-            Mix.raise(
-              "Failed to rebuild gold.fact_failure for encounter #{encounter_id}: #{inspect(reason)}"
-            )
-        end
-      end)
+        {:error, %{encounter_id: encounter_id, reason: reason}} ->
+          Mix.raise(
+            "Failed to rebuild gold.fact_failure for encounter #{encounter_id}: #{inspect(reason)}"
+          )
+      end
 
     Mix.shell().info(
       "Rebuilt gold.fact_failure for #{length(encounter_ids)} encounter(s) using #{ruleset_label}. " <>

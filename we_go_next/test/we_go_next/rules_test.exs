@@ -333,6 +333,41 @@ defmodule WeGoNext.RulesTest do
     assert snapshot.spell_id == 888
   end
 
+  test "operations_status summarizes active rules and promoted snapshots" do
+    Repo.delete_all(DimMechanicCriterion)
+    Repo.delete_all(MechanicCriterion)
+    Repo.delete_all(Ruleset)
+
+    {:ok, ruleset} = Rules.create_ruleset(%{name: "Operator Rules", status: "active"})
+
+    {:ok, rule} =
+      Rules.create_mechanic_criterion(%{
+        ruleset_id: ruleset.id,
+        spell_id: 777,
+        spell_name: "Operator Spell",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
+      })
+
+    assert %{
+             active_ruleset: ^ruleset,
+             authored_rules_count: 1,
+             promoted_snapshots_count: 0,
+             active_authored_rules_count: 1,
+             active_promoted_snapshots_count: 0
+           } = Rules.operations_status()
+
+    assert {:ok, %{criteria: [snapshot]}} = Rules.promote_active_ruleset_to_gold()
+    assert snapshot.source_rule_id == rule.id
+
+    assert %{
+             authored_rules_count: 1,
+             promoted_snapshots_count: 1,
+             active_authored_rules_count: 1,
+             active_promoted_snapshots_count: 1
+           } = Rules.operations_status()
+  end
+
   test "promotion can resolve spell and encounter names from source references" do
     {:ok, ruleset} =
       Rules.create_ruleset(%{
