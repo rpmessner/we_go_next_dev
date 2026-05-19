@@ -41,6 +41,7 @@ defmodule WeGoNext.MixProject do
       quality: [
         "format --check-formatted",
         "zig.get",
+        "cmd sh -c 'for i in $(seq 1 30); do if find \"$HOME/.cache/zigler\" -maxdepth 3 -type f -name zig -perm /111 | grep -q .; then exit 0; fi; sleep 1; done; echo \"zig executable not found\"; exit 1'",
         "compile --warnings-as-errors",
         "credo --only warning",
         "ecto.create --quiet",

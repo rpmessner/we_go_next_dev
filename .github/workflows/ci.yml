@@ -62,5 +62,19 @@ jobs:
       - name: Fetch dependencies
         run: mix deps.get
 
+      - name: Install Zig toolchain
+        run: |
+          mix zig.get
+          for i in {1..30}; do
+            if [ -x "$HOME/.cache/zigler/zig-x86_64-linux-0.15.2/zig" ]; then
+              "$HOME/.cache/zigler/zig-x86_64-linux-0.15.2/zig" version
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Zig executable was not installed where Zigler expects it"
+          find "$HOME/.cache/zigler" -maxdepth 3 -type f -name zig -print || true
+          exit 1
+
       - name: Run quality gate
         run: mix quality
