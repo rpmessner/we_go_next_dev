@@ -43,6 +43,59 @@ defmodule WeGoNextWeb.FailureLiveTest do
     refute html =~ "Swirl"
   end
 
+  test "defaults to latest imported encounter date range without query params", %{conn: conn} do
+    old_player = insert_player!("Player-Old-#{System.unique_integer([:positive])}", "Old")
+
+    recent_player =
+      insert_player!("Player-Recent-#{System.unique_integer([:positive])}", "Recent")
+
+    old_encounter = insert_encounter!("boss-old", "Boss Old", ~U[2026-04-01 20:00:00Z])
+    recent_encounter = insert_encounter!("boss-recent", "Boss Recent", ~U[2026-05-10 20:00:00Z])
+    old_criterion = insert_criterion!(301, "Old Swirl", "avoidable", "Boss Old")
+    recent_criterion = insert_criterion!(302, "Recent Swirl", "avoidable", "Boss Recent")
+
+    insert_failure!(old_encounter, old_player, old_criterion, 1, 100)
+    insert_failure!(recent_encounter, recent_player, recent_criterion, 1, 200)
+
+    html =
+      conn
+      |> get(~p"/failures")
+      |> html_response(200)
+
+    assert html =~ ~s(value="2026-04-27")
+    assert html =~ ~s(value="2026-05-10")
+    assert html =~ "Recent Swirl"
+    refute html =~ "Old Swirl"
+  end
+
+  test "explains missing active ruleset", %{conn: conn} do
+    html =
+      conn
+      |> get(~p"/failures")
+      |> html_response(200)
+
+    assert html =~ "Data Readiness"
+    assert html =~ "No active ruleset"
+    assert html =~ "Activate a ruleset, promote it to gold snapshots"
+  end
+
+  test "explains active ruleset without promoted snapshots", %{conn: conn} do
+    %Ruleset{}
+    |> Ruleset.changeset(%{
+      name: "Unpromoted Failure Rules #{System.unique_integer([:positive])}",
+      status: "active"
+    })
+    |> Repo.insert!()
+
+    html =
+      conn
+      |> get(~p"/failures")
+      |> html_response(200)
+
+    assert html =~ "No promoted criteria"
+    assert html =~ "has no promoted gold criterion snapshots"
+  end
+
   defp insert_player!(guid, name) do
     %DimPlayer{}
     |> DimPlayer.changeset(%{player_guid: guid, player_name: name})

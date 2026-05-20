@@ -15,20 +15,23 @@ defmodule WeGoNextWeb.FailureLive.Index do
      |> assign(:filters, %{start_date: nil, end_date: nil})
      |> assign(:filter_values, %{"start_date" => "", "end_date" => ""})
      |> assign(:rows, [])
-     |> assign(:player_groups, [])}
+     |> assign(:player_groups, [])
+     |> assign(:readiness, FailureSummary.readiness())}
   end
 
   @impl true
   def handle_params(params, _uri, socket) do
     filters = parse_filters(params)
     rows = FailureSummary.list_grouped_failures(filters)
+    readiness = FailureSummary.readiness(filters)
 
     {:noreply,
      socket
      |> assign(:filters, filters)
      |> assign(:filter_values, filter_values(filters))
      |> assign(:rows, rows)
-     |> assign(:player_groups, FailureSummary.group_by_player(rows))}
+     |> assign(:player_groups, FailureSummary.group_by_player(rows))
+     |> assign(:readiness, readiness)}
   end
 
   @impl true
@@ -104,6 +107,66 @@ defmodule WeGoNextWeb.FailureLive.Index do
         </form>
       </section>
 
+      <section class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-300">
+              Data Readiness
+            </h2>
+            <p class="mt-1 text-sm text-zinc-500">
+              {readiness_ruleset_label(@readiness.active_ruleset)}
+            </p>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-right text-xs text-zinc-500 sm:grid-cols-4">
+            <div>
+              <div class="font-mono text-base text-zinc-100">
+                {@readiness.active_promoted_snapshots_count}
+              </div>
+              <div>criteria</div>
+            </div>
+            <div>
+              <div class="font-mono text-base text-zinc-100">
+                {@readiness.scoped_encounters_count}
+              </div>
+              <div>encounters</div>
+            </div>
+            <div>
+              <div class="font-mono text-base text-zinc-100">
+                {@readiness.matching_silver_observation_count}
+              </div>
+              <div>silver rows</div>
+            </div>
+            <div>
+              <div class="font-mono text-base text-zinc-100">
+                {@readiness.selected_fact_count}
+              </div>
+              <div>facts</div>
+            </div>
+          </div>
+        </div>
+
+        <div :if={@readiness.diagnostics == []} class="mt-4 rounded border border-emerald-700/60 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-100">
+          Failures data is ready for the current filters.
+        </div>
+
+        <div :if={@readiness.diagnostics != []} class="mt-4 space-y-2">
+          <div
+            :for={diagnostic <- @readiness.diagnostics}
+            class={diagnostic_class(diagnostic.severity)}
+          >
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div class="font-medium text-zinc-100">{diagnostic.title}</div>
+                <p class="mt-1 text-sm text-zinc-300">{diagnostic.body}</p>
+              </div>
+              <span class={diagnostic_badge_class(diagnostic.severity)}>
+                {diagnostic_label(diagnostic.severity)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="grid gap-4 sm:grid-cols-3">
         <div class="stat-block">
           <div class="stat-value">{total_failures(@rows)}</div>
@@ -120,7 +183,9 @@ defmodule WeGoNextWeb.FailureLive.Index do
       </section>
 
       <div :if={@player_groups == []} class="rounded-lg border border-zinc-700 bg-zinc-800 p-8 text-center">
-        <p class="text-sm text-zinc-400">No mechanic failures found for this date range.</p>
+        <p class="text-sm text-zinc-400">
+          No mechanic failures found for this date range. Check data readiness above for the likely reason.
+        </p>
       </div>
 
       <section :for={group <- @player_groups} class="rounded-lg border border-zinc-700 bg-zinc-800">
@@ -174,9 +239,24 @@ defmodule WeGoNextWeb.FailureLive.Index do
   end
 
   defp parse_filters(params) do
-    %{}
+    if has_date_filter?(params) do
+      %{}
+    else
+      FailureSummary.default_filters()
+    end
     |> maybe_put_date(:start_date, Map.get(params, "start_date"))
     |> maybe_put_date(:end_date, Map.get(params, "end_date"))
+  end
+
+  defp has_date_filter?(params) do
+    date_filter_present?(params, "start_date") or date_filter_present?(params, "end_date")
+  end
+
+  defp date_filter_present?(params, key) do
+    case Map.get(params, key) do
+      value when is_binary(value) -> String.trim(value) != ""
+      _value -> false
+    end
   end
 
   defp maybe_put_date(filters, _key, value) when value in [nil, ""], do: filters
@@ -206,6 +286,40 @@ defmodule WeGoNextWeb.FailureLive.Index do
 
   defp total_failures(rows), do: rows |> Enum.map(& &1.failure_count) |> Enum.sum()
   defp total_damage(rows), do: rows |> Enum.map(& &1.total_damage) |> Enum.sum()
+
+  defp readiness_ruleset_label(nil), do: "No active ruleset."
+
+  defp readiness_ruleset_label(%{name: name, version: version}) do
+    "Active ruleset: #{name} v#{version}."
+  end
+
+  defp diagnostic_class(:blocked) do
+    "rounded border border-red-700/70 bg-red-950/30 px-3 py-2"
+  end
+
+  defp diagnostic_class(:warning) do
+    "rounded border border-yellow-700/70 bg-yellow-950/30 px-3 py-2"
+  end
+
+  defp diagnostic_class(:info) do
+    "rounded border border-sky-700/70 bg-sky-950/30 px-3 py-2"
+  end
+
+  defp diagnostic_badge_class(:blocked) do
+    "inline-flex self-start rounded border border-red-600/60 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-red-200"
+  end
+
+  defp diagnostic_badge_class(:warning) do
+    "inline-flex self-start rounded border border-yellow-600/60 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-yellow-200"
+  end
+
+  defp diagnostic_badge_class(:info) do
+    "inline-flex self-start rounded border border-sky-600/60 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-sky-200"
+  end
+
+  defp diagnostic_label(:blocked), do: "Blocked"
+  defp diagnostic_label(:warning), do: "Check"
+  defp diagnostic_label(:info), do: "Note"
 
   defp format_mechanic_type(type) when is_binary(type) do
     type

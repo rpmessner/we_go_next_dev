@@ -68,6 +68,8 @@ Deaths, debuff applications, and interrupt opportunities are already stored at e
 
 Before adding another event-grain silver table, name the downstream workflow and confirm that aggregate silver, existing event-like tables, or reparsing bronze logs would not be sufficient. If volume becomes a problem, tighten event-grain damage storage before expanding it: likely by NPC-source filtering, tank-melee exclusion, rule/candidate spell scoping, partitioning, or retention.
 
+Known semantics gap: `silver.interrupt_opportunity` currently treats every NPC `SPELL_CAST_SUCCESS` as `success = false`. That is an observed cast, not necessarily a confirmed missed interrupt opportunity. Until task `#61` lands, UI labels and gold builders should avoid presenting these rows as authoritative missed interrupts.
+
 ### Gold
 
 Gold owns analytic dimensions and facts under the `gold` schema.
@@ -112,6 +114,8 @@ Threshold semantics are intentionally narrow:
 - `interrupt`: optional `threshold["must_interrupt"]`, defaulting to true.
 - `soak`, `spread`, `stack`, `tank_mechanic`, `healer_mechanic`: allowed only with empty thresholds until fact semantics are implemented.
 
+Known snapshot gap: promotion into `gold.dim_mechanic_criterion` is currently idempotent by `source_rule_id`, which means re-promotion can mutate a criterion row that existing facts reference. Task `#60` should change snapshot identity to include the ruleset version, or an equivalent immutable version key, before candidate promotion becomes a primary workflow.
+
 ### Source Data
 
 Patch-aware source data is separate from combat-log bronze.
@@ -122,11 +126,18 @@ Current source-data groundwork:
 - `source_data.dbm_mechanic_candidate`
 - `source_data.spell_reference`
 - `source_data.encounter_reference`
+- `source_data.encounter_spell_reference`
+- `source_data.wowanalyzer_timeline_candidate`
 - `WeGoNext.SourceData.DBM.Parser`
+- `WeGoNext.SourceData.WowAnalyzer.Parser`
 
-DBM imports create inferred mechanic candidates with source file, line number, module metadata, warning constructor, role filters, labels, comments, confidence, and review status. These are evidence, not active rules. They do not write gold facts directly.
+DBM imports create inferred mechanic candidates with source file, line number, module metadata, warning constructor, role filters, labels, comments, confidence, and review status. The parser is a focused static Lua tokenizer/call extractor for DBM declaration forms, not Lua execution. Tree-sitter Lua was evaluated as a broader AST option, but the current narrow Elixir parser is sufficient for `DBM:NewMod`, module metadata setters, `mod:NewSpecialWarning*`, and warning `SetAlert` calls without adding a native parser dependency. These candidates are evidence, not active rules. They do not write gold facts directly.
 
-Spell and encounter references are conformed, build-scoped source-data dimensions used by rules and gold promotion code to resolve display names and encounter scope without relying on static JSON names. Reference rows carry product, channel, build key/version, locale, source system, source priority, optional `source_import_id`, and metadata. Retail, beta, and PTR rows coexist by channel/build scope; lookups prefer lower `source_priority` values within an explicit build scope.
+WowAnalyzer timeline imports create inferred candidates from local raid boss timeline metadata such as `src/game/raids/vs_dr_mqd`. Rows capture encounter id/name, timeline type (`ability` or `debuff`), event type (`cast`, `begincast`, `summon`, `debuff`, or `buff`), spell id, comment-derived mechanic hints, source file/line, repository revision, and repository license. These rows are also evidence only; they do not call WowAnalyzer runtime code and do not write active rules, promoted criterion snapshots, or facts.
+
+Spell, encounter, and encounter-spell references are conformed, build-scoped source-data dimensions used by rules, candidate review, and gold promotion code to resolve display names and encounter scope without relying on static JSON names. Reference rows carry product, channel, build key/version, locale, source system, source priority, optional `source_import_id`, and metadata. Retail, beta, and PTR rows coexist by channel/build scope; lookups prefer lower `source_priority` values within an explicit build scope.
+
+Reference metadata is imported from local JSON exports through `WeGoNext.SourceData.import_reference_metadata_file/2` or `mix wgn.import_reference_metadata`. The importer accepts narrow spell-id/name maps and bundles with `spells`, `encounters`, and optional `encounter_spells`; imported relationships remain review evidence and do not activate rules or write facts.
 
 ## Import Flow
 
@@ -175,9 +186,10 @@ Intentional references are limited to:
 
 New Phoenix routes, LiveViews, gold facts, silver/gold read models, and rules/source-data workflows must not call legacy analyzers or read cached analyzer output. They should use bronze/silver/gold/rules tables and read-model modules instead.
 
-The next medallion UI work should add:
+The next medallion work should prioritize:
 
-- rules status/bootstrap controls,
-- medallion rebuild/recompute controls,
-- failures empty-state diagnostics,
-- richer encounter detail sections behind the gold-keyed shell.
+- immutable promoted rule snapshots,
+- tighter missed-interrupt silver semantics,
+- projection and fact-builder version visibility,
+- failures readiness/staleness diagnostics,
+- player encounter performance trends.

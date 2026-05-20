@@ -11,6 +11,7 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
 
   alias WeGoNext.Repo
   alias WeGoNext.Rules.Ruleset
+  alias WeGoNext.Silver.DamageTaken
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
@@ -103,6 +104,64 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
              })
   end
 
+  test "default_filters uses the latest imported encounter as the end date", %{
+    early: _early,
+    late: _late
+  } do
+    assert FailureSummary.default_filters() == %{
+             start_date: ~D[2026-04-20],
+             end_date: ~D[2026-05-03]
+           }
+  end
+
+  test "default_filters is empty without imported encounter dates" do
+    Repo.delete_all(FactFailure)
+    Repo.delete_all(DimEncounter)
+
+    assert FailureSummary.default_filters() == %{}
+  end
+
+  test "readiness reports matching silver observations without gold facts", %{
+    one: one,
+    swirl: swirl,
+    early: early
+  } do
+    insert_damage_taken!(early, one.player_guid, swirl.spell_id)
+
+    readiness =
+      FailureSummary.readiness(%{
+        start_date: ~D[2026-05-01],
+        end_date: ~D[2026-05-01]
+      })
+
+    assert readiness.active_promoted_snapshots_count == 2
+    assert readiness.scoped_encounters_count == 1
+    assert readiness.matching_silver_observation_count == 1
+    assert readiness.matching_criteria_count == 1
+    assert readiness.selected_fact_count == 0
+
+    assert diagnostic_titles(readiness) == [
+             "No gold failure facts",
+             "Interrupt evidence is provisional"
+           ]
+  end
+
+  test "readiness reports stale facts when active ruleset version is not represented", %{
+    one: one,
+    swirl: swirl,
+    early: early
+  } do
+    insert_failure!(early, one, swirl, 1, 100, ruleset_version: 99)
+
+    readiness = FailureSummary.readiness()
+
+    assert readiness.selected_fact_count == 1
+    assert readiness.stale_fact_count == 1
+
+    assert "Facts may be stale" in diagnostic_titles(readiness)
+    assert "Builder-version staleness is not visible yet" in diagnostic_titles(readiness)
+  end
+
   defp insert_encounter!(wow_encounter_id, name, start_time) do
     %DimEncounter{}
     |> DimEncounter.changeset(%{
@@ -144,14 +203,14 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
     end
   end
 
-  defp insert_failure!(encounter, player, criterion, failure_count, total_damage) do
+  defp insert_failure!(encounter, player, criterion, failure_count, total_damage, attrs \\ []) do
     %FactFailure{}
     |> FactFailure.changeset(%{
       encounter_dim_id: encounter.id,
       player_dim_id: player.id,
       criterion_dim_id: criterion.id,
       ruleset_id: criterion.ruleset_id,
-      ruleset_version: criterion.ruleset_version,
+      ruleset_version: Keyword.get(attrs, :ruleset_version, criterion.ruleset_version),
       product: criterion.product,
       channel: criterion.channel,
       build_version: criterion.build_version,
@@ -160,5 +219,25 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
       total_damage: total_damage
     })
     |> Repo.insert!()
+  end
+
+  defp insert_damage_taken!(encounter, player_guid, spell_id) do
+    %DamageTaken{}
+    |> DamageTaken.changeset(%{
+      encounter_dim_id: encounter.id,
+      target_guid: player_guid,
+      source_guid: "Creature-#{System.unique_integer([:positive])}",
+      spell_id: spell_id,
+      total_amount: 100,
+      hit_count: 1,
+      max_hit: 100,
+      overkill_total: 0,
+      source_is_npc: true
+    })
+    |> Repo.insert!()
+  end
+
+  defp diagnostic_titles(readiness) do
+    Enum.map(readiness.diagnostics, & &1.title)
   end
 end

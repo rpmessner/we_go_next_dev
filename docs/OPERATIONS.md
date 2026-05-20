@@ -45,7 +45,7 @@ Do not force reimport just because rules changed.
 
 ## Rules Bootstrap
 
-Current rules are backend-only. There is not yet a production UI for creating, activating, or promoting rules.
+The home page includes rules operations for seeding bundled rules, activating a ruleset, and promoting the active ruleset into gold criterion snapshots.
 
 Seed bundled local rules:
 
@@ -85,17 +85,89 @@ mix wgn.rebuild_gold --ruleset-id 456
 
 The task uses `WeGoNext.Gold.RebuildEncounter`, the same boundary used by the importer.
 
+## Import DBM Candidates
+
+DBM import reads installed Midnight DBM Lua modules as source evidence. It statically extracts module metadata, special warning declarations, alert tokens, source file/line provenance, and tentative mechanic candidate types. It does not execute Lua, activate rules, promote criterion snapshots, or rebuild gold facts.
+
+Default local import:
+
+```bash
+mix wgn.import_dbm --build-key local
+```
+
+Explicit source root:
+
+```bash
+mix wgn.import_dbm \
+  --root "/mnt/e/World of Warcraft/_retail_/Interface/AddOns/DBM-Raids-Midnight" \
+  --build-key local
+```
+
+Imported rows are stored in `source_data.dbm_mechanic_candidate`. Treat them as candidate review input only.
+
+## Import Reference Metadata
+
+Source-data reference metadata resolves spell names, encounter names, build scope, and encounter-to-spell evidence for candidate review. It does not activate rules or rebuild facts.
+
+Import the local spell-name export:
+
+```bash
+mix wgn.import_reference_metadata --build-key 11.2.5
+```
+
+Import explicit exported metadata:
+
+```bash
+mix wgn.import_reference_metadata \
+  --file /path/to/reference_bundle.json \
+  --build-key 11.2.5 \
+  --channel ptr
+```
+
+Supported JSON inputs are intentionally narrow:
+
+- spell-id/name maps such as `tools/spell_names.json`,
+- bundles with `spells`, `encounters`, and optional `encounter_spells` arrays.
+
+Use source metadata imports before building inferred candidate review read models. Use gold rebuilds only after reviewed rules are promoted.
+
+## Import WowAnalyzer Timeline Candidates
+
+WowAnalyzer timeline import reads the local AGPL-licensed WowAnalyzer checkout as source evidence. It extracts encounter timeline spell IDs and comments from static TypeScript boss files, records repository revision/license provenance, and infers tentative mechanic candidate types for later review. It does not copy runtime code into the medallion fact path, activate rules, promote criterion snapshots, or rebuild gold facts.
+
+Default local import:
+
+```bash
+mix wgn.import_wowanalyzer --build-key local
+```
+
+Explicit source root:
+
+```bash
+mix wgn.import_wowanalyzer \
+  --root /home/rpmessner/dev/games/wow-addons/WoWAnalyzer/src/game/raids/vs_dr_mqd \
+  --repo-root /home/rpmessner/dev/games/wow-addons/WoWAnalyzer \
+  --build-key local
+```
+
+Imported rows are stored in `source_data.wowanalyzer_timeline_candidate` with source file/line, comments, `repository_revision`, and `repository_license` (`AGPL-3.0-or-later` for the local checkout). Treat these rows as candidate review input only.
+
 ## Diagnosing Empty Failures
 
-If `/failures` is empty, check these in order:
+The `/failures` page has a Data Readiness panel that checks the common empty-state causes:
 
-1. Is there an active ruleset?
-2. Were active rules promoted to `gold.dim_mechanic_criterion`?
-3. Do the promoted criteria match spell IDs present in silver?
-4. Did `mix wgn.rebuild_gold` run after rules/gold changes?
-5. Did the selected log import produce silver rows?
+- no active ruleset,
+- no promoted `gold.dim_mechanic_criterion` snapshots for the active ruleset,
+- no gold encounters in the selected date range,
+- no supported silver observations matching active criteria,
+- no gold facts for the selected range,
+- fact rows that no longer match the active ruleset version or their current promoted snapshot.
 
-Useful SQL:
+The panel currently detects staleness by ruleset and criterion snapshot identity. It cannot yet detect projection or builder code-version drift; that is tracked by task `#62`.
+
+Interrupt diagnostics are also provisional until task `#61` tightens `silver.interrupt_opportunity` semantics. Treat interrupt readiness as a coarse signal, not a confirmed missed-interrupt analysis.
+
+Useful SQL for deeper inspection:
 
 ```sql
 SELECT id, name, version, status FROM rules.ruleset ORDER BY id;
@@ -105,8 +177,6 @@ SELECT count(*) FROM silver.damage_taken;
 SELECT count(*) FROM silver.interrupt_opportunity;
 SELECT count(*) FROM gold.fact_failure;
 ```
-
-Near-term tasks `#52`, `#53`, and `#54` exist to turn these checks into UI flows.
 
 ## Rebuild Policy
 

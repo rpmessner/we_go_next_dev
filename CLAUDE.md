@@ -4,8 +4,8 @@
 
 A diagnostic tool for raid progression and Mythic+ dungeons. Diagnoses mechanic failures, coaches players privately, and improves group performance. Built for Hand of Algalon on Wyrmrest Accord.
 
-**Primary Focus:** Build a usable frontend over the medallion warehouse so real combat logs can drive rules, rebuilds, diagnostics, and encounter review.
-**Secondary Focus:** Expand fact/dimension/criterion coverage once the operator workflow is solid.
+**Primary Focus:** Make the medallion warehouse correct and operable over real combat logs so rules, rebuilds, diagnostics, encounter review, and stale-data states are visible from the UI.
+**Secondary Focus:** Expand fact/dimension/criterion coverage once the warehouse semantics and operator workflow are solid.
 
 ## Long-Term Vision
 
@@ -24,9 +24,11 @@ The old Midnight launch deadline has passed. The project is no longer organized 
 1. Import live and archived combat logs.
 2. Make ruleset state visible and controllable from the UI.
 3. Rebuild gold facts explicitly when rules or fact semantics change.
-4. Explain empty and stale medallion states without requiring SQL.
-5. Build encounter detail views from silver/gold/rules read models.
-6. Expand fact/dim/criterion coverage when the supporting data grain is defensible.
+4. Keep promoted rule snapshots historically stable.
+5. Keep silver observations unopinionated unless they truly represent authored intent.
+6. Explain empty and stale medallion states without requiring SQL.
+7. Build encounter detail views from silver/gold/rules read models.
+8. Expand fact/dim/criterion coverage when the supporting data grain is defensible.
 
 ### Mythic+ Support
 
@@ -59,7 +61,7 @@ The original analyzer/UI MVP has been pruned from active routing. The current ar
 - ✅ Gold `fact_failure` proof-of-concept derived from silver/gold tables
 - ✅ Rules schema foundation for authored mechanic criteria
 
-**Current board focus:** build the UI and operations layer around the completed PR1 medallion backend. Near-term tasks are rules status/bootstrap UI, medallion rebuild/recompute controls, failures empty-state diagnostics, gold-keyed encounter navigation, and then the replacement encounter detail shell. After those flows are usable, the roadmap moves into conformed spell/encounter dimensions, patch/build validity, source-data candidate review, and additional fact semantics.
+**Current board focus:** close medallion correctness gaps before scaling source-data inference. Near-term tasks are immutable promoted rule snapshots, tighter missed-interrupt silver semantics, projection/builder version stamps, failures data-readiness diagnostics, and the player encounter performance fact. Source-data imports remain evidence/candidates only until review and promotion flows are trustworthy.
 
 ### Key Differentiator
 
@@ -146,7 +148,7 @@ New patch/season mechanic source data should be handled by a later bronze/source
 ### Layer Ownership
 
 - **Bronze/log ingestion** owns raw WoW combat log files and provenance. `combat_log_files` remains the operational catalog for live and Warcraft Logs archive files.
-- **Silver** owns deterministic projections under the `silver` Postgres schema: damage taken, damage taken events, damage done, deaths, interrupt opportunities, debuff applications, and player info. Event-grain silver rows are allowed only for named downstream rule-review, classifier, fact, or UI needs; silver must not become a generic raw combat-log event warehouse.
+- **Silver** owns deterministic projections under the `silver` Postgres schema: damage taken, damage taken events, damage done, deaths, current interrupt/cast observations, debuff applications, and player info. Event-grain silver rows are allowed only for named downstream rule-review, classifier, fact, or UI needs; silver must not become a generic raw combat-log event warehouse. Known gap: `silver.interrupt_opportunity` is currently overbroad and should be tightened/reframed by task `#61`.
 - **Gold** owns analytic dimensions/facts under the `gold` schema. Current fact proof: `gold.fact_failure`.
 - **Rules** owns authored mechanic business configuration under the `rules` schema. Rules are not silver event data and are not mutable gold facts.
 
@@ -176,16 +178,23 @@ The legacy `/encounters/:id` analysis page has been pruned from active routing. 
   - `soak`, `spread`, `stack`, `tank_mechanic`, `healer_mechanic`: empty threshold map until fact semantics exist
 - Seed rules through `WeGoNext.Rules` and `mix we_go_next.seed_rules`, not migrations.
 - Gold facts should identify rules through `criterion_dim_id -> gold.dim_mechanic_criterion`, not a direct mutable rule row.
+- Known gap: promoted criterion snapshots currently replace by `source_rule_id`; task `#60` should make snapshot identity version-immutable so existing fact rows do not silently change meaning.
 
-### Rules Refactor Order
+### Medallion Correctness Order
 
-Task board order before importer hook:
+Current priority before scaling source-data inference:
 
-1. `#27` Promote `rules.mechanic_criterion` into `gold.dim_mechanic_criterion` snapshots.
-2. `#28` Make `Gold.FactFailure.rebuild_for_encounter/1` ruleset-aware.
-3. `#14` Hook silver/gold into importer after #28.
+1. `#60` Make promoted rule snapshots version-immutable.
+2. `#61` Tighten missed-interrupt silver semantics.
+3. `#62` Stamp silver projections and gold fact builders with versions.
+4. `#54` Surface data readiness diagnostics in failures UI.
+5. `#63` Add player encounter performance fact for pull-over-pull trends.
 
-Silver verification tasks (`#16`, `#17`, `#19`) can proceed in parallel because they do not depend on rules.
+DBM/WowAnalyzer source-data work remains important, but it should stay quarantined as provenance-rich evidence until these correctness issues are addressed.
+
+DBM source import now uses a focused static Lua declaration parser for `DBM:NewMod`, module metadata setters, `mod:NewSpecialWarning*`, and warning `SetAlert` calls. It does not execute Lua and its output remains `source_data.dbm_mechanic_candidate` evidence only.
+
+WowAnalyzer timeline source import now exists as an evidence-only path for the local AGPL-licensed checkout. It stores static timeline candidates under `source_data.wowanalyzer_timeline_candidate` with file/line, comments, repository revision, and license provenance. It must not be treated as active rules, promoted criterion snapshots, or fact input until the review and promotion workflow is built.
 
 ## Character List
 
@@ -406,10 +415,11 @@ When making scope decisions:
 
 If scope pressure appears:
 
-1. Ship rules status/bootstrap and gold rebuild controls before broader rules authoring.
-2. Ship clear empty-state diagnostics before adding more failure types.
-3. Add encounter-detail read models before polish or sharing workflows.
-4. Defer source-data inference automation until reviewed candidates can become draft rules cleanly.
+1. Fix immutable promoted rule snapshots before scaling candidate promotion.
+2. Fix missed-interrupt silver semantics before trusting interrupt counts or candidate cross-reference.
+3. Add derivation version stamps before making stale-data diagnostics more ambitious.
+4. Ship clear readiness diagnostics before adding more failure types.
+5. Defer source-data inference automation until reviewed candidates can become draft rules cleanly.
 
 ### Other Principles
 

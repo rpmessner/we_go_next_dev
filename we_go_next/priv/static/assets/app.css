@@ -992,6 +992,10 @@ select {
   grid-template-columns: 1fr auto auto;
 }
 
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .flex-col {
   flex-direction: column;
 }
@@ -1101,6 +1105,10 @@ select {
   border-color: rgb(63 63 70 / var(--tw-divide-opacity));
 }
 
+.self-start {
+  align-self: flex-start;
+}
+
 .overflow-hidden {
   overflow: hidden;
 }
@@ -1206,6 +1214,34 @@ select {
 .border-zinc-800 {
   --tw-border-opacity: 1;
   border-color: rgb(39 39 42 / var(--tw-border-opacity));
+}
+
+.border-emerald-700\/60 {
+  border-color: rgb(4 120 87 / 0.6);
+}
+
+.border-red-600\/60 {
+  border-color: rgb(220 38 38 / 0.6);
+}
+
+.border-red-700\/70 {
+  border-color: rgb(185 28 28 / 0.7);
+}
+
+.border-sky-600\/60 {
+  border-color: rgb(2 132 199 / 0.6);
+}
+
+.border-sky-700\/70 {
+  border-color: rgb(3 105 161 / 0.7);
+}
+
+.border-yellow-600\/60 {
+  border-color: rgb(202 138 4 / 0.6);
+}
+
+.border-yellow-700\/70 {
+  border-color: rgb(161 98 7 / 0.7);
 }
 
 .bg-emerald-50 {
@@ -1320,6 +1356,22 @@ select {
 .bg-red-950 {
   --tw-bg-opacity: 1;
   background-color: rgb(69 10 10 / var(--tw-bg-opacity));
+}
+
+.bg-emerald-950\/30 {
+  background-color: rgb(2 44 34 / 0.3);
+}
+
+.bg-red-950\/30 {
+  background-color: rgb(69 10 10 / 0.3);
+}
+
+.bg-sky-950\/30 {
+  background-color: rgb(8 47 73 / 0.3);
+}
+
+.bg-yellow-950\/30 {
+  background-color: rgb(66 32 6 / 0.3);
 }
 
 .fill-cyan-900 {
@@ -1487,6 +1539,11 @@ select {
 .text-xl {
   font-size: 1.25rem;
   line-height: 1.75rem;
+}
+
+.text-base {
+  font-size: 1rem;
+  line-height: 1.5rem;
 }
 
 .font-bold {
@@ -1660,6 +1717,26 @@ select {
 .text-amber-300 {
   --tw-text-opacity: 1;
   color: rgb(252 211 77 / var(--tw-text-opacity));
+}
+
+.text-emerald-100 {
+  --tw-text-opacity: 1;
+  color: rgb(209 250 229 / var(--tw-text-opacity));
+}
+
+.text-red-200 {
+  --tw-text-opacity: 1;
+  color: rgb(254 202 202 / var(--tw-text-opacity));
+}
+
+.text-sky-200 {
+  --tw-text-opacity: 1;
+  color: rgb(186 230 253 / var(--tw-text-opacity));
+}
+
+.text-yellow-200 {
+  --tw-text-opacity: 1;
+  color: rgb(254 240 138 / var(--tw-text-opacity));
 }
 
 .antialiased {
@@ -2058,6 +2135,10 @@ select {
 
   .sm\:grid-cols-\[1fr_1fr_auto_auto\] {
     grid-template-columns: 1fr 1fr auto auto;
+  }
+
+  .sm\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .sm\:flex-row {
