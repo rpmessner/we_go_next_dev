@@ -1,10 +1,10 @@
 defmodule WeGoNext.SourceData.WowAnalyzerTimelineCandidate do
   @moduledoc """
-  Mechanic candidate inferred from a WowAnalyzer encounter timeline entry.
+  Parsed WowAnalyzer mechanic source row inferred from an encounter timeline entry.
 
-  Candidates are source evidence. They are not active mechanic rules and do not
-  directly produce gold facts until a later review/promotion workflow turns them
-  into `rules.mechanic_criterion` rows.
+  These rows are source evidence. They are not active mechanic rules and do not
+  directly produce gold facts. Code-defined raid mechanic catalogs decide which
+  timeline hints are relevant to active rule criteria.
   """
 
   use Ecto.Schema

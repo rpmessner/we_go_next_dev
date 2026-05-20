@@ -66,7 +66,7 @@ This means multiple hits from the same spell become multiple rows. The table doe
 
 Deaths, debuff applications, and interrupt opportunities are already stored at event-like grains. They are not duplicated into a generic raw-event table.
 
-Before adding another event-grain silver table, name the downstream workflow and confirm that aggregate silver, existing event-like tables, or reparsing bronze logs would not be sufficient. If volume becomes a problem, tighten event-grain damage storage before expanding it: likely by NPC-source filtering, tank-melee exclusion, rule/candidate spell scoping, partitioning, or retention.
+Before adding another event-grain silver table, name the downstream workflow and confirm that aggregate silver, existing event-like tables, or reparsing bronze logs would not be sufficient. If volume becomes a problem, tighten event-grain damage storage before expanding it: likely by NPC-source filtering, tank-melee exclusion, curated rule spell scoping, partitioning, or retention.
 
 Known semantics gap: `silver.interrupt_opportunity` currently treats every NPC `SPELL_CAST_SUCCESS` as `success = false`. That is an observed cast, not necessarily a confirmed missed interrupt opportunity. Until task `#61` lands, UI labels and gold builders should avoid presenting these rows as authoritative missed interrupts.
 
@@ -104,7 +104,8 @@ Rules are business configuration in the `rules` schema.
 
 - `rules.ruleset` supports `draft`, `active`, and `archived`.
 - `rules.mechanic_criterion` stores authored mechanic criteria.
-- `gold.dim_mechanic_criterion` snapshots authored criteria for fact stability.
+- `gold.dim_mechanic_criterion` stores promoted authored criteria used by
+  `gold.fact_failure`.
 
 There is currently exactly one active ruleset globally. Backfills and tests may pass an explicit `ruleset_id`.
 
@@ -114,9 +115,11 @@ Threshold semantics are intentionally narrow:
 - `interrupt`: optional `threshold["must_interrupt"]`, defaulting to true.
 - `soak`, `spread`, `stack`, `tank_mechanic`, `healer_mechanic`: allowed only with empty thresholds until fact semantics are implemented.
 
-Known snapshot gap: promotion into `gold.dim_mechanic_criterion` is currently idempotent by `source_rule_id`, which means re-promotion can mutate a criterion row that existing facts reference. Task `#60` should change snapshot identity to include the ruleset version, or an equivalent immutable version key, before candidate promotion becomes a primary workflow.
+Rules are allowed to be refined as the team learns. For the local coaching loop,
+rebuilding gold facts from current rules is preferred over preserving historical
+rule archaeology.
 
-### Source Data
+### Source Data and Mechanic Sources
 
 Patch-aware source data is separate from combat-log bronze.
 
@@ -131,13 +134,30 @@ Current source-data groundwork:
 - `WeGoNext.SourceData.DBM.Parser`
 - `WeGoNext.SourceData.WowAnalyzer.Parser`
 
-DBM imports create inferred mechanic candidates with source file, line number, module metadata, warning constructor, role filters, labels, comments, confidence, and review status. The parser is a focused static Lua tokenizer/call extractor for DBM declaration forms, not Lua execution. Tree-sitter Lua was evaluated as a broader AST option, but the current narrow Elixir parser is sufficient for `DBM:NewMod`, module metadata setters, `mod:NewSpecialWarning*`, and warning `SetAlert` calls without adding a native parser dependency. These candidates are evidence, not active rules. They do not write gold facts directly.
+DBM imports create parsed source rows with source file, line number, module metadata, warning constructor, role filters, labels, comments, confidence, and review status. The parser is a focused static Lua tokenizer/call extractor for DBM declaration forms, not Lua execution. Tree-sitter Lua was evaluated as a broader AST option, but the current narrow Elixir parser is sufficient for `DBM:NewMod`, module metadata setters, `mod:NewSpecialWarning*`, and warning `SetAlert` calls without adding a native parser dependency. These rows are source annotations, not active rules. They do not write gold facts directly.
 
-WowAnalyzer timeline imports create inferred candidates from local raid boss timeline metadata such as `src/game/raids/vs_dr_mqd`. Rows capture encounter id/name, timeline type (`ability` or `debuff`), event type (`cast`, `begincast`, `summon`, `debuff`, or `buff`), spell id, comment-derived mechanic hints, source file/line, repository revision, and repository license. These rows are also evidence only; they do not call WowAnalyzer runtime code and do not write active rules, promoted criterion snapshots, or facts.
+WowAnalyzer timeline imports create parsed source rows from local raid boss timeline metadata such as `src/game/raids/vs_dr_mqd`. Rows capture encounter id/name, timeline type (`ability` or `debuff`), event type (`cast`, `begincast`, `summon`, `debuff`, or `buff`), spell id, comment-derived mechanic hints, source file/line, repository revision, and repository license. These rows are also annotations only; they do not call WowAnalyzer runtime code and do not write active rules, promoted criterion snapshots, or facts.
 
-Spell, encounter, and encounter-spell references are conformed, build-scoped source-data dimensions used by rules, candidate review, and gold promotion code to resolve display names and encounter scope without relying on static JSON names. Reference rows carry product, channel, build key/version, locale, source system, source priority, optional `source_import_id`, and metadata. Retail, beta, and PTR rows coexist by channel/build scope; lookups prefer lower `source_priority` values within an explicit build scope.
+Spell, encounter, and encounter-spell references are conformed, build-scoped source-data dimensions used by rules, observed-mechanic previews, and gold promotion code to resolve display names and encounter scope without relying on static JSON names. Reference rows carry product, channel, build key/version, locale, source system, source priority, optional `source_import_id`, and metadata. Retail, beta, and PTR rows coexist by channel/build scope; lookups prefer lower `source_priority` values within an explicit build scope.
 
-Reference metadata is imported from local JSON exports through `WeGoNext.SourceData.import_reference_metadata_file/2` or `mix wgn.import_reference_metadata`. The importer accepts narrow spell-id/name maps and bundles with `spells`, `encounters`, and optional `encounter_spells`; imported relationships remain review evidence and do not activate rules or write facts.
+Reference metadata is imported from local JSON exports through `WeGoNext.SourceData.import_reference_metadata_file/2` or `mix wgn.import_reference_metadata`. The importer accepts narrow spell-id/name maps and bundles with `spells`, `encounters`, and optional `encounter_spells`; imported relationships remain source annotations and do not activate rules or write facts.
+
+Current product direction has shifted away from source-row review as a user-facing
+workflow. Source-data rows should be treated as source annotations attached to
+spells observed in local combat logs. The intended path is:
+
+```text
+observed silver spell/mechanic rows
+  -> source annotations from DBM, BigWigs, WowAnalyzer, journal data, guides, reminders
+  -> code-defined raid mechanic catalogs
+  -> synced editable rules for supported mechanic semantics
+  -> gold rebuild
+  -> encounter preview and failure facts
+```
+
+The source hierarchy and constraints are documented in
+[`MECHANIC_SOURCE_STRATEGY.md`](MECHANIC_SOURCE_STRATEGY.md). New UI should use
+language like observed mechanics, source annotations, and rule status.
 
 ## Import Flow
 
@@ -188,8 +208,8 @@ New Phoenix routes, LiveViews, gold facts, silver/gold read models, and rules/so
 
 The next medallion work should prioritize:
 
-- immutable promoted rule snapshots,
-- tighter missed-interrupt silver semantics,
-- projection and fact-builder version visibility,
-- failures readiness/staleness diagnostics,
-- player encounter performance trends.
+- observed mechanics previews over current imported logs,
+- code-defined raid mechanic catalogs synced into editable rules,
+- avoidable damage rules and rebuilt real failure facts,
+- tighter missed-interrupt silver semantics before interrupt auto-import,
+- additional fact semantics only when supporting silver observations exist.

@@ -1,9 +1,9 @@
 defmodule WeGoNext.SourceData do
   @moduledoc """
-  Source-data ingestion context for patch-aware mechanic inference.
+  Source-data ingestion context for patch-aware mechanic reference data.
 
-  This context stores evidence and inferred candidates only. It does not mutate
-  active rules or gold facts.
+  This context stores provenance-rich source rows only. Code-defined raid
+  mechanic catalogs decide which source rows become active rules.
   """
 
   import Ecto.Query
@@ -54,14 +54,14 @@ defmodule WeGoNext.SourceData do
         source_import_action = source_import_action(path, content_hash, opts)
         source_import = upsert_source_import!(path, content_hash, parsed_module, opts)
         candidates = replace_dbm_candidates!(source_import, parsed_module, path)
-        candidate_count = length(candidates)
+        source_row_count = length(candidates)
 
         %{
           source_import: source_import,
           source_import_action: source_import_action,
           candidates: candidates,
-          inserted_candidate_count: inserted_count(source_import_action, candidate_count),
-          updated_candidate_count: updated_count(source_import_action, candidate_count)
+          inserted_candidate_count: inserted_count(source_import_action, source_row_count),
+          updated_candidate_count: updated_count(source_import_action, source_row_count)
         }
       end)
     end
@@ -96,8 +96,8 @@ defmodule WeGoNext.SourceData do
   @doc """
   Imports all configured DBM Midnight addon roots and returns an operator summary.
 
-  This source-data import only records source imports and inferred DBM mechanic
-  candidates. It does not promote rules or rebuild gold facts.
+  This source-data import only records source imports and parsed DBM mechanic
+  source rows. It does not define active rules or rebuild gold facts.
   """
   def import_dbm_midnight_sources(opts \\ []) do
     opts
@@ -174,8 +174,8 @@ defmodule WeGoNext.SourceData do
   @doc """
   Imports one WowAnalyzer TypeScript boss timeline file.
 
-  The import records encounter timeline spell evidence and inferred candidates
-  only. It does not promote rules or rebuild gold facts.
+  The import records encounter timeline spell evidence as source rows only. It
+  does not define active rules or rebuild gold facts.
   """
   def import_wowanalyzer_file(path, opts \\ []) when is_binary(path) do
     with {:ok, parsed_file} <- WowAnalyzerParser.parse_file(path),
@@ -208,14 +208,14 @@ defmodule WeGoNext.SourceData do
             opts
           )
 
-        candidate_count = length(candidates)
+        source_row_count = length(candidates)
 
         %{
           source_import: source_import,
           source_import_action: source_import_action,
           candidates: candidates,
-          inserted_candidate_count: inserted_count(source_import_action, candidate_count),
-          updated_candidate_count: updated_count(source_import_action, candidate_count)
+          inserted_candidate_count: inserted_count(source_import_action, source_row_count),
+          updated_candidate_count: updated_count(source_import_action, source_row_count)
         }
       end)
     end

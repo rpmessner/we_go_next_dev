@@ -8,7 +8,8 @@ defmodule WeGoNext.Rules do
 
   import Ecto.Query
 
-  alias WeGoNext.Gold.DimMechanicCriterion
+  alias WeGoNext.GameData.Raids
+  alias WeGoNext.Gold.{DimMechanicCriterion, Rebuilds}
   alias WeGoNext.Repo
   alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
   alias WeGoNext.SourceData
@@ -179,6 +180,32 @@ defmodule WeGoNext.Rules do
   end
 
   @doc """
+  Syncs code-defined raid mechanics into editable authored rules.
+
+  The raid catalog remains the curated source in code. This function mirrors its
+  syncable mechanics into `rules.mechanic_criterion` rows, where operators can
+  still edit and promote them through the normal rules workflow.
+
+  Supported options:
+
+    * `:name` - ruleset name, defaults to `"<raid name> Mechanics"`
+    * `:version` - ruleset version, defaults to `1`
+    * `:status` - seed ruleset status, defaults to `"draft"`
+    * `:activate` - activate the synced ruleset, defaults to `false`
+    * `:promote` - promote the synced ruleset to gold criteria, defaults to `false`
+    * `:rebuild` - rebuild gold facts after promotion, defaults to `false`
+  """
+  def sync_raid_mechanics(raid, opts \\ []) do
+    with {:ok, raid_module} <- raid_module(raid),
+         {:ok, synced} <- seed_rules(raid_seed_payload(raid_module, opts), opts),
+         {:ok, ruleset} <- maybe_activate_synced_ruleset(synced.ruleset, opts),
+         {:ok, promoted} <- maybe_promote_synced_ruleset(ruleset, opts),
+         {:ok, rebuild} <- maybe_rebuild_after_sync(opts) do
+      {:ok, %{ruleset: ruleset, criteria: synced.criteria, promoted: promoted, rebuild: rebuild}}
+    end
+  end
+
+  @doc """
   Seeds the bundled initial mechanic rules JSON.
   """
   def seed_initial_rules(opts \\ []) do
@@ -231,6 +258,58 @@ defmodule WeGoNext.Rules do
 
       nil ->
         create_ruleset(ruleset_seed_attrs(attrs))
+    end
+  end
+
+  defp raid_module(module) when is_atom(module) do
+    if function_exported?(module, :rule_criteria, 0) and function_exported?(module, :info, 0) do
+      {:ok, module}
+    else
+      {:error, :invalid_raid_catalog}
+    end
+  end
+
+  defp raid_module(slug) when is_binary(slug) do
+    case Raids.by_slug(slug) do
+      nil -> {:error, :raid_catalog_not_found}
+      module -> {:ok, module}
+    end
+  end
+
+  defp raid_seed_payload(raid_module, opts) do
+    info = raid_module.info()
+
+    %{
+      "ruleset" => %{
+        "name" => Keyword.get(opts, :name, "#{info.name} Mechanics"),
+        "version" => Keyword.get(opts, :version, 1),
+        "status" => Keyword.get(opts, :status, "draft")
+      },
+      "criteria" => raid_module.rule_criteria()
+    }
+  end
+
+  defp maybe_activate_synced_ruleset(ruleset, opts) do
+    if Keyword.get(opts, :activate, false) do
+      activate_ruleset(ruleset)
+    else
+      {:ok, ruleset}
+    end
+  end
+
+  defp maybe_promote_synced_ruleset(ruleset, opts) do
+    if Keyword.get(opts, :promote, false) do
+      promote_ruleset_to_gold(ruleset)
+    else
+      {:ok, nil}
+    end
+  end
+
+  defp maybe_rebuild_after_sync(opts) do
+    if Keyword.get(opts, :rebuild, false) do
+      Rebuilds.rebuild_all(ruleset: :active)
+    else
+      {:ok, nil}
     end
   end
 

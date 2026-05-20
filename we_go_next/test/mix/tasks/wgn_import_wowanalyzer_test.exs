@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Wgn.ImportWowAnalyzerTest do
     :ok
   end
 
-  test "imports WowAnalyzer timeline candidates from explicit root and reports counts" do
+  test "imports WowAnalyzer timeline source rows from explicit root and reports counts" do
     root = make_wowanalyzer_root!()
 
     write_wowanalyzer_module!(
@@ -56,7 +56,7 @@ defmodule Mix.Tasks.Wgn.ImportWowAnalyzerTest do
 
     assert output =~ "Imported WowAnalyzer timeline source data from 1 root(s): 1 file(s)"
     assert output =~ "1 new source import(s)"
-    assert output =~ "1 candidate(s) inserted"
+    assert output =~ "1 source row(s) inserted"
     assert output =~ "Source license: AGPL-3.0-or-later"
 
     assert Repo.aggregate(WowAnalyzerTimelineCandidate, :count) == 1

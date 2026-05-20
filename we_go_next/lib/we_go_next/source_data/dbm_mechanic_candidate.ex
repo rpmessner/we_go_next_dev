@@ -1,10 +1,10 @@
 defmodule WeGoNext.SourceData.DbmMechanicCandidate do
   @moduledoc """
-  Mechanic candidate inferred from a DBM module warning.
+  Parsed DBM mechanic source row inferred from a module warning.
 
-  Candidates are source evidence. They are not active mechanic rules and do not
-  directly produce gold facts until a later review/promotion workflow turns them
-  into `rules.mechanic_criterion` rows.
+  These rows are source evidence. They are not active mechanic rules and do not
+  directly produce gold facts. Code-defined raid mechanic catalogs decide which
+  DBM hints are relevant to active rule criteria.
   """
 
   use Ecto.Schema

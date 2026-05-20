@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Wgn.ImportDbmTest do
     :ok
   end
 
-  test "imports DBM candidates from explicit roots and reports counts" do
+  test "imports DBM source rows from explicit roots and reports counts" do
     root = make_dbm_root!("DBM-Raids-Midnight")
 
     write_dbm_module!(
@@ -39,7 +39,7 @@ defmodule Mix.Tasks.Wgn.ImportDbmTest do
 
     assert output =~ "Imported DBM source data from 1 root(s): 1 file(s)"
     assert output =~ "1 new source import(s)"
-    assert output =~ "1 candidate(s) inserted"
+    assert output =~ "1 source row(s) inserted"
 
     assert Repo.aggregate(DbmMechanicCandidate, :count) == 1
   end

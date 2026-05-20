@@ -45,7 +45,26 @@ Do not force reimport just because rules changed.
 
 ## Rules Bootstrap
 
-The home page includes rules operations for seeding bundled rules, activating a ruleset, and promoting the active ruleset into gold criterion snapshots.
+The preferred current-tier path is to sync code-defined raid mechanics into
+editable rules, then promote and rebuild gold facts.
+
+Sync Midnight Season 1 current-tier raid mechanics into a draft ruleset:
+
+```bash
+mix we_go_next.sync_raid_rules
+```
+
+Sync, activate, promote, and rebuild in one command:
+
+```bash
+mix we_go_next.sync_raid_rules midnight_season_1 --activate --promote --rebuild
+```
+
+The curated source lives in `we_go_next/lib/we_go_next/game_data/raids/`.
+DBM/WowAnalyzer/journal data and AI-assisted research can help update those
+files, but the checked-in raid modules are the durable source of curated rules.
+
+The home page also includes legacy rules operations for seeding bundled rules, activating a ruleset, and promoting the active ruleset into gold criterion snapshots.
 
 Seed bundled local rules:
 
@@ -85,9 +104,9 @@ mix wgn.rebuild_gold --ruleset-id 456
 
 The task uses `WeGoNext.Gold.RebuildEncounter`, the same boundary used by the importer.
 
-## Import DBM Candidates
+## Import DBM Source Annotations
 
-DBM import reads installed Midnight DBM Lua modules as source evidence. It statically extracts module metadata, special warning declarations, alert tokens, source file/line provenance, and tentative mechanic candidate types. It does not execute Lua, activate rules, promote criterion snapshots, or rebuild gold facts.
+DBM import reads installed Midnight DBM Lua modules as source evidence. It statically extracts module metadata, special warning declarations, alert tokens, source file/line provenance, and tentative mechanic hints. It does not execute Lua, activate rules, promote criterion snapshots, or rebuild gold facts.
 
 Default local import:
 
@@ -103,11 +122,15 @@ mix wgn.import_dbm \
   --build-key local
 ```
 
-Imported rows are stored in `source_data.dbm_mechanic_candidate`. Treat them as candidate review input only.
+Imported rows are stored in `source_data.dbm_mechanic_candidate`. Treat them as
+source annotations and scaffolding input for code-defined raid mechanics, not as
+runtime rules.
 
 ## Import Reference Metadata
 
-Source-data reference metadata resolves spell names, encounter names, build scope, and encounter-to-spell evidence for candidate review. It does not activate rules or rebuild facts.
+Source-data reference metadata resolves spell names, encounter names, build
+scope, and encounter-to-spell evidence. It does not activate rules or rebuild
+facts.
 
 Import the local spell-name export:
 
@@ -129,11 +152,12 @@ Supported JSON inputs are intentionally narrow:
 - spell-id/name maps such as `tools/spell_names.json`,
 - bundles with `spells`, `encounters`, and optional `encounter_spells` arrays.
 
-Use source metadata imports before building inferred candidate review read models. Use gold rebuilds only after reviewed rules are promoted.
+Use source metadata imports to help update code-defined raid mechanic catalogs.
+Use gold rebuilds after code-defined mechanics have been synced and promoted.
 
-## Import WowAnalyzer Timeline Candidates
+## Import WowAnalyzer Timeline Source Annotations
 
-WowAnalyzer timeline import reads the local AGPL-licensed WowAnalyzer checkout as source evidence. It extracts encounter timeline spell IDs and comments from static TypeScript boss files, records repository revision/license provenance, and infers tentative mechanic candidate types for later review. It does not copy runtime code into the medallion fact path, activate rules, promote criterion snapshots, or rebuild gold facts.
+WowAnalyzer timeline import reads the local AGPL-licensed WowAnalyzer checkout as source evidence. It extracts encounter timeline spell IDs and comments from static TypeScript boss files, records repository revision/license provenance, and infers tentative mechanic hints for curated raid modules. It does not copy runtime code into the medallion fact path, activate rules, promote criterion snapshots, or rebuild gold facts.
 
 Default local import:
 
@@ -150,7 +174,25 @@ mix wgn.import_wowanalyzer \
   --build-key local
 ```
 
-Imported rows are stored in `source_data.wowanalyzer_timeline_candidate` with source file/line, comments, `repository_revision`, and `repository_license` (`AGPL-3.0-or-later` for the local checkout). Treat these rows as candidate review input only.
+Imported rows are stored in `source_data.wowanalyzer_timeline_candidate` with source file/line, comments, `repository_revision`, and `repository_license` (`AGPL-3.0-or-later` for the local checkout). Treat these rows as source annotations and scaffolding input for code-defined raid mechanics.
+
+## Inspect Source Annotations
+
+Use the source-data context to inspect parsed source rows while updating raid
+mechanic code:
+
+```elixir
+WeGoNext.SourceData.list_dbm_candidates(encounter_id: 3306)
+WeGoNext.SourceData.list_wowanalyzer_timeline_candidates(encounter_id: 3306)
+```
+
+Supported filters include `:encounter_id`, `:spell_id`, and
+`:inferred_mechanic_type`. WowAnalyzer timeline rows also support
+`:timeline_type` and `:event_type`.
+
+Rows include source file/line provenance, labels/role filters where available,
+comments, and inferred mechanic hints. They are scaffolding input for
+code-defined raid catalogs, not active rules.
 
 ## Diagnosing Empty Failures
 

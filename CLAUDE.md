@@ -61,7 +61,7 @@ The original analyzer/UI MVP has been pruned from active routing. The current ar
 - ✅ Gold `fact_failure` proof-of-concept derived from silver/gold tables
 - ✅ Rules schema foundation for authored mechanic criteria
 
-**Current board focus:** close medallion correctness gaps before scaling source-data inference. Near-term tasks are immutable promoted rule snapshots, tighter missed-interrupt silver semantics, projection/builder version stamps, failures data-readiness diagnostics, and the player encounter performance fact. Source-data imports remain evidence/candidates only until review and promotion flows are trustworthy.
+**Current board focus:** make real current-tier failures appear from code-defined raid mechanics over real combat logs. Source-data imports from DBM, WowAnalyzer, and journal/reference metadata are scaffolding for authoring those code files, not a separate candidate/review/promotion product path.
 
 ### Key Differentiator
 
@@ -148,7 +148,7 @@ New patch/season mechanic source data should be handled by a later bronze/source
 ### Layer Ownership
 
 - **Bronze/log ingestion** owns raw WoW combat log files and provenance. `combat_log_files` remains the operational catalog for live and Warcraft Logs archive files.
-- **Silver** owns deterministic projections under the `silver` Postgres schema: damage taken, damage taken events, damage done, deaths, current interrupt/cast observations, debuff applications, and player info. Event-grain silver rows are allowed only for named downstream rule-review, classifier, fact, or UI needs; silver must not become a generic raw combat-log event warehouse. Known gap: `silver.interrupt_opportunity` is currently overbroad and should be tightened/reframed by task `#61`.
+- **Silver** owns deterministic projections under the `silver` Postgres schema: damage taken, damage taken events, damage done, deaths, current interrupt/cast observations, debuff applications, and player info. Event-grain silver rows are allowed only for named downstream rule, classifier, fact, or UI needs; silver must not become a generic raw combat-log event warehouse. Known gap: `silver.interrupt_opportunity` is currently overbroad and should be tightened/reframed by task `#61`.
 - **Gold** owns analytic dimensions/facts under the `gold` schema. Current fact proof: `gold.fact_failure`.
 - **Rules** owns authored mechanic business configuration under the `rules` schema. Rules are not silver event data and are not mutable gold facts.
 
@@ -177,24 +177,24 @@ The legacy `/encounters/:id` analysis page has been pruned from active routing. 
   - `interrupt`: optional `threshold["must_interrupt"]`, defaults to `true`
   - `soak`, `spread`, `stack`, `tank_mechanic`, `healer_mechanic`: empty threshold map until fact semantics exist
 - Seed rules through `WeGoNext.Rules` and `mix we_go_next.seed_rules`, not migrations.
-- Gold facts should identify rules through `criterion_dim_id -> gold.dim_mechanic_criterion`, not a direct mutable rule row.
-- Known gap: promoted criterion snapshots currently replace by `source_rule_id`; task `#60` should make snapshot identity version-immutable so existing fact rows do not silently change meaning.
+- Gold facts currently identify rules through `criterion_dim_id -> gold.dim_mechanic_criterion`, not a direct mutable rule row.
+- The remaining rule-to-gold step is implementation plumbing for fact keys. It should be collapsed or hidden behind sync/rebuild commands so users do not manage a separate promotion workflow.
 
 ### Medallion Correctness Order
 
-Current priority before scaling source-data inference:
+Current priority for real failure previews:
 
-1. `#60` Make promoted rule snapshots version-immutable.
-2. `#61` Tighten missed-interrupt silver semantics.
-3. `#62` Stamp silver projections and gold fact builders with versions.
-4. `#54` Surface data readiness diagnostics in failures UI.
-5. `#63` Add player encounter performance fact for pull-over-pull trends.
+1. Keep current-tier raid mechanics defined as code under `WeGoNext.GameData.Raids.*`.
+2. Sync code-defined mechanics into active editable rules, then rebuild gold facts explicitly.
+3. Show real failure preview data from `gold.fact_failure` over imported logs.
+4. Use DBM/WowAnalyzer/source-reference rows as evidence for authoring raid code, not as user-facing queues.
+5. Expand fact semantics only when the supporting silver grain is defensible.
 
-DBM/WowAnalyzer source-data work remains important, but it should stay quarantined as provenance-rich evidence until these correctness issues are addressed.
+DBM/WowAnalyzer source-data work remains useful as provenance-rich evidence, but it is not a candidate queue and should not define active rules by itself.
 
-DBM source import now uses a focused static Lua declaration parser for `DBM:NewMod`, module metadata setters, `mod:NewSpecialWarning*`, and warning `SetAlert` calls. It does not execute Lua and its output remains `source_data.dbm_mechanic_candidate` evidence only.
+DBM source import uses a focused static Lua declaration parser for `DBM:NewMod`, module metadata setters, `mod:NewSpecialWarning*`, and warning `SetAlert` calls. It does not execute Lua and its output remains `source_data.dbm_mechanic_candidate` source evidence only.
 
-WowAnalyzer timeline source import now exists as an evidence-only path for the local AGPL-licensed checkout. It stores static timeline candidates under `source_data.wowanalyzer_timeline_candidate` with file/line, comments, repository revision, and license provenance. It must not be treated as active rules, promoted criterion snapshots, or fact input until the review and promotion workflow is built.
+WowAnalyzer timeline source import exists as an evidence-only path for the local AGPL-licensed checkout. It stores static timeline source rows under `source_data.wowanalyzer_timeline_candidate` with file/line, comments, repository revision, and license provenance. It must not be treated as active rules or fact input by itself.
 
 ## Character List
 
@@ -204,7 +204,7 @@ All characters on **Wyrmrest Accord** (US)
 
 - **Mittwoch** - Warlock (Demonology/Affliction)
 - **Guild**: Hand of Algalon
-- **Current Content**: Mythic Manaforge Omega
+- **Current Content**: Midnight Season 1 raids: The Voidspire, The Dreamrift, and March on Quel'Danas
 
 ### Alts
 
@@ -415,11 +415,11 @@ When making scope decisions:
 
 If scope pressure appears:
 
-1. Fix immutable promoted rule snapshots before scaling candidate promotion.
-2. Fix missed-interrupt silver semantics before trusting interrupt counts or candidate cross-reference.
-3. Add derivation version stamps before making stale-data diagnostics more ambitious.
-4. Ship clear readiness diagnostics before adding more failure types.
-5. Defer source-data inference automation until reviewed candidates can become draft rules cleanly.
+1. Prefer real failure preview from code-defined current-tier raid mechanics.
+2. Collapse rule sync/rebuild plumbing before adding more source-data automation.
+3. Fix missed-interrupt silver semantics before trusting interrupt counts.
+4. Add derivation version stamps before making stale-data diagnostics more ambitious.
+5. Ship clear readiness diagnostics before adding more failure types.
 
 ### Other Principles
 

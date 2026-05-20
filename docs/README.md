@@ -6,6 +6,7 @@ This directory contains current durable documentation for the project. Historica
 
 - [`VISION.md`](VISION.md) — product direction, audience, and priorities.
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — current medallion warehouse, rules, source-data, and LiveView architecture.
+- [`MECHANIC_SOURCE_STRATEGY.md`](MECHANIC_SOURCE_STRATEGY.md) — source hierarchy for turning observed log mechanics into real rules.
 - [`OPERATIONS.md`](OPERATIONS.md) — everyday import, rules, rebuild, and reimport workflows.
 - [`ROADMAP.md`](ROADMAP.md) — current board-aligned execution order.
 
@@ -27,4 +28,4 @@ Bronze combat logs and source metadata
   -> Rules-backed LiveView read models
 ```
 
-The short-term product goal is to make real combat logs usable through the medallion path: import logs, activate/promote rules, rebuild derived facts, diagnose empty states, and then build encounter detail views on silver/gold read models. After that, the roadmap expands fact/dimension/criterion coverage through conformed reference dimensions, patch/build validity, reviewed source-data candidates, and additional mechanic fact semantics.
+The short-term product goal is to make real combat logs usable through the medallion path: import logs, discover observed mechanics, enrich them with source annotations, create editable rules, rebuild derived facts, diagnose empty states, and show real failures in encounter preview and failure summary views.

@@ -1,6 +1,7 @@
 # Roadmap
 
-This roadmap tracks the current board direction at a durable level. The task board remains the source of truth for exact status and dependencies.
+This roadmap tracks the current board direction at a durable level. The task
+board remains the source of truth for exact status and dependencies.
 
 ## Current Focus
 
@@ -10,82 +11,108 @@ The backend medallion foundation and first operator controls are in place:
 - silver encounter-grain projections,
 - gold dimensions and `fact_failure`,
 - rules schema and criterion snapshot promotion,
-- source-data/DBM ingestion groundwork,
+- source-data ingestion groundwork for DBM and WowAnalyzer,
 - gold rebuild boundary via `WeGoNext.Gold.RebuildEncounter`,
 - rules bootstrap/promotion and rebuild/reimport controls,
 - gold-backed `/failures` and `/encounters/:id` LiveViews.
 
-The immediate problem is correctness and operability with real logs. Users need to understand and control rules, rebuilds, empty states, and stale derived data without dropping to IEx or SQL. Before expanding source-data inference or mechanic coverage, close the places where current derived rows can overstate meaning: mutable rule snapshots, interrupt observations labeled like confirmed missed opportunities, and invisible projection/builder versions.
+The immediate product problem is not more source-row workflow. The product needs
+real current-tier mechanics from the imported logs to become editable rules, then
+recomputed facts, then visible failures in the preview/detail UI.
+
+The source strategy is documented in
+[`MECHANIC_SOURCE_STRATEGY.md`](MECHANIC_SOURCE_STRATEGY.md). In short:
+
+```text
+Observed spells in current logs
+  -> source annotations from journal, boss mods, guide/reminder sources
+  -> code-defined raid mechanic catalogs
+  -> synced editable rules for supported semantics
+  -> gold rebuild
+  -> real failures in encounter preview and failures views
+```
 
 ## Near-Term Execution Order
 
-1. `#60 Make promoted rule snapshots version-immutable`
-   - prevent existing fact rows from silently changing meaning after re-promotion,
-   - key promoted criterion snapshots by authored rule plus ruleset version,
-   - bump authored versions when fact-facing rule meaning changes.
+1. `#69 Define Raid Mechanics As Code And Prune Extraction Tooling`
+   - define current-tier raid mechanics in `WeGoNext.GameData.Raids.*`,
+   - use AI-assisted research, observed logs, and source annotations to scaffold
+     code entries,
+   - treat DBM/WowAnalyzer/journal tooling as optional scaffolding helpers,
+   - sync curated code modules into editable rules.
 
-2. `#61 Tighten missed-interrupt silver semantics`
-   - stop treating every NPC `SPELL_CAST_SUCCESS` as a confirmed failed interrupt opportunity,
-   - keep silver as observed cast data and classify missed interrupts in the gold/rules builder,
-   - update encounter-detail labels/counts so they do not imply more confidence than the data has.
+2. `#40 Match Source Mechanics Against Current Silver Observations`
+   - rename in implementation toward observed mechanics/source annotations,
+   - list spells that actually appear in imported current-tier logs,
+   - attach DBM/WowAnalyzer/reference metadata as annotations,
+   - show counts, affected players, damage, debuffs, casts, interrupts, and
+     encounter scope.
 
-3. `#62 Stamp silver projections and gold fact builders with versions`
-   - make projection/fact derivation versions visible,
-   - support stale-data diagnostics after silver or gold logic changes,
-   - give operators a clear rebuild/reimport explanation.
+3. `#42 Import Matched Source Mechanics Directly Into Rules`
+   - sync editable rules from code-defined observed mechanics with strong source
+     support,
+   - dedupe by active ruleset, spell, encounter scope, difficulty scope, and
+     mechanic type,
+   - skip separate source-row review/override state as product workflow.
 
-4. `#54 Surface data readiness diagnostics in failures UI`
-   - explain no active ruleset,
-   - explain no promoted criteria,
-   - explain no matching silver observations,
-   - explain no/stale gold facts,
-   - call out known semantic limits until #61 and #62 land.
+4. `#66 Import Matched Avoidable Damage Rules And Rebuild Facts`
+   - ship the first complete real-data loop for avoidable damage,
+   - default imported avoidable rules to `threshold.max_hits = 0`,
+   - promote active rules and rebuild `gold.fact_failure`,
+   - verify real player failures appear from imported logs.
 
-5. `#63 Add player encounter performance fact`
-   - add the missing pull-over-pull trend read model,
-   - summarize player damage, deaths, mechanic failures, and duration/time-alive context,
-   - support the product question "are we improving on this encounter?"
+5. `#67 Show Real Failure Preview On Encounter Detail`
+   - display rule-backed failure facts for the selected pull,
+   - include player, spell/mechanic, count, damage, and source annotations,
+   - make empty states point to the exact missing step.
 
-These tasks are the current correctness path. They make the frontend capable of driving and explaining the warehouse without presenting overbroad silver observations or mutable rule snapshots as stable analytic facts.
+6. `#61 Tighten Interrupt Silver Semantics For Real Rule Imports`
+   - stop presenting broad NPC cast-success observations as confirmed missed
+     interrupts,
+   - import interrupt rules only once the supporting observation is trustworthy,
+   - keep labels honest until then.
 
-## Source-Data and Rule Inference Path
+7. `#44 Expand Fact Semantics For Source-Imported Mechanics`
+   - add soak, spread, stack, tank, healer, dispel, and defensive semantics only
+     after the supporting silver grain exists,
+   - do not auto-create failure rules for unsupported semantics.
 
-After the correctness path is underway, source-data inference should proceed as evidence intake, not rule activation:
+## Source-Data Direction
 
-1. `#59 Replace DBM regex parsing with structured Lua parsing` - implemented as a focused static Lua declaration parser
-2. `#36 Add DBM Bulk Source Import`
-3. `#37 Ingest Spell and Encounter Reference Metadata`
-4. `#58 Add WowAnalyzer timeline source import` - implemented as provenance-tracked source evidence
-5. `#38 Build Inferred Mechanic Candidate Read Model`
-6. `#39 Persist Candidate Overrides Across Refreshes`
-7. `#40 Cross-Reference Candidates With Observed Silver Events`
-8. `#41 Build Mechanic Candidate Review UI`
-9. `#42 Promote Accepted Candidates Into Draft Rules`
-10. `#43 Add Source-Data Build Diff Review`
+DBM, BigWigs, WowAnalyzer, Blizzard journal data, Warcraft Logs, MRT reminders,
+WeakAuras, and guide sites should be treated as source annotations. They help
+explain and classify spells that appear in local logs. They are not independent
+truth that should silently create failure facts.
 
-DBM and WowAnalyzer imports should converge on comparable provenance and review semantics. They can suggest candidates, but they must not write active rules, promoted gold criterion snapshots, or facts directly.
+Existing DBM/WowAnalyzer source-data tables may remain as parsed source rows
+while they are useful, but new user-facing work should avoid source-row review
+language. Prefer:
+
+- observed mechanics,
+- source annotations,
+- rule status,
+- direct editable rules.
 
 ## Additional Fact Semantics
 
-`#44 Define Additional Mechanic Fact Semantics` remains intentionally blocked until:
+`gold.fact_failure` currently supports:
 
-- accepted candidates can become draft rules,
-- the gold rebuild orchestrator exists,
-- rules/facts have patch/build validity metadata.
+- `avoidable`: player damage taken by matching spell and threshold,
+- `interrupt`: missed interrupt facts, currently limited by known silver
+  semantics gaps.
 
-Avoidable and interrupt semantics are implemented today as proof-of-concept fact builders, but both should stay conservative. Do not expand avoidable semantics until defensive/immunity/buff windows from `#64 Add defensive buff window silver observations` or equivalent evidence exist. Do not expand interrupt coverage until `#61` moves missed-interrupt classification out of overbroad silver rows and into criteria-backed gold logic.
-
-Soak, spread, stack, tank, healer, dispel, deaths, and interrupt coverage should be added only when the supporting silver grain and fact semantics are defensible.
-
-Event-grain silver expansion should stay tied to these fact and review workflows. `silver.damage_taken_event` is allowed because rule review and classifier evidence need individual damage hits. Do not add broad player-damage, healing, cast, aura, or resource event tables without a specific fact/read-model need and a volume plan.
+Avoidable damage is the first real-data target because the local logs already
+have `silver.damage_taken` and `silver.damage_taken_event`. Interrupts come next
+after `#61`. Other mechanic types should remain visible as observed/annotated
+rows until their fact semantics are defensible.
 
 ## Guiding Constraints
 
+- Keep combat logs as the primary truth for what appears in the user's data.
+- Prefer observed spell previews over hidden source-row queues.
+- Prefer direct editable rules over durable source-row review/override workflow.
+- Prefer gold rebuilds when rules or gold logic changes.
 - Do not reintroduce `public.mechanic_criteria` or analyzer-cache tabs.
-- Do not write active rules or gold facts directly from source-data inference.
 - Keep raw combat-log bronze separate from patch/source-data bronze.
-- Do not rebuild a generic raw-event warehouse under silver; event-grain silver rows require a named downstream workflow.
-- Keep silver observation names and UI labels honest; classification belongs in rules/gold builders unless the silver row is truly authored intent.
-- Do not mutate promoted criterion snapshots in a way that changes the meaning of existing fact rows.
-- Prefer gold rebuilds over log reparse when only rules or gold logic changed.
-- Prefer force reimport over ad hoc database edits when silver or parser logic changed.
+- Keep UI labels honest about whether a row is observed data, a source
+  annotation, an editable rule, or a rebuilt failure fact.

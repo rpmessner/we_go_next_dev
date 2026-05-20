@@ -2,8 +2,8 @@ defmodule Mix.Tasks.Wgn.ImportWowAnalyzer do
   @moduledoc """
   Imports WowAnalyzer encounter timeline metadata into source-data tables.
 
-  The import records WowAnalyzer source provenance and inferred mechanic
-  candidates only. It does not promote rules or rebuild gold facts.
+  The import records WowAnalyzer source provenance and parsed timeline source
+  rows only. It does not define active rules or rebuild gold facts.
 
   Usage:
 
@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Wgn.ImportWowAnalyzer do
 
   alias WeGoNext.SourceData
 
-  @shortdoc "Import WowAnalyzer timeline source-data candidates"
+  @shortdoc "Import WowAnalyzer timeline source rows"
 
   @impl Mix.Task
   def run(args) do
@@ -88,8 +88,8 @@ defmodule Mix.Tasks.Wgn.ImportWowAnalyzer do
       "#{summary.files_imported} file(s), " <>
       "#{summary.source_imports_inserted} new source import(s), " <>
       "#{summary.source_imports_updated} refreshed source import(s), " <>
-      "#{summary.candidates_inserted} candidate(s) inserted, " <>
-      "#{summary.candidates_updated} candidate(s) refreshed. " <>
+      "#{summary.candidates_inserted} source row(s) inserted, " <>
+      "#{summary.candidates_updated} source row(s) refreshed. " <>
       "Source license: #{summary.repository_license}."
   end
 end

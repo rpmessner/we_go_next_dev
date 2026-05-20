@@ -246,6 +246,45 @@ defmodule WeGoNext.RulesTest do
     assert criterion_count == 2
   end
 
+  test "sync_raid_mechanics creates editable rules from code-defined raid catalog" do
+    assert {:ok, %{ruleset: ruleset, criteria: criteria, promoted: nil, rebuild: nil}} =
+             Rules.sync_raid_mechanics("midnight_season_1")
+
+    assert ruleset.name == "Midnight Season 1 Mechanics"
+    assert ruleset.status == "draft"
+    assert length(criteria) == 5
+
+    assert %MechanicCriterion{
+             spell_id: 1_248_652,
+             spell_name: "Divine Toll",
+             mechanic_type: "avoidable",
+             boss_encounter_id: "3180",
+             boss_name: "Lightblinded Vanguard",
+             threshold: %{"max_hits" => 0},
+             active: true
+           } = Enum.find(criteria, &(&1.spell_id == 1_248_652))
+
+    refute Enum.any?(criteria, &(&1.spell_id == 1_249_017))
+    refute Enum.any?(criteria, &(&1.mechanic_type == "soak"))
+
+    assert {:ok, %{ruleset: second_ruleset, criteria: second_criteria}} =
+             Rules.sync_raid_mechanics("midnight_season_1")
+
+    assert second_ruleset.id == ruleset.id
+
+    assert Enum.map(second_criteria, & &1.id) |> Enum.sort() ==
+             Enum.map(criteria, & &1.id) |> Enum.sort()
+  end
+
+  test "sync_raid_mechanics can activate and promote code-defined raid rules" do
+    assert {:ok, %{ruleset: ruleset, criteria: criteria, promoted: promoted}} =
+             Rules.sync_raid_mechanics("midnight_season_1", activate: true, promote: true)
+
+    assert ruleset.status == "active"
+    assert length(promoted.criteria) == length(criteria)
+    assert Enum.all?(promoted.criteria, &(&1.ruleset_id == ruleset.id))
+  end
+
   test "promotes ruleset criteria to idempotent gold snapshots" do
     {:ok, ruleset} =
       Rules.create_ruleset(%{
@@ -397,9 +436,9 @@ defmodule WeGoNext.RulesTest do
                current_name: "Referenced Boss",
                localized_names: %{"enUS" => "Referenced Boss"},
                zone_id: 2912,
-               zone_name: "Manaforge Omega",
+               zone_name: "The Voidspire",
                instance_id: 1307,
-               instance_name: "Manaforge Omega",
+               instance_name: "The Voidspire",
                product: "wow",
                channel: "retail",
                build_key: "11.2.0",

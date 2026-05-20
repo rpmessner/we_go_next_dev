@@ -2,8 +2,8 @@ defmodule WeGoNext.SourceData.EncounterSpellReference do
   @moduledoc """
   Build-scoped source-data relationship between an encounter and a spell.
 
-  These rows are evidence for candidate review. They do not imply an active rule
-  or a gold fact by themselves.
+  These rows are source evidence. They do not imply an active rule or a gold fact
+  by themselves.
   """
 
   use Ecto.Schema

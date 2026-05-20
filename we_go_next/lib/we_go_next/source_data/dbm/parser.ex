@@ -4,7 +4,7 @@ defmodule WeGoNext.SourceData.DBM.Parser do
 
   This parser intentionally handles a focused Lua declaration subset instead of
   evaluating Lua. It tokenizes source, extracts balanced method-call forms, and
-  reads only the DBM declarations needed for source-data candidates:
+  reads only the DBM declarations needed for source annotation rows:
 
   * `DBM:NewMod`
   * `mod:SetRevision`
