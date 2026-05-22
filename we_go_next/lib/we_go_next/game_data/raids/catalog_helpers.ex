@@ -11,11 +11,42 @@ defmodule WeGoNext.GameData.Raids.CatalogHelpers do
     }
   end
 
+  def mechanic(
+        raid_name,
+        raid_slug,
+        boss_name,
+        encounter_id,
+        spell_id,
+        name,
+        type,
+        event,
+        sources,
+        opts \\ []
+      ) do
+    %{
+      raid_name: raid_name,
+      raid_slug: raid_slug,
+      spell_id: spell_id,
+      name: name,
+      type: type || :unknown,
+      event: event,
+      boss_encounter_id: to_string(encounter_id),
+      boss_name: boss_name,
+      sources: sources,
+      track: Keyword.get(opts, :track, false),
+      rule: Keyword.get(opts, :rule, %{}),
+      notes: Keyword.get(opts, :notes)
+    }
+  end
+
   def rule_criteria(mechanics) do
     mechanics
-    |> Enum.filter(&(Map.get(&1, :track, true) != false))
+    |> Enum.filter(&fact_eligible?/1)
     |> Enum.map(&rule_criterion/1)
   end
+
+  defp fact_eligible?(%{type: :avoidable, event: :damage_taken}), do: true
+  defp fact_eligible?(_mechanic), do: false
 
   defp rule_criterion(mechanic) do
     %{
@@ -31,6 +62,8 @@ defmodule WeGoNext.GameData.Raids.CatalogHelpers do
   end
 
   defp threshold(%{rule: %{max_hits: max_hits}}), do: %{"max_hits" => max_hits}
+
+  defp threshold(%{type: :avoidable, event: :damage_taken}), do: %{"max_hits" => 0}
 
   defp threshold(%{rule: %{must_interrupt: must_interrupt}}),
     do: %{"must_interrupt" => must_interrupt}

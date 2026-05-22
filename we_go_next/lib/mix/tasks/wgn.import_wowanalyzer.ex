@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Wgn.ImportWowAnalyzer do
   Imports WowAnalyzer encounter timeline metadata into source-data tables.
 
   The import records WowAnalyzer source provenance and parsed timeline source
-  rows only. It does not define active rules or rebuild gold facts.
+  rows only. It does not sync active mechanics or rebuild failures.
 
   Usage:
 

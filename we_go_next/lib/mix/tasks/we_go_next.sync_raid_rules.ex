@@ -1,19 +1,21 @@
 defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
   @moduledoc """
-  Syncs code-defined raid mechanics into editable rules.
+  Syncs code-defined raid mechanics and optionally rebuilds failures.
 
   Usage:
 
       mix we_go_next.sync_raid_rules
       mix we_go_next.sync_raid_rules the_voidspire
-      mix we_go_next.sync_raid_rules midnight_season_1 --activate --promote --rebuild
+      mix we_go_next.sync_raid_rules midnight_season_1 --activate --failure-ready --rebuild
+
+  `--failure-ready` makes synced mechanics available to failure rebuilds.
   """
 
   use Mix.Task
 
   alias WeGoNext.Rules
 
-  @shortdoc "Sync code-defined raid mechanics into rules"
+  @shortdoc "Sync code-defined raid mechanics"
 
   @impl Mix.Task
   def run(args) do
@@ -23,6 +25,7 @@ defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
       OptionParser.parse(args,
         strict: [
           activate: :boolean,
+          failure_ready: :boolean,
           promote: :boolean,
           rebuild: :boolean,
           version: :integer,
@@ -41,22 +44,32 @@ defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
         _ -> Mix.raise("Expected at most one raid slug")
       end
 
-    case Rules.sync_raid_mechanics(raid_slug, opts) do
+    case Rules.sync_raid_mechanics(raid_slug, normalize_opts(opts)) do
       {:ok, result} ->
         Mix.shell().info(
-          "Synced #{length(result.criteria)} raid mechanic rule(s) into #{result.ruleset.name} v#{result.ruleset.version}."
+          "Synced #{length(result.criteria)} raid mechanic(s) from #{result.ruleset.name}."
         )
 
         if result.promoted do
-          Mix.shell().info("Promoted #{length(result.promoted.criteria)} rule snapshot(s).")
+          Mix.shell().info("#{length(result.promoted.criteria)} mechanic(s) are failure-ready.")
         end
 
         if result.rebuild do
-          Mix.shell().info("Rebuilt gold facts: #{inspect(result.rebuild)}")
+          Mix.shell().info("Rebuilt failures: #{inspect(result.rebuild)}")
         end
 
       {:error, reason} ->
         Mix.raise("Failed to sync raid mechanics: #{inspect(reason)}")
+    end
+  end
+
+  defp normalize_opts(opts) do
+    if Keyword.get(opts, :failure_ready) do
+      opts
+      |> Keyword.delete(:failure_ready)
+      |> Keyword.put(:promote, true)
+    else
+      Keyword.delete(opts, :failure_ready)
     end
   end
 end

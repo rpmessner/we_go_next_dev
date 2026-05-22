@@ -3,7 +3,8 @@ defmodule WeGoNext.GameData.Raids.Dreamrift do
   Curated mechanic catalog for The Dreamrift.
   """
 
-  import WeGoNext.GameData.Raids.CatalogHelpers
+  import WeGoNext.GameData.Raids.CatalogHelpers, only: [boss: 5, rule_criteria: 1]
+  alias WeGoNext.GameData.Raids.CatalogHelpers
 
   @raid_name "The Dreamrift"
   @raid_slug "the_dreamrift"
@@ -28,63 +29,130 @@ defmodule WeGoNext.GameData.Raids.Dreamrift do
 
   def mechanics do
     [
-      %{
-        raid_name: @raid_name,
-        raid_slug: @raid_slug,
-        spell_id: 1_272_726,
-        name: "Rending Tear",
-        type: :avoidable,
-        event: :damage_taken,
-        boss_encounter_id: "3306",
-        boss_name: "Chimaerus the Undreamt God",
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_245_406,
+        "Ravenous Dive",
+        :avoidable,
+        :damage_taken,
+        [:wowanalyzer, :local_logs],
+        track: true,
         rule: %{max_hits: 0},
-        sources: [:dbm, :local_logs],
-        notes: "DBM DodgeCount warning with FRONTAL label and observed damage in current logs."
-      },
-      %{
-        raid_name: @raid_name,
-        raid_slug: @raid_slug,
-        spell_id: 1_245_406,
-        name: "Ravenous Dive",
-        type: :avoidable,
-        event: :damage_taken,
-        boss_encounter_id: "3306",
-        boss_name: "Chimaerus the Undreamt God",
-        rule: %{max_hits: 0},
-        sources: [:wowanalyzer, :local_logs],
         notes:
           "WowAnalyzer labels the cast as Ravenous Dive; observed damage is sparse and should be validated."
-      },
-      %{
-        raid_name: @raid_name,
-        raid_slug: @raid_slug,
-        spell_id: 1_249_017,
-        name: "Fearsome Cry",
-        type: :interrupt,
-        event: :interrupt_opportunity,
-        boss_encounter_id: "3306",
-        boss_name: "Chimaerus the Undreamt God",
-        rule: %{must_interrupt: true},
-        sources: [:dbm],
-        track: false,
+      ),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_245_452,
+        "Corrupted Devastation",
+        :avoidable,
+        :damage_taken,
+        [:dbm]
+      ),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_272_726,
+        "Rending Tear",
+        :avoidable,
+        :damage_taken,
+        [:dbm, :local_logs],
+        track: true,
+        rule: %{max_hits: 0},
+        notes: "DBM DodgeCount warning with FRONTAL label and observed damage in current logs."
+      ),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_249_017,
+        "Fearsome Cry",
+        :interrupt,
+        :interrupt_opportunity,
+        [:dbm],
         notes:
           "DBM interrupt warning. Keep out of automatic rule sync until interrupt silver semantics are tightened."
-      },
-      %{
-        raid_name: @raid_name,
-        raid_slug: @raid_slug,
-        spell_id: 1_262_289,
-        name: "Alndust Upheaval",
-        type: :soak,
-        event: :cast,
-        boss_encounter_id: "3306",
-        boss_name: "Chimaerus the Undreamt God",
-        sources: [:dbm, :wowanalyzer],
-        track: false,
+      ),
+      mechanic("Chimaerus the Undreamt God", 3306, 1_246_149, "Alndust Upheaval", :soak, :cast, [
+        :wowanalyzer
+      ]),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_262_289,
+        "Alndust Upheaval",
+        :soak,
+        :cast,
+        [:dbm, :wowanalyzer],
         notes: "Known group soak source annotation; fact semantics are not implemented yet."
-      }
+      ),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_257_087,
+        "Consuming Miasma",
+        :healer_mechanic,
+        :debuff_application,
+        [:wowanalyzer]
+      ),
+      mechanic("Chimaerus the Undreamt God", 3306, 1_245_396, "Consume", :unknown, :cast, [
+        :dbm,
+        :wowanalyzer
+      ]),
+      mechanic("Chimaerus the Undreamt God", 3306, 1_245_404, "Ravenous Dive", :unknown, :cast, [
+        :dbm
+      ]),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_245_451,
+        "Discordant Roar",
+        :unknown,
+        :cast,
+        [:dbm]
+      ),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_245_844,
+        "Cannibalized",
+        :unknown,
+        :debuff_application,
+        [:dbm]
+      ),
+      mechanic("Chimaerus the Undreamt God", 3306, 1_246_621, "Caustic Phlegm", :unknown, :cast, [
+        :dbm
+      ]),
+      mechanic("Chimaerus the Undreamt God", 3306, 1_251_021, "Rift Emergence", :unknown, :cast, [
+        :dbm
+      ]),
+      mechanic("Chimaerus the Undreamt God", 3306, 1_258_610, "Rift Emergence", :unknown, :cast, [
+        :wowanalyzer
+      ]),
+      mechanic("Chimaerus the Undreamt God", 3306, 1_264_756, "Rift Madness", :unknown, :cast, [
+        :wowanalyzer
+      ]),
+      mechanic("Chimaerus the Undreamt God", 3306, 1_264_757, "Rift Madness", :unknown, :cast, [
+        :wowanalyzer
+      ])
     ]
   end
 
   def rule_criteria, do: rule_criteria(mechanics())
+
+  defp mechanic(boss_name, encounter_id, spell_id, name, type, event, sources, opts \\ []) do
+    CatalogHelpers.mechanic(
+      @raid_name,
+      @raid_slug,
+      boss_name,
+      encounter_id,
+      spell_id,
+      name,
+      type,
+      event,
+      sources,
+      opts
+    )
+  end
 end

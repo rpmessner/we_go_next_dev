@@ -4,8 +4,9 @@ defmodule WeGoNext.RulesTest do
   alias WeGoNext.Repo
   alias WeGoNext.Rules
   alias WeGoNext.SourceData
-  alias WeGoNext.Gold.DimMechanicCriterion
+  alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
+  alias WeGoNext.Silver.{DamageTaken, PlayerInfo}
   import Ecto.Query
 
   setup do
@@ -252,7 +253,7 @@ defmodule WeGoNext.RulesTest do
 
     assert ruleset.name == "Midnight Season 1 Mechanics"
     assert ruleset.status == "draft"
-    assert length(criteria) == 5
+    assert length(criteria) == 27
 
     assert %MechanicCriterion{
              spell_id: 1_248_652,
@@ -283,6 +284,31 @@ defmodule WeGoNext.RulesTest do
     assert ruleset.status == "active"
     assert length(promoted.criteria) == length(criteria)
     assert Enum.all?(promoted.criteria, &(&1.ruleset_id == ruleset.id))
+  end
+
+  test "sync_raid_mechanics rebuild path activates, promotes, and builds current-tier facts" do
+    encounter = insert_dim_encounter!("3180", "Lightblinded Vanguard", 16)
+
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", "Creature-A", 1_248_652, 10_000, 1)
+
+    assert {:ok, %{ruleset: ruleset, criteria: criteria, promoted: promoted, rebuild: rebuild}} =
+             Rules.sync_raid_mechanics("midnight_season_1", rebuild: true)
+
+    assert ruleset.status == "active"
+    assert length(criteria) == 27
+    assert length(promoted.criteria) == 27
+    assert %{encounters: 1, inserted: 1} = rebuild
+
+    criterion = Enum.find(promoted.criteria, &(&1.spell_id == 1_248_652))
+    player = Repo.get_by!(DimPlayer, player_guid: "Player-One")
+
+    assert %FactFailure{failure_count: 1, total_damage: 10_000} =
+             Repo.get_by!(FactFailure,
+               encounter_dim_id: encounter.id,
+               player_dim_id: player.id,
+               criterion_dim_id: criterion.id
+             )
   end
 
   test "promotes ruleset criteria to idempotent gold snapshots" do
@@ -372,7 +398,7 @@ defmodule WeGoNext.RulesTest do
     assert snapshot.spell_id == 888
   end
 
-  test "operations_status summarizes active rules and promoted snapshots" do
+  test "current_tier_mechanics_status summarizes synced and failure-ready mechanics" do
     Repo.delete_all(DimMechanicCriterion)
     Repo.delete_all(MechanicCriterion)
     Repo.delete_all(Ruleset)
@@ -389,22 +415,28 @@ defmodule WeGoNext.RulesTest do
       })
 
     assert %{
+             mechanics_synced?: true,
+             synced_mechanics_count: 1,
+             failure_ready_mechanics_count: 0,
              active_ruleset: ^ruleset,
              authored_rules_count: 1,
              promoted_snapshots_count: 0,
              active_authored_rules_count: 1,
              active_promoted_snapshots_count: 0
-           } = Rules.operations_status()
+           } = Rules.current_tier_mechanics_status()
 
     assert {:ok, %{criteria: [snapshot]}} = Rules.promote_active_ruleset_to_gold()
     assert snapshot.source_rule_id == rule.id
 
     assert %{
+             mechanics_synced?: true,
+             synced_mechanics_count: 1,
+             failure_ready_mechanics_count: 1,
              authored_rules_count: 1,
              promoted_snapshots_count: 1,
              active_authored_rules_count: 1,
              active_promoted_snapshots_count: 1
-           } = Rules.operations_status()
+           } = Rules.current_tier_mechanics_status()
   end
 
   test "promotion can resolve spell and encounter names from source references" do
@@ -477,5 +509,54 @@ defmodule WeGoNext.RulesTest do
       },
       overrides
     )
+  end
+
+  defp insert_dim_encounter!(wow_encounter_id, name, difficulty_id) do
+    %DimEncounter{}
+    |> DimEncounter.changeset(%{
+      wow_encounter_id: wow_encounter_id,
+      name: name,
+      difficulty_id: difficulty_id,
+      difficulty_name: "Mythic",
+      group_size: 20,
+      instance_id: "test-instance"
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_player_info!(encounter, player_guid, player_name) do
+    %PlayerInfo{}
+    |> PlayerInfo.changeset(%{
+      encounter_dim_id: encounter.id,
+      player_guid: player_guid,
+      player_name: player_name,
+      class_id: 1,
+      spec_id: 71,
+      detected_role: "unknown"
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_damage_taken!(
+         encounter,
+         target_guid,
+         source_guid,
+         spell_id,
+         total_amount,
+         hit_count
+       ) do
+    %DamageTaken{}
+    |> DamageTaken.changeset(%{
+      encounter_dim_id: encounter.id,
+      target_guid: target_guid,
+      source_guid: source_guid,
+      spell_id: spell_id,
+      total_amount: total_amount,
+      hit_count: hit_count,
+      max_hit: total_amount,
+      overkill_total: 0,
+      source_is_npc: true
+    })
+    |> Repo.insert!()
   end
 end

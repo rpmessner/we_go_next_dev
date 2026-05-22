@@ -28,4 +28,9 @@ defmodule WeGoNext.GameData.Raids do
   def by_dbm_module_map_id(1308), do: MarchOnQuelDanas
   def by_dbm_module_map_id(1314), do: Dreamrift
   def by_dbm_module_map_id(_module_map_id), do: nil
+
+  def interruptible_spells do
+    MidnightSeason1.mechanics()
+    |> Enum.filter(&(&1.type == :interrupt))
+  end
 end

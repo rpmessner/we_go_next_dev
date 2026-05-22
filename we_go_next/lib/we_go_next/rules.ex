@@ -1,9 +1,11 @@
 defmodule WeGoNext.Rules do
   @moduledoc """
-  Context for authored mechanic rules.
+  Context for code-defined mechanic definitions.
 
-  Rules are business configuration. They remain independent from legacy public
-  criteria tables and from gold snapshots until an explicit promotion step.
+  The public application model is intentionally simple: current-tier raid
+  mechanics are defined in code, synced into the database, then used by failure
+  rebuilds. Ruleset and criterion snapshot tables remain compatibility plumbing
+  for fact keys and should not be exposed as product concepts.
   """
 
   import Ecto.Query
@@ -37,20 +39,30 @@ defmodule WeGoNext.Rules do
   end
 
   @doc """
-  Returns the near-term operator status for rules-backed gold facts.
+  Returns operator-facing status for code-defined current-tier mechanics.
   """
-  def operations_status do
+  def current_tier_mechanics_status do
     active_ruleset = get_active_ruleset()
+    synced_mechanics_count = count_active_authored_rules(active_ruleset)
+    failure_ready_mechanics_count = count_active_promoted_snapshots(active_ruleset)
 
     %{
+      mechanics_synced?: not is_nil(active_ruleset),
+      synced_mechanics_count: synced_mechanics_count,
+      failure_ready_mechanics_count: failure_ready_mechanics_count,
       active_ruleset: active_ruleset,
       rulesets: list_rulesets(),
       authored_rules_count: Repo.aggregate(MechanicCriterion, :count),
       promoted_snapshots_count: Repo.aggregate(DimMechanicCriterion, :count),
-      active_authored_rules_count: count_active_authored_rules(active_ruleset),
-      active_promoted_snapshots_count: count_active_promoted_snapshots(active_ruleset)
+      active_authored_rules_count: synced_mechanics_count,
+      active_promoted_snapshots_count: failure_ready_mechanics_count
     }
   end
+
+  @doc """
+  Backward-compatible name for internal callers that still refer to operations.
+  """
+  def operations_status, do: current_tier_mechanics_status()
 
   def create_ruleset(attrs \\ %{}) do
     %Ruleset{}
@@ -180,22 +192,32 @@ defmodule WeGoNext.Rules do
   end
 
   @doc """
-  Syncs code-defined raid mechanics into editable authored rules.
+  Syncs the default current-tier raid catalogs into mechanic definitions.
+  """
+  def sync_current_tier_mechanics(opts \\ []) do
+    sync_raid_mechanics("midnight_season_1", opts)
+  end
+
+  def sync_current_tier_rules(opts \\ []), do: sync_current_tier_mechanics(opts)
+
+  @doc """
+  Syncs code-defined raid mechanics into database-backed mechanic definitions.
 
   The raid catalog remains the curated source in code. This function mirrors its
-  syncable mechanics into `rules.mechanic_criterion` rows, where operators can
-  still edit and promote them through the normal rules workflow.
+  syncable mechanics into compatibility tables used by failure rebuilds.
 
   Supported options:
 
-    * `:name` - ruleset name, defaults to `"<raid name> Mechanics"`
-    * `:version` - ruleset version, defaults to `1`
-    * `:status` - seed ruleset status, defaults to `"draft"`
-    * `:activate` - activate the synced ruleset, defaults to `false`
-    * `:promote` - promote the synced ruleset to gold criteria, defaults to `false`
-    * `:rebuild` - rebuild gold facts after promotion, defaults to `false`
+    * `:name` - internal definition set name, defaults to `"<raid name> Mechanics"`
+    * `:version` - internal definition set version, defaults to `1`
+    * `:status` - internal definition set status, defaults to `"draft"`
+    * `:activate` - make synced definitions current, defaults to `false`
+    * `:promote` - refresh fact-key criteria, defaults to `false`
+    * `:rebuild` - make current, refresh fact keys, and rebuild failures, defaults to `false`
   """
   def sync_raid_mechanics(raid, opts \\ []) do
+    opts = normalize_raid_sync_opts(opts)
+
     with {:ok, raid_module} <- raid_module(raid),
          {:ok, synced} <- seed_rules(raid_seed_payload(raid_module, opts), opts),
          {:ok, ruleset} <- maybe_activate_synced_ruleset(synced.ruleset, opts),
@@ -205,8 +227,21 @@ defmodule WeGoNext.Rules do
     end
   end
 
+  defp normalize_raid_sync_opts(opts) do
+    if Keyword.get(opts, :rebuild, false) do
+      opts
+      |> Keyword.put(:activate, true)
+      |> Keyword.put(:promote, true)
+    else
+      opts
+    end
+  end
+
   @doc """
-  Seeds the bundled initial mechanic rules JSON.
+  Seeds the legacy bundled initial mechanic rules JSON.
+
+  This path is retained for historical fixtures and targeted tests. The normal
+  operator bootstrap path is `sync_current_tier_rules/1`.
   """
   def seed_initial_rules(opts \\ []) do
     path = Keyword.get(opts, :path, @initial_rules_path)

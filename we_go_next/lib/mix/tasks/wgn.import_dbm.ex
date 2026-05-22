@@ -3,7 +3,7 @@ defmodule Mix.Tasks.Wgn.ImportDbm do
   Imports installed DBM Midnight source modules into source-data tables.
 
   The import records DBM source provenance and parsed mechanic source rows only.
-  It does not define active rules or rebuild gold facts.
+  It does not sync active mechanics or rebuild failures.
 
   Usage:
 

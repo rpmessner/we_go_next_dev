@@ -1,18 +1,21 @@
 defmodule Mix.Tasks.WeGoNext.SeedRules do
   @moduledoc """
-  Seeds mechanic rules from static JSON.
+  Syncs mechanic definitions.
 
   Usage:
 
       mix we_go_next.seed_rules
       mix we_go_next.seed_rules path/to/rules.json
+
+  With no path, this task syncs the current-tier Midnight Season 1 raid catalog.
+  Passing a path imports a legacy/static JSON definition file directly.
   """
 
   use Mix.Task
 
   alias WeGoNext.Rules
 
-  @shortdoc "Seed mechanic rules from static JSON"
+  @shortdoc "Sync current-tier raid mechanics or a static JSON file"
 
   @impl Mix.Task
   def run(args) do
@@ -20,18 +23,19 @@ defmodule Mix.Tasks.WeGoNext.SeedRules do
 
     result =
       case args do
-        [] -> Rules.seed_initial_rules()
+        [] -> Rules.sync_current_tier_mechanics()
         [path] -> Rules.seed_rules_from_file(path)
+        _ -> Mix.raise("Expected zero args or one JSON rules file path")
       end
 
     case result do
       {:ok, %{ruleset: ruleset, criteria: criteria}} ->
         Mix.shell().info(
-          "Seeded #{length(criteria)} mechanic rule(s) into ruleset #{ruleset.name} v#{ruleset.version}."
+          "Synced #{length(criteria)} mechanic definition(s) into #{ruleset.name} v#{ruleset.version}."
         )
 
       {:error, reason} ->
-        Mix.raise("Failed to seed mechanic rules: #{inspect(reason)}")
+        Mix.raise("Failed to sync mechanic definitions: #{inspect(reason)}")
     end
   end
 end
