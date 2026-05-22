@@ -74,6 +74,8 @@ defmodule WeGoNext.Gold.SchemaTest do
         ruleset_version: 1,
         product: "wow",
         channel: "retail",
+        derivation_version: 1,
+        rebuilt_at: ~U[2026-05-20 20:00:00Z],
         failure_count: 2,
         total_damage: 12_345
       })

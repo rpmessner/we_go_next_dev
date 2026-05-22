@@ -20,7 +20,7 @@ defmodule WeGoNext.Gold.RebuildsTest do
     :ok
   end
 
-  test "status returns gold encounter and failure fact counts" do
+  test "status returns imported pull and tracked failure counts with compatibility aliases" do
     encounter = insert_dim_encounter!("boss-one")
     player = insert_player!("Player-One", "One")
     criterion = insert_criterion!(insert_ruleset!("Rules", "active"), encounter, 101)
@@ -28,6 +28,8 @@ defmodule WeGoNext.Gold.RebuildsTest do
     insert_failure!(encounter, player, criterion)
 
     assert Rebuilds.status() == %{
+             imported_pulls_count: 1,
+             tracked_failure_rows_count: 1,
              gold_encounters_count: 1,
              failure_facts_count: 1
            }

@@ -11,6 +11,7 @@ defmodule WeGoNext.Gold.FactFailure.Rebuilder do
   import Ecto.Query
 
   alias WeGoNext.Gold.{DimEncounter, DimPlayer, FactFailure}
+  alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Gold.FactFailure.{Query, RuleSelector}
   alias WeGoNext.Gold.FactFailure.Builders.{AvoidableDamage, MissedInterrupt}
   alias WeGoNext.Repo
@@ -42,7 +43,7 @@ defmodule WeGoNext.Gold.FactFailure.Rebuilder do
 
       deleted = delete_existing_facts!(dim_encounter.id, ruleset_id)
 
-      case insert_builder_rows(dim_encounter.id, ruleset_id) do
+      case insert_builder_rows(dim_encounter.id, ruleset_id, DateTime.utc_now()) do
         {:ok, inserted} -> %{deleted: deleted, inserted: inserted}
         {:error, reason} -> Repo.rollback(reason)
       end
@@ -105,7 +106,7 @@ defmodule WeGoNext.Gold.FactFailure.Rebuilder do
     deleted
   end
 
-  defp insert_builder_rows(encounter_dim_id, ruleset_id) do
+  defp insert_builder_rows(encounter_dim_id, ruleset_id, rebuilt_at) do
     sql =
       Query.insert_sql(
         builders: @builders,
@@ -116,7 +117,7 @@ defmodule WeGoNext.Gold.FactFailure.Rebuilder do
         builder_opts: [raid_player_guid: @raid_player_guid]
       )
 
-    case Repo.query(sql, [encounter_dim_id, ruleset_id]) do
+    case Repo.query(sql, [encounter_dim_id, ruleset_id, Derivation.current_version(), rebuilt_at]) do
       {:ok, %{num_rows: inserted}} -> {:ok, inserted}
       {:error, reason} -> {:error, reason}
     end

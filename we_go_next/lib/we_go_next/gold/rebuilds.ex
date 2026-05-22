@@ -12,6 +12,8 @@ defmodule WeGoNext.Gold.Rebuilds do
   alias WeGoNext.Repo
 
   @type status :: %{
+          imported_pulls_count: non_neg_integer(),
+          tracked_failure_rows_count: non_neg_integer(),
           gold_encounters_count: non_neg_integer(),
           failure_facts_count: non_neg_integer()
         }
@@ -28,14 +30,19 @@ defmodule WeGoNext.Gold.Rebuilds do
   """
   @spec status() :: status()
   def status do
+    imported_pulls_count = Repo.aggregate(DimEncounter, :count)
+    tracked_failure_rows_count = Repo.aggregate(FactFailure, :count)
+
     %{
-      gold_encounters_count: Repo.aggregate(DimEncounter, :count),
-      failure_facts_count: Repo.aggregate(FactFailure, :count)
+      imported_pulls_count: imported_pulls_count,
+      tracked_failure_rows_count: tracked_failure_rows_count,
+      gold_encounters_count: imported_pulls_count,
+      failure_facts_count: tracked_failure_rows_count
     }
   end
 
   @doc """
-  Rebuilds supported gold facts for every known gold encounter.
+  Rebuilds supported failure facts for every known imported pull.
   """
   @spec rebuild_all(keyword()) :: {:ok, totals()} | {:error, map()}
   def rebuild_all(opts \\ [ruleset: :active]) do

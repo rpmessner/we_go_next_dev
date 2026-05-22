@@ -46,6 +46,8 @@ defmodule WeGoNext.Gold.FactFailure.Query do
       channel,
       build_version,
       build_key,
+      derivation_version,
+      rebuilt_at,
       failure_count,
       total_damage
     )
@@ -59,6 +61,8 @@ defmodule WeGoNext.Gold.FactFailure.Query do
       criterion.channel,
       criterion.build_version,
       criterion.build_key,
+      $3::integer AS derivation_version,
+      $4::timestamptz AS rebuilt_at,
       sum(failure_count)::integer AS failure_count,
       sum(total_damage)::bigint AS total_damage
     FROM fact_rows rows

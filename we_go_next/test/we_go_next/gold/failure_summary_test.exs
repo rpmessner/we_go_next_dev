@@ -9,8 +9,9 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
     FailureSummary
   }
 
+  alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.Ruleset
+  alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
   alias WeGoNext.Silver.DamageTaken
 
   setup do
@@ -41,7 +42,8 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
     early = insert_encounter!("boss-one", "Boss One", ~U[2026-05-01 20:00:00Z])
     late = insert_encounter!("boss-two", "Boss Two", ~U[2026-05-03 20:00:00Z])
 
-    {:ok, one: one, raid: raid, swirl: swirl, cast: cast, early: early, late: late}
+    {:ok,
+     ruleset: ruleset, one: one, raid: raid, swirl: swirl, cast: cast, early: early, late: late}
   end
 
   test "list_grouped_failures groups by player and criterion", %{
@@ -121,7 +123,7 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
     assert FailureSummary.default_filters() == %{}
   end
 
-  test "readiness reports matching silver observations without gold facts", %{
+  test "readiness reports matching imported observations without tracked failures", %{
     one: one,
     swirl: swirl,
     early: early
@@ -135,31 +137,109 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
       })
 
     assert readiness.active_promoted_snapshots_count == 2
+    assert readiness.failure_ready_mechanics_count == 2
     assert readiness.scoped_encounters_count == 1
     assert readiness.matching_silver_observation_count == 1
+    assert readiness.imported_observation_count == 1
     assert readiness.matching_criteria_count == 1
     assert readiness.selected_fact_count == 0
+    assert readiness.selected_failure_row_count == 0
 
-    assert diagnostic_titles(readiness) == [
-             "No gold failure facts",
-             "Interrupt evidence is provisional"
-           ]
+    assert diagnostic_titles(readiness) == ["No tracked failures"]
   end
 
-  test "readiness reports stale facts when active ruleset version is not represented", %{
-    one: one,
-    swirl: swirl,
-    early: early
-  } do
+  test "readiness reports stale failures when current mechanic definitions are not represented",
+       %{
+         one: one,
+         swirl: swirl,
+         early: early
+       } do
     insert_failure!(early, one, swirl, 1, 100, ruleset_version: 99)
 
     readiness = FailureSummary.readiness()
 
     assert readiness.selected_fact_count == 1
+    assert readiness.selected_failure_row_count == 1
     assert readiness.stale_fact_count == 1
+    assert readiness.stale_mechanic_definition_count == 1
 
     assert "Facts may be stale" in diagnostic_titles(readiness)
-    assert "Builder-version staleness is not visible yet" in diagnostic_titles(readiness)
+    assert "Failure logic changed" in diagnostic_titles(readiness)
+  end
+
+  test "readiness reports failures built by old failure logic", %{
+    one: one,
+    swirl: swirl,
+    early: early
+  } do
+    insert_failure!(early, one, swirl, 1, 100, derivation_version: 0)
+
+    readiness = FailureSummary.readiness()
+
+    assert readiness.selected_fact_count == 1
+    assert readiness.selected_failure_row_count == 1
+    assert readiness.stale_derivation_fact_count == 1
+    assert readiness.stale_failure_logic_count == 1
+    assert readiness.current_derivation_version == Derivation.current_version()
+
+    assert "Failure logic changed" in diagnostic_titles(readiness)
+  end
+
+  test "readiness treats current fact builder derivation as fresh", %{
+    one: one,
+    swirl: swirl,
+    early: early
+  } do
+    rebuilt_at = ~U[2026-05-03 21:00:00Z]
+
+    insert_failure!(early, one, swirl, 1, 100,
+      derivation_version: Derivation.current_version(),
+      rebuilt_at: rebuilt_at
+    )
+
+    readiness = FailureSummary.readiness()
+
+    assert readiness.stale_derivation_fact_count == 0
+    assert DateTime.compare(readiness.latest_rebuilt_at, rebuilt_at) == :eq
+    refute "Failure logic changed" in diagnostic_titles(readiness)
+  end
+
+  test "zero_fact_rule_diagnostics explains current-tier avoidable mechanics that produce no failures",
+       %{
+         ruleset: ruleset,
+         early: early,
+         late: late
+       } do
+    insert_authored_rule!(ruleset, 301, "Stale Snapshot", "boss-one")
+
+    no_encounter = insert_authored_rule!(ruleset, 302, "No Encounter", "missing-boss")
+    insert_snapshot!(ruleset, no_encounter)
+
+    no_silver = insert_authored_rule!(ruleset, 303, "No Silver", early.wow_encounter_id)
+    insert_snapshot!(ruleset, no_silver)
+
+    spell_mismatch = insert_authored_rule!(ruleset, 304, "Wrong Spell", late.wow_encounter_id)
+    insert_snapshot!(ruleset, spell_mismatch)
+    insert_damage_taken!(late, "Player-Other", 999_304)
+
+    inactive =
+      insert_authored_rule!(ruleset, 305, "Inactive Rule", early.wow_encounter_id, active: false)
+
+    insert_snapshot!(ruleset, inactive, active: false)
+
+    diagnostics = FailureSummary.zero_fact_rule_diagnostics()
+    reasons_by_spell = Map.new(diagnostics, &{&1.spell_id, &1.reason})
+
+    assert reasons_by_spell[301] == :stale_gold_snapshot
+    assert reasons_by_spell[302] == :no_matching_encounter
+    assert reasons_by_spell[303] == :no_silver_damage_rows
+    assert reasons_by_spell[304] == :spell_id_mismatch
+    assert reasons_by_spell[305] == :inactive_rule
+
+    readiness = FailureSummary.readiness()
+
+    assert "Some mechanics produced no failures" in diagnostic_titles(readiness)
+    assert length(readiness.zero_fact_rule_diagnostics) == 5
   end
 
   defp insert_encounter!(wow_encounter_id, name, start_time) do
@@ -191,6 +271,39 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
     |> Repo.insert!()
   end
 
+  defp insert_authored_rule!(ruleset, spell_id, spell_name, boss_encounter_id, attrs \\ []) do
+    %MechanicCriterion{}
+    |> MechanicCriterion.changeset(%{
+      ruleset_id: ruleset.id,
+      spell_id: spell_id,
+      spell_name: spell_name,
+      mechanic_type: "avoidable",
+      boss_encounter_id: boss_encounter_id,
+      boss_name: "Diagnostic Boss",
+      threshold: %{"max_hits" => 0},
+      active: Keyword.get(attrs, :active, true)
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_snapshot!(ruleset, rule, attrs \\ []) do
+    %DimMechanicCriterion{}
+    |> DimMechanicCriterion.changeset(%{
+      source_rule_id: rule.id,
+      ruleset_id: ruleset.id,
+      ruleset_version: ruleset.version,
+      spell_id: rule.spell_id,
+      spell_name: rule.spell_name,
+      mechanic_type: rule.mechanic_type,
+      boss_encounter_id: rule.boss_encounter_id,
+      boss_name: rule.boss_name,
+      difficulty_id: rule.difficulty_id,
+      threshold: rule.threshold,
+      active: Keyword.get(attrs, :active, rule.active)
+    })
+    |> Repo.insert!()
+  end
+
   defp get_or_insert_player!(guid, name) do
     case Repo.get_by(DimPlayer, player_guid: guid) do
       %DimPlayer{} = player ->
@@ -215,6 +328,8 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
       channel: criterion.channel,
       build_version: criterion.build_version,
       build_key: criterion.build_key,
+      derivation_version: Keyword.get(attrs, :derivation_version),
+      rebuilt_at: Keyword.get(attrs, :rebuilt_at),
       failure_count: failure_count,
       total_damage: total_damage
     })

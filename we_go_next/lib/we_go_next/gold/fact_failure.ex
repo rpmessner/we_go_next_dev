@@ -19,6 +19,8 @@ defmodule WeGoNext.Gold.FactFailure do
     field(:channel, :string, default: "retail")
     field(:build_version, :string)
     field(:build_key, :string)
+    field(:derivation_version, :integer)
+    field(:rebuilt_at, :utc_datetime_usec)
     field(:failure_count, :integer)
     field(:total_damage, :integer, default: 0)
 
@@ -44,6 +46,8 @@ defmodule WeGoNext.Gold.FactFailure do
       :channel,
       :build_version,
       :build_key,
+      :derivation_version,
+      :rebuilt_at,
       :failure_count,
       :total_damage
     ])

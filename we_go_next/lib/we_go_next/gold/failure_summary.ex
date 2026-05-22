@@ -6,6 +6,7 @@ defmodule WeGoNext.Gold.FailureSummary do
   import Ecto.Query
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, FactFailure}
+  alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Repo
   alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
   alias WeGoNext.Silver.{DamageTaken, InterruptOpportunity}
@@ -39,7 +40,33 @@ defmodule WeGoNext.Gold.FailureSummary do
           body: String.t()
         }
 
+  @type rule_diagnostic :: %{
+          severity: :blocked | :warning | :info,
+          title: String.t(),
+          body: String.t(),
+          reason: atom(),
+          rule_id: pos_integer(),
+          criterion_dim_id: pos_integer() | nil,
+          spell_id: integer(),
+          spell_name: String.t(),
+          mechanic_type: String.t(),
+          boss_name: String.t() | nil,
+          boss_encounter_id: String.t() | nil,
+          matching_encounters_count: non_neg_integer(),
+          encounter_damage_rows_count: non_neg_integer(),
+          silver_damage_rows_count: non_neg_integer(),
+          silver_hit_count: non_neg_integer(),
+          fact_rows_count: non_neg_integer()
+        }
+
   @type readiness :: %{
+          mechanics_synced?: boolean(),
+          synced_mechanics_count: non_neg_integer(),
+          failure_ready_mechanics_count: non_neg_integer(),
+          imported_observation_count: non_neg_integer(),
+          selected_failure_row_count: non_neg_integer(),
+          stale_mechanic_definition_count: non_neg_integer(),
+          stale_failure_logic_count: non_neg_integer(),
           active_ruleset: Ruleset.t() | nil,
           active_authored_rules_count: non_neg_integer(),
           active_promoted_snapshots_count: non_neg_integer(),
@@ -50,14 +77,17 @@ defmodule WeGoNext.Gold.FailureSummary do
           matching_silver_observation_count: non_neg_integer(),
           matching_criteria_count: non_neg_integer(),
           stale_fact_count: non_neg_integer(),
-          has_interrupt_criteria?: boolean(),
+          stale_derivation_fact_count: non_neg_integer(),
+          current_derivation_version: pos_integer(),
+          latest_rebuilt_at: DateTime.t() | nil,
+          zero_fact_rule_diagnostics: [rule_diagnostic()],
           diagnostics: [diagnostic()]
         }
 
   @doc """
   Returns the default failures date range.
 
-  The range is anchored to the latest imported gold encounter instead of wall
+  The range is anchored to the latest imported pull instead of wall
   clock time, so archived logs still produce useful defaults.
   """
   @spec default_filters() :: filters()
@@ -76,7 +106,7 @@ defmodule WeGoNext.Gold.FailureSummary do
   end
 
   @doc """
-  Returns mechanic failure facts grouped by player and criterion.
+  Returns tracked mechanic failures grouped by player and criterion.
   """
   @spec list_grouped_failures(filters()) :: [row()]
   def list_grouped_failures(filters \\ %{}) when is_map(filters) do
@@ -143,30 +173,59 @@ defmodule WeGoNext.Gold.FailureSummary do
   @doc """
   Returns readiness diagnostics for the failures page.
 
-  The checks intentionally stay inside today's warehouse semantics. Until the
-  derivation-version work lands, staleness can only be inferred from ruleset and
-  current criterion snapshot mismatches.
+  The checks intentionally stay inside today's warehouse semantics: synced
+  mechanics, matching supported imported observations, tracked failure presence, mechanic sync
+  staleness, and failure-logic staleness.
   """
   @spec readiness(filters()) :: readiness()
   def readiness(filters \\ %{}) when is_map(filters) do
     active_ruleset = Repo.get_by(Ruleset, status: "active")
+    synced_mechanics_count = active_authored_rules_count(active_ruleset)
+    failure_ready_mechanics_count = active_promoted_snapshots_count(active_ruleset)
+    selected_failure_row_count = selected_fact_count(filters)
+    imported_observation_count = matching_silver_observation_count(active_ruleset, filters)
+    stale_mechanic_definition_count = stale_fact_count(active_ruleset, filters)
+    stale_failure_logic_count = stale_derivation_fact_count(filters)
 
     counts = %{
+      mechanics_synced?: not is_nil(active_ruleset),
+      synced_mechanics_count: synced_mechanics_count,
+      failure_ready_mechanics_count: failure_ready_mechanics_count,
+      imported_observation_count: imported_observation_count,
+      selected_failure_row_count: selected_failure_row_count,
+      stale_mechanic_definition_count: stale_mechanic_definition_count,
+      stale_failure_logic_count: stale_failure_logic_count,
       active_ruleset: active_ruleset,
-      active_authored_rules_count: active_authored_rules_count(active_ruleset),
-      active_promoted_snapshots_count: active_promoted_snapshots_count(active_ruleset),
+      active_authored_rules_count: synced_mechanics_count,
+      active_promoted_snapshots_count: failure_ready_mechanics_count,
       scoped_encounters_count: scoped_encounters_count(filters),
-      selected_fact_count: selected_fact_count(filters),
+      selected_fact_count: selected_failure_row_count,
       total_fact_count: Repo.aggregate(FactFailure, :count),
       active_fact_count: active_fact_count(active_ruleset, filters),
-      matching_silver_observation_count:
-        matching_silver_observation_count(active_ruleset, filters),
+      matching_silver_observation_count: imported_observation_count,
       matching_criteria_count: matching_criteria_count(active_ruleset, filters),
-      stale_fact_count: stale_fact_count(active_ruleset, filters),
-      has_interrupt_criteria?: has_interrupt_criteria?(active_ruleset)
+      stale_fact_count: stale_mechanic_definition_count,
+      stale_derivation_fact_count: stale_failure_logic_count,
+      current_derivation_version: Derivation.current_version(),
+      latest_rebuilt_at: latest_rebuilt_at(filters),
+      zero_fact_rule_diagnostics: zero_fact_rule_diagnostics(filters)
     }
 
     Map.put(counts, :diagnostics, readiness_diagnostics(counts))
+  end
+
+  @doc """
+  Explains active avoidable mechanics that currently produce no tracked failures.
+
+  These diagnostics are intentionally scoped to supported fact semantics:
+  avoidable criteria backed by `silver.damage_taken`.
+  """
+  @spec zero_fact_rule_diagnostics(filters()) :: [rule_diagnostic()]
+  def zero_fact_rule_diagnostics(filters \\ %{}) when is_map(filters) do
+    filters
+    |> zero_fact_rule_rows()
+    |> Enum.reject(&(to_integer(&1.fact_rows_count) > 0))
+    |> Enum.map(&zero_fact_rule_diagnostic/1)
   end
 
   defp apply_start_date(query, %Date{} = date) do
@@ -255,12 +314,23 @@ defmodule WeGoNext.Gold.FailureSummary do
     |> Repo.aggregate(:count)
   end
 
-  defp has_interrupt_criteria?(nil), do: false
+  defp stale_derivation_fact_count(filters) do
+    FactFailure
+    |> join(:inner, [failure], encounter in assoc(failure, :encounter))
+    |> where(
+      [failure, encounter],
+      fragment("? IS DISTINCT FROM ?", failure.derivation_version, ^Derivation.current_version())
+    )
+    |> apply_fact_filters(filters)
+    |> Repo.aggregate(:count)
+  end
 
-  defp has_interrupt_criteria?(%Ruleset{id: ruleset_id, version: version}) do
-    active_criteria_query(ruleset_id, version)
-    |> where([criterion], criterion.mechanic_type == "interrupt")
-    |> Repo.exists?()
+  defp latest_rebuilt_at(filters) do
+    FactFailure
+    |> join(:inner, [failure], encounter in assoc(failure, :encounter))
+    |> apply_fact_filters(filters)
+    |> select([failure, encounter], max(failure.rebuilt_at))
+    |> Repo.one()
   end
 
   defp silver_match_counts(%Ruleset{id: ruleset_id, version: version}, filters) do
@@ -430,8 +500,8 @@ defmodule WeGoNext.Gold.FailureSummary do
     |> maybe_no_matching_silver(counts)
     |> maybe_no_gold_facts(counts)
     |> maybe_stale_facts(counts)
-    |> maybe_interrupt_limit(counts)
-    |> maybe_version_limit(counts)
+    |> maybe_stale_derivation(counts)
+    |> maybe_zero_fact_rules(counts)
     |> Enum.reverse()
   end
 
@@ -439,8 +509,8 @@ defmodule WeGoNext.Gold.FailureSummary do
     [
       %{
         severity: :blocked,
-        title: "No active ruleset",
-        body: "Activate a ruleset, promote it to gold snapshots, then rebuild gold facts."
+        title: "Current-tier mechanics not synced",
+        body: "Sync current-tier mechanics and rebuild failures before reviewing data."
       }
       | diagnostics
     ]
@@ -451,16 +521,16 @@ defmodule WeGoNext.Gold.FailureSummary do
   defp maybe_no_promoted_criteria(
          diagnostics,
          %{
-           active_ruleset: %Ruleset{name: name, version: version},
+           active_ruleset: %Ruleset{},
            active_promoted_snapshots_count: 0
          }
        ) do
     [
       %{
         severity: :blocked,
-        title: "No promoted criteria",
+        title: "Mechanics need sync",
         body:
-          "#{name} v#{version} is active, but it has no promoted gold criterion snapshots. Promote active rules before rebuilding."
+          "No failure-ready mechanics are synced. Sync current-tier mechanics before rebuilding."
       }
       | diagnostics
     ]
@@ -472,8 +542,8 @@ defmodule WeGoNext.Gold.FailureSummary do
     [
       %{
         severity: :warning,
-        title: "No gold encounters in scope",
-        body: "No imported gold encounters match the current date range."
+        title: "No pulls in scope",
+        body: "No imported pulls match the current date range."
       }
       | diagnostics
     ]
@@ -493,9 +563,8 @@ defmodule WeGoNext.Gold.FailureSummary do
     [
       %{
         severity: :warning,
-        title: "No matching silver observations",
-        body:
-          "Active promoted criteria do not match supported silver observations in this date range."
+        title: "No matching observations",
+        body: "Synced mechanics do not match supported imported observations in this date range."
       }
       | diagnostics
     ]
@@ -514,19 +583,19 @@ defmodule WeGoNext.Gold.FailureSummary do
     body =
       cond do
         total_fact_count > 0 ->
-          "No gold failure facts match the current date range. Clear filters or rebuild/import data for this range."
+          "No tracked failures match the current date range. Clear filters or rebuild/import data for this range."
 
         silver_count > 0 ->
-          "Matching silver observations exist, but no gold failure facts have been built yet. Rebuild gold facts."
+          "Matching observations exist, but tracked failures have not been built yet. Rebuild failures."
 
         true ->
-          "No gold failure facts exist for the current scope."
+          "No tracked failures exist for the current scope."
       end
 
     [
       %{
         severity: :warning,
-        title: "No gold failure facts",
+        title: "No tracked failures",
         body: body
       }
       | diagnostics
@@ -541,7 +610,7 @@ defmodule WeGoNext.Gold.FailureSummary do
         severity: :warning,
         title: "Facts may be stale",
         body:
-          "#{stale_count} fact row(s) do not match the active ruleset version or their current promoted criterion snapshot. Rebuild gold facts after promotion."
+          "#{stale_count} tracked failure row#{plural(stale_count)} were built before the current synced mechanics. Sync current-tier mechanics and rebuild failures."
       }
       | diagnostics
     ]
@@ -549,33 +618,300 @@ defmodule WeGoNext.Gold.FailureSummary do
 
   defp maybe_stale_facts(diagnostics, _counts), do: diagnostics
 
-  defp maybe_interrupt_limit(diagnostics, %{has_interrupt_criteria?: true}) do
+  defp maybe_stale_derivation(diagnostics, %{stale_derivation_fact_count: stale_count})
+       when stale_count > 0 do
     [
       %{
-        severity: :info,
-        title: "Interrupt evidence is provisional",
+        severity: :warning,
+        title: "Failure logic changed",
         body:
-          "Until task #61 lands, interrupt diagnostics use broad silver interrupt-opportunity rows and should be treated as a coarse signal."
+          "#{stale_count} tracked failure row#{plural(stale_count)} were built before the current failure logic. Rebuild failures."
       }
       | diagnostics
     ]
   end
 
-  defp maybe_interrupt_limit(diagnostics, _counts), do: diagnostics
+  defp maybe_stale_derivation(diagnostics, _counts), do: diagnostics
 
-  defp maybe_version_limit(diagnostics, counts) do
-    if counts.selected_fact_count > 0 or counts.stale_fact_count > 0 do
-      [
-        %{
-          severity: :info,
-          title: "Builder-version staleness is not visible yet",
-          body:
-            "Until task #62 adds derivation version stamps, this page can detect ruleset/snapshot mismatch but not transform-code drift."
-        }
-        | diagnostics
-      ]
-    else
-      diagnostics
+  defp maybe_zero_fact_rules(diagnostics, %{zero_fact_rule_diagnostics: []}), do: diagnostics
+
+  defp maybe_zero_fact_rules(diagnostics, %{zero_fact_rule_diagnostics: rule_diagnostics}) do
+    count = length(rule_diagnostics)
+
+    [
+      %{
+        severity: :warning,
+        title: "Some mechanics produced no failures",
+        body:
+          "#{count} synced avoidable mechanic#{plural(count)} produced no tracked failures. Review the diagnostics below for pull scope, imported damage, spell ID, disabled mechanic, or sync causes."
+      }
+      | diagnostics
+    ]
+  end
+
+  defp zero_fact_rule_rows(filters) do
+    {start_at, end_at} = filter_bounds(filters)
+
+    result =
+      Repo.query!(
+        """
+        WITH active_ruleset AS (
+          SELECT id, version
+          FROM rules.ruleset
+          WHERE status = 'active'
+          LIMIT 1
+        ),
+        avoidable_rules AS (
+          SELECT
+            rule.id AS rule_id,
+            rule.spell_id,
+            rule.spell_name,
+            rule.mechanic_type,
+            rule.boss_encounter_id,
+            rule.boss_name,
+            rule.difficulty_id,
+            rule.threshold,
+            rule.active AS rule_active,
+            snapshot.id AS criterion_dim_id,
+            snapshot.active AS snapshot_active,
+            (
+              snapshot.id IS NULL
+              OR snapshot.ruleset_id IS DISTINCT FROM active_ruleset.id
+              OR snapshot.ruleset_version IS DISTINCT FROM active_ruleset.version
+              OR snapshot.spell_id IS DISTINCT FROM rule.spell_id
+              OR snapshot.mechanic_type IS DISTINCT FROM rule.mechanic_type
+              OR snapshot.boss_encounter_id IS DISTINCT FROM rule.boss_encounter_id
+              OR snapshot.difficulty_id IS DISTINCT FROM rule.difficulty_id
+              OR snapshot.threshold IS DISTINCT FROM rule.threshold
+              OR snapshot.active IS DISTINCT FROM rule.active
+            ) AS snapshot_stale
+          FROM active_ruleset
+          JOIN rules.mechanic_criterion rule
+            ON rule.ruleset_id = active_ruleset.id
+          LEFT JOIN gold.dim_mechanic_criterion snapshot
+            ON snapshot.source_rule_id = rule.id
+          WHERE rule.mechanic_type = 'avoidable'
+        )
+        SELECT
+          rule.*,
+          (
+            SELECT count(*)
+            FROM gold.dim_encounter encounter
+            WHERE #{rule_encounter_match_sql("rule", "encounter")}
+              AND ($1::timestamptz IS NULL OR encounter.start_time >= $1::timestamptz)
+              AND ($2::timestamptz IS NULL OR encounter.start_time < $2::timestamptz)
+          )::integer AS matching_encounters_count,
+          (
+            SELECT count(*)
+            FROM silver.damage_taken damage
+            JOIN gold.dim_encounter encounter
+              ON encounter.id = damage.encounter_dim_id
+            WHERE #{rule_encounter_match_sql("rule", "encounter")}
+              AND ($1::timestamptz IS NULL OR encounter.start_time >= $1::timestamptz)
+              AND ($2::timestamptz IS NULL OR encounter.start_time < $2::timestamptz)
+          )::integer AS encounter_damage_rows_count,
+          (
+            SELECT count(*)
+            FROM silver.damage_taken damage
+            JOIN gold.dim_encounter encounter
+              ON encounter.id = damage.encounter_dim_id
+            WHERE #{rule_encounter_match_sql("rule", "encounter")}
+              AND damage.spell_id = rule.spell_id
+              AND ($1::timestamptz IS NULL OR encounter.start_time >= $1::timestamptz)
+              AND ($2::timestamptz IS NULL OR encounter.start_time < $2::timestamptz)
+          )::integer AS silver_damage_rows_count,
+          (
+            SELECT coalesce(sum(damage.hit_count), 0)
+            FROM silver.damage_taken damage
+            JOIN gold.dim_encounter encounter
+              ON encounter.id = damage.encounter_dim_id
+            WHERE #{rule_encounter_match_sql("rule", "encounter")}
+              AND damage.spell_id = rule.spell_id
+              AND ($1::timestamptz IS NULL OR encounter.start_time >= $1::timestamptz)
+              AND ($2::timestamptz IS NULL OR encounter.start_time < $2::timestamptz)
+          )::integer AS silver_hit_count,
+          (
+            SELECT coalesce(sum(damage.total_amount), 0)
+            FROM silver.damage_taken damage
+            JOIN gold.dim_encounter encounter
+              ON encounter.id = damage.encounter_dim_id
+            WHERE #{rule_encounter_match_sql("rule", "encounter")}
+              AND damage.spell_id = rule.spell_id
+              AND ($1::timestamptz IS NULL OR encounter.start_time >= $1::timestamptz)
+              AND ($2::timestamptz IS NULL OR encounter.start_time < $2::timestamptz)
+          )::bigint AS silver_total_damage,
+          (
+            SELECT count(*)
+            FROM gold.fact_failure fact
+            JOIN gold.dim_encounter encounter
+              ON encounter.id = fact.encounter_dim_id
+            WHERE rule.criterion_dim_id IS NOT NULL
+              AND fact.criterion_dim_id = rule.criterion_dim_id
+              AND ($1::timestamptz IS NULL OR encounter.start_time >= $1::timestamptz)
+              AND ($2::timestamptz IS NULL OR encounter.start_time < $2::timestamptz)
+          )::integer AS fact_rows_count
+        FROM avoidable_rules rule
+        ORDER BY rule.boss_name, rule.spell_name, rule.spell_id
+        """,
+        [start_at, end_at]
+      )
+
+    result.rows
+    |> Enum.map(fn row ->
+      result.columns
+      |> Enum.map(&String.to_atom/1)
+      |> Enum.zip(row)
+      |> Map.new()
+    end)
+  end
+
+  defp zero_fact_rule_diagnostic(row) do
+    reason = zero_fact_reason(row)
+    {severity, title, body} = zero_fact_message(reason, row)
+
+    %{
+      severity: severity,
+      title: title,
+      body: body,
+      reason: reason,
+      rule_id: row.rule_id,
+      criterion_dim_id: row.criterion_dim_id,
+      spell_id: row.spell_id,
+      spell_name: row.spell_name,
+      mechanic_type: row.mechanic_type,
+      boss_name: row.boss_name,
+      boss_encounter_id: row.boss_encounter_id,
+      matching_encounters_count: to_integer(row.matching_encounters_count),
+      encounter_damage_rows_count: to_integer(row.encounter_damage_rows_count),
+      silver_damage_rows_count: to_integer(row.silver_damage_rows_count),
+      silver_hit_count: to_integer(row.silver_hit_count),
+      fact_rows_count: to_integer(row.fact_rows_count)
+    }
+  end
+
+  defp zero_fact_reason(%{rule_active: false}), do: :inactive_rule
+  defp zero_fact_reason(%{snapshot_active: false}), do: :inactive_rule
+  defp zero_fact_reason(%{snapshot_stale: true}), do: :stale_gold_snapshot
+  defp zero_fact_reason(%{matching_encounters_count: 0}), do: :no_matching_encounter
+  defp zero_fact_reason(%{encounter_damage_rows_count: 0}), do: :no_silver_damage_rows
+  defp zero_fact_reason(%{silver_damage_rows_count: 0}), do: :spell_id_mismatch
+
+  defp zero_fact_reason(%{silver_hit_count: hit_count, threshold: threshold}) do
+    if to_integer(hit_count) <= max_hits(threshold),
+      do: :below_threshold,
+      else: :gold_rebuild_needed
+  end
+
+  defp zero_fact_message(:inactive_rule, row) do
+    {:info, "Disabled mechanic",
+     "#{rule_label(row)} is disabled, so rebuilds should not emit tracked failures for it."}
+  end
+
+  defp zero_fact_message(:stale_gold_snapshot, row) do
+    {:warning, "Mechanic sync needed",
+     "#{rule_label(row)} is not in sync with the failure-ready mechanics. Sync current-tier mechanics before rebuilding."}
+  end
+
+  defp zero_fact_message(:no_matching_encounter, row) do
+    {:warning, "No matching encounter",
+     "#{rule_label(row)} is scoped to encounter #{row.boss_encounter_id}, but no imported pulls in the current filters match that boss and difficulty scope."}
+  end
+
+  defp zero_fact_message(:no_silver_damage_rows, row) do
+    {:warning, "No imported damage rows",
+     "#{rule_label(row)} has matching pulls, but those pulls have no imported damage rows in the current filters. Force reimport if observation import logic changed."}
+  end
+
+  defp zero_fact_message(:spell_id_mismatch, row) do
+    {:warning, "Possible spell ID mismatch",
+     "#{rule_label(row)} has matching pulls with damage rows, but none for spell #{row.spell_id}. Verify the catalog spell ID against observed combat-log damage spell IDs."}
+  end
+
+  defp zero_fact_message(:below_threshold, row) do
+    {:info, "Below failure threshold",
+     "#{rule_label(row)} has matching imported damage, but the observed hit count does not exceed the failure threshold."}
+  end
+
+  defp zero_fact_message(:gold_rebuild_needed, row) do
+    {:warning, "Failure rebuild needed",
+     "#{rule_label(row)} has matching imported damage above threshold, but no tracked failure row. Rebuild failures."}
+  end
+
+  defp rule_label(row) do
+    boss =
+      case row.boss_name do
+        nil -> "all encounters"
+        "" -> "all encounters"
+        boss_name -> boss_name
+      end
+
+    "#{row.spell_name} (#{row.spell_id}) on #{boss}"
+  end
+
+  defp max_hits(%{} = threshold) do
+    case Map.get(threshold, "max_hits") do
+      value when is_integer(value) -> value
+      _value -> 0
     end
+  end
+
+  defp max_hits(_threshold), do: 0
+
+  defp rule_encounter_match_sql(rule_alias, encounter_alias) do
+    """
+    (
+      #{rule_alias}.boss_encounter_id IS NULL
+      OR (
+        #{rule_alias}.boss_encounter_id = #{encounter_alias}.wow_encounter_id
+        AND (
+          #{rule_alias}.difficulty_id IS NULL
+          OR #{rule_alias}.difficulty_id = #{encounter_alias}.difficulty_id
+          OR (
+            #{encounter_alias}.difficulty_id = 15
+            AND #{rule_alias}.difficulty_id IN (14, 15)
+          )
+          OR (
+            #{encounter_alias}.difficulty_id = 16
+            AND #{rule_alias}.difficulty_id IN (14, 15, 16)
+          )
+          OR (
+            #{encounter_alias}.difficulty_id NOT IN (14, 15, 16)
+            AND #{rule_alias}.difficulty_id IN (14, 15, 16)
+          )
+        )
+      )
+    )
+    """
+  end
+
+  defp filter_bounds(filters) do
+    {filter_start_bound(Map.get(filters, :start_date)),
+     filter_end_bound(Map.get(filters, :end_date))}
+  end
+
+  defp filter_start_bound(%Date{} = date) do
+    {:ok, start_at} = DateTime.new(date, ~T[00:00:00], "Etc/UTC")
+    start_at
+  end
+
+  defp filter_start_bound(_date), do: nil
+
+  defp filter_end_bound(%Date{} = date) do
+    {:ok, exclusive_end_at} = DateTime.new(Date.add(date, 1), ~T[00:00:00], "Etc/UTC")
+    exclusive_end_at
+  end
+
+  defp filter_end_bound(_date), do: nil
+
+  defp plural(1), do: ""
+  defp plural(_count), do: "s"
+
+  defp to_integer(nil), do: 0
+  defp to_integer(value) when is_integer(value), do: value
+
+  defp to_integer(%Decimal{} = value) do
+    value
+    |> Decimal.round(0)
+    |> Decimal.to_integer()
   end
 end

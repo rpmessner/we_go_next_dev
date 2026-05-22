@@ -2,6 +2,7 @@ defmodule WeGoNext.Gold.FactFailureTest do
   use ExUnit.Case, async: false
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
+  alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Repo
   alias WeGoNext.Rules
   alias WeGoNext.Rules.Ruleset
@@ -72,7 +73,9 @@ defmodule WeGoNext.Gold.FactFailureTest do
              product: "wow",
              channel: "retail",
              build_version: "11.2.0.99999",
-             build_key: "11.2.0"
+             build_key: "11.2.0",
+             derivation_version: derivation_version,
+             rebuilt_at: %DateTime{} = rebuilt_at
            } =
              Repo.get_by!(FactFailure,
                encounter_dim_id: encounter.id,
@@ -81,6 +84,8 @@ defmodule WeGoNext.Gold.FactFailureTest do
 
     assert ruleset_id == ruleset.id
     assert ruleset_version == ruleset.version
+    assert derivation_version == Derivation.current_version()
+    assert DateTime.compare(rebuilt_at, DateTime.utc_now()) in [:lt, :eq]
   end
 
   test "rebuild_for_encounter preserves criteria specificity and difficulty inheritance", %{

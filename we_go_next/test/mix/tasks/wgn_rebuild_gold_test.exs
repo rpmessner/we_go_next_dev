@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
     :ok
   end
 
-  test "rebuilds active ruleset facts for all gold encounters from silver rows" do
+  test "rebuilds tracked failures for all imported pulls from observations" do
     ruleset = insert_ruleset!("Active Ruleset", "active")
     first_encounter = insert_dim_encounter!("boss-one")
     second_encounter = insert_dim_encounter!("boss-two")
@@ -36,8 +36,10 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
 
     output = capture_task_output(fn -> RebuildGold.run([]) end)
 
-    assert output =~ "Rebuilt gold.fact_failure for 2 encounter(s) using active ruleset."
-    assert output =~ "inserted 2 fact row(s)."
+    assert output =~
+             "Rebuilt tracked failures for 2 pull(s) using current mechanic definitions."
+
+    assert output =~ "inserted 2 row(s)."
 
     assert fact_exists?(first_encounter, "Player-One", first_criterion)
     assert fact_exists?(second_encounter, "Player-Two", second_criterion)
@@ -61,7 +63,7 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
     output =
       capture_task_output(fn -> RebuildGold.run(["--ruleset-id", "#{draft_ruleset.id}"]) end)
 
-    assert output =~ "using ruleset_id=#{draft_ruleset.id}"
+    assert output =~ "using definition_set_id=#{draft_ruleset.id}"
     assert fact_exists?(encounter, "Player-One", active_criterion)
     assert fact_exists?(encounter, "Player-One", draft_criterion)
   end
@@ -82,7 +84,7 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
     output =
       capture_task_output(fn -> RebuildGold.run(["--encounter-id", "#{first_encounter.id}"]) end)
 
-    assert output =~ "for 1 encounter(s)"
+    assert output =~ "for 1 pull(s)"
     assert fact_exists?(first_encounter, "Player-One", first_criterion)
     refute fact_exists?(second_encounter, "Player-Two", second_criterion)
   end
