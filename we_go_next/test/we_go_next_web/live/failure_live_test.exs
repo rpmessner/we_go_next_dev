@@ -5,7 +5,7 @@ defmodule WeGoNextWeb.FailureLiveTest do
   alias WeGoNext.Repo
   alias WeGoNext.Rules.Ruleset
 
-  test "renders grouped gold failure facts", %{conn: conn} do
+  test "renders grouped mechanic failures", %{conn: conn} do
     player = insert_player!("Player-One-#{System.unique_integer([:positive])}", "One")
     raid = get_or_insert_player!("__RAID__", "Raid")
     encounter = insert_encounter!("boss-one", "Boss One", ~U[2026-05-01 20:00:00Z])
@@ -28,7 +28,7 @@ defmodule WeGoNextWeb.FailureLiveTest do
     assert html =~ "500"
   end
 
-  test "renders an empty state for date ranges without facts", %{conn: conn} do
+  test "renders an empty state for date ranges without tracked failures", %{conn: conn} do
     player = insert_player!("Player-One-#{System.unique_integer([:positive])}", "One")
     encounter = insert_encounter!("boss-one", "Boss One", ~U[2026-05-01 20:00:00Z])
     swirl = insert_criterion!(101, "Swirl", "avoidable", "Boss One")
@@ -68,18 +68,18 @@ defmodule WeGoNextWeb.FailureLiveTest do
     refute html =~ "Old Swirl"
   end
 
-  test "explains missing active ruleset", %{conn: conn} do
+  test "explains missing synced current-tier mechanics", %{conn: conn} do
     html =
       conn
       |> get(~p"/failures")
       |> html_response(200)
 
     assert html =~ "Data Readiness"
-    assert html =~ "No active ruleset"
-    assert html =~ "Activate a ruleset, promote it to gold snapshots"
+    assert html =~ "Current-tier mechanics not synced"
+    assert html =~ "Sync current-tier mechanics and rebuild failures"
   end
 
-  test "explains active ruleset without promoted snapshots", %{conn: conn} do
+  test "explains synced mechanics without failure-ready rows", %{conn: conn} do
     %Ruleset{}
     |> Ruleset.changeset(%{
       name: "Unpromoted Failure Rules #{System.unique_integer([:positive])}",
@@ -92,8 +92,8 @@ defmodule WeGoNextWeb.FailureLiveTest do
       |> get(~p"/failures")
       |> html_response(200)
 
-    assert html =~ "No promoted criteria"
-    assert html =~ "has no promoted gold criterion snapshots"
+    assert html =~ "Mechanics need sync"
+    assert html =~ "No failure-ready mechanics are synced"
   end
 
   defp insert_player!(guid, name) do

@@ -1,6 +1,6 @@
 defmodule WeGoNextWeb.FailureLive.Index do
   @moduledoc """
-  Cross-encounter mechanic failure dashboard backed by gold facts.
+  Cross-encounter mechanic failure dashboard.
   """
 
   use WeGoNextWeb, :live_view
@@ -53,7 +53,7 @@ defmodule WeGoNextWeb.FailureLive.Index do
           <.back navigate={~p"/"}>Back to encounters</.back>
           <h1 class="mt-3 text-2xl font-bold text-wow-gold">Mechanic Failures</h1>
           <p class="mt-1 text-sm text-zinc-400">
-            Cross-encounter failure totals from gold facts.
+            Cross-encounter failure totals from synced mechanic definitions.
           </p>
         </div>
 
@@ -114,15 +114,15 @@ defmodule WeGoNextWeb.FailureLive.Index do
               Data Readiness
             </h2>
             <p class="mt-1 text-sm text-zinc-500">
-              {readiness_ruleset_label(@readiness.active_ruleset)}
+              {mechanics_status_label(@readiness.mechanics_synced?)}
             </p>
           </div>
           <div class="grid grid-cols-2 gap-2 text-right text-xs text-zinc-500 sm:grid-cols-4">
             <div>
               <div class="font-mono text-base text-zinc-100">
-                {@readiness.active_promoted_snapshots_count}
+                {@readiness.failure_ready_mechanics_count}
               </div>
-              <div>criteria</div>
+              <div>mechanics</div>
             </div>
             <div>
               <div class="font-mono text-base text-zinc-100">
@@ -132,21 +132,24 @@ defmodule WeGoNextWeb.FailureLive.Index do
             </div>
             <div>
               <div class="font-mono text-base text-zinc-100">
-                {@readiness.matching_silver_observation_count}
+                {@readiness.imported_observation_count}
               </div>
-              <div>silver rows</div>
+              <div>observations</div>
             </div>
             <div>
               <div class="font-mono text-base text-zinc-100">
-                {@readiness.selected_fact_count}
+                {@readiness.selected_failure_row_count}
               </div>
-              <div>facts</div>
+              <div>failures</div>
             </div>
           </div>
         </div>
 
         <div :if={@readiness.diagnostics == []} class="mt-4 rounded border border-emerald-700/60 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-100">
-          Failures data is ready for the current filters.
+          Failure data is current for the selected filters.
+          <span :if={@readiness.latest_rebuilt_at}>
+            Latest rebuild: {format_date_time(@readiness.latest_rebuilt_at)}.
+          </span>
         </div>
 
         <div :if={@readiness.diagnostics != []} class="mt-4 space-y-2">
@@ -163,6 +166,33 @@ defmodule WeGoNextWeb.FailureLive.Index do
                 {diagnostic_label(diagnostic.severity)}
               </span>
             </div>
+          </div>
+        </div>
+
+        <div :if={@readiness.zero_fact_rule_diagnostics != []} class="mt-4 overflow-hidden rounded border border-zinc-700">
+          <div class="grid grid-cols-[1fr_auto] gap-3 bg-zinc-950 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <span>No-Failure Mechanic Diagnostics</span>
+            <span>Reason</span>
+          </div>
+          <div
+            :for={diagnostic <- @readiness.zero_fact_rule_diagnostics}
+            class="grid gap-3 border-t border-zinc-700 px-3 py-3 text-sm md:grid-cols-[1fr_auto]"
+          >
+            <div>
+              <div class="font-medium text-zinc-100">
+                <.wowhead_link spell_id={diagnostic.spell_id} name={diagnostic.spell_name} />
+              </div>
+              <p class="mt-1 text-zinc-300">{diagnostic.body}</p>
+              <div class="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
+                <span>Spell {diagnostic.spell_id}</span>
+                <span :if={diagnostic.boss_name}>{diagnostic.boss_name}</span>
+                <span>{diagnostic.matching_encounters_count} encounter{plural(diagnostic.matching_encounters_count)}</span>
+                <span>{diagnostic.silver_damage_rows_count} matching damage row{plural(diagnostic.silver_damage_rows_count)}</span>
+              </div>
+            </div>
+            <span class={diagnostic_badge_class(diagnostic.severity)}>
+              {format_reason(diagnostic.reason)}
+            </span>
           </div>
         </div>
       </section>
@@ -218,7 +248,9 @@ defmodule WeGoNextWeb.FailureLive.Index do
             <tbody>
               <tr :for={failure <- group.failures} class="border-b border-zinc-700/60 last:border-0">
                 <td class="px-4 py-3">
-                  <div class="font-medium text-zinc-100">{failure.spell_name}</div>
+                  <div class="font-medium text-zinc-100">
+                    <.wowhead_link spell_id={failure.spell_id} name={failure.spell_name} />
+                  </div>
                   <div class="text-xs text-zinc-500">
                     Spell {failure.spell_id}
                     <span :if={failure.boss_name}> &bull; {failure.boss_name}</span>
@@ -287,11 +319,9 @@ defmodule WeGoNextWeb.FailureLive.Index do
   defp total_failures(rows), do: rows |> Enum.map(& &1.failure_count) |> Enum.sum()
   defp total_damage(rows), do: rows |> Enum.map(& &1.total_damage) |> Enum.sum()
 
-  defp readiness_ruleset_label(nil), do: "No active ruleset."
+  defp mechanics_status_label(false), do: "Current-tier mechanics have not been synced."
 
-  defp readiness_ruleset_label(%{name: name, version: version}) do
-    "Active ruleset: #{name} v#{version}."
-  end
+  defp mechanics_status_label(true), do: "Current-tier mechanics are synced."
 
   defp diagnostic_class(:blocked) do
     "rounded border border-red-700/70 bg-red-950/30 px-3 py-2"
@@ -320,6 +350,19 @@ defmodule WeGoNextWeb.FailureLive.Index do
   defp diagnostic_label(:blocked), do: "Blocked"
   defp diagnostic_label(:warning), do: "Check"
   defp diagnostic_label(:info), do: "Note"
+
+  defp plural(1), do: ""
+  defp plural(_count), do: "s"
+
+  defp format_reason(:stale_gold_snapshot), do: "Needs sync"
+  defp format_reason(:inactive_rule), do: "Disabled"
+
+  defp format_reason(reason) when is_atom(reason) do
+    reason
+    |> Atom.to_string()
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
 
   defp format_mechanic_type(type) when is_binary(type) do
     type

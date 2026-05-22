@@ -3,9 +3,17 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Repo
-  alias WeGoNext.Silver.{DamageTaken, DamageTakenEvent, Death, InterruptOpportunity, PlayerInfo}
 
-  test "renders a medallion encounter detail shell keyed by gold encounter id", %{conn: conn} do
+  alias WeGoNext.Silver.{
+    DamageTaken,
+    DamageTakenEvent,
+    Death,
+    DefensiveBuffWindow,
+    InterruptOpportunity,
+    PlayerInfo
+  }
+
+  test "renders an encounter detail page keyed by imported pull id", %{conn: conn} do
     encounter = insert_dim_encounter!()
     player = insert_dim_player!()
 
@@ -40,19 +48,23 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
       |> html_response(200)
 
     assert html =~ "Plexus Sentinel"
-    assert html =~ "Medallion encounter detail keyed by gold encounter ##{encounter.id}"
-    assert html =~ "Gold Encounter ID"
+    assert html =~ "Encounter detail for imported pull ##{encounter.id}"
+    assert html =~ "Pull ID"
+    assert html =~ "Imported Data"
     assert html =~ "Damage Hits"
-    assert html =~ "Failure Facts"
+    assert html =~ "Tracked Failures"
     assert html =~ ~s(href="/failures")
     assert html =~ "Roster"
     assert html =~ "Tankone"
     assert html =~ "Tank"
     assert html =~ "Warlock"
-    assert html =~ "Spec 266"
+    assert html =~ "Dps"
+    assert html =~ "Demonology"
     assert html =~ "498"
     assert html =~ "Death Recap"
     assert html =~ ~S|<span class="ml-1 text-zinc-500">(1)</span>|
+    assert html =~ "Mechanics"
+    assert html =~ "Failure Preview"
     assert html =~ "Interrupt Coverage"
     assert html =~ ~S|<span class="ml-1 text-zinc-500">(2)</span>|
     assert html =~ "Personal Pulls"
@@ -60,30 +72,141 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     refute html =~ "mechanic_criteria"
   end
 
-  test "renders not found state for missing gold encounter id", %{conn: conn} do
+  test "renders observed mechanics preview after switching tabs", %{conn: conn} do
+    encounter = insert_dim_encounter!()
+    player = insert_dim_player!()
+
+    insert_damage_taken_event!(encounter)
+    insert_interrupt_opportunity!(encounter, 2_000, false)
+    insert_failure!(encounter, player)
+
+    html =
+      conn
+      |> get(~p"/encounters/#{encounter.id}?tab=mechanics")
+      |> html_response(200)
+
+    assert html =~ "Observed Mechanics"
+    assert html =~ "Encounter Spells"
+    assert html =~ "Tracking"
+    assert html =~ "Seen"
+    assert html =~ "Bad"
+    assert html =~ "Producing failures"
+    assert html =~ "1 failure"
+    assert html =~ "Spell 1249017"
+    assert html =~ "Combat-log event"
+    assert html =~ "Seen in the combat log"
+  end
+
+  test "renders failure preview from tracked failures", %{conn: conn} do
+    encounter = insert_dim_encounter!()
+    player = insert_dim_player!()
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-One",
+      player_name: "One",
+      class_id: 9,
+      spec_id: 266,
+      detected_role: "dps"
+    })
+
+    insert_failure!(encounter, player)
+
+    html =
+      conn
+      |> get(~p"/encounters/#{encounter.id}?tab=failures")
+      |> html_response(200)
+
+    assert html =~ "Failure Preview"
+    assert html =~ "Bad"
+    assert html =~ "Spell 101"
+    assert html =~ "One"
+    assert html =~ "1"
+    assert html =~ "100 damage"
+    refute html =~ "No tracked failures exist"
+  end
+
+  test "renders player encounter performance history on personal tab", %{conn: conn} do
+    previous =
+      insert_dim_encounter!(%{
+        start_time: ~U[2026-05-01 19:50:00Z],
+        success: false,
+        fight_time_ms: 240_000
+      })
+
+    current =
+      insert_dim_encounter!(%{
+        start_time: ~U[2026-05-01 20:00:00Z],
+        success: true,
+        fight_time_ms: 300_000
+      })
+
+    player = insert_dim_player!()
+
+    for encounter <- [previous, current] do
+      insert_player_info!(encounter, %{
+        player_guid: "Player-One",
+        player_name: "One",
+        class_id: 9,
+        spec_id: 266,
+        detected_role: "dps"
+      })
+
+      insert_damage_taken!(encounter)
+      insert_failure!(encounter, player)
+    end
+
+    insert_damage_taken_event!(current)
+    insert_defensive_window!(current)
+    insert_death!(previous)
+
+    html =
+      conn
+      |> get(~p"/encounters/#{current.id}?tab=personal")
+      |> html_response(200)
+
+    assert html =~ "Defensive Coverage"
+    assert html =~ "Dangerous Events"
+    assert html =~ "Covered"
+    assert html =~ "Unending Resolve"
+    assert html =~ "Failure damage"
+    assert html =~ "Encounter Performance"
+    assert html =~ "Recent Pulls"
+    assert html =~ "Avg Failures"
+    assert html =~ "Failure Delta"
+    assert html =~ "Current pull"
+    assert html =~ "Kill"
+    assert html =~ "Wipe"
+  end
+
+  test "renders not found state for missing pull id", %{conn: conn} do
     html =
       conn
       |> get(~p"/encounters/999999")
       |> html_response(200)
 
     assert html =~ "Encounter Not Found"
-    assert html =~ "No gold encounter exists for that ID"
+    assert html =~ "No imported pull exists for that ID"
   end
 
-  defp insert_dim_encounter! do
+  defp insert_dim_encounter!(attrs \\ %{}) do
     %DimEncounter{}
-    |> DimEncounter.changeset(%{
-      wow_encounter_id: "2887",
-      name: "Plexus Sentinel",
-      difficulty_id: 16,
-      difficulty_name: "Mythic",
-      group_size: 20,
-      instance_id: "2652",
-      start_time: ~U[2026-05-01 20:00:00Z],
-      end_time: ~U[2026-05-01 20:05:00Z],
-      success: false,
-      fight_time_ms: 300_000
-    })
+    |> DimEncounter.changeset(
+      Map.merge(
+        %{
+          wow_encounter_id: "2887",
+          name: "Plexus Sentinel",
+          difficulty_id: 16,
+          difficulty_name: "Mythic",
+          group_size: 20,
+          instance_id: "2652",
+          start_time: ~U[2026-05-01 20:00:00Z],
+          end_time: ~U[2026-05-01 20:05:00Z],
+          success: false,
+          fight_time_ms: 300_000
+        },
+        attrs
+      )
+    )
     |> Repo.insert!()
   end
 
@@ -167,12 +290,28 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     |> Repo.insert!()
   end
 
+  defp insert_defensive_window!(%DimEncounter{} = encounter) do
+    %DefensiveBuffWindow{}
+    |> DefensiveBuffWindow.changeset(%{
+      encounter_dim_id: encounter.id,
+      target_guid: "Player-One",
+      source_guid: "Player-One",
+      spell_id: 104_773,
+      spell_name: "Unending Resolve",
+      category: "personal",
+      started_at_ms_into_fight: 500,
+      ended_at_ms_into_fight: 1_500,
+      duration_ms: 1_000
+    })
+    |> Repo.insert!()
+  end
+
   defp insert_interrupt_opportunity!(%DimEncounter{} = encounter, time_ms, success) do
     %InterruptOpportunity{}
     |> InterruptOpportunity.changeset(%{
       encounter_dim_id: encounter.id,
       target_npc_guid: "Creature-Caster",
-      interrupted_spell_id: 777,
+      interrupted_spell_id: 1_249_017,
       opportunity_ms_into_fight: time_ms,
       success: success,
       interrupter_guid: if(success, do: "Player-One"),

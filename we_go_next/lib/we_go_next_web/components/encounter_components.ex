@@ -28,12 +28,15 @@ defmodule WeGoNextWeb.EncounterComponents do
   attr(:spell_id, :integer, required: true)
   attr(:name, :string, required: true)
   attr(:class, :string, default: nil)
+  attr(:rename, :boolean, default: true)
 
   def wowhead_link(assigns) do
     ~H"""
     <a
       :if={@spell_id}
       href={"https://www.wowhead.com/spell=#{@spell_id}"}
+      data-wowhead={"spell=#{@spell_id}"}
+      data-wh-rename-link={@rename && "true"}
       target="_blank"
       rel="noopener noreferrer"
       class={[@class || "text-inherit hover:text-blue-400 hover:underline"]}

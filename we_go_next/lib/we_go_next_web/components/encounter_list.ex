@@ -100,19 +100,25 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
   defp encounter_card(assigns) do
     ~H"""
-    <div class={["encounter-card cursor-default", if(@encounter.is_reset, do: "opacity-50", else: "")]}>
-      <div class="flex items-center justify-between">
+    <div class={[
+      "encounter-card relative",
+      if(@encounter.dim_encounter_id, do: "group cursor-pointer", else: "cursor-default"),
+      if(@encounter.is_reset, do: "opacity-50", else: "")
+    ]}>
+      <.link
+        :if={@encounter.dim_encounter_id}
+        navigate={"/encounters/#{@encounter.dim_encounter_id}"}
+        class="absolute inset-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-zinc-900"
+        aria-label={"Open #{@encounter.name}"}
+      >
+        <span class="sr-only">Open {@encounter.name}</span>
+      </.link>
+
+      <div class="pointer-events-none relative flex items-center justify-between">
         <div class="flex-1 flex items-center gap-3">
           <span class="text-zinc-500 font-mono text-sm w-6">{@idx}.</span>
           <div>
-            <.link
-              :if={@encounter.dim_encounter_id}
-              navigate={"/encounters/#{@encounter.dim_encounter_id}"}
-              class="font-semibold text-zinc-100 hover:text-wow-gold"
-            >
-              {@encounter.name}
-            </.link>
-            <span :if={!@encounter.dim_encounter_id} class="font-semibold text-zinc-100">
+            <span class="font-semibold text-zinc-100 group-hover:text-wow-gold">
               {@encounter.name}
             </span>
             <span :if={@encounter.is_reset} class="ml-2 text-xs text-yellow-500">(Reset)</span>
@@ -131,7 +137,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
           <span class="text-zinc-400 font-mono text-sm">
             {format_duration(@encounter)}
           </span>
-          <div :if={@is_admin}>
+          <div :if={@is_admin} class="pointer-events-auto relative z-10">
             <.gear_menu encounter={@encounter} open_menu_id={@open_menu_id} />
           </div>
         </div>
