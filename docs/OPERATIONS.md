@@ -43,48 +43,51 @@ Use force reimport when:
 
 Do not force reimport just because rules changed.
 
-## Rules Bootstrap
+## Current-Tier Mechanics Bootstrap
 
-The preferred current-tier path is to sync code-defined raid mechanics into
-editable rules, then promote and rebuild gold facts.
+The preferred current-tier path is to sync code-defined raid mechanics and
+rebuild failure facts. Treat the checked-in raid modules as the durable mechanic
+source; ruleset/promotion tables are internal plumbing for fact keys.
 
-Sync Midnight Season 1 current-tier raid mechanics into a draft ruleset:
+Sync Midnight Season 1 current-tier raid mechanics:
 
 ```bash
 mix we_go_next.sync_raid_rules
 ```
 
-Sync, activate, promote, and rebuild in one command:
+Sync and rebuild in one command:
 
 ```bash
-mix we_go_next.sync_raid_rules midnight_season_1 --activate --promote --rebuild
+mix we_go_next.sync_raid_rules midnight_season_1 --rebuild
 ```
 
 The curated source lives in `we_go_next/lib/we_go_next/game_data/raids/`.
 DBM/WowAnalyzer/journal data and AI-assisted research can help update those
 files, but the checked-in raid modules are the durable source of curated rules.
 
-The home page also includes legacy rules operations for seeding bundled rules, activating a ruleset, and promoting the active ruleset into gold criterion snapshots.
+The home page starts from the same current-tier path with **Sync Mechanics &
+Rebuild**. That operation syncs the catalog and rebuilds failure facts.
 
-Seed bundled local rules:
+For compatibility, `mix we_go_next.seed_rules` with no path also uses the
+current-tier catalog:
 
 ```bash
 mix we_go_next.seed_rules
 ```
 
-The bundled seed file is `we_go_next/priv/rules/initial_mechanic_rules.json`.
-
-To activate and promote the seeded rules in one command:
+The historical bundled seed file remains at
+`we_go_next/priv/rules/initial_mechanic_rules.json`, but it is legacy fixture
+data, not the default operator path. To seed any static JSON file explicitly:
 
 ```bash
-mix run -e 'alias WeGoNext.Rules; {:ok, %{ruleset: rs}} = Rules.seed_initial_rules(); {:ok, active} = Rules.activate_ruleset(rs); {:ok, _} = Rules.promote_ruleset_to_gold(active)'
+mix we_go_next.seed_rules priv/rules/initial_mechanic_rules.json
 ```
 
 After that, imports and gold rebuilds can produce `gold.fact_failure` rows for matching silver observations.
 
-## Rebuild Gold
+## Rebuild Failures
 
-Use gold rebuild when rules or gold computation changed but silver rows are still valid:
+Use failure rebuild when mechanic definitions or gold computation changed but silver rows are still valid:
 
 ```bash
 mix wgn.rebuild_gold
@@ -106,7 +109,7 @@ The task uses `WeGoNext.Gold.RebuildEncounter`, the same boundary used by the im
 
 ## Import DBM Source Annotations
 
-DBM import reads installed Midnight DBM Lua modules as source evidence. It statically extracts module metadata, special warning declarations, alert tokens, source file/line provenance, and tentative mechanic hints. It does not execute Lua, activate rules, promote criterion snapshots, or rebuild gold facts.
+DBM import reads installed Midnight DBM Lua modules as source evidence. It statically extracts module metadata, special warning declarations, alert tokens, source file/line provenance, and tentative mechanic hints. It does not execute Lua, sync active mechanics, or rebuild gold facts.
 
 Default local import:
 
@@ -153,11 +156,11 @@ Supported JSON inputs are intentionally narrow:
 - bundles with `spells`, `encounters`, and optional `encounter_spells` arrays.
 
 Use source metadata imports to help update code-defined raid mechanic catalogs.
-Use gold rebuilds after code-defined mechanics have been synced and promoted.
+Use failure rebuilds after code-defined mechanics have been synced.
 
 ## Import WowAnalyzer Timeline Source Annotations
 
-WowAnalyzer timeline import reads the local AGPL-licensed WowAnalyzer checkout as source evidence. It extracts encounter timeline spell IDs and comments from static TypeScript boss files, records repository revision/license provenance, and infers tentative mechanic hints for curated raid modules. It does not copy runtime code into the medallion fact path, activate rules, promote criterion snapshots, or rebuild gold facts.
+WowAnalyzer timeline import reads the local AGPL-licensed WowAnalyzer checkout as source evidence. It extracts encounter timeline spell IDs and comments from static TypeScript boss files, records repository revision/license provenance, and infers tentative mechanic hints for curated raid modules. It does not copy runtime code into the medallion fact path, sync active mechanics, or rebuild gold facts.
 
 Default local import:
 
@@ -198,16 +201,22 @@ code-defined raid catalogs, not active rules.
 
 The `/failures` page has a Data Readiness panel that checks the common empty-state causes:
 
-- no active ruleset,
-- no promoted `gold.dim_mechanic_criterion` snapshots for the active ruleset,
+- current-tier mechanics have not been synced,
+- synced mechanics have not been made fact-ready,
 - no gold encounters in the selected date range,
-- no supported silver observations matching active criteria,
+- no supported silver observations matching synced mechanics,
 - no gold facts for the selected range,
-- fact rows that no longer match the active ruleset version or their current promoted snapshot.
+- fact rows that no longer match the current synced mechanics,
+- fact rows that were built before the current failure logic.
 
-The panel currently detects staleness by ruleset and criterion snapshot identity. It cannot yet detect projection or builder code-version drift; that is tracked by task `#62`.
+`gold.fact_failure.derivation_version` is stamped during rebuilds. If fact
+failure semantics change, bump `WeGoNext.Gold.FactFailure.Derivation` and
+rebuild gold facts; existing rows with an older or missing derivation version
+will be reported as stale.
 
-Interrupt diagnostics are also provisional until task `#61` tightens `silver.interrupt_opportunity` semantics. Treat interrupt readiness as a coarse signal, not a confirmed missed-interrupt analysis.
+Interrupt diagnostics use known interruptible cast windows from code-defined
+encounter data. Previously imported logs may need force reimport after silver
+projection changes.
 
 Useful SQL for deeper inspection:
 
@@ -226,13 +235,13 @@ Treat medallion layers as derived data:
 
 - Bronze combat logs are the source of truth.
 - Silver can be regenerated from bronze.
-- Gold can be regenerated from silver and rules.
+- Gold can be regenerated from silver and code-defined mechanics.
 
 When a computation intentionally changes, prefer explicit rebuilds over trying to preserve old idempotency assumptions:
 
 | Change | Action |
 | --- | --- |
-| Rules only | Promote rules, rebuild gold |
+| Mechanic definitions only | Sync mechanics, rebuild gold |
 | Gold fact SQL/semantics | Rebuild gold |
 | Silver projection | Force reimport affected logs |
 | Parser/boundary logic | Force reimport affected logs |

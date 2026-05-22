@@ -22,12 +22,12 @@ A diagnostic tool for raid progression and Mythic+ dungeons. Diagnoses mechanic 
 The old Midnight launch deadline has passed. The project is no longer organized around a date-driven MVP. The current target is a working local analysis loop over real data:
 
 1. Import live and archived combat logs.
-2. Make ruleset state visible and controllable from the UI.
-3. Rebuild gold facts explicitly when rules or fact semantics change.
-4. Keep promoted rule snapshots historically stable.
+2. Keep current-tier raid mechanics defined as code and synced into the warehouse.
+3. Rebuild failure facts explicitly when mechanic definitions or fact semantics change.
+4. Keep ruleset/promotion internals hidden behind sync/rebuild commands.
 5. Keep silver observations unopinionated unless they truly represent authored intent.
 6. Explain empty and stale medallion states without requiring SQL.
-7. Build encounter detail views from silver/gold/rules read models.
+7. Build encounter detail views from silver/gold read models.
 8. Expand fact/dim/criterion coverage when the supporting data grain is defensible.
 
 ### Mythic+ Support
@@ -98,14 +98,14 @@ This is NOT just a damage meter. It's a **coaching tool** that:
 - Can overlay actual death locations from combat data
 - Exportable PNG images for Discord
 
-## Iterative Boss Criteria Building
+## Iterative Boss Mechanics Building
 
 Since you can't predict what mechanics cause problems during progression:
 
 1. **Discovery Mode** - Surface "interesting events" (deaths, big damage, debuffs)
 2. **Pattern Recognition** - Notice "people keep dying to X ability"
-3. **Mark as Tracked** - Flag ability as avoidable/interrupt/soak/etc
-4. **Dashboard Updates** - Next pull shows failures for tracked mechanics
+3. **Define in Code** - Add or refine the mechanic in the current-tier raid catalog
+4. **Dashboard Updates** - Sync/rebuild so matching future and historical observations emit failures
 5. **Save Profile** - Export boss config for future raid nights
 
 ## Data Sources
@@ -150,14 +150,14 @@ New patch/season mechanic source data should be handled by a later bronze/source
 - **Bronze/log ingestion** owns raw WoW combat log files and provenance. `combat_log_files` remains the operational catalog for live and Warcraft Logs archive files.
 - **Silver** owns deterministic projections under the `silver` Postgres schema: damage taken, damage taken events, damage done, deaths, current interrupt/cast observations, debuff applications, and player info. Event-grain silver rows are allowed only for named downstream rule, classifier, fact, or UI needs; silver must not become a generic raw combat-log event warehouse. Known gap: `silver.interrupt_opportunity` is currently overbroad and should be tightened/reframed by task `#61`.
 - **Gold** owns analytic dimensions/facts under the `gold` schema. Current fact proof: `gold.fact_failure`.
-- **Rules** owns authored mechanic business configuration under the `rules` schema. Rules are not silver event data and are not mutable gold facts.
+- **Rules** owns internal authored mechanic business configuration under the `rules` schema. Product-facing flows should treat code-defined raid mechanics as the rules and hide ruleset/promotion plumbing.
 
 ### Current Medallion Grain
 
 - `gold.dim_encounter.id` is the analytics encounter grain.
 - Silver tables use `encounter_dim_id`, not legacy `public.encounters.id`.
 - `gold.dim_player` is conformed from `silver.player_info`.
-- `gold.dim_mechanic_criterion` is the criterion snapshot table that facts reference.
+- `gold.dim_mechanic_criterion` is the internal fact key table that facts reference.
 - `gold.fact_failure` uses `(encounter_dim_id, player_dim_id, criterion_dim_id)` as its composite key.
 - `silver.damage_taken_event` stores one row per player-targeted damage taken hit for the current damage-taken event families. It is broad within that family, but intentionally excludes player damage done, healing, casts, resources, buffs, and generic raw event payloads.
 
@@ -167,7 +167,7 @@ The existing frontend import flow and `public.encounters` are transitional app-d
 
 The legacy `/encounters/:id` analysis page has been pruned from active routing. Any replacement analysis page should be rebuilt against silver/gold/rules read models, not resurrected from cached analyzer output or the old public criteria flow.
 
-### Rules Layer Decisions
+### Mechanics/Rules Layer Decisions
 
 - `rules.ruleset` supports `draft`, `active`, and `archived`.
 - Exactly one active ruleset globally for the first implementation pass.
@@ -176,16 +176,17 @@ The legacy `/encounters/:id` analysis page has been pruned from active routing. 
   - `avoidable`: only `threshold["max_hits"]` as a non-negative integer
   - `interrupt`: optional `threshold["must_interrupt"]`, defaults to `true`
   - `soak`, `spread`, `stack`, `tank_mechanic`, `healer_mechanic`: empty threshold map until fact semantics exist
-- Seed rules through `WeGoNext.Rules` and `mix we_go_next.seed_rules`, not migrations.
-- Gold facts currently identify rules through `criterion_dim_id -> gold.dim_mechanic_criterion`, not a direct mutable rule row.
-- The remaining rule-to-gold step is implementation plumbing for fact keys. It should be collapsed or hidden behind sync/rebuild commands so users do not manage a separate promotion workflow.
+- Bootstrap current-tier mechanics through `WeGoNext.Rules.sync_current_tier_rules/1` or `mix we_go_next.sync_raid_rules`, not migrations. `mix we_go_next.seed_rules` with no path should follow that current-tier catalog path; explicit JSON paths are legacy fixtures/examples.
+- Supported `:avoidable` + `:damage_taken` code-defined raid mechanics are fact-eligible by default; do not require a manual `track: true` flag.
+- Gold facts currently identify mechanics through `criterion_dim_id -> gold.dim_mechanic_criterion`, not a direct mutable rule row.
+- The rule-to-gold step is implementation plumbing for fact keys. It must stay collapsed or hidden behind sync/rebuild commands so users do not manage a separate promotion workflow.
 
 ### Medallion Correctness Order
 
 Current priority for real failure previews:
 
 1. Keep current-tier raid mechanics defined as code under `WeGoNext.GameData.Raids.*`.
-2. Sync code-defined mechanics into active editable rules, then rebuild gold facts explicitly.
+2. Sync code-defined mechanics and rebuild gold failure facts as one operator workflow.
 3. Show real failure preview data from `gold.fact_failure` over imported logs.
 4. Use DBM/WowAnalyzer/source-reference rows as evidence for authoring raid code, not as user-facing queues.
 5. Expand fact semantics only when the supporting silver grain is defensible.
@@ -418,7 +419,7 @@ If scope pressure appears:
 1. Prefer real failure preview from code-defined current-tier raid mechanics.
 2. Collapse rule sync/rebuild plumbing before adding more source-data automation.
 3. Fix missed-interrupt silver semantics before trusting interrupt counts.
-4. Add derivation version stamps before making stale-data diagnostics more ambitious.
+4. Bump failure derivation stamps when fact semantics change so stale-data diagnostics can identify rows that need rebuild.
 5. Ship clear readiness diagnostics before adding more failure types.
 
 ### Other Principles
