@@ -12,6 +12,7 @@ defmodule WeGoNext.Silver do
     DamageTakenEvent,
     Death,
     DebuffApplication,
+    DefensiveBuffWindow,
     InterruptOpportunity,
     PlayerInfo,
     Projection,
@@ -115,6 +116,20 @@ defmodule WeGoNext.Silver do
             now,
             [:encounter_dim_id, :target_guid, :source_guid, :spell_id, :applied_at_ms_into_fight],
             [:duration_ms, :stack_count]
+          ),
+        defensive_buff_window:
+          insert_rows(
+            DefensiveBuffWindow,
+            projection.defensive_buff_window,
+            now,
+            [
+              :encounter_dim_id,
+              :target_guid,
+              :source_guid,
+              :spell_id,
+              :started_at_ms_into_fight
+            ],
+            [:spell_name, :category, :ended_at_ms_into_fight, :duration_ms]
           ),
         player_info:
           insert_rows(

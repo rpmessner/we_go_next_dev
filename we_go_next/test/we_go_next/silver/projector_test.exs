@@ -130,7 +130,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
              %{
                encounter_dim_id: @encounter_dim_id,
                target_npc_guid: "Creature-Caster",
-               interrupted_spell_id: 777,
+               interrupted_spell_id: 1_249_017,
                opportunity_ms_into_fight: 4_000,
                success: true,
                interrupter_guid: "Player-Dps",
@@ -139,7 +139,7 @@ defmodule WeGoNext.Silver.ProjectorTest do
              %{
                encounter_dim_id: @encounter_dim_id,
                target_npc_guid: "Creature-Caster",
-               interrupted_spell_id: 888,
+               interrupted_spell_id: 1_249_017,
                opportunity_ms_into_fight: 5_000,
                success: false,
                interrupter_guid: nil,
@@ -171,12 +171,26 @@ defmodule WeGoNext.Silver.ProjectorTest do
     assert [
              %{
                encounter_dim_id: @encounter_dim_id,
+               target_guid: "Player-Victim",
+               source_guid: "Player-Victim",
+               spell_id: 104_773,
+               spell_name: "Unending Resolve",
+               category: "personal",
+               started_at_ms_into_fight: 1_800,
+               ended_at_ms_into_fight: 4_200,
+               duration_ms: 2_400
+             }
+           ] = projection.defensive_buff_window
+
+    assert [
+             %{
+               encounter_dim_id: @encounter_dim_id,
                player_guid: "Player-Dps",
                player_name: "Dps",
                class_id: 1,
                spec_id: 71,
                item_level: nil,
-               detected_role: "unknown"
+               detected_role: "dps"
              },
              %{
                encounter_dim_id: @encounter_dim_id,
@@ -197,6 +211,75 @@ defmodule WeGoNext.Silver.ProjectorTest do
                detected_role: "unknown"
              }
            ] = projection.player_info
+  end
+
+  test "missed interrupt rows require a known interruptible cast window" do
+    projection =
+      Projector.project(@encounter_dim_id, [
+        CombatLogEventFixtures.spell_cast_success_event(
+          type: "SPELL_CAST_START",
+          time_into_fight: 1.0,
+          source_guid: "Creature-Caster",
+          spell_id: 1_249_017,
+          spell_name: "Fearsome Cry"
+        ),
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 2.0,
+          source_guid: "Creature-Caster",
+          spell_id: 1_249_017,
+          spell_name: "Fearsome Cry"
+        ),
+        CombatLogEventFixtures.spell_cast_success_event(
+          type: "SPELL_CAST_START",
+          time_into_fight: 3.0,
+          source_guid: "Creature-Caster",
+          spell_id: 9_999_999,
+          spell_name: "Ambient Boss Cast"
+        ),
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 4.0,
+          source_guid: "Creature-Caster",
+          spell_id: 9_999_999,
+          spell_name: "Ambient Boss Cast"
+        ),
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 5.0,
+          source_guid: "Creature-Caster",
+          spell_id: 1_249_017,
+          spell_name: "Fearsome Cry"
+        )
+      ])
+
+    assert [
+             %{
+               interrupted_spell_id: 1_249_017,
+               opportunity_ms_into_fight: 2_000,
+               success: false
+             }
+           ] = projection.interrupt_opportunity
+  end
+
+  test "missed interrupt rows ignore player-controlled creature casts" do
+    projection =
+      Projector.project(@encounter_dim_id, [
+        CombatLogEventFixtures.spell_cast_success_event(
+          type: "SPELL_CAST_START",
+          time_into_fight: 1.0,
+          source_guid: "Creature-WildImp",
+          source_flags: 0x2114,
+          spell_id: 1_249_017,
+          spell_name: "Fearsome Cry"
+        ),
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 2.0,
+          source_guid: "Creature-WildImp",
+          source_flags: 0x2114,
+          spell_id: 1_249_017,
+          spell_name: "Fearsome Cry"
+        )
+      ])
+
+    assert projection.interrupt_opportunity == []
   end
 
   test "normalizes nil-like natural-key values for required silver fields" do

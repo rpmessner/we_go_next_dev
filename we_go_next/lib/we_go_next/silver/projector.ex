@@ -6,6 +6,9 @@ defmodule WeGoNext.Silver.Projector do
   the Elixir/domain projection from those normalized events into medallion rows.
   """
 
+  import Bitwise
+
+  alias WeGoNext.GameData.{DefensiveBuffs, Interrupts}
   alias WeGoNext.Silver.Projection
   alias WeGoNext.WowClass
 
@@ -16,6 +19,10 @@ defmodule WeGoNext.Silver.Projector do
   @unknown_source_guid "__UNKNOWN_SOURCE_GUID__"
   @unknown_target_guid "__UNKNOWN_TARGET_GUID__"
   @unknown_player_name "__UNKNOWN_PLAYER__"
+  @object_affiliation_group 0x00000007
+  @object_reaction_friendly 0x00000010
+  @object_reaction_hostile 0x00000040
+  @object_control_player 0x00000100
 
   @doc """
   Returns table-shaped row lists for the silver tables.
@@ -36,6 +43,7 @@ defmodule WeGoNext.Silver.Projector do
       death: project_deaths(encounter_dim_id, events),
       interrupt_opportunity: project_interrupt_opportunities(encounter_dim_id, events),
       debuff_application: project_debuff_applications(encounter_dim_id, events),
+      defensive_buff_window: project_defensive_buff_windows(encounter_dim_id, events),
       player_info: project_player_info(encounter_dim_id, events, tank_guids)
     }
   end
@@ -228,46 +236,76 @@ defmodule WeGoNext.Silver.Projector do
   end
 
   defp project_interrupt_opportunities(encounter_dim_id, events) do
-    events
-    |> Enum.reduce([], fn event, rows ->
-      cond do
-        event_type(event) == "SPELL_INTERRUPT" and player_guid?(event_value(event, :source_guid)) ->
-          [
-            %{
+    interruptible_spell_ids = interruptible_spell_ids()
+
+    {rows, _pending_casts} =
+      Enum.reduce(events, {[], %{}}, fn event, {rows, pending_casts} ->
+        spell_id = normalize_spell_id(event_value(event, :spell_id))
+        source_guid = normalize_guid(event_value(event, :source_guid), @unknown_source_guid)
+        target_guid = normalize_guid(event_value(event, :target_guid), @unknown_target_guid)
+        interrupted_spell_id = normalize_spell_id(event_value(event, :extra_spell_id))
+
+        cast_key = {source_guid, spell_id}
+        interrupt_key = {target_guid, interrupted_spell_id}
+
+        cond do
+          event_type(event) == "SPELL_CAST_START" and hostile_npc_source?(event) and
+              MapSet.member?(interruptible_spell_ids, spell_id) ->
+            pending_cast =
+              %{
+                target_npc_guid: source_guid,
+                interrupted_spell_id: spell_id
+              }
+
+            {rows, Map.put(pending_casts, cast_key, pending_cast)}
+
+          event_type(event) == "SPELL_INTERRUPT" and
+            player_guid?(event_value(event, :source_guid)) and hostile_npc_target?(event) ->
+            row = %{
               encounter_dim_id: encounter_dim_id,
-              target_npc_guid:
-                normalize_guid(event_value(event, :target_guid), @unknown_target_guid),
-              interrupted_spell_id: normalize_spell_id(event_value(event, :extra_spell_id)),
+              target_npc_guid: target_guid,
+              interrupted_spell_id: interrupted_spell_id,
               opportunity_ms_into_fight: time_ms(event),
               success: true,
-              interrupter_guid:
-                normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
-              interrupting_spell_id: normalize_spell_id(event_value(event, :spell_id))
+              interrupter_guid: source_guid,
+              interrupting_spell_id: spell_id
             }
-            | rows
-          ]
 
-        event_type(event) == "SPELL_CAST_SUCCESS" and npc_guid?(event_value(event, :source_guid)) ->
-          [
-            %{
-              encounter_dim_id: encounter_dim_id,
-              target_npc_guid:
-                normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
-              interrupted_spell_id: normalize_spell_id(event_value(event, :spell_id)),
-              opportunity_ms_into_fight: time_ms(event),
-              success: false,
-              interrupter_guid: nil,
-              interrupting_spell_id: nil
-            }
-            | rows
-          ]
+            {[row | rows], Map.delete(pending_casts, interrupt_key)}
 
-        true ->
-          rows
-      end
-    end)
+          event_type(event) == "SPELL_CAST_SUCCESS" and
+            hostile_npc_source?(event) and
+              MapSet.member?(interruptible_spell_ids, spell_id) ->
+            case Map.pop(pending_casts, cast_key) do
+              {nil, pending_casts} ->
+                {rows, pending_casts}
+
+              {pending_cast, pending_casts} ->
+                row =
+                  pending_cast
+                  |> Map.merge(%{
+                    encounter_dim_id: encounter_dim_id,
+                    opportunity_ms_into_fight: time_ms(event),
+                    success: false,
+                    interrupter_guid: nil,
+                    interrupting_spell_id: nil
+                  })
+
+                {[row | rows], pending_casts}
+            end
+
+          true ->
+            {rows, pending_casts}
+        end
+      end)
+
+    rows
     |> Enum.reverse()
     |> Enum.sort_by(&{&1.opportunity_ms_into_fight, &1.target_npc_guid, &1.interrupted_spell_id})
+  end
+
+  defp interruptible_spell_ids do
+    Interrupts.spell_ids()
   end
 
   defp project_debuff_applications(encounter_dim_id, events) do
@@ -337,6 +375,78 @@ defmodule WeGoNext.Silver.Projector do
     }
   end
 
+  defp project_defensive_buff_windows(encounter_dim_id, events) do
+    {windows, pending} =
+      Enum.reduce(events, {[], %{}}, fn event, {windows, pending} ->
+        cond do
+          defensive_buff_event?(event, "SPELL_AURA_APPLIED") ->
+            window = defensive_buff_window_row(encounter_dim_id, event)
+            key = {window.target_guid, window.source_guid, window.spell_id}
+            {windows, Map.update(pending, key, [window], &[window | &1])}
+
+          defensive_buff_event?(event, "SPELL_AURA_REMOVED") ->
+            key = {
+              normalize_guid(event_value(event, :target_guid), @unknown_target_guid),
+              normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
+              normalize_spell_id(event_value(event, :spell_id))
+            }
+
+            case Map.get(pending, key) do
+              [window | rest] ->
+                completed_window = %{
+                  window
+                  | ended_at_ms_into_fight: time_ms(event),
+                    duration_ms: max(time_ms(event) - window.started_at_ms_into_fight, 0)
+                }
+
+                updated_pending =
+                  if rest == [], do: Map.delete(pending, key), else: Map.put(pending, key, rest)
+
+                {[completed_window | windows], updated_pending}
+
+              _ ->
+                {windows, pending}
+            end
+
+          true ->
+            {windows, pending}
+        end
+      end)
+
+    pending_windows =
+      pending
+      |> Map.values()
+      |> List.flatten()
+
+    (windows ++ pending_windows)
+    |> Enum.reverse()
+    |> Enum.sort_by(&{&1.started_at_ms_into_fight, &1.target_guid, &1.spell_id})
+  end
+
+  defp defensive_buff_event?(event, type) do
+    event_type(event) == type and
+      player_guid?(event_value(event, :target_guid)) and
+      extra_value(event, :aura_type) == "BUFF" and
+      MapSet.member?(DefensiveBuffs.ids(), normalize_spell_id(event_value(event, :spell_id)))
+  end
+
+  defp defensive_buff_window_row(encounter_dim_id, event) do
+    spell_id = normalize_spell_id(event_value(event, :spell_id))
+    metadata = DefensiveBuffs.get(spell_id)
+
+    %{
+      encounter_dim_id: encounter_dim_id,
+      target_guid: normalize_guid(event_value(event, :target_guid), @unknown_target_guid),
+      source_guid: normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
+      spell_id: spell_id,
+      spell_name: event_value(event, :spell_name) || metadata.name,
+      category: metadata.category,
+      started_at_ms_into_fight: time_ms(event),
+      ended_at_ms_into_fight: nil,
+      duration_ms: nil
+    }
+  end
+
   defp project_player_info(encounter_dim_id, events, tank_guids) do
     class_info = collect_class_info(events)
 
@@ -354,10 +464,15 @@ defmodule WeGoNext.Silver.Projector do
         class_id: class_id,
         spec_id: spec_id,
         item_level: Map.get(data, :item_level),
-        detected_role: if(MapSet.member?(tank_guids, guid), do: "tank", else: "unknown")
+        detected_role: detected_role(spec_id, tank_guids, guid)
       }
     end)
     |> Enum.sort_by(& &1.player_guid)
+  end
+
+  defp detected_role(spec_id, tank_guids, guid) do
+    WowClass.role_from_spec(spec_id) ||
+      if(MapSet.member?(tank_guids, guid), do: "tank", else: "unknown")
   end
 
   defp collect_class_info(events) do
@@ -478,6 +593,25 @@ defmodule WeGoNext.Silver.Projector do
 
   defp npc_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Creature-")
   defp npc_guid?(_guid), do: false
+
+  defp hostile_npc_source?(event) do
+    hostile_npc_guid?(event_value(event, :source_guid), event_value(event, :source_flags))
+  end
+
+  defp hostile_npc_target?(event) do
+    hostile_npc_guid?(event_value(event, :target_guid), event_value(event, :target_flags))
+  end
+
+  defp hostile_npc_guid?(guid, flags) when is_integer(flags) do
+    npc_guid?(guid) and flag?(flags, @object_reaction_hostile) and
+      not flag?(flags, @object_affiliation_group) and
+      not flag?(flags, @object_reaction_friendly) and
+      not flag?(flags, @object_control_player)
+  end
+
+  defp hostile_npc_guid?(guid, _flags), do: npc_guid?(guid)
+
+  defp flag?(flags, mask), do: band(flags, mask) != 0
 
   defp clean_player_name(name) when is_binary(name) do
     name

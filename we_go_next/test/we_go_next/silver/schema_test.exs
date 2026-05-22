@@ -7,6 +7,7 @@ defmodule WeGoNext.Silver.SchemaTest do
     DamageTakenEvent,
     Death,
     DebuffApplication,
+    DefensiveBuffWindow,
     InterruptOpportunity,
     PlayerInfo
   }
@@ -18,6 +19,7 @@ defmodule WeGoNext.Silver.SchemaTest do
     assert Death.__schema__(:source) == "death"
     assert InterruptOpportunity.__schema__(:source) == "interrupt_opportunity"
     assert DebuffApplication.__schema__(:source) == "debuff_application"
+    assert DefensiveBuffWindow.__schema__(:source) == "defensive_buff_window"
     assert PlayerInfo.__schema__(:source) == "player_info"
 
     assert Enum.all?(
@@ -28,6 +30,7 @@ defmodule WeGoNext.Silver.SchemaTest do
                Death,
                InterruptOpportunity,
                DebuffApplication,
+               DefensiveBuffWindow,
                PlayerInfo
              ],
              &(&1.__schema__(:prefix) == "silver")
@@ -103,6 +106,18 @@ defmodule WeGoNext.Silver.SchemaTest do
         spell_id: 123,
         applied_at_ms_into_fight: 12_345,
         stack_count: 1
+      })
+    )
+
+    assert_changeset_valid(
+      DefensiveBuffWindow.changeset(%DefensiveBuffWindow{}, %{
+        encounter_dim_id: 1,
+        target_guid: "Player-1",
+        source_guid: "Player-1",
+        spell_id: 104_773,
+        spell_name: "Unending Resolve",
+        category: "personal",
+        started_at_ms_into_fight: 12_345
       })
     )
 

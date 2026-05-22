@@ -80,8 +80,18 @@ defmodule WeGoNext.Fixtures.CombatLogEventFixtures do
         target_name: "Caster",
         spell_id: 1766,
         spell_name: "Kick",
-        extra_spell_id: 777,
-        extra_spell_name: "Scary Cast"
+        extra_spell_id: 1_249_017,
+        extra_spell_name: "Fearsome Cry"
+      ),
+      spell_cast_success_event(
+        type: "SPELL_CAST_START",
+        time_into_fight: 4.5,
+        source_guid: "Creature-Caster",
+        source_name: "Caster",
+        target_guid: "Player-Dps",
+        target_name: "Dps-Realm",
+        spell_id: 1_249_017,
+        spell_name: "Fearsome Cry"
       ),
       spell_cast_success_event(
         time_into_fight: 5.0,
@@ -89,8 +99,8 @@ defmodule WeGoNext.Fixtures.CombatLogEventFixtures do
         source_name: "Caster",
         target_guid: "Player-Dps",
         target_name: "Dps-Realm",
-        spell_id: 888,
-        spell_name: "Missed Cast"
+        spell_id: 1_249_017,
+        spell_name: "Fearsome Cry"
       ),
       debuff_applied_event(
         time_into_fight: 6.0,
@@ -118,6 +128,24 @@ defmodule WeGoNext.Fixtures.CombatLogEventFixtures do
         target_name: "Victim-Realm",
         spell_id: 111,
         spell_name: "Lingering Debuff"
+      ),
+      buff_applied_event(
+        time_into_fight: 1.8,
+        source_guid: "Player-Victim",
+        source_name: "Victim-Realm",
+        target_guid: "Player-Victim",
+        target_name: "Victim-Realm",
+        spell_id: 104_773,
+        spell_name: "Unending Resolve"
+      ),
+      buff_removed_event(
+        time_into_fight: 4.2,
+        source_guid: "Player-Victim",
+        source_name: "Victim-Realm",
+        target_guid: "Player-Victim",
+        target_name: "Victim-Realm",
+        spell_id: 104_773,
+        spell_name: "Unending Resolve"
       )
     ]
   end
@@ -256,6 +284,42 @@ defmodule WeGoNext.Fixtures.CombatLogEventFixtures do
         spell_id: 1,
         spell_name: "Debuff",
         extra: %{aura_type: "DEBUFF"}
+      },
+      attrs
+    )
+  end
+
+  def buff_applied_event(attrs \\ []) do
+    build_event(
+      %{
+        type: "SPELL_AURA_APPLIED",
+        timestamp: timestamp(attrs[:time_into_fight] || 0.0),
+        time_into_fight: 0.0,
+        source_guid: "Player-1",
+        source_name: "Player-Realm",
+        target_guid: "Player-1",
+        target_name: "Player-Realm",
+        spell_id: 104_773,
+        spell_name: "Unending Resolve",
+        extra: %{aura_type: "BUFF"}
+      },
+      attrs
+    )
+  end
+
+  def buff_removed_event(attrs \\ []) do
+    build_event(
+      %{
+        type: "SPELL_AURA_REMOVED",
+        timestamp: timestamp(attrs[:time_into_fight] || 0.0),
+        time_into_fight: 0.0,
+        source_guid: "Player-1",
+        source_name: "Player-Realm",
+        target_guid: "Player-1",
+        target_name: "Player-Realm",
+        spell_id: 104_773,
+        spell_name: "Unending Resolve",
+        extra: %{aura_type: "BUFF"}
       },
       attrs
     )

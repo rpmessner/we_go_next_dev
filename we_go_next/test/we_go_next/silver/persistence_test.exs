@@ -14,6 +14,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
     DamageTakenEvent,
     Death,
     DebuffApplication,
+    DefensiveBuffWindow,
     InterruptOpportunity,
     PlayerInfo
   }
@@ -40,6 +41,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
              death: 1,
              interrupt_opportunity: 2,
              debuff_application: 2,
+             defensive_buff_window: 1,
              player_info: 3
            }
 
@@ -49,6 +51,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
     assert Repo.aggregate(Death, :count) == 1
     assert Repo.aggregate(InterruptOpportunity, :count) == 2
     assert Repo.aggregate(DebuffApplication, :count) == 2
+    assert Repo.aggregate(DefensiveBuffWindow, :count) == 1
     assert Repo.aggregate(PlayerInfo, :count) == 3
 
     assert %DamageTaken{total_amount: 700, hit_count: 2, max_hit: 400, overkill_total: 50} =
@@ -188,16 +191,24 @@ defmodule WeGoNext.Silver.PersistenceTest do
              applied_at_ms_into_fight: 3000
            } = Repo.one!(DebuffApplication)
 
-    assert %InterruptOpportunity{
-             target_npc_guid: "__UNKNOWN_TARGET_GUID__",
-             interrupted_spell_id: 0,
-             interrupting_spell_id: 0
-           } = Repo.one!(InterruptOpportunity)
+    assert Repo.aggregate(InterruptOpportunity, :count) == 0
   end
 
   test "project_and_persist deduplicates rows that share a natural key in one batch", %{
     encounter: encounter
   } do
+    cast_start =
+      CombatLogEventFixtures.spell_cast_success_event(
+        type: "SPELL_CAST_START",
+        time_into_fight: 3.0,
+        source_guid: "Creature-Caster",
+        source_name: "Caster",
+        target_guid: "Player-Dps",
+        target_name: "Dps-Realm",
+        spell_id: 1_249_017,
+        spell_name: "Fearsome Cry"
+      )
+
     duplicate_cast =
       CombatLogEventFixtures.spell_cast_success_event(
         time_into_fight: 4.0,
@@ -205,11 +216,12 @@ defmodule WeGoNext.Silver.PersistenceTest do
         source_name: "Caster",
         target_guid: "Player-Dps",
         target_name: "Dps-Realm",
-        spell_id: 777,
-        spell_name: "Duplicate Cast"
+        spell_id: 1_249_017,
+        spell_name: "Fearsome Cry"
       )
 
     events = [
+      cast_start,
       duplicate_cast,
       duplicate_cast,
       CombatLogEventFixtures.unit_died_event(
@@ -233,7 +245,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
 
     assert %InterruptOpportunity{
              target_npc_guid: "Creature-Caster",
-             interrupted_spell_id: 777,
+             interrupted_spell_id: 1_249_017,
              opportunity_ms_into_fight: 4000,
              success: false
            } = Repo.one!(InterruptOpportunity)
@@ -367,6 +379,22 @@ defmodule WeGoNext.Silver.PersistenceTest do
             :applied_at_ms_into_fight,
             :duration_ms,
             :stack_count
+          ])
+        )
+        |> Enum.sort(),
+      defensive_buff_window:
+        DefensiveBuffWindow
+        |> Repo.all()
+        |> Enum.map(
+          &Map.take(&1, [
+            :target_guid,
+            :source_guid,
+            :spell_id,
+            :spell_name,
+            :category,
+            :started_at_ms_into_fight,
+            :ended_at_ms_into_fight,
+            :duration_ms
           ])
         )
         |> Enum.sort(),

@@ -145,6 +145,90 @@ defmodule WeGoNext.WowClass do
     @evoker => "Evoker"
   }
 
+  @spec_names %{
+    250 => "Blood",
+    251 => "Frost",
+    252 => "Unholy",
+    577 => "Havoc",
+    581 => "Vengeance",
+    102 => "Balance",
+    103 => "Feral",
+    104 => "Guardian",
+    105 => "Restoration",
+    1467 => "Devastation",
+    1468 => "Preservation",
+    1473 => "Augmentation",
+    253 => "Beast Mastery",
+    254 => "Marksmanship",
+    255 => "Survival",
+    62 => "Arcane",
+    63 => "Fire",
+    64 => "Frost",
+    268 => "Brewmaster",
+    270 => "Mistweaver",
+    269 => "Windwalker",
+    65 => "Holy",
+    66 => "Protection",
+    70 => "Retribution",
+    256 => "Discipline",
+    257 => "Holy",
+    258 => "Shadow",
+    259 => "Assassination",
+    260 => "Outlaw",
+    261 => "Subtlety",
+    262 => "Elemental",
+    263 => "Enhancement",
+    264 => "Restoration",
+    265 => "Affliction",
+    266 => "Demonology",
+    267 => "Destruction",
+    71 => "Arms",
+    72 => "Fury",
+    73 => "Protection"
+  }
+
+  @spec_roles %{
+    250 => "tank",
+    251 => "dps",
+    252 => "dps",
+    577 => "dps",
+    581 => "tank",
+    102 => "dps",
+    103 => "dps",
+    104 => "tank",
+    105 => "healer",
+    1467 => "dps",
+    1468 => "healer",
+    1473 => "dps",
+    253 => "dps",
+    254 => "dps",
+    255 => "dps",
+    62 => "dps",
+    63 => "dps",
+    64 => "dps",
+    268 => "tank",
+    270 => "healer",
+    269 => "dps",
+    65 => "healer",
+    66 => "tank",
+    70 => "dps",
+    256 => "healer",
+    257 => "healer",
+    258 => "dps",
+    259 => "dps",
+    260 => "dps",
+    261 => "dps",
+    262 => "dps",
+    263 => "dps",
+    264 => "healer",
+    265 => "dps",
+    266 => "dps",
+    267 => "dps",
+    71 => "dps",
+    72 => "dps",
+    73 => "tank"
+  }
+
   # Official WoW class colors (hex)
   @class_colors %{
     # Tan
@@ -222,6 +306,24 @@ defmodule WeGoNext.WowClass do
   end
 
   def class_name(_), do: "Unknown"
+
+  @doc """
+  Returns the specialization name for a spec ID.
+  """
+  def spec_name(spec_id) when is_integer(spec_id) do
+    Map.get(@spec_names, spec_id, "Unknown")
+  end
+
+  def spec_name(_), do: "Unknown"
+
+  @doc """
+  Returns the trinity role for a spec ID: tank, healer, or dps.
+  """
+  def role_from_spec(spec_id) when is_integer(spec_id) do
+    Map.get(@spec_roles, spec_id)
+  end
+
+  def role_from_spec(_), do: nil
 
   @doc """
   Returns the hex color code for a class ID.

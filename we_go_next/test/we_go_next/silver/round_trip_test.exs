@@ -12,6 +12,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
 
   alias WeGoNext.Encounter
   alias WeGoNext.Fixtures.CombatLogEventFixtures
+  alias WeGoNext.GameData.DefensiveBuffs
   alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Repo
   alias WeGoNext.Silver
@@ -21,6 +22,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
     DamageTakenEvent,
     Death,
     DebuffApplication,
+    DefensiveBuffWindow,
     InterruptOpportunity,
     PlayerInfo
   }
@@ -63,6 +65,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
              death: 1,
              interrupt_opportunity: 2,
              debuff_application: 2,
+             defensive_buff_window: 1,
              player_info: 3
            }
 
@@ -74,18 +77,27 @@ defmodule WeGoNext.Silver.RoundTripTest do
              legacy_interrupt_opportunities(interrupts)
 
     assert silver_debuff_applications(dim_encounter) == legacy_debuff_applications(debuffs)
+
+    assert silver_defensive_buff_windows(dim_encounter) == [
+             %{
+               target_guid: "Player-Victim",
+               source_guid: "Player-Victim",
+               spell_id: 104_773,
+               started_at_ms_into_fight: 1_800,
+               ended_at_ms_into_fight: 4_200,
+               duration_ms: 2_400
+             }
+           ]
+
     assert silver_tank_guids(dim_encounter) == legacy_tank_guids(damage_taken)
   end
 
   defp round_trip_events do
     CombatLogEventFixtures.canonical_projection_events()
     |> Enum.map(fn
-      %{type: "SPELL_CAST_SUCCESS", spell_id: 888} = event ->
-        %{event | spell_id: 777, spell_name: "Scary Cast"}
-
       %{type: type, extra: extra} = event
       when type in ["SPELL_AURA_APPLIED", "SPELL_AURA_REMOVED"] ->
-        %{event | extra: Map.put(extra, "aura_type", "DEBUFF")}
+        %{event | extra: Map.put_new(extra, "aura_type", "DEBUFF")}
 
       event ->
         event
@@ -208,6 +220,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
 
   defp legacy_debuff_applications(%{applications: applications}) do
     applications
+    |> Enum.reject(&(DefensiveBuffs.get(&1.spell_id) != nil))
     |> Enum.map(fn app ->
       %{
         target_guid: app.player_guid,
@@ -218,6 +231,23 @@ defmodule WeGoNext.Silver.RoundTripTest do
       }
     end)
     |> Enum.sort_by(& &1.applied_at_ms_into_fight)
+  end
+
+  defp silver_defensive_buff_windows(dim_encounter) do
+    DefensiveBuffWindow
+    |> where([row], row.encounter_dim_id == ^dim_encounter.id)
+    |> order_by([row], asc: row.started_at_ms_into_fight)
+    |> Repo.all()
+    |> Enum.map(fn row ->
+      %{
+        target_guid: row.target_guid,
+        source_guid: row.source_guid,
+        spell_id: row.spell_id,
+        started_at_ms_into_fight: row.started_at_ms_into_fight,
+        ended_at_ms_into_fight: row.ended_at_ms_into_fight,
+        duration_ms: row.duration_ms
+      }
+    end)
   end
 
   defp silver_tank_guids(dim_encounter) do
