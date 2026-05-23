@@ -179,6 +179,8 @@ defmodule WeGoNext.Importer do
 
     case CombatLogParser.scan_boundaries(clf.file_path, start_byte) do
       {:ok, boundaries, end_byte} ->
+        parsed_end_byte = completed_boundary_end_byte(boundaries, start_byte)
+
         results =
           boundaries
           |> Enum.with_index(1)
@@ -214,8 +216,11 @@ defmodule WeGoNext.Importer do
             {:existing, %EncounterRecord{}} -> []
           end)
 
-        # Final progress update
-        {:ok, updated_clf} = update_file_progress(clf, end_byte)
+        # Final progress update. Only advance to completed encounter boundaries:
+        # current logs may contain flushed lines for an in-progress pull without
+        # an ENCOUNTER_END yet, and advancing into those bytes would make the
+        # later completed pull invisible to incremental imports.
+        {:ok, updated_clf} = update_file_progress(clf, parsed_end_byte)
 
         medallion_results = run_medallion_imports(inserted_encounters, updated_clf)
 
@@ -255,6 +260,14 @@ defmodule WeGoNext.Importer do
           {:skip, clf}
       end
     end
+  end
+
+  defp completed_boundary_end_byte([], start_byte), do: start_byte
+
+  defp completed_boundary_end_byte(boundaries, _start_byte) do
+    boundaries
+    |> List.last()
+    |> Map.fetch!(:end_byte)
   end
 
   defp run_medallion_imports(encounters, %CombatLogFile{} = clf) do

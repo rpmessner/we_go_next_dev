@@ -135,6 +135,53 @@ defmodule WeGoNext.ImporterTest do
     assert Repo.aggregate(FactFailure, :count) == 1
   end
 
+  test "sync_log does not advance past an incomplete appended encounter", %{
+    dir: dir,
+    user: user
+  } do
+    live_content = File.read!(fixture_path("combat_log_base.txt"))
+    second_encounter_content = File.read!(fixture_path("second_encounter.txt"))
+
+    {incomplete_lines, [encounter_end_line]} =
+      second_encounter_content
+      |> String.split("\n", trim: true)
+      |> Enum.split(-1)
+
+    incomplete_content = Enum.join(incomplete_lines, "\n") <> "\n"
+    encounter_end_line = encounter_end_line <> "\n"
+
+    log_path = Path.join(dir, "WoWCombatLog-112725_120000.txt")
+    File.write!(log_path, live_content)
+
+    assert {:ok, %{file: live_file, new_encounters: 1}} =
+             Importer.import_log(log_path, user.id)
+
+    live_last_parsed_byte = live_file.last_parsed_byte
+    assert live_last_parsed_byte == byte_size(live_content)
+
+    File.write!(log_path, live_content <> incomplete_content)
+
+    assert {:ok, %{file: unchanged_file, new_encounters: 0}} =
+             Importer.sync_log(live_file)
+
+    assert unchanged_file.last_parsed_byte == live_last_parsed_byte
+    assert Repo.aggregate(EncounterRecord, :count) == 1
+
+    File.write!(log_path, live_content <> incomplete_content <> encounter_end_line)
+
+    assert {:ok, %{file: completed_file, new_encounters: 1}} =
+             Importer.sync_log(unchanged_file)
+
+    assert completed_file.last_parsed_byte == byte_size(File.read!(log_path))
+    assert Repo.aggregate(EncounterRecord, :count) == 2
+
+    assert %EncounterRecord{wow_encounter_id: "2888"} =
+             Repo.get_by!(EncounterRecord,
+               combat_log_file_id: live_file.id,
+               start_time: ~U[2025-11-27 12:05:00.000000Z]
+             )
+  end
+
   test "importer delegates gold rebuilds through the gold encounter boundary" do
     importer_source = File.read!("lib/we_go_next/importer.ex")
 

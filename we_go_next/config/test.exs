@@ -3,6 +3,10 @@ import Config
 # Enable SQL sandbox for browser test isolation
 config :we_go_next, sql_sandbox: true
 
+# Keep the current-log watcher deterministic under the SQL sandbox. Tests can
+# still drive it explicitly with WeGoNext.FileWatcher.sync_now/0.
+config :we_go_next, file_watcher_poll_interval_ms: false
+
 # We run a server during Wallaby tests
 config :we_go_next, WeGoNextWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
