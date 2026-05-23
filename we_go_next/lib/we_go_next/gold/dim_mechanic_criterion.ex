@@ -6,7 +6,7 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @mechanic_types ~w(avoidable interrupt soak spread stack tank_mechanic healer_mechanic)
+  @mechanic_types ~w(avoidable interrupt soak spread stack tank_mechanic healer_mechanic targeted_cone)
 
   @schema_prefix "gold"
 

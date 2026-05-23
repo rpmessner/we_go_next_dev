@@ -6,7 +6,14 @@ defmodule WeGoNext.Gold.FactFailureTest do
   alias WeGoNext.Repo
   alias WeGoNext.Rules
   alias WeGoNext.Rules.Ruleset
-  alias WeGoNext.Silver.{DamageTaken, InterruptOpportunity, PlayerInfo}
+
+  alias WeGoNext.Silver.{
+    DamageTaken,
+    DamageTakenEvent,
+    DebuffApplication,
+    InterruptOpportunity,
+    PlayerInfo
+  }
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
@@ -157,6 +164,56 @@ defmodule WeGoNext.Gold.FactFailureTest do
                player_dim_id: raid.id,
                criterion_dim_id: criterion.id
              )
+  end
+
+  test "rebuild_for_encounter attributes targeted cone failures to the assigned target", %{
+    ruleset: ruleset,
+    encounter: encounter
+  } do
+    criterion =
+      insert_criteria!(ruleset, %{
+        spell_id: 1_244_221,
+        spell_name: "Dread Breath",
+        mechanic_type: "targeted_cone",
+        boss_encounter_id: encounter.wow_encounter_id,
+        threshold: %{
+          "target_marker_spell_id" => 1_255_612,
+          "impact_spell_ids" => [1_244_225],
+          "hit_debuff_spell_ids" => [1_255_979],
+          "max_safe_hit_count" => 2,
+          "target_role_policy" => "any",
+          "allowed_collateral_roles" => ["tank"],
+          "position_evidence" => "optional"
+        }
+      })
+
+    insert_player_info!(encounter, "Player-Aimer", "Aimer")
+    insert_player_info!(encounter, "Player-Dps-One", "Dps One")
+    insert_player_info!(encounter, "Player-Dps-Two", "Dps Two")
+    insert_player_info!(encounter, "Player-Dps-Three", "Dps Three")
+
+    insert_debuff_application!(encounter, "Player-Aimer", 1_255_612, 1_000)
+    insert_damage_taken_event!(encounter, "Player-Dps-One", 1_244_225, 8_000, 100_000)
+    insert_damage_taken_event!(encounter, "Player-Dps-Two", 1_244_225, 8_100, 120_000)
+    insert_damage_taken_event!(encounter, "Player-Dps-Three", 1_244_225, 8_200, 130_000)
+    insert_debuff_application!(encounter, "Player-Dps-One", 1_255_979, 8_200)
+
+    assert {:ok, %{inserted: 1}} = FactFailure.rebuild_for_encounter(encounter.id)
+
+    aimer = Repo.get_by!(DimPlayer, player_guid: "Player-Aimer")
+
+    assert %FactFailure{failure_count: 1, total_damage: 350_000} =
+             Repo.get_by!(FactFailure,
+               encounter_dim_id: encounter.id,
+               player_dim_id: aimer.id,
+               criterion_dim_id: criterion.id
+             )
+
+    refute Repo.get_by(FactFailure,
+             encounter_dim_id: encounter.id,
+             criterion_dim_id: criterion.id,
+             player_dim_id: Repo.get_by!(DimPlayer, player_guid: "Player-Dps-One").id
+           )
   end
 
   test "rebuild_for_encounter replaces stale facts only for the requested encounter", %{
@@ -394,6 +451,43 @@ defmodule WeGoNext.Gold.FactFailureTest do
       success: success,
       interrupter_guid: if(success, do: "Player-One"),
       interrupting_spell_id: if(success, do: 1766)
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_damage_taken_event!(
+         encounter,
+         target_guid,
+         spell_id,
+         occurred_at_ms_into_fight,
+         amount
+       ) do
+    %DamageTakenEvent{}
+    |> DamageTakenEvent.changeset(%{
+      encounter_dim_id: encounter.id,
+      combat_log_event_index: System.unique_integer([:positive]),
+      event_type: "SPELL_DAMAGE",
+      occurred_at_ms_into_fight: occurred_at_ms_into_fight,
+      target_guid: target_guid,
+      source_guid: "Creature-Boss",
+      source_is_npc: true,
+      spell_id: spell_id,
+      spell_name: "Dread Breath",
+      amount: amount,
+      overkill: 0
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_debuff_application!(encounter, target_guid, spell_id, applied_at_ms_into_fight) do
+    %DebuffApplication{}
+    |> DebuffApplication.changeset(%{
+      encounter_dim_id: encounter.id,
+      target_guid: target_guid,
+      source_guid: "Creature-Boss",
+      spell_id: spell_id,
+      applied_at_ms_into_fight: applied_at_ms_into_fight,
+      stack_count: 1
     })
     |> Repo.insert!()
   end

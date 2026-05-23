@@ -175,9 +175,18 @@ The legacy `/encounters/:id` analysis page has been pruned from active routing. 
 - `rules.mechanic_criterion` validates thresholds by mechanic type:
   - `avoidable`: only `threshold["max_hits"]` as a non-negative integer
   - `interrupt`: optional `threshold["must_interrupt"]`, defaults to `true`
+  - `targeted_cone`: first-class aim/cone mechanics such as Vaelgor & Ezzorak Dread Breath. The rule spell is the cast spell, while the threshold declares combat-log evidence:
+    - `target_marker_spell_id`: pre-target marker debuff identifying the assigned/aiming player
+    - `impact_spell_ids`: direct hit/miss damage spell IDs used to identify players clipped by the cone
+    - optional `hit_debuff_spell_ids`: post-hit debuff/periodic damage IDs to keep linked with the same cone event
+    - `max_safe_hit_count`: how many players may be hit without treating the aim as failed
+    - `target_role_policy`: `any`, `tank`, or `non_tank`
+    - `allowed_collateral_roles`: roles such as `tank` that can be intentionally included before a hit is counted as collateral
+    - `position_evidence`: `ignored`, `optional`, or `required`
   - `soak`, `spread`, `stack`, `tank_mechanic`, `healer_mechanic`: empty threshold map until fact semantics exist
 - Bootstrap current-tier mechanics through `WeGoNext.Rules.sync_current_tier_rules/1` or `mix we_go_next.sync_raid_rules`, not migrations. `mix we_go_next.seed_rules` with no path should follow that current-tier catalog path; explicit JSON paths are legacy fixtures/examples.
 - Supported `:avoidable` + `:damage_taken` code-defined raid mechanics are fact-eligible by default; do not require a manual `track: true` flag.
+- `:targeted_cone` mechanics are not generic avoidable damage. They need a dedicated fact builder that attributes primary failure to the assigned/aiming target and records clipped players separately.
 - Gold facts currently identify mechanics through `criterion_dim_id -> gold.dim_mechanic_criterion`, not a direct mutable rule row.
 - The rule-to-gold step is implementation plumbing for fact keys. It must stay collapsed or hidden behind sync/rebuild commands so users do not manage a separate promotion workflow.
 

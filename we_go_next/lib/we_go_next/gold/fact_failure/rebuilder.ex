@@ -13,12 +13,12 @@ defmodule WeGoNext.Gold.FactFailure.Rebuilder do
   alias WeGoNext.Gold.{DimEncounter, DimPlayer, FactFailure}
   alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Gold.FactFailure.{Query, RuleSelector}
-  alias WeGoNext.Gold.FactFailure.Builders.{AvoidableDamage, MissedInterrupt}
+  alias WeGoNext.Gold.FactFailure.Builders.{AvoidableDamage, MissedInterrupt, TargetedCone}
   alias WeGoNext.Repo
   alias WeGoNext.Rules.Ruleset
 
   @raid_player_guid "__RAID__"
-  @builders [AvoidableDamage, MissedInterrupt]
+  @builders [AvoidableDamage, MissedInterrupt, TargetedCone]
 
   @spec rebuild_for_encounter(pos_integer(), keyword()) ::
           {:ok, %{deleted: non_neg_integer(), inserted: non_neg_integer()}} | {:error, term()}

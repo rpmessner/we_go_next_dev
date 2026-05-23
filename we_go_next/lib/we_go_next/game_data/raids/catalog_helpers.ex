@@ -46,6 +46,10 @@ defmodule WeGoNext.GameData.Raids.CatalogHelpers do
   end
 
   defp fact_eligible?(%{type: :avoidable, event: :damage_taken}), do: true
+
+  defp fact_eligible?(%{type: :targeted_cone, event: :cast, rule: rule}) when rule != %{},
+    do: true
+
   defp fact_eligible?(_mechanic), do: false
 
   defp rule_criterion(mechanic) do
@@ -62,6 +66,18 @@ defmodule WeGoNext.GameData.Raids.CatalogHelpers do
   end
 
   defp threshold(%{rule: %{max_hits: max_hits}}), do: %{"max_hits" => max_hits}
+
+  defp threshold(%{type: :targeted_cone, rule: rule}) do
+    %{
+      "target_marker_spell_id" => rule.target_marker_spell_id,
+      "impact_spell_ids" => rule.impact_spell_ids,
+      "hit_debuff_spell_ids" => Map.get(rule, :hit_debuff_spell_ids, []),
+      "max_safe_hit_count" => rule.max_safe_hit_count,
+      "target_role_policy" => Atom.to_string(rule.target_role_policy),
+      "allowed_collateral_roles" => Enum.map(rule.allowed_collateral_roles, &Atom.to_string/1),
+      "position_evidence" => Atom.to_string(rule.position_evidence)
+    }
+  end
 
   defp threshold(%{type: :avoidable, event: :damage_taken}), do: %{"max_hits" => 0}
 
