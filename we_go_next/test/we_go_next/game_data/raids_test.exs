@@ -39,10 +39,28 @@ defmodule WeGoNext.GameData.RaidsTest do
 
     criteria = MidnightSeason1.rule_criteria()
 
-    assert length(MidnightSeason1.mechanics()) == 137
-    assert length(criteria) == 27
-    assert Enum.all?(criteria, &(&1["mechanic_type"] == "avoidable"))
-    assert Enum.map(criteria, & &1["threshold"]) |> Enum.uniq() == [%{"max_hits" => 0}]
+    assert length(MidnightSeason1.mechanics()) == 164
+    assert length(criteria) == 30
+    assert Enum.count(criteria, &(&1["mechanic_type"] == "avoidable")) == 29
+    assert Enum.count(criteria, &(&1["mechanic_type"] == "targeted_cone")) == 1
+    assert Enum.any?(criteria, &(&1["spell_id"] == 1_244_221))
+    assert Enum.any?(criteria, &(&1["spell_id"] == 1_260_718))
+    assert Enum.any?(criteria, &(&1["spell_id"] == 1_275_558))
+    assert Enum.any?(criteria, &(&1["spell_id"] == 1_233_826))
+    refute Enum.any?(criteria, &(&1["spell_id"] == 1_244_225))
+
+    dread_breath =
+      MidnightSeason1.mechanics()
+      |> Enum.filter(&(&1.boss_name == "Vaelgor & Ezzorak" and &1.name == "Dread Breath"))
+
+    assert Enum.map(dread_breath, & &1.spell_id) |> Enum.sort() == [
+             1_244_221,
+             1_244_225,
+             1_255_612,
+             1_255_979
+           ]
+
+    assert Enum.all?(dread_breath, &(&1.type == :targeted_cone))
 
     assert Enum.any?(criteria, fn criterion ->
              criterion["spell_id"] == 1_272_726 and

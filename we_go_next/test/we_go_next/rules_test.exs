@@ -165,6 +165,46 @@ defmodule WeGoNext.RulesTest do
     assert {"must contain only must_interrupt as a boolean", _} = changeset.errors[:threshold]
   end
 
+  test "targeted cone thresholds define assignment and impact evidence" do
+    {:ok, ruleset} = Rules.create_ruleset(%{name: "Draft Rules"})
+
+    threshold = %{
+      "target_marker_spell_id" => 1_255_612,
+      "impact_spell_ids" => [1_244_225],
+      "hit_debuff_spell_ids" => [1_255_979],
+      "max_safe_hit_count" => 2,
+      "target_role_policy" => "any",
+      "allowed_collateral_roles" => ["tank"],
+      "position_evidence" => "optional"
+    }
+
+    assert {:ok, criterion} =
+             ruleset
+             |> criterion_attrs(%{
+               spell_id: 1_244_221,
+               spell_name: "Dread Breath",
+               mechanic_type: "targeted_cone",
+               threshold: threshold
+             })
+             |> Rules.create_mechanic_criterion()
+
+    assert criterion.threshold == threshold
+
+    assert {:error, changeset} =
+             ruleset
+             |> criterion_attrs(%{
+               spell_id: 1_244_222,
+               mechanic_type: "targeted_cone",
+               threshold: %{"impact_spell_ids" => [1_244_225]}
+             })
+             |> Rules.create_mechanic_criterion()
+
+    assert {
+             "must define target marker, impact spells, safe hit count, role policy, allowed collateral roles, and position evidence",
+             _
+           } = changeset.errors[:threshold]
+  end
+
   test "mechanic types without fact semantics require an empty threshold" do
     {:ok, ruleset} = Rules.create_ruleset(%{name: "Draft Rules"})
 
@@ -253,7 +293,7 @@ defmodule WeGoNext.RulesTest do
 
     assert ruleset.name == "Midnight Season 1 Mechanics"
     assert ruleset.status == "draft"
-    assert length(criteria) == 27
+    assert length(criteria) == 30
 
     assert %MechanicCriterion{
              spell_id: 1_248_652,
@@ -267,6 +307,11 @@ defmodule WeGoNext.RulesTest do
 
     refute Enum.any?(criteria, &(&1.spell_id == 1_249_017))
     refute Enum.any?(criteria, &(&1.mechanic_type == "soak"))
+
+    assert Enum.any?(
+             criteria,
+             &(&1.spell_id == 1_244_221 and &1.mechanic_type == "targeted_cone")
+           )
 
     assert {:ok, %{ruleset: second_ruleset, criteria: second_criteria}} =
              Rules.sync_raid_mechanics("midnight_season_1")
@@ -296,8 +341,8 @@ defmodule WeGoNext.RulesTest do
              Rules.sync_raid_mechanics("midnight_season_1", rebuild: true)
 
     assert ruleset.status == "active"
-    assert length(criteria) == 27
-    assert length(promoted.criteria) == 27
+    assert length(criteria) == 30
+    assert length(promoted.criteria) == 30
     assert %{encounters: 1, inserted: 1} = rebuild
 
     criterion = Enum.find(promoted.criteria, &(&1.spell_id == 1_248_652))

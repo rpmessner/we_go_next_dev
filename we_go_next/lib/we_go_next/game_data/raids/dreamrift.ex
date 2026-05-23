@@ -100,6 +100,16 @@ defmodule WeGoNext.GameData.Raids.Dreamrift do
         :dbm,
         :wowanalyzer
       ]),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_273_112,
+        "Consume",
+        :unknown,
+        :damage_taken,
+        [:local_logs],
+        notes: "Observed damage outcome for Consume; no supported attribution semantics yet."
+      ),
       mechanic("Chimaerus the Undreamt God", 3306, 1_245_404, "Ravenous Dive", :unknown, :cast, [
         :dbm
       ]),
@@ -124,6 +134,17 @@ defmodule WeGoNext.GameData.Raids.Dreamrift do
       mechanic("Chimaerus the Undreamt God", 3306, 1_246_621, "Caustic Phlegm", :unknown, :cast, [
         :dbm
       ]),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_246_653,
+        "Caustic Phlegm",
+        :unknown,
+        :damage_taken,
+        [:dbm, :local_logs],
+        notes:
+          "High-volume observed damage for DBM AOEDAMAGE cast 1246621; do not treat as generic avoidable damage."
+      ),
       mechanic("Chimaerus the Undreamt God", 3306, 1_251_021, "Rift Emergence", :unknown, :cast, [
         :dbm
       ]),
@@ -135,7 +156,28 @@ defmodule WeGoNext.GameData.Raids.Dreamrift do
       ]),
       mechanic("Chimaerus the Undreamt God", 3306, 1_264_757, "Rift Madness", :unknown, :cast, [
         :wowanalyzer
-      ])
+      ]),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_280_655,
+        "Cannibalized Essence",
+        :unknown,
+        :damage_taken,
+        [:local_logs],
+        notes:
+          "Observed damage without source warning evidence; attribution semantics need review."
+      ),
+      mechanic(
+        "Chimaerus the Undreamt God",
+        3306,
+        1_258_192,
+        "Lingering Miasma",
+        :unknown,
+        :damage_taken,
+        [:local_logs],
+        notes: "Observed damage/debuff spell; not currently failure-eligible."
+      )
     ]
   end
 
