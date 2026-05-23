@@ -53,6 +53,14 @@ defmodule WeGoNext.Integration.Pages.HomePage do
     click(session, Query.css("button", text: "Refresh"))
   end
 
+  def click_reimport(session) do
+    Browser.accept_confirm(session, fn sess ->
+      click(sess, Query.button("Reimport"))
+    end)
+
+    session
+  end
+
   # Encounter list
 
   def wait_for_encounters(session, timeout_ms \\ 30_000)
@@ -211,6 +219,17 @@ defmodule WeGoNext.Integration.Pages.HomePage do
     )
 
     session
+  end
+
+  def assert_imported_logs_visible(session) do
+    session
+    |> assert_has(Query.css("h3", text: "Imported Logs"))
+
+    session
+  end
+
+  def has_reimport_button?(session) do
+    Browser.has?(session, Query.button("Reimport"))
   end
 
   def click_purge(session) do

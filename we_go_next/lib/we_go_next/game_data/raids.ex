@@ -29,6 +29,22 @@ defmodule WeGoNext.GameData.Raids do
   def by_dbm_module_map_id(1314), do: Dreamrift
   def by_dbm_module_map_id(_module_map_id), do: nil
 
+  def by_boss_encounter_id(encounter_id) when is_binary(encounter_id) do
+    case Integer.parse(encounter_id) do
+      {id, ""} -> by_boss_encounter_id(id)
+      {_id, _rest} -> nil
+      :error -> nil
+    end
+  end
+
+  def by_boss_encounter_id(encounter_id) when is_integer(encounter_id) do
+    Enum.find([Voidspire, Dreamrift, MarchOnQuelDanas], fn raid_module ->
+      Enum.any?(raid_module.bosses(), &(&1.encounter_id == encounter_id))
+    end)
+  end
+
+  def by_boss_encounter_id(_encounter_id), do: nil
+
   def interruptible_spells do
     MidnightSeason1.mechanics()
     |> Enum.filter(&(&1.type == :interrupt))

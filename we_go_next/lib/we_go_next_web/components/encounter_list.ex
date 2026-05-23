@@ -9,7 +9,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
   import WeGoNextWeb.EncounterComponents, only: [format_duration: 1]
 
-  alias WeGoNext.GameData.Instances
+  alias WeGoNext.GameData.{Instances, Raids}
 
   attr(:encounter_records, :list, required: true)
   attr(:show_resets, :boolean, required: true)
@@ -198,10 +198,13 @@ defmodule WeGoNextWeb.Components.EncounterList do
   defp group_encounters(records, show_resets) do
     records
     |> maybe_filter_resets(show_resets)
-    |> Enum.chunk_by(& &1.instance_id)
+    |> Enum.chunk_by(&instance_group_key/1)
     |> Enum.map(fn chunk ->
       first = hd(chunk)
-      instance_name = Instances.name(first.instance_id) || infer_instance_name(chunk)
+
+      instance_name =
+        raid_instance_name(chunk) || Instances.name(first.instance_id) ||
+          infer_instance_name(chunk)
 
       indexed = Enum.with_index(chunk, 1)
       kills = Enum.count(chunk, & &1.success)
@@ -217,6 +220,26 @@ defmodule WeGoNextWeb.Components.EncounterList do
         wipes: wipes
       }
     end)
+  end
+
+  defp instance_group_key(encounter) do
+    case raid_module(encounter) do
+      nil -> {:instance, encounter.instance_id}
+      raid_module -> {:raid, raid_module.info().slug}
+    end
+  end
+
+  defp raid_instance_name(encounters) do
+    encounters
+    |> Enum.find_value(&raid_module/1)
+    |> case do
+      nil -> nil
+      raid_module -> raid_module.info().name
+    end
+  end
+
+  defp raid_module(encounter) do
+    Raids.by_boss_encounter_id(encounter.wow_encounter_id)
   end
 
   # If we don't have a name mapping, infer from boss names
