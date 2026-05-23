@@ -1,13 +1,22 @@
 defmodule WeGoNextWeb.EncounterLiveShowTest do
   use WeGoNextWeb.ConnCase, async: false
 
-  alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
+  alias WeGoNext.Gold.{
+    DimEncounter,
+    DimMechanicCriterion,
+    DimPlayer,
+    EncounterDetail,
+    FactFailure
+  }
+
   alias WeGoNext.Repo
 
   alias WeGoNext.Silver.{
+    DamageDone,
     DamageTaken,
     DamageTakenEvent,
     Death,
+    DebuffApplication,
     DefensiveBuffWindow,
     InterruptOpportunity,
     PlayerInfo
@@ -49,10 +58,11 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
 
     assert html =~ "Plexus Sentinel"
     assert html =~ "Encounter detail for imported pull ##{encounter.id}"
+    assert html =~ "Started May 01, 2026 08:00 PM"
     assert html =~ "Pull ID"
     assert html =~ "Imported Data"
     assert html =~ "Damage Hits"
-    assert html =~ "Tracked Failures"
+    assert html =~ "Mechanic Failures"
     assert html =~ ~s(href="/failures")
     assert html =~ "Roster"
     assert html =~ "Tankone"
@@ -64,7 +74,8 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     assert html =~ "Death Recap"
     assert html =~ ~S|<span class="ml-1 text-zinc-500">(1)</span>|
     assert html =~ "Mechanics"
-    assert html =~ "Failure Preview"
+    assert html =~ "Damage"
+    assert html =~ "Failures"
     assert html =~ "Interrupt Coverage"
     assert html =~ ~S|<span class="ml-1 text-zinc-500">(2)</span>|
     assert html =~ "Personal Pulls"
@@ -85,16 +96,110 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
       |> get(~p"/encounters/#{encounter.id}?tab=mechanics")
       |> html_response(200)
 
-    assert html =~ "Observed Mechanics"
+    assert html =~ "Pull Review"
+    assert html =~ "Damage Taken"
+    assert html =~ "Debuffs"
     assert html =~ "Encounter Spells"
-    assert html =~ "Tracking"
-    assert html =~ "Seen"
+    assert html =~ "Category"
+    assert html =~ "Seen As"
     assert html =~ "Bad"
-    assert html =~ "Producing failures"
+    assert html =~ "Avoidable"
     assert html =~ "1 failure"
-    assert html =~ "Spell 1249017"
-    assert html =~ "Combat-log event"
-    assert html =~ "Seen in the combat log"
+    assert html =~ "Spell 101"
+    assert html =~ "Show untagged/noise"
+    refute html =~ "Damage Done Ranking"
+    refute html =~ "Low Damage Warnings"
+    refute html =~ "criterion"
+    refute html =~ "snapshot"
+    refute html =~ "ruleset"
+  end
+
+  test "renders damage tab ranking and low damage warnings without early deaths", %{conn: conn} do
+    encounter = insert_dim_encounter!()
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-One",
+      player_name: "One",
+      class_id: 9,
+      spec_id: 266,
+      detected_role: "dps"
+    })
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-Low",
+      player_name: "Low",
+      class_id: 8,
+      spec_id: 62,
+      detected_role: "dps"
+    })
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-Early",
+      player_name: "Early",
+      class_id: 4,
+      spec_id: 260,
+      detected_role: "dps"
+    })
+
+    insert_damage_done!(encounter, "Player-One", 501, 900_000)
+    insert_damage_done!(encounter, "Player-Low", 501, 120_000)
+    insert_damage_done!(encounter, "Player-Early", 501, 10_000)
+    insert_death!(encounter, "Player-Early", %{died_at_ms_into_fight: 10_000})
+
+    {:ok, detail} = EncounterDetail.get(encounter.id)
+
+    assert Enum.map(detail.pull_review.low_dps, & &1.player_name) == ["Low"]
+
+    refute Enum.any?(detail.pull_review.low_dps, fn player ->
+             player.player_name == "Early"
+           end)
+
+    html =
+      conn
+      |> get(~p"/encounters/#{encounter.id}?tab=damage")
+      |> html_response(200)
+
+    assert html =~ "Low Damage Warnings"
+    assert html =~ "Damage Done Ranking"
+    assert html =~ "Low"
+    assert html =~ "400"
+    assert html =~ "Early"
+    assert html =~ "Early death at 0:10"
+    assert html =~ "Survived"
+    refute html =~ "Show player-applied debuffs"
+    refute html =~ "criterion"
+    refute html =~ "source_data"
+    refute html =~ "promotion"
+  end
+
+  test "keeps damage taken and debuff filters on mechanics tab", %{conn: conn} do
+    encounter = insert_dim_encounter!()
+    player = insert_dim_player!()
+
+    insert_damage_taken_event!(encounter, %{spell_id: 101, spell_name: "Bad", amount: 100})
+    insert_damage_taken_event!(encounter, %{spell_id: 202, spell_name: "Noise", amount: 50})
+    insert_debuff_application!(encounter, %{spell_id: 303, source_guid: "Creature-Boss"})
+    insert_debuff_application!(encounter, %{spell_id: 404, source_guid: "Player-One"})
+    insert_failure!(encounter, player)
+
+    html =
+      conn
+      |> get(~p"/encounters/#{encounter.id}?tab=mechanics")
+      |> html_response(200)
+
+    assert html =~ "Damage Taken"
+    assert html =~ "Debuffs"
+    assert html =~ "Show player-applied debuffs"
+    assert html =~ "Encounter"
+    assert html =~ "Bad"
+    assert html =~ "Avoidable"
+    assert html =~ "Untagged"
+    refute html =~ "Damage Done Ranking"
+    refute html =~ "Low Damage Warnings"
+    refute html =~ "Player applied"
+    refute html =~ "criterion"
+    refute html =~ "source_data"
+    refute html =~ "promotion"
   end
 
   test "renders failure preview from tracked failures", %{conn: conn} do
@@ -116,13 +221,13 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
       |> get(~p"/encounters/#{encounter.id}?tab=failures")
       |> html_response(200)
 
-    assert html =~ "Failure Preview"
+    assert html =~ "Failures"
     assert html =~ "Bad"
     assert html =~ "Spell 101"
     assert html =~ "One"
     assert html =~ "1"
     assert html =~ "100 damage"
-    refute html =~ "No tracked failures exist"
+    refute html =~ "No mechanic failures exist"
   end
 
   test "renders player encounter performance history on personal tab", %{conn: conn} do
@@ -250,43 +355,94 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     |> Repo.insert!()
   end
 
-  defp insert_damage_taken_event!(%DimEncounter{} = encounter) do
-    %DamageTakenEvent{}
-    |> DamageTakenEvent.changeset(%{
+  defp insert_damage_done!(%DimEncounter{} = encounter, source_guid, spell_id, total_amount) do
+    %DamageDone{}
+    |> DamageDone.changeset(%{
       encounter_dim_id: encounter.id,
-      combat_log_event_index: 1,
-      event_type: "SPELL_DAMAGE",
-      occurred_at_ms_into_fight: 1_000,
-      target_guid: "Player-One",
-      source_guid: "Creature-One",
-      source_is_npc: true,
-      spell_id: 101,
-      amount: 100,
-      overkill: 0
+      source_guid: source_guid,
+      target_guid: "Creature-Boss",
+      spell_id: spell_id,
+      total_amount: total_amount,
+      hit_count: 3,
+      max_hit: div(total_amount, 3)
     })
     |> Repo.insert!()
   end
 
-  defp insert_death!(%DimEncounter{} = encounter) do
-    %Death{}
-    |> Death.changeset(%{
-      encounter_dim_id: encounter.id,
-      target_guid: "Player-One",
-      died_at_ms_into_fight: 10_000,
-      killing_blow_spell_id: 101,
-      killing_blow_source_guid: "Creature-One",
-      damage_recap: [
+  defp insert_damage_taken_event!(%DimEncounter{} = encounter, attrs \\ %{}) do
+    attrs =
+      Map.merge(
         %{
-          "ms_into_fight" => 10_000,
-          "spell_id" => 101,
-          "spell_name" => "Bad",
-          "source_guid" => "Creature-One",
-          "source_name" => "Creature One",
-          "amount" => 100,
-          "overkill" => 10
-        }
-      ]
-    })
+          encounter_dim_id: encounter.id,
+          combat_log_event_index: System.unique_integer([:positive]),
+          event_type: "SPELL_DAMAGE",
+          occurred_at_ms_into_fight: 1_000,
+          target_guid: "Player-One",
+          target_name: "One",
+          source_guid: "Creature-One",
+          source_name: "Creature One",
+          source_is_npc: true,
+          spell_id: 101,
+          spell_name: "Bad",
+          amount: 100,
+          overkill: 0
+        },
+        attrs
+      )
+
+    %DamageTakenEvent{}
+    |> DamageTakenEvent.changeset(attrs)
+    |> Repo.insert!()
+  end
+
+  defp insert_death!(%DimEncounter{} = encounter) do
+    insert_death!(encounter, "Player-One")
+  end
+
+  defp insert_death!(%DimEncounter{} = encounter, target_guid, attrs \\ %{}) do
+    %Death{}
+    |> Death.changeset(
+      Map.merge(
+        %{
+          encounter_dim_id: encounter.id,
+          target_guid: target_guid,
+          died_at_ms_into_fight: 10_000,
+          killing_blow_spell_id: 101,
+          killing_blow_source_guid: "Creature-One",
+          damage_recap: [
+            %{
+              "ms_into_fight" => 10_000,
+              "spell_id" => 101,
+              "spell_name" => "Bad",
+              "source_guid" => "Creature-One",
+              "source_name" => "Creature One",
+              "amount" => 100,
+              "overkill" => 10
+            }
+          ]
+        },
+        attrs
+      )
+    )
+    |> Repo.insert!()
+  end
+
+  defp insert_debuff_application!(%DimEncounter{} = encounter, attrs) do
+    attrs =
+      Map.merge(
+        %{
+          encounter_dim_id: encounter.id,
+          target_guid: "Player-One",
+          source_guid: "Creature-One",
+          spell_id: 303,
+          applied_at_ms_into_fight: 1_000,
+          stack_count: 1
+        },
+        attrs
+      )
+
+    %DebuffApplication{}
+    |> DebuffApplication.changeset(attrs)
     |> Repo.insert!()
   end
 

@@ -23,11 +23,20 @@ defmodule WeGoNext.Gold.EncounterDetail do
     PlayerInfo
   }
 
+  @low_damage_warning_median_ratio 0.7
+  @early_death_damage_warning_cutoff_ratio 0.7
+
   @type t :: %{
           encounter: DimEncounter.t(),
           counts: %{atom() => non_neg_integer()},
           roster: [PlayerInfo.t()],
           deaths: [map()],
+          pull_review: %{
+            damage_done: [map()],
+            low_dps: [map()],
+            damage_taken_spells: [map()],
+            debuffs: %{boss: [map()], player: [map()], all: [map()]}
+          },
           failure_preview: %{
             mechanics: [map()],
             diagnostics: [map()],
@@ -58,6 +67,7 @@ defmodule WeGoNext.Gold.EncounterDetail do
          counts: counts(id),
          roster: roster,
          deaths: deaths(id),
+         pull_review: pull_review(encounter, roster),
          failure_preview: failure_preview(id),
          interrupt_coverage: interrupt_coverage(id),
          personal_pull_summary:
@@ -187,7 +197,10 @@ defmodule WeGoNext.Gold.EncounterDetail do
       })
       |> Repo.all()
 
-    mechanics = group_failure_preview_rows(rows)
+    mechanics =
+      rows
+      |> group_failure_preview_rows()
+      |> attach_targeted_cone_details(encounter_dim_id)
 
     %{
       mechanics: mechanics,
@@ -238,6 +251,212 @@ defmodule WeGoNext.Gold.EncounterDetail do
     |> Enum.sort_by(&{-&1.failure_count, &1.spell_name, &1.spell_id})
   end
 
+  defp attach_targeted_cone_details(mechanics, encounter_dim_id) do
+    criterion_ids =
+      mechanics
+      |> Enum.filter(&(&1.mechanic_type == "targeted_cone"))
+      |> Enum.map(& &1.criterion_dim_id)
+
+    contexts = targeted_cone_contexts(encounter_dim_id, criterion_ids)
+
+    Enum.map(mechanics, fn mechanic ->
+      if mechanic.mechanic_type == "targeted_cone" do
+        Map.put(mechanic, :targeted_cone_events, Map.get(contexts, mechanic.criterion_dim_id, []))
+      else
+        mechanic
+      end
+    end)
+  end
+
+  defp targeted_cone_contexts(_encounter_dim_id, []), do: %{}
+
+  defp targeted_cone_contexts(encounter_dim_id, criterion_ids) do
+    sql = """
+    WITH targeted_cone_markers AS (
+      SELECT
+        marker.encounter_dim_id,
+        criterion.id AS criterion_dim_id,
+        marker.target_guid,
+        marker.applied_at_ms_into_fight AS marker_ms,
+        target_info.player_name AS target_name,
+        COALESCE(
+          lead(marker.applied_at_ms_into_fight) OVER (
+            PARTITION BY marker.encounter_dim_id, criterion.id
+            ORDER BY marker.applied_at_ms_into_fight, marker.target_guid
+          ),
+          marker.applied_at_ms_into_fight + 15000
+        ) AS next_marker_ms,
+        criterion.threshold,
+        CASE
+          WHEN COALESCE(criterion.threshold->>'max_safe_hit_count', '') ~ '^[0-9]+$'
+            THEN (criterion.threshold->>'max_safe_hit_count')::integer
+          ELSE 0
+        END AS max_safe_hit_count,
+        ARRAY(
+          SELECT jsonb_array_elements_text(
+            COALESCE(criterion.threshold->'allowed_collateral_roles', '[]'::jsonb)
+          )
+        ) AS allowed_collateral_roles
+      FROM silver.debuff_application marker
+      JOIN gold.dim_mechanic_criterion criterion
+        ON criterion.id = ANY($2::bigint[])
+       AND criterion.mechanic_type = 'targeted_cone'
+       AND marker.spell_id = (criterion.threshold->>'target_marker_spell_id')::integer
+      LEFT JOIN silver.player_info target_info
+        ON target_info.encounter_dim_id = marker.encounter_dim_id
+       AND target_info.player_guid = marker.target_guid
+      WHERE marker.encounter_dim_id = $1
+    ),
+    targeted_cone_hit_rows AS (
+      SELECT
+        marker.encounter_dim_id,
+        marker.criterion_dim_id,
+        marker.target_guid AS assigned_target_guid,
+        marker.target_name AS assigned_target_name,
+        marker.marker_ms,
+        marker.max_safe_hit_count,
+        marker.allowed_collateral_roles,
+        hit.target_guid AS hit_target_guid,
+        COALESCE(pi.player_name, hit.target_name) AS hit_player_name,
+        COALESCE(pi.detected_role, 'unknown') AS hit_role,
+        hit.amount::bigint AS damage_amount
+      FROM targeted_cone_markers marker
+      JOIN silver.damage_taken_event hit
+        ON hit.encounter_dim_id = marker.encounter_dim_id
+       AND hit.spell_id IN (
+         SELECT jsonb_array_elements_text(marker.threshold->'impact_spell_ids')::integer
+       )
+       AND hit.occurred_at_ms_into_fight >= marker.marker_ms
+       AND hit.occurred_at_ms_into_fight < marker.next_marker_ms
+      LEFT JOIN silver.player_info pi
+        ON pi.encounter_dim_id = hit.encounter_dim_id
+       AND pi.player_guid = hit.target_guid
+
+      UNION ALL
+
+      SELECT
+        marker.encounter_dim_id,
+        marker.criterion_dim_id,
+        marker.target_guid AS assigned_target_guid,
+        marker.target_name AS assigned_target_name,
+        marker.marker_ms,
+        marker.max_safe_hit_count,
+        marker.allowed_collateral_roles,
+        debuff.target_guid AS hit_target_guid,
+        pi.player_name AS hit_player_name,
+        COALESCE(pi.detected_role, 'unknown') AS hit_role,
+        0::bigint AS damage_amount
+      FROM targeted_cone_markers marker
+      JOIN silver.debuff_application debuff
+        ON debuff.encounter_dim_id = marker.encounter_dim_id
+       AND debuff.spell_id IN (
+         SELECT jsonb_array_elements_text(
+           COALESCE(marker.threshold->'hit_debuff_spell_ids', '[]'::jsonb)
+         )::integer
+       )
+       AND debuff.applied_at_ms_into_fight >= marker.marker_ms
+       AND debuff.applied_at_ms_into_fight < marker.next_marker_ms
+      LEFT JOIN silver.player_info pi
+        ON pi.encounter_dim_id = debuff.encounter_dim_id
+       AND pi.player_guid = debuff.target_guid
+    ),
+    hit_players AS (
+      SELECT
+        criterion_dim_id,
+        marker_ms,
+        hit_target_guid,
+        max(hit_player_name) AS hit_player_name,
+        max(hit_role) AS hit_role,
+        sum(damage_amount)::bigint AS damage_amount
+      FROM targeted_cone_hit_rows
+      GROUP BY criterion_dim_id, marker_ms, hit_target_guid
+    ),
+    cone_events AS (
+      SELECT
+        rows.criterion_dim_id,
+        rows.assigned_target_guid,
+        max(rows.assigned_target_name) AS assigned_target_name,
+        rows.marker_ms,
+        max(rows.max_safe_hit_count) AS max_safe_hit_count,
+        count(DISTINCT rows.hit_target_guid)::integer AS hit_count,
+        count(DISTINCT rows.hit_target_guid) FILTER (
+          WHERE rows.hit_target_guid <> rows.assigned_target_guid
+            AND NOT (rows.hit_role = ANY(rows.allowed_collateral_roles))
+        )::integer AS collateral_count,
+        sum(rows.damage_amount)::bigint AS total_damage
+      FROM targeted_cone_hit_rows rows
+      GROUP BY
+        rows.criterion_dim_id,
+        rows.assigned_target_guid,
+        rows.marker_ms,
+        rows.allowed_collateral_roles
+    )
+    SELECT
+      event.criterion_dim_id,
+      event.assigned_target_guid,
+      event.assigned_target_name,
+      event.marker_ms,
+      event.hit_count,
+      event.collateral_count,
+      event.total_damage,
+      'medium' AS confidence,
+      jsonb_agg(
+        jsonb_build_object(
+          'player_guid', hit.hit_target_guid,
+          'player_name', hit.hit_player_name,
+          'detected_role', hit.hit_role,
+          'total_damage', hit.damage_amount
+        )
+        ORDER BY hit.damage_amount DESC, hit.hit_player_name, hit.hit_target_guid
+      ) AS hit_players
+    FROM cone_events event
+    JOIN hit_players hit
+      ON hit.criterion_dim_id = event.criterion_dim_id
+     AND hit.marker_ms = event.marker_ms
+    WHERE GREATEST(event.hit_count, event.collateral_count) > event.max_safe_hit_count
+    GROUP BY
+      event.criterion_dim_id,
+      event.assigned_target_guid,
+      event.assigned_target_name,
+      event.marker_ms,
+      event.hit_count,
+      event.collateral_count,
+      event.total_damage
+    ORDER BY event.marker_ms
+    """
+
+    %{rows: rows} = Repo.query!(sql, [encounter_dim_id, criterion_ids])
+
+    rows
+    |> Enum.map(fn [
+                     criterion_dim_id,
+                     target_guid,
+                     target_name,
+                     marker_ms,
+                     hit_count,
+                     collateral_count,
+                     total_damage,
+                     confidence,
+                     hit_players
+                   ] ->
+      %{
+        criterion_dim_id: criterion_dim_id,
+        target_guid: target_guid,
+        target_name: target_name,
+        marker_ms: marker_ms,
+        hit_count: hit_count,
+        collateral_count: collateral_count,
+        total_damage: total_damage,
+        confidence: confidence,
+        hit_players: normalize_jsonb_list(hit_players)
+      }
+    end)
+    |> Enum.group_by(& &1.criterion_dim_id)
+  end
+
+  defp normalize_jsonb_list(values) when is_list(values), do: values
+  defp normalize_jsonb_list(_values), do: []
+
   defp failure_preview_diagnostics(_encounter_dim_id, [_mechanic | _mechanics]), do: []
 
   defp failure_preview_diagnostics(encounter_dim_id, []) do
@@ -250,8 +469,8 @@ defmodule WeGoNext.Gold.EncounterDetail do
         [
           %{
             severity: :blocked,
-            title: "No synced current-tier mechanics",
-            body: "Sync current-tier mechanics and rebuild failures before reviewing this pull."
+            title: "No mechanic definitions found",
+            body: "Add code-defined mechanics for this encounter before reviewing failures."
           }
         ]
 
@@ -260,8 +479,7 @@ defmodule WeGoNext.Gold.EncounterDetail do
           %{
             severity: :warning,
             title: "No player damage rows",
-            body:
-              "This encounter has no silver damage taken rows. Force reimport if silver projection changed."
+            body: "This pull has no imported player damage taken rows."
           }
         ]
 
@@ -271,11 +489,178 @@ defmodule WeGoNext.Gold.EncounterDetail do
             severity: :info,
             title: "No matched failures",
             body:
-              "Damage rows exist, but none matched synced avoidable mechanics for this encounter. This can mean the pull was clean for supported mechanics or the catalog spell IDs do not match the log."
+              "Damage rows exist, but none matched avoidable mechanics for this encounter. This can mean the pull was clean for supported mechanics or the catalog spell IDs do not match the log."
           }
         ]
     end
   end
+
+  defp pull_review(%DimEncounter{} = encounter, roster) do
+    damage_done = damage_done_meter(encounter, roster)
+
+    %{
+      damage_done: damage_done,
+      low_dps: low_dps_players(damage_done),
+      damage_taken_spells: damage_taken_spells(encounter.id),
+      debuffs: debuffs(encounter.id)
+    }
+  end
+
+  defp damage_done_meter(%DimEncounter{} = encounter, roster) do
+    death_summaries =
+      Death
+      |> where([death], death.encounter_dim_id == ^encounter.id)
+      |> group_by([death], death.target_guid)
+      |> select([death], %{
+        target_guid: death.target_guid,
+        death_count: count(death.id),
+        first_death_ms: min(death.died_at_ms_into_fight)
+      })
+      |> Repo.all()
+      |> Map.new(fn row ->
+        {row.target_guid,
+         %{
+           death_count: integer_value(row.death_count),
+           first_death_ms: nullable_integer_value(row.first_death_ms)
+         }}
+      end)
+
+    totals =
+      DamageDone
+      |> where([damage], damage.encounter_dim_id == ^encounter.id)
+      |> group_by([damage], damage.source_guid)
+      |> select([damage], %{
+        source_guid: damage.source_guid,
+        total_damage: coalesce(sum(damage.total_amount), 0),
+        hit_count: coalesce(sum(damage.hit_count), 0),
+        max_hit: coalesce(max(damage.max_hit), 0)
+      })
+      |> Repo.all()
+      |> Map.new(fn row -> {row.source_guid, row} end)
+
+    fight_seconds = max(div(integer_value(encounter.fight_time_ms), 1000), 1)
+
+    roster
+    |> Enum.map(fn player ->
+      total = Map.get(totals, player.player_guid)
+      death_summary = Map.get(death_summaries, player.player_guid, %{})
+      total_damage = integer_value(total && total.total_damage)
+      first_death_ms = Map.get(death_summary, :first_death_ms)
+
+      %{
+        player_guid: player.player_guid,
+        player_name: player.player_name,
+        class_id: player.class_id,
+        spec_id: player.spec_id,
+        detected_role: player.detected_role,
+        total_damage: total_damage,
+        dps: div(total_damage, fight_seconds),
+        hit_count: integer_value(total && total.hit_count),
+        max_hit: integer_value(total && total.max_hit),
+        death_count: Map.get(death_summary, :death_count, 0),
+        first_death_ms: first_death_ms,
+        early_death: early_death_for_damage_warning?(first_death_ms, encounter.fight_time_ms)
+      }
+    end)
+    |> Enum.sort_by(&{-&1.total_damage, role_rank(&1.detected_role), &1.player_name || ""})
+  end
+
+  defp low_dps_players(damage_done) do
+    eligible =
+      Enum.filter(damage_done, fn player ->
+        player.detected_role in ["dps", "healer"] and not player.early_death and player.dps > 0
+      end)
+
+    median = median(Enum.map(eligible, & &1.dps))
+
+    if median > 0 do
+      eligible
+      |> Enum.filter(&(&1.dps < median * @low_damage_warning_median_ratio))
+      |> Enum.map(&Map.put(&1, :percent_of_median, Float.round(&1.dps / median * 100, 1)))
+      |> Enum.sort_by(& &1.dps)
+    else
+      []
+    end
+  end
+
+  defp early_death_for_damage_warning?(nil, _fight_time_ms), do: false
+
+  defp early_death_for_damage_warning?(first_death_ms, fight_time_ms) do
+    first_death_ms < integer_value(fight_time_ms) * @early_death_damage_warning_cutoff_ratio
+  end
+
+  defp median([]), do: 0
+
+  defp median(values) do
+    sorted = Enum.sort(values)
+    count = length(sorted)
+    middle = div(count, 2)
+
+    if rem(count, 2) == 1 do
+      Enum.at(sorted, middle)
+    else
+      (Enum.at(sorted, middle - 1) + Enum.at(sorted, middle)) / 2
+    end
+  end
+
+  defp damage_taken_spells(encounter_dim_id) do
+    DamageTakenEvent
+    |> where([event], event.encounter_dim_id == ^encounter_dim_id)
+    |> group_by([event], [event.spell_id, event.spell_name])
+    |> select([event], %{
+      spell_id: event.spell_id,
+      spell_name: event.spell_name,
+      total_damage: coalesce(sum(event.amount), 0),
+      hits: count(event.id),
+      players_hit: count(event.target_guid, :distinct),
+      max_hit: coalesce(max(event.amount), 0),
+      first_seen_ms: min(event.occurred_at_ms_into_fight)
+    })
+    |> Repo.all()
+    |> Enum.map(fn row ->
+      row
+      |> Map.update!(:total_damage, &integer_value/1)
+      |> Map.update!(:hits, &integer_value/1)
+      |> Map.update!(:players_hit, &integer_value/1)
+      |> Map.update!(:max_hit, &integer_value/1)
+      |> Map.update!(:spell_name, fn name -> name || spell_name(row.spell_id) end)
+    end)
+    |> Enum.sort_by(&{-&1.total_damage, &1.spell_name || "", &1.spell_id || 0})
+  end
+
+  defp debuffs(encounter_dim_id) do
+    rows =
+      DebuffApplication
+      |> where([debuff], debuff.encounter_dim_id == ^encounter_dim_id)
+      |> group_by([debuff], [debuff.spell_id, debuff.source_guid])
+      |> select([debuff], %{
+        spell_id: debuff.spell_id,
+        source_guid: debuff.source_guid,
+        applications: count(debuff.id),
+        players_hit: count(debuff.target_guid, :distinct),
+        max_stack_count: coalesce(max(debuff.stack_count), 0),
+        first_seen_ms: min(debuff.applied_at_ms_into_fight)
+      })
+      |> Repo.all()
+      |> Enum.map(fn row ->
+        row
+        |> Map.put(:spell_name, spell_name(row.spell_id))
+        |> Map.put(:source_type, debuff_source_type(row.source_guid))
+        |> Map.update!(:applications, &integer_value/1)
+        |> Map.update!(:players_hit, &integer_value/1)
+        |> Map.update!(:max_stack_count, &integer_value/1)
+      end)
+      |> Enum.sort_by(&{-&1.applications, &1.spell_name || "", &1.spell_id || 0})
+
+    %{
+      all: rows,
+      boss: Enum.reject(rows, &(&1.source_type == :player)),
+      player: Enum.filter(rows, &(&1.source_type == :player))
+    }
+  end
+
+  defp debuff_source_type("Player-" <> _rest), do: :player
+  defp debuff_source_type(_source_guid), do: :encounter
 
   defp active_mechanic_count(%DimEncounter{} = encounter) do
     wow_encounter_id = encounter.wow_encounter_id

@@ -34,11 +34,14 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:counts, detail.counts)
          |> assign(:roster, detail.roster)
          |> assign(:deaths, detail.deaths)
+         |> assign(:pull_review, detail.pull_review)
          |> assign(:failure_preview, detail.failure_preview)
          |> assign(:interrupt_coverage, detail.interrupt_coverage)
          |> assign(:observed_mechanics, observed_mechanics)
          |> assign_personal_summary(detail.personal_pull_summary)
-         |> assign(:active_tab, active_tab)}
+         |> assign(:active_tab, active_tab)
+         |> assign(:show_untagged_mechanics, false)
+         |> assign(:show_player_debuffs, false)}
 
       {:error, reason} ->
         {:ok,
@@ -50,11 +53,19 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:counts, %{})
          |> assign(:roster, [])
          |> assign(:deaths, [])
+         |> assign(:pull_review, %{
+           damage_done: [],
+           low_dps: [],
+           damage_taken_spells: [],
+           debuffs: %{boss: [], player: [], all: []}
+         })
          |> assign(:failure_preview, %{mechanics: [], diagnostics: [], counts: %{failures: 0}})
          |> assign(:interrupt_coverage, %{spell_coverage: [], player_contributions: []})
          |> assign(:observed_mechanics, %{mechanics: [], counts: %{observed_spells: 0}})
          |> assign_personal_summary(%{selected_player_guid: nil, players: []})
          |> assign(:active_tab, active_tab)
+         |> assign(:show_untagged_mechanics, false)
+         |> assign(:show_player_debuffs, false)
          |> assign(:error, not_found_message(reason))}
     end
   end
@@ -75,6 +86,16 @@ defmodule WeGoNextWeb.EncounterLive.Show do
        :selected_personal_player,
        selected_personal_player(socket.assigns.personal_pull_summary.players, player_guid)
      )}
+  end
+
+  @impl true
+  def handle_event("toggle_untagged_mechanics", _params, socket) do
+    {:noreply, update(socket, :show_untagged_mechanics, &(!&1))}
+  end
+
+  @impl true
+  def handle_event("toggle_player_debuffs", _params, socket) do
+    {:noreply, update(socket, :show_player_debuffs, &(!&1))}
   end
 
   @impl true
@@ -104,7 +125,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
           <.back navigate={~p"/"}>Back to encounters</.back>
           <h1 class="mt-3 text-2xl font-bold text-wow-gold">{@encounter.name}</h1>
           <p class="mt-1 text-sm text-zinc-400">
-            Encounter detail for imported pull #{@encounter.id}.
+            Encounter detail for imported pull #{@encounter.id} &middot; Started {format_datetime(@encounter.start_time)}
           </p>
         </div>
 
@@ -113,14 +134,45 @@ defmodule WeGoNextWeb.EncounterLive.Show do
         </.link>
       </div>
 
+      <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <.pull_stat
+          label="Deaths"
+          value={to_string(@counts.deaths || 0)}
+          tone={if @counts.deaths > 0, do: :danger, else: :ok}
+        />
+        <.pull_stat
+          label="Failures"
+          value={to_string(@failure_preview.counts.failures || 0)}
+          tone={if @failure_preview.counts.failures > 0, do: :danger, else: :ok}
+        />
+        <.pull_stat
+          label="Missed Kicks"
+          value={to_string(missed_interrupt_count(@interrupt_coverage))}
+          tone={if missed_interrupt_count(@interrupt_coverage) > 0, do: :warning, else: :ok}
+        />
+        <.pull_stat
+          label="Damage Done"
+          value={format_number(total_damage_done(@pull_review.damage_done))}
+          tone={:neutral}
+        />
+        <.pull_stat
+          label="Low Damage"
+          value={to_string(length(@pull_review.low_dps))}
+          tone={if @pull_review.low_dps == [], do: :ok, else: :warning}
+        />
+      </section>
+
       <nav class="border-b border-zinc-700">
         <div class="flex gap-5 overflow-x-auto">
           <.tab_button tab={:overview} active={@active_tab}>Overview</.tab_button>
           <.tab_button tab={:mechanics} active={@active_tab} count={@observed_mechanics.counts.observed_spells}>
             Mechanics
           </.tab_button>
+          <.tab_button tab={:damage} active={@active_tab} count={length(@pull_review.low_dps)}>
+            Damage
+          </.tab_button>
           <.tab_button tab={:failures} active={@active_tab} count={@failure_preview.counts.failures}>
-            Failure Preview
+            Failures
           </.tab_button>
           <.tab_button tab={:deaths} active={@active_tab} count={@counts.deaths}>Death Recap</.tab_button>
           <.tab_button tab={:interrupts} active={@active_tab} count={@counts.interrupt_opportunities}>
@@ -155,7 +207,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
             <.count_item label="Interrupt Opportunities" value={@counts.interrupt_opportunities} />
             <.count_item label="Debuffs" value={@counts.debuff_applications} />
             <.count_item label="Defensive Windows" value={@counts.defensive_buff_windows} />
-            <.count_item label="Tracked Failures" value={@counts.failure_facts} />
+            <.count_item label="Mechanic Failures" value={@counts.failure_facts} />
           </div>
         </section>
 
@@ -202,65 +254,328 @@ defmodule WeGoNextWeb.EncounterLive.Show do
         </section>
       </div>
 
-      <section :if={@active_tab == :mechanics} class="space-y-6">
+      <section :if={@active_tab == :damage} class="space-y-6">
         <div class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-            Observed Mechanics
-          </h2>
-          <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <.count_item label="Seen In Log" value={@observed_mechanics.counts.observed_spells || 0} />
-            <.count_item label="With Failures" value={@observed_mechanics.counts.producing_failures || 0} />
-            <.count_item label="Tracked" value={@observed_mechanics.counts.active_criteria || 0} />
-            <.count_item label="Code Defined" value={@observed_mechanics.counts.code_defined || 0} />
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                Damage
+              </h2>
+              <p class="mt-2 text-sm text-zinc-400">
+                Damage done ranking and low damage warnings for players who stayed alive long enough to evaluate.
+              </p>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-right text-xs text-zinc-500">
+              <div>
+                <div class="font-mono text-base text-zinc-100">
+                  {format_number(total_damage_done(@pull_review.damage_done))}
+                </div>
+                <div>damage</div>
+              </div>
+              <div>
+                <div class="font-mono text-base text-zinc-100">
+                  {length(@pull_review.damage_done)}
+                </div>
+                <div>players</div>
+              </div>
+              <div>
+                <div class="font-mono text-base text-zinc-100">
+                  {length(@pull_review.low_dps)}
+                </div>
+                <div>warnings</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="rounded-lg border border-zinc-700 bg-zinc-800">
+        <section class="rounded-lg border border-zinc-700 bg-zinc-800">
           <div class="border-b border-zinc-700 px-4 py-3">
             <h3 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-              Encounter Spells
+              Low Damage Warnings
             </h3>
           </div>
 
-          <div :if={@observed_mechanics.mechanics == []} class="px-4 py-6 text-sm text-zinc-400">
-            No observed mechanics exist for this pull yet.
+          <div :if={@pull_review.low_dps == []} class="px-4 py-6 text-sm text-zinc-400">
+            No low damage warnings for this pull.
           </div>
 
-          <div :if={@observed_mechanics.mechanics != []} class="overflow-x-auto">
+          <div :if={@pull_review.low_dps != []} class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="border-b border-zinc-700 text-left text-xs uppercase tracking-wide text-zinc-500">
+                  <th class="px-4 py-2">Player</th>
+                  <th class="px-4 py-2">Role</th>
+                  <th class="px-4 py-2 text-right">DPS</th>
+                  <th class="px-4 py-2 text-right">Median Share</th>
+                  <th class="px-4 py-2 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={player <- @pull_review.low_dps} class="border-b border-zinc-700/60 last:border-0">
+                  <td class="px-4 py-3">
+                    <div class="font-medium" style={player_class_style(player.class_id)}>
+                      {player.player_name || player.player_guid}
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-zinc-300">
+                    {format_role(player.detected_role, player.spec_id)}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                    {format_number(player.dps)}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-yellow-200">
+                    {player.percent_of_median}%
+                  </td>
+                  <td class="px-4 py-3 text-right text-sm text-zinc-300">
+                    {damage_done_status(player)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-zinc-700 bg-zinc-800">
+          <div class="border-b border-zinc-700 px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              Damage Done Ranking
+            </h3>
+          </div>
+
+          <div :if={@pull_review.damage_done == []} class="px-4 py-6 text-sm text-zinc-400">
+            No damage meter rows exist for this pull.
+          </div>
+
+          <div :if={@pull_review.damage_done != []} class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="border-b border-zinc-700 text-left text-xs uppercase tracking-wide text-zinc-500">
+                  <th class="px-4 py-2">Player</th>
+                  <th class="px-4 py-2">Role</th>
+                  <th class="px-4 py-2 text-right">DPS</th>
+                  <th class="px-4 py-2 text-right">Total</th>
+                  <th class="px-4 py-2 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={player <- @pull_review.damage_done} class="border-b border-zinc-700/60 last:border-0">
+                  <td class="px-4 py-3">
+                    <div class="font-medium" style={player_class_style(player.class_id)}>
+                      {player.player_name || player.player_guid}
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-zinc-300">
+                    {format_role(player.detected_role, player.spec_id)}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                    {format_number(player.dps)}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                    {format_number(player.total_damage)}
+                  </td>
+                  <td class="px-4 py-3 text-right text-sm text-zinc-300">
+                    {damage_done_status(player)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section :if={@active_tab == :mechanics} class="space-y-6">
+        <div class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+                Pull Review
+              </h2>
+              <p class="mt-2 text-sm text-zinc-400">
+                Fast between-pull view of failures, debuffs, and encounter spells.
+              </p>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-right text-xs text-zinc-500">
+              <div>
+                <div class="font-mono text-base text-zinc-100">
+                  {tagged_mechanic_count(@observed_mechanics.mechanics)}
+                </div>
+                <div>tagged</div>
+              </div>
+              <div>
+                <div class="font-mono text-base text-zinc-100">
+                  {untagged_mechanic_count(@observed_mechanics.mechanics)}
+                </div>
+                <div>untagged</div>
+              </div>
+              <div>
+                <div class="font-mono text-base text-zinc-100">
+                  {@failure_preview.counts.failures || 0}
+                </div>
+                <div>failures</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section class="rounded-lg border border-zinc-700 bg-zinc-800">
+          <div class="border-b border-zinc-700 px-4 py-3">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              Damage Taken
+            </h3>
+          </div>
+
+          <div :if={@pull_review.damage_taken_spells == []} class="px-4 py-6 text-sm text-zinc-400">
+            No damage taken rows exist for this pull.
+          </div>
+
+          <div :if={@pull_review.damage_taken_spells != []} class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="border-b border-zinc-700 text-left text-xs uppercase tracking-wide text-zinc-500">
+                  <th class="px-4 py-2">Ability</th>
+                  <th class="px-4 py-2">Category</th>
+                  <th class="px-4 py-2 text-right">Damage</th>
+                  <th class="px-4 py-2 text-right">Hits</th>
+                  <th class="px-4 py-2 text-right">Players</th>
+                  <th class="px-4 py-2 text-right">Max Hit</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={spell <- @pull_review.damage_taken_spells} class="border-b border-zinc-700/60 last:border-0">
+                  <td class="px-4 py-3">
+                    <div class="font-medium text-zinc-100">
+                      <.wowhead_link spell_id={spell.spell_id} name={spell.spell_name} />
+                    </div>
+                    <div class="text-xs text-zinc-500">Spell {spell.spell_id}</div>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class={mechanic_tag_class(mechanic_for_spell(@observed_mechanics.mechanics, spell.spell_id))}>
+                      {mechanic_tag_label(mechanic_for_spell(@observed_mechanics.mechanics, spell.spell_id))}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                    {format_number(spell.total_damage)}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">{spell.hits}</td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                    {spell.players_hit}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                    {format_number(spell.max_hit)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-zinc-700 bg-zinc-800">
+          <div class="flex flex-col gap-3 border-b border-zinc-700 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              Debuffs
+            </h3>
+            <label class="flex items-center gap-2 text-sm text-zinc-400">
+              <input
+                type="checkbox"
+                checked={@show_player_debuffs}
+                phx-click="toggle_player_debuffs"
+                class="rounded border-zinc-600 bg-zinc-700 text-wow-gold focus:ring-wow-gold focus:ring-offset-zinc-900"
+              />
+              Show player-applied debuffs
+            </label>
+          </div>
+
+          <div :if={visible_debuffs(@pull_review.debuffs, @show_player_debuffs) == []} class="px-4 py-6 text-sm text-zinc-400">
+            No debuffs match the current filter.
+          </div>
+
+          <div :if={visible_debuffs(@pull_review.debuffs, @show_player_debuffs) != []} class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="border-b border-zinc-700 text-left text-xs uppercase tracking-wide text-zinc-500">
+                  <th class="px-4 py-2">Debuff</th>
+                  <th class="px-4 py-2">Source</th>
+                  <th class="px-4 py-2 text-right">Applications</th>
+                  <th class="px-4 py-2 text-right">Players</th>
+                  <th class="px-4 py-2 text-right">Max Stacks</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={debuff <- visible_debuffs(@pull_review.debuffs, @show_player_debuffs)} class="border-b border-zinc-700/60 last:border-0">
+                  <td class="px-4 py-3">
+                    <div class="font-medium text-zinc-100">
+                      <.wowhead_link spell_id={debuff.spell_id} name={debuff.spell_name} />
+                    </div>
+                    <div class="text-xs text-zinc-500">Spell {debuff.spell_id}</div>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-zinc-300">{format_debuff_source(debuff)}</td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                    {debuff.applications}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                    {debuff.players_hit}
+                  </td>
+                  <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
+                    {debuff.max_stack_count}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-zinc-700 bg-zinc-800">
+          <div class="flex flex-col gap-3 border-b border-zinc-700 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+              Encounter Spells
+            </h3>
+            <label class="flex items-center gap-2 text-sm text-zinc-400">
+              <input
+                type="checkbox"
+                checked={@show_untagged_mechanics}
+                phx-click="toggle_untagged_mechanics"
+                class="rounded border-zinc-600 bg-zinc-700 text-wow-gold focus:ring-wow-gold focus:ring-offset-zinc-900"
+              />
+              Show untagged/noise
+            </label>
+          </div>
+
+          <div :if={visible_mechanics(@observed_mechanics.mechanics, @show_untagged_mechanics) == []} class="px-4 py-6 text-sm text-zinc-400">
+            No encounter spells match the current filter.
+          </div>
+
+          <div :if={visible_mechanics(@observed_mechanics.mechanics, @show_untagged_mechanics) != []} class="overflow-x-auto">
             <table class="w-full">
               <thead>
                 <tr class="border-b border-zinc-700 text-left text-xs uppercase tracking-wide text-zinc-500">
                   <th class="px-4 py-2">Spell</th>
-                  <th class="px-4 py-2">Tracking</th>
+                  <th class="px-4 py-2">Category</th>
                   <th class="px-4 py-2 text-right">Damage</th>
-                  <th class="px-4 py-2 text-right">Hits</th>
+                  <th class="px-4 py-2 text-right">Events</th>
                   <th class="px-4 py-2 text-right">Players</th>
-                  <th class="px-4 py-2">Seen</th>
-                  <th class="px-4 py-2">Notes</th>
+                  <th class="px-4 py-2">Seen As</th>
                 </tr>
               </thead>
               <tbody>
-                <tr :for={mechanic <- @observed_mechanics.mechanics} class="border-b border-zinc-700/60 last:border-0">
+                <tr
+                  :for={mechanic <- visible_mechanics(@observed_mechanics.mechanics, @show_untagged_mechanics)}
+                  class="border-b border-zinc-700/60 last:border-0"
+                >
                   <td class="px-4 py-3">
                     <div class="font-medium text-zinc-100">
                       <.wowhead_link spell_id={mechanic.spell_id} name={mechanic.spell_name} />
                     </div>
                     <div class="text-xs text-zinc-500">
                       Spell {mechanic.spell_id}
-                      <span :if={mechanic.catalog}>&bull; {mechanic.catalog.boss_name}</span>
-                    </div>
-                    <div :if={mechanic.catalog} class="mt-1 text-xs text-zinc-400">
-                      {format_mechanic_type(mechanic.catalog.mechanic_type)}
-                      <span class="text-zinc-600">&bull;</span>
-                      {format_mechanic_type(mechanic.catalog.event)}
+                      <span :if={mechanic.boss_name}>&bull; {mechanic.boss_name}</span>
                     </div>
                   </td>
                   <td class="px-4 py-3">
-                    <span class={mechanic_status_class(mechanic.rule_status)}>
-                      {mechanic_status_label(mechanic.rule_status)}
+                    <span class={mechanic_tag_class(mechanic)}>
+                      {mechanic_tag_label(mechanic)}
                     </span>
-                    <div :if={mechanic.criteria != []} class="mt-1 text-xs text-zinc-500">
-                      {length(mechanic.criteria)} definition{plural(length(mechanic.criteria))}
+                    <div :if={mechanic.facts.failure_count > 0} class="mt-1 text-xs text-red-300">
+                      {mechanic.facts.failure_count} failure{plural(mechanic.facts.failure_count)}
                     </div>
                   </td>
                   <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
@@ -273,31 +588,19 @@ defmodule WeGoNextWeb.EncounterLive.Show do
                     {mechanic_player_count(mechanic)}
                   </td>
                   <td class="px-4 py-3 text-sm text-zinc-300">
-                    <div>{format_observed_channels(mechanic)}</div>
-                    <div :if={mechanic.facts.failure_count > 0} class="mt-1 text-xs text-red-300">
-                      {mechanic.facts.failure_count} failure{plural(mechanic.facts.failure_count)}
-                      <span :if={mechanic.facts.failed_player_count > 0}>
-                        across {mechanic.facts.failed_player_count} player{plural(mechanic.facts.failed_player_count)}
-                      </span>
-                    </div>
-                  </td>
-                  <td class="px-4 py-3 text-sm text-zinc-400">
-                    <div :if={mechanic.diagnostics == []}>No action needed</div>
-                    <ul :if={mechanic.diagnostics != []} class="space-y-1">
-                      <li :for={diagnostic <- mechanic.diagnostics}>{diagnostic}</li>
-                    </ul>
+                    {format_observed_channels(mechanic)}
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
       </section>
 
       <section :if={@active_tab == :failures} class="space-y-6">
         <div class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
           <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
-            Failure Preview
+            Failures
           </h2>
           <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <.count_item label="Mechanics" value={@failure_preview.counts.mechanics || 0} />
@@ -318,7 +621,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
         </div>
 
         <div :if={@failure_preview.mechanics == [] and @failure_preview.diagnostics == []} class="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-6 text-sm text-zinc-400">
-          No tracked failures exist for this pull.
+          No mechanic failures exist for this pull.
         </div>
 
         <section
@@ -374,6 +677,57 @@ defmodule WeGoNextWeb.EncounterLive.Show do
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <div
+            :if={Map.get(mechanic, :targeted_cone_events, []) != []}
+            class="border-t border-zinc-700 px-4 py-3"
+          >
+            <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Cone Events
+            </div>
+            <div class="mt-3 space-y-3">
+              <div
+                :for={event <- mechanic.targeted_cone_events}
+                class="rounded border border-zinc-700/80 bg-zinc-900/40 p-3"
+              >
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div class="text-sm text-zinc-300">
+                      Target:
+                      <span class="font-medium text-zinc-100">
+                        {event.target_name || event.target_guid}
+                      </span>
+                    </div>
+                    <div class="mt-1 text-xs font-mono text-zinc-500">{event.target_guid}</div>
+                  </div>
+                  <div class="text-sm text-zinc-400 sm:text-right">
+                    <span class="font-semibold text-zinc-100">{event.hit_count}</span>
+                    hit
+                    <span class="text-zinc-600">&bull;</span>
+                    <span class="font-semibold text-zinc-100">{event.collateral_count}</span>
+                    collateral
+                    <span class="text-zinc-600">&bull;</span>
+                    {format_confidence(event.confidence)}
+                  </div>
+                </div>
+
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <span
+                    :for={hit <- event.hit_players}
+                    class="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-300"
+                  >
+                    {hit["player_name"] || hit["player_guid"]}
+                    <span class="text-zinc-500">
+                      {format_role(hit["detected_role"], nil)}
+                    </span>
+                    <span :if={(hit["total_damage"] || 0) > 0} class="font-mono text-zinc-400">
+                      {format_number(hit["total_damage"])}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </section>
@@ -906,6 +1260,19 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   attr(:label, :string, required: true)
   attr(:value, :string, required: true)
+  attr(:tone, :atom, default: :neutral)
+
+  defp pull_stat(assigns) do
+    ~H"""
+    <div class={["rounded border px-3 py-2", pull_stat_class(@tone)]}>
+      <div class="text-xs font-medium uppercase tracking-wide opacity-75">{@label}</div>
+      <div class="mt-1 text-xl font-semibold">{@value}</div>
+    </div>
+    """
+  end
+
+  attr(:label, :string, required: true)
+  attr(:value, :string, required: true)
 
   defp metric_item(assigns) do
     ~H"""
@@ -917,6 +1284,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   end
 
   defp parse_tab("deaths"), do: :deaths
+  defp parse_tab("damage"), do: :damage
   defp parse_tab("failures"), do: :failures
   defp parse_tab("mechanics"), do: :mechanics
   defp parse_tab("interrupts"), do: :interrupts
@@ -951,6 +1319,85 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     |> String.capitalize()
   end
 
+  defp pull_stat_class(:danger), do: "border-red-800/70 bg-red-950/30 text-red-100"
+  defp pull_stat_class(:warning), do: "border-yellow-800/70 bg-yellow-950/30 text-yellow-100"
+  defp pull_stat_class(:ok), do: "border-emerald-800/70 bg-emerald-950/20 text-emerald-100"
+  defp pull_stat_class(_tone), do: "border-zinc-700 bg-zinc-800 text-zinc-100"
+
+  defp total_damage_done(players) do
+    players |> Enum.map(& &1.total_damage) |> Enum.sum()
+  end
+
+  defp damage_done_status(%{death_count: 0}), do: "Survived"
+
+  defp damage_done_status(%{early_death: true, first_death_ms: first_death_ms}) do
+    "Early death at #{format_ms(first_death_ms)}"
+  end
+
+  defp damage_done_status(%{death_count: death_count, first_death_ms: first_death_ms})
+       when death_count > 0 do
+    "Died at #{format_ms(first_death_ms)}"
+  end
+
+  defp damage_done_status(_player), do: "Unknown"
+
+  defp missed_interrupt_count(%{spell_coverage: spells}) do
+    spells |> Enum.map(&(&1.missed_casts || 0)) |> Enum.sum()
+  end
+
+  defp missed_interrupt_count(_coverage), do: 0
+
+  defp tagged_mechanic_count(mechanics), do: Enum.count(mechanics, &tagged_mechanic?/1)
+  defp untagged_mechanic_count(mechanics), do: Enum.count(mechanics, &(not tagged_mechanic?(&1)))
+
+  defp visible_mechanics(mechanics, true), do: mechanics
+  defp visible_mechanics(mechanics, false), do: Enum.filter(mechanics, &tagged_mechanic?/1)
+
+  defp tagged_mechanic?(mechanic) do
+    not is_nil(mechanic.catalog) or mechanic.criteria != [] or mechanic.facts.failure_count > 0
+  end
+
+  defp mechanic_for_spell(mechanics, spell_id) do
+    Enum.find(mechanics, &(&1.spell_id == spell_id))
+  end
+
+  defp mechanic_tag_label(nil), do: "Untagged"
+
+  defp mechanic_tag_label(%{catalog: %{mechanic_type: type}}), do: format_mechanic_type(type)
+
+  defp mechanic_tag_label(%{criteria: [criterion | _rest]}),
+    do: format_mechanic_type(criterion.mechanic_type)
+
+  defp mechanic_tag_label(%{facts: %{failure_count: failure_count}}) when failure_count > 0,
+    do: "Failure"
+
+  defp mechanic_tag_label(_mechanic), do: "Untagged"
+
+  defp mechanic_tag_class(nil), do: untagged_tag_class()
+
+  defp mechanic_tag_class(%{catalog: %{mechanic_type: _type}}),
+    do: "rounded bg-sky-950 px-2 py-1 text-xs font-medium text-sky-300"
+
+  defp mechanic_tag_class(%{criteria: [_criterion | _rest]}),
+    do: "rounded bg-sky-950 px-2 py-1 text-xs font-medium text-sky-300"
+
+  defp mechanic_tag_class(%{facts: %{failure_count: failure_count}}) when failure_count > 0,
+    do: "rounded bg-red-950 px-2 py-1 text-xs font-medium text-red-300"
+
+  defp mechanic_tag_class(_mechanic), do: untagged_tag_class()
+
+  defp untagged_tag_class,
+    do: "rounded bg-zinc-700 px-2 py-1 text-xs font-medium text-zinc-300"
+
+  defp visible_debuffs(%{boss: boss, all: all}, true),
+    do: Enum.uniq_by(boss ++ all, &{&1.spell_id, &1.source_guid})
+
+  defp visible_debuffs(%{boss: boss}, false), do: boss
+  defp visible_debuffs(_debuffs, _show_player_debuffs), do: []
+
+  defp format_debuff_source(%{source_type: :player}), do: "Player"
+  defp format_debuff_source(_debuff), do: "Encounter"
+
   defp format_value(nil), do: "Unknown"
   defp format_value(value), do: to_string(value)
 
@@ -964,33 +1411,6 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   end
 
   defp format_mechanic_type(type), do: to_string(type)
-
-  defp mechanic_status_label(:producing_failures), do: "Producing failures"
-  defp mechanic_status_label(:active_criterion), do: "Tracked"
-  defp mechanic_status_label(:catalog_tracked), do: "Trackable"
-  defp mechanic_status_label(:catalog_context), do: "Known mechanic"
-  defp mechanic_status_label(:observed_only), do: "Combat-log event"
-  defp mechanic_status_label(status), do: format_mechanic_type(status)
-
-  defp mechanic_status_class(:producing_failures) do
-    "rounded bg-red-950 px-2 py-1 text-xs font-medium text-red-300"
-  end
-
-  defp mechanic_status_class(:active_criterion) do
-    "rounded bg-yellow-950 px-2 py-1 text-xs font-medium text-yellow-300"
-  end
-
-  defp mechanic_status_class(:catalog_tracked) do
-    "rounded bg-amber-950 px-2 py-1 text-xs font-medium text-amber-300"
-  end
-
-  defp mechanic_status_class(:catalog_context) do
-    "rounded bg-sky-950 px-2 py-1 text-xs font-medium text-sky-300"
-  end
-
-  defp mechanic_status_class(_status) do
-    "rounded bg-zinc-700 px-2 py-1 text-xs font-medium text-zinc-300"
-  end
 
   defp mechanic_event_count(mechanic) do
     mechanic.observed.damage_hits + mechanic.observed.debuff_applications +
@@ -1053,6 +1473,11 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   defp format_dangerous_event_type(:failure_damage), do: "Failure damage"
   defp format_dangerous_event_type(:death), do: "Death"
   defp format_dangerous_event_type(type), do: format_mechanic_type(type)
+
+  defp format_confidence("high"), do: "High confidence"
+  defp format_confidence("medium"), do: "Medium confidence"
+  defp format_confidence("low"), do: "Low confidence"
+  defp format_confidence(_confidence), do: "Unknown confidence"
 
   defp format_active_defensives([]), do: "None"
 

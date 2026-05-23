@@ -16,6 +16,7 @@ defmodule WeGoNext.Gold.EncounterDetailTest do
     DamageTaken,
     DamageTakenEvent,
     Death,
+    DebuffApplication,
     DefensiveBuffWindow,
     InterruptOpportunity,
     PlayerInfo
@@ -216,6 +217,101 @@ defmodule WeGoNext.Gold.EncounterDetailTest do
              {"One", 2, 45_000},
              {"Two", 1, 30_000}
            ]
+  end
+
+  test "get enriches targeted cone failures with target and collateral context" do
+    encounter = insert_dim_encounter!()
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-Aimer",
+      player_name: "Aimer",
+      detected_role: "dps"
+    })
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-One",
+      player_name: "One",
+      detected_role: "dps"
+    })
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-Two",
+      player_name: "Two",
+      detected_role: "dps"
+    })
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-Three",
+      player_name: "Three",
+      detected_role: "dps"
+    })
+
+    criterion =
+      insert_failure_criterion!(
+        1_244_221,
+        "Dread Breath",
+        "targeted_cone",
+        %{
+          "target_marker_spell_id" => 1_255_612,
+          "impact_spell_ids" => [1_244_225],
+          "hit_debuff_spell_ids" => [1_255_979],
+          "max_safe_hit_count" => 2,
+          "target_role_policy" => "any",
+          "allowed_collateral_roles" => ["tank"],
+          "position_evidence" => "optional"
+        }
+      )
+
+    insert_player_failure_with_criterion!(
+      encounter,
+      criterion,
+      "Player-Aimer",
+      "Aimer",
+      1,
+      90_000
+    )
+
+    insert_debuff_application!(encounter, "Player-Aimer", 1_255_612, 1_000)
+
+    insert_damage_taken_event!(encounter, %{
+      target_guid: "Player-One",
+      spell_id: 1_244_225,
+      amount: 40_000,
+      occurred_at_ms_into_fight: 8_000
+    })
+
+    insert_damage_taken_event!(encounter, %{
+      target_guid: "Player-Two",
+      spell_id: 1_244_225,
+      amount: 50_000,
+      occurred_at_ms_into_fight: 8_100
+    })
+
+    insert_damage_taken_event!(encounter, %{
+      target_guid: "Player-Three",
+      spell_id: 1_244_225,
+      amount: 60_000,
+      occurred_at_ms_into_fight: 8_200
+    })
+
+    insert_debuff_application!(encounter, "Player-One", 1_255_979, 8_200)
+
+    assert {:ok, %{failure_preview: %{mechanics: [mechanic]}}} = EncounterDetail.get(encounter.id)
+
+    assert mechanic.mechanic_type == "targeted_cone"
+
+    assert [
+             %{
+               target_guid: "Player-Aimer",
+               target_name: "Aimer",
+               hit_count: 3,
+               collateral_count: 3,
+               confidence: "medium",
+               hit_players: hit_players
+             }
+           ] = mechanic.targeted_cone_events
+
+    assert Enum.map(hit_players, & &1["player_name"]) == ["Three", "Two", "One"]
   end
 
   test "get returns selected personal pull summary from configured character name" do
@@ -693,7 +789,12 @@ defmodule WeGoNext.Gold.EncounterDetailTest do
     |> Repo.insert!()
   end
 
-  defp insert_failure_criterion!(spell_id, spell_name) do
+  defp insert_failure_criterion!(
+         spell_id,
+         spell_name,
+         mechanic_type \\ "avoidable",
+         threshold \\ %{"max_hits" => 0}
+       ) do
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(%{
       source_rule_id: System.unique_integer([:positive]),
@@ -701,8 +802,26 @@ defmodule WeGoNext.Gold.EncounterDetailTest do
       ruleset_version: 1,
       spell_id: spell_id,
       spell_name: spell_name,
-      mechanic_type: "avoidable",
-      threshold: %{"max_hits" => 0}
+      mechanic_type: mechanic_type,
+      threshold: threshold
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_debuff_application!(
+         %DimEncounter{} = encounter,
+         target_guid,
+         spell_id,
+         applied_at_ms_into_fight
+       ) do
+    %DebuffApplication{}
+    |> DebuffApplication.changeset(%{
+      encounter_dim_id: encounter.id,
+      target_guid: target_guid,
+      source_guid: "Creature-Boss",
+      spell_id: spell_id,
+      applied_at_ms_into_fight: applied_at_ms_into_fight,
+      stack_count: 1
     })
     |> Repo.insert!()
   end
