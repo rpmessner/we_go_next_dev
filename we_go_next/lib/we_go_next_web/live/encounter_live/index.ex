@@ -39,8 +39,10 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
     imported_logs = list_imported_logs(user.id)
 
+    unimported_log_files = unimported_log_files(log_files, imported_logs)
+
     selected_log =
-      case log_files do
+      case unimported_log_files do
         [single_log] -> single_log.full_path
         _ -> nil
       end
@@ -64,13 +66,12 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:log_path, log_path)
      |> assign(:combat_log_file, combat_log_file)
      |> assign(:log_files, log_files)
+     |> assign(:unimported_log_files, unimported_log_files)
      |> assign(:imported_logs, imported_logs)
      |> assign(:selected_log, selected_log)
      |> assign(:loading, loading)
-     |> assign(:syncing, false)
      |> assign(:error, nil)
-     |> assign(:import_progress, import_progress)
-     |> assign(:confirm_reimport, false)}
+     |> assign(:import_progress, import_progress)}
   end
 
   # ============================================================================
@@ -80,7 +81,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   @impl true
   def handle_event("select_log", params, socket) do
     path = params["log_path"]
-    {:noreply, socket |> assign(:selected_log, path) |> assign(:confirm_reimport, false)}
+    {:noreply, assign(socket, :selected_log, path)}
   end
 
   @impl true
@@ -90,58 +91,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     if path == "" do
       {:noreply, assign(socket, :error, "Please select a log file")}
     else
-      if complete_log?(path, socket.assigns.imported_logs) and not socket.assigns.confirm_reimport do
-        {:noreply, assign(socket, :confirm_reimport, true)}
-      else
-        force_reimport = socket.assigns.confirm_reimport
-        do_import(socket, path, force_reimport: force_reimport)
-      end
-    end
-  end
-
-  @impl true
-  def handle_event("cancel_reimport", _params, socket) do
-    {:noreply, assign(socket, :confirm_reimport, false)}
-  end
-
-  @impl true
-  def handle_event("purge_log", %{"path" => path}, socket) do
-    case Enum.find(socket.assigns.imported_logs, &(&1.file_path == path)) do
-      nil ->
-        {:noreply, assign(socket, :error, "Log not found")}
-
-      log ->
-        Importer.purge_log(log.id)
-
-        socket =
-          if socket.assigns.log_path == path do
-            socket
-            |> assign(:encounter_records, [])
-            |> assign(:log_path, nil)
-            |> assign(:combat_log_file, nil)
-          else
-            socket
-          end
-
-        {:noreply,
-         socket
-         |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-         |> put_flash(:info, "Purged #{Path.basename(path)}")}
-    end
-  end
-
-  @impl true
-  def handle_event("sync_log", _params, socket) do
-    case socket.assigns.log_path do
-      nil ->
-        {:noreply, assign(socket, :error, "No log file loaded")}
-
-      path ->
-        {:noreply,
-         socket
-         |> assign(:syncing, true)
-         |> assign(:error, nil)
-         |> start_async(:sync_log, fn -> EncounterStore.sync_log(path) end)}
+      do_import(socket, path, force_reimport: false)
     end
   end
 
@@ -190,6 +140,11 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     {:noreply, assign(socket, :show_resets, not socket.assigns.show_resets)}
   end
 
+  @impl true
+  def handle_event("reimport_log", %{"path" => path}, socket) do
+    do_import(socket, path, force_reimport: true)
+  end
+
   # ============================================================================
   # Info Handlers (PubSub)
   # ============================================================================
@@ -206,6 +161,8 @@ defmodule WeGoNextWeb.EncounterLive.Index do
          |> assign(:log_path, EncounterStore.current_log_path())
          |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
          |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+         |> assign_unimported_log_files()
+         |> clear_unavailable_selected_log()
          |> put_flash(:info, "Imported #{count} encounters")}
 
       {:error, reason} ->
@@ -219,30 +176,26 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
   @impl true
   def handle_info({:encounters_loaded, _count}, socket) do
-    {:noreply, assign(socket, :encounter_records, EncounterStore.list_encounter_records())}
-  end
-
-  @impl true
-  def handle_info({:analysis_computed, _encounter_id, current, total}, socket) do
-    # Refresh encounter records to get updated analysis status
-    # Only refresh on last analysis or every 5th to avoid excessive updates
-    socket =
-      if current == total or rem(current, 5) == 0 do
-        assign(socket, :encounter_records, EncounterStore.list_encounter_records())
-      else
-        socket
-      end
-
-    {:noreply, socket}
+    {:noreply,
+     socket
+     |> assign(:encounter_records, EncounterStore.list_encounter_records())}
   end
 
   @impl true
   def handle_info({:import_progress, :saving}, socket) do
-    {:noreply, assign(socket, :import_progress, %{percent: 100, encounters_found: socket.assigns.import_progress[:encounters_found] || 0, status: :saving})}
+    {:noreply,
+     assign(socket, :import_progress, %{
+       percent: 100,
+       encounters_found: socket.assigns.import_progress[:encounters_found] || 0,
+       status: :saving
+     })}
   end
 
   @impl true
-  def handle_info({:import_progress, %{bytes_read: bytes, total_bytes: total, encounters_found: found}}, socket) do
+  def handle_info(
+        {:import_progress, %{bytes_read: bytes, total_bytes: total, encounters_found: found}},
+        socket
+      ) do
     percent = if total > 0, do: round(bytes / total * 100), else: 0
     prev_found = socket.assigns.import_progress[:encounters_found] || 0
 
@@ -251,11 +204,18 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         socket
         |> assign(:encounter_records, EncounterStore.list_encounter_records())
         |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+        |> assign_unimported_log_files()
+        |> clear_unavailable_selected_log()
       else
         socket
       end
 
-    {:noreply, assign(socket, :import_progress, %{percent: percent, encounters_found: found, status: :parsing})}
+    {:noreply,
+     assign(socket, :import_progress, %{
+       percent: percent,
+       encounters_found: found,
+       status: :parsing
+     })}
   end
 
   @impl true
@@ -267,41 +227,17 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:combat_log_file, new_clf)
      |> assign(:log_files, reload_log_files(socket.assigns.user))
      |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-     |> put_flash(:info, "Log rotation detected! Switched to #{Path.basename(new_clf.file_path)} (#{count} encounters)")}
+     |> assign_unimported_log_files()
+     |> clear_unavailable_selected_log()
+     |> put_flash(
+       :info,
+       "Log rotation detected! Switched to #{Path.basename(new_clf.file_path)} (#{count} encounters)"
+     )}
   end
 
   # ============================================================================
   # Async Handlers
   # ============================================================================
-
-  @impl true
-  def handle_async(:sync_log, {:ok, result}, socket) do
-    case result do
-      {:ok, count} ->
-        message = if count > 0, do: "Found #{count} new encounters", else: "No new encounters"
-
-        {:noreply,
-         socket
-         |> assign(:syncing, false)
-         |> assign(:encounter_records, EncounterStore.list_encounter_records())
-         |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
-         |> put_flash(:info, message)}
-
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:syncing, false)
-         |> assign(:error, "Failed to sync log: #{inspect(reason)}")}
-    end
-  end
-
-  @impl true
-  def handle_async(:sync_log, {:exit, reason}, socket) do
-    {:noreply,
-     socket
-     |> assign(:syncing, false)
-     |> assign(:error, "Failed to sync log: #{inspect(reason)}")}
-  end
 
   @impl true
   def handle_async(:load_from_db, {:ok, result}, socket) do
@@ -341,22 +277,22 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     <div class="space-y-6">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-wow-gold">WoW Raid Diagnostic Tool</h1>
-        <.link navigate={~p"/settings"} class="text-sm text-zinc-400 hover:text-zinc-200">
-          Settings
-        </.link>
+        <div class="flex items-center gap-4">
+          <.link navigate={~p"/failures"} class="text-sm text-zinc-400 hover:text-zinc-200">
+            Failures
+          </.link>
+          <.link navigate={~p"/settings"} class="text-sm text-zinc-400 hover:text-zinc-200">
+            Settings
+          </.link>
+        </div>
       </div>
 
       <LogSelector.render
         user={@user}
-        log_files={@log_files}
+        log_files={@unimported_log_files}
         selected_log={@selected_log}
-        imported_logs={@imported_logs}
         loading={@loading}
-        syncing={@syncing}
-        confirm_reimport={@confirm_reimport}
         import_progress={@import_progress}
-        log_path={@log_path}
-        combat_log_file={@combat_log_file}
         error={@error}
       />
 
@@ -393,7 +329,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
          |> assign(:loading, true)
          |> assign(:error, nil)
          |> assign(:selected_log, path)
-         |> assign(:confirm_reimport, false)
          |> assign(:import_progress, %{percent: 0, encounters_found: 0, status: :parsing})}
 
       {:already_importing, existing_path} ->
@@ -410,6 +345,30 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     end
   end
 
+  defp assign_unimported_log_files(socket) do
+    assign(
+      socket,
+      :unimported_log_files,
+      unimported_log_files(socket.assigns.log_files, socket.assigns.imported_logs)
+    )
+  end
+
+  defp unimported_log_files(log_files, imported_logs) do
+    imported_paths = MapSet.new(imported_logs, & &1.file_path)
+    Enum.reject(log_files, &MapSet.member?(imported_paths, &1.full_path))
+  end
+
+  defp clear_unavailable_selected_log(socket) do
+    selected_log = socket.assigns.selected_log
+
+    if is_binary(selected_log) and
+         Enum.any?(socket.assigns.unimported_log_files, &(&1.full_path == selected_log)) do
+      socket
+    else
+      assign(socket, :selected_log, nil)
+    end
+  end
+
   defp list_imported_logs(user_id) do
     CombatLogFile
     |> where([clf], clf.user_id == ^user_id)
@@ -421,37 +380,10 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       last_parsed_at: clf.last_parsed_at,
       last_parsed_byte: clf.last_parsed_byte,
       encounter_count: count(e.id),
+      first_encounter_start_at: min(e.start_time),
       is_complete: clf.is_complete
     })
     |> order_by([clf], desc: clf.last_parsed_at)
     |> Repo.all()
-  end
-
-  defp complete_log?(file_path, imported_logs) do
-    case Enum.find(imported_logs, &(&1.file_path == file_path)) do
-      nil ->
-        false
-
-      log ->
-        parsed = log.last_parsed_byte || 0
-        parsed > 0 and not partially_imported?(file_path, imported_logs)
-    end
-  end
-
-  defp partially_imported?(file_path, imported_logs) do
-    case Enum.find(imported_logs, &(&1.file_path == file_path)) do
-      nil ->
-        false
-
-      log ->
-        case File.stat(file_path) do
-          {:ok, %{size: disk_size}} ->
-            parsed = log.last_parsed_byte || 0
-            parsed > 0 and (disk_size - parsed) > 100
-
-          {:error, _} ->
-            false
-        end
-    end
   end
 end

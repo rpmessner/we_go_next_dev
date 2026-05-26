@@ -47,12 +47,21 @@ defmodule WeGoNext.Encounter do
   Completes an encounter with ENCOUNTER_END data.
   """
   def finish(encounter, fields, timestamp) do
-    [_event_type, _encounter_id, _encounter_name, _difficulty_id, _group_size, success, fight_time] = fields
+    [
+      _event_type,
+      _encounter_id,
+      _encounter_name,
+      _difficulty_id,
+      _group_size,
+      success,
+      fight_time
+    ] = fields
 
-    %{encounter |
-      end_time: timestamp,
-      success: success == "1",
-      fight_time_ms: String.to_integer(fight_time)
+    %{
+      encounter
+      | end_time: timestamp,
+        success: success == "1",
+        fight_time_ms: String.to_integer(fight_time)
     }
   end
 
@@ -69,6 +78,7 @@ defmodule WeGoNext.Encounter do
   def fight_time_sec(%__MODULE__{fight_time_ms: ms}) when is_integer(ms) do
     ms / 1000
   end
+
   def fight_time_sec(_), do: 0
 
   @doc "Returns the human-readable difficulty name for a difficulty ID."

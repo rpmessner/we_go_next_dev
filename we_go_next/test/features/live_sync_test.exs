@@ -3,7 +3,7 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
   Integration test that simulates the live combat log sync workflow:
   1. Import initial log with one encounter
   2. Simulate WoW appending a new encounter to the log file
-  3. Click Refresh/Sync to detect the new encounter
+  3. Reimport the log to detect the new encounter
   4. Verify the new encounter appears in the dashboard
 
   This tests Phase 2 and 3 of the Integration Roadmap without needing WoW running.
@@ -11,7 +11,7 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
   use WeGoNextWeb.FeatureCase, async: false
 
   @fixtures_path Path.expand("../fixtures", __DIR__)
-  @base_log_fixture Path.join(@fixtures_path, "WoWCombatLog-112725_120000.txt")
+  @base_log_fixture Path.join(@fixtures_path, "combat_log_base.txt")
   @second_encounter_fixture Path.join(@fixtures_path, "second_encounter.txt")
 
   setup do
@@ -60,11 +60,11 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
 
     take_screenshot(session, name: "sync_03_after_append")
 
-    # Step 3: Click Refresh to sync
-    IO.puts("Clicking Refresh button...")
+    # Step 3: Reimport to parse the appended encounter
+    IO.puts("Clicking Reimport button...")
 
     session
-    |> HomePage.click_refresh()
+    |> HomePage.click_reimport()
 
     Process.sleep(2000)
     take_screenshot(session, name: "sync_04_after_refresh")
@@ -79,13 +79,6 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
 
     IO.puts("After sync: 2 encounters")
     take_screenshot(session, name: "sync_05_verified")
-
-    # Step 5: Click on new encounter and verify details
-    session
-    |> HomePage.click_encounter("Second Boss")
-    |> take_screenshot(name: "sync_06_second_boss_detail")
-    |> EncounterDetailPage.ensure_page_loaded("Second Boss")
-    |> EncounterDetailPage.assert_is_kill()
 
     IO.puts("Live sync test completed successfully!")
   end
@@ -118,7 +111,7 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
     File.write!(temp_log_path, second_encounter_content, [:append])
 
     session
-    |> HomePage.click_refresh()
+    |> HomePage.click_reimport()
 
     Process.sleep(2000)
 
@@ -141,7 +134,7 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
     File.write!(temp_log_path, third_encounter, [:append])
 
     session
-    |> HomePage.click_refresh()
+    |> HomePage.click_reimport()
 
     Process.sleep(2000)
 

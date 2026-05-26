@@ -11,8 +11,8 @@ defmodule WeGoNextWeb.FeatureCase do
       use Wallaby.Feature
 
       alias WeGoNext.Repo
+      alias WeGoNext.Integration.Pages.FailuresPage
       alias WeGoNext.Integration.Pages.HomePage
-      alias WeGoNext.Integration.Pages.EncounterDetailPage
       alias WeGoNext.Integration.Pages.SettingsPage
 
       import Ecto
@@ -21,6 +21,7 @@ defmodule WeGoNextWeb.FeatureCase do
       import WeGoNextWeb.FeatureCase
 
       @fixtures_path Path.expand("../fixtures", __DIR__)
+      @base_log_fixture Path.join(@fixtures_path, "combat_log_base.txt")
 
       def setup_user_with_path(path) do
         user = WeGoNext.Accounts.get_or_create_default_user()
@@ -33,7 +34,20 @@ defmodule WeGoNextWeb.FeatureCase do
       end
 
       def setup_user_with_fixtures do
-        setup_user_with_path(@fixtures_path)
+        temp_dir =
+          Path.join(
+            System.tmp_dir!(),
+            "wgn-feature-fixtures-#{System.unique_integer([:positive])}"
+          )
+
+        File.mkdir_p!(temp_dir)
+
+        @base_log_fixture
+        |> File.cp!(Path.join(temp_dir, "WoWCombatLog-112725_120000.txt"))
+
+        on_exit(fn -> File.rm_rf!(temp_dir) end)
+
+        setup_user_with_path(temp_dir)
       end
     end
   end

@@ -3,8 +3,20 @@ defmodule WeGoNext.Accounts do
   The Accounts context - manages users and their settings.
   """
 
-  alias WeGoNext.Repo
+  require Logger
+
+  alias WeGoNext.{CombatLogFile, FileWatcher, Repo}
   alias WeGoNext.Accounts.User
+  alias WeGoNext.Bronze.{CombatLogReconciler, FileFingerprint}
+
+  @log_sources [
+    %{source: :live, directory: nil, prefix: "WoWCombatLog-"},
+    %{
+      source: :warcraftlogs_archive,
+      directory: "warcraftlogsarchive",
+      prefix: "Archive-WoWCombatLog-"
+    }
+  ]
 
   @doc """
   Gets the default user, creating one if it doesn't exist.
@@ -68,32 +80,18 @@ defmodule WeGoNext.Accounts do
   """
   def list_combat_logs(%User{wow_logs_path: nil}), do: {:error, :no_path_configured}
 
-  def list_combat_logs(%User{wow_logs_path: path}) do
-    list_combat_logs_in_path(path)
+  def list_combat_logs(%User{wow_logs_path: path} = user) do
+    list_combat_logs_in_path(path, user)
   end
 
-  def list_combat_logs_in_path(path) do
+  def list_combat_logs_in_path(path), do: list_combat_logs_in_path(path, nil)
+
+  def list_combat_logs_in_path(path, user) do
     case File.ls(path) do
-      {:ok, files} ->
+      {:ok, _files} ->
         logs =
-          files
-          |> Enum.filter(fn f ->
-            String.starts_with?(f, "WoWCombatLog") and String.ends_with?(f, ".txt")
-          end)
-          |> Enum.map(fn filename ->
-            full_path = Path.join(path, filename)
-            stat = File.stat!(full_path)
-
-            # Convert erlang datetime tuple to NaiveDateTime for sorting
-            modified_ndt = NaiveDateTime.from_erl!(stat.mtime)
-
-            %{
-              filename: filename,
-              full_path: full_path,
-              size: stat.size,
-              modified: modified_ndt
-            }
-          end)
+          @log_sources
+          |> Enum.flat_map(&list_logs_for_source(path, &1, user))
           |> Enum.sort_by(& &1.modified, {:desc, NaiveDateTime})
 
         {:ok, logs}
@@ -102,4 +100,92 @@ defmodule WeGoNext.Accounts do
         {:error, reason}
     end
   end
+
+  defp list_logs_for_source(
+         base_path,
+         %{source: source, directory: directory, prefix: prefix},
+         user
+       ) do
+    directory_path = if directory, do: Path.join(base_path, directory), else: base_path
+
+    case File.ls(directory_path) do
+      {:ok, files} ->
+        files
+        |> Enum.filter(&combat_log_filename?(&1, prefix))
+        |> Enum.map(&log_entry(directory_path, &1, source, user))
+
+      {:error, :enoent} when directory != nil ->
+        []
+
+      {:error, reason} ->
+        Logger.warning("Failed to list combat logs in #{directory_path}: #{inspect(reason)}")
+        []
+    end
+  end
+
+  defp combat_log_filename?(filename, prefix) do
+    String.starts_with?(filename, prefix) and String.ends_with?(filename, ".txt")
+  end
+
+  defp log_entry(directory_path, filename, source, user) do
+    full_path = Path.join(directory_path, filename)
+    stat = File.stat!(full_path)
+    maybe_reconcile_archive_move(full_path, source, user)
+    maybe_backfill_head_sha256(full_path, user)
+
+    # Convert erlang datetime tuple to NaiveDateTime for sorting
+    modified_ndt = NaiveDateTime.from_erl!(stat.mtime)
+
+    %{
+      filename: filename,
+      full_path: full_path,
+      size: stat.size,
+      modified: modified_ndt,
+      source: source
+    }
+  end
+
+  defp maybe_backfill_head_sha256(_full_path, nil), do: :ok
+
+  defp maybe_backfill_head_sha256(full_path, %User{id: user_id}) do
+    case Repo.get_by(CombatLogFile, file_path: full_path, user_id: user_id) do
+      %CombatLogFile{head_sha256: nil} = combat_log_file ->
+        case FileFingerprint.head_sha256(full_path) do
+          {:ok, head_sha256} ->
+            combat_log_file
+            |> Ecto.Changeset.change(%{head_sha256: head_sha256})
+            |> Repo.update()
+
+            :ok
+
+          {:error, reason} ->
+            Logger.warning(
+              "Failed to backfill combat log fingerprint for #{full_path}: #{inspect(reason)}"
+            )
+
+            :ok
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp maybe_reconcile_archive_move(full_path, :warcraftlogs_archive, %User{id: user_id}) do
+    case CombatLogReconciler.reconcile_archive_move(full_path, user_id) do
+      {:ok, %CombatLogFile{} = combat_log_file} ->
+        FileWatcher.refresh_if_tracking(combat_log_file)
+        :ok
+
+      {:ok, nil} ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning("Failed to reconcile archived combat log #{full_path}: #{inspect(reason)}")
+
+        :ok
+    end
+  end
+
+  defp maybe_reconcile_archive_move(_full_path, _source, _user), do: :ok
 end

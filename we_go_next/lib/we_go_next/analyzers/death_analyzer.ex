@@ -1,5 +1,11 @@
 defmodule WeGoNext.Analyzers.DeathAnalyzer do
   @moduledoc """
+  Legacy reference-only analyzer for deaths and death recaps.
+
+  Retained for command-line diagnostics, migration reference, and parity checks.
+  New medallion UI, gold facts, and silver/gold read models must not depend on
+  this module or its in-memory output shape.
+
   Analyzes deaths in combat encounters.
 
   Tracks damage taken by each player and builds a "death recap" showing
@@ -8,7 +14,8 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
 
   alias WeGoNext.Encounter
 
-  @recap_window_size 10  # Number of damage events to keep per player
+  # Number of damage events to keep per player
+  @recap_window_size 10
 
   defmodule Death do
     @moduledoc "Represents a player death with context"
@@ -16,9 +23,12 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
       :player_name,
       :player_guid,
       :timestamp,
-      :time_into_fight,     # seconds into encounter
-      :killing_blow,        # %{ability: "", source: "", amount: 0, overkill: 0}
-      :recap                # list of recent damage events
+      # seconds into encounter
+      :time_into_fight,
+      # %{ability: "", source: "", amount: 0, overkill: 0}
+      :killing_blow,
+      # list of recent damage events
+      :recap
     ]
   end
 
@@ -81,7 +91,13 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
   end
 
   defp process_event(%{type: type} = event, deaths, damage_windows)
-       when type in ["SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE", "SWING_DAMAGE", "RANGE_DAMAGE", "ENVIRONMENTAL_DAMAGE"] do
+       when type in [
+              "SPELL_DAMAGE",
+              "SPELL_PERIODIC_DAMAGE",
+              "SWING_DAMAGE",
+              "RANGE_DAMAGE",
+              "ENVIRONMENTAL_DAMAGE"
+            ] do
     target_guid = event.target_guid
 
     if player_guid?(target_guid) do
@@ -97,9 +113,10 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
       }
 
       # Add to this player's damage window
-      updated_windows = Map.update(damage_windows, target_guid, [damage_event], fn existing ->
-        [damage_event | existing] |> Enum.take(@recap_window_size)
-      end)
+      updated_windows =
+        Map.update(damage_windows, target_guid, [damage_event], fn existing ->
+          [damage_event | existing] |> Enum.take(@recap_window_size)
+        end)
 
       {deaths, updated_windows}
     else
@@ -120,10 +137,12 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
   defp player_guid?(guid) when is_binary(guid) do
     String.starts_with?(guid, "Player-")
   end
+
   defp player_guid?(_), do: false
 
   # Find the killing blow (most recent damage event with overkill > 0, or just most recent)
   defp find_killing_blow([]), do: nil
+
   defp find_killing_blow(recap) do
     # The killing blow is typically the most recent damage event
     # If it has overkill > 0, that confirms it
@@ -136,6 +155,7 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
           amount: event.amount,
           overkill: event.overkill
         }
+
       _ ->
         nil
     end
@@ -173,7 +193,13 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
   end
 
   defp format_killing_blow(nil), do: "died (unknown cause)"
-  defp format_killing_blow(%{ability: ability, source: source, amount: _amount, overkill: overkill}) do
+
+  defp format_killing_blow(%{
+         ability: ability,
+         source: source,
+         amount: _amount,
+         overkill: overkill
+       }) do
     overkill_str = if overkill > 0, do: " (#{format_number(overkill)} overkill)", else: ""
     "died to [#{ability}] from #{source}#{overkill_str}"
   end
@@ -184,7 +210,11 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
     lines =
       recap
       |> Enum.take(5)
-      |> Enum.map_join("\n", fn %DamageEvent{ability_name: ability, amount: amount, source_name: source} ->
+      |> Enum.map_join("\n", fn %DamageEvent{
+                                  ability_name: ability,
+                                  amount: amount,
+                                  source_name: source
+                                } ->
         "           #{ability} (#{format_number(amount)}) - #{source}"
       end)
 
@@ -194,8 +224,10 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
   defp format_number(num) when is_integer(num) and num >= 1_000_000 do
     "#{Float.round(num / 1_000_000, 1)}M"
   end
+
   defp format_number(num) when is_integer(num) and num >= 1000 do
     "#{Float.round(num / 1000, 0) |> trunc()}k"
   end
+
   defp format_number(num), do: to_string(num)
 end

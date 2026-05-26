@@ -1,7 +1,7 @@
 defmodule WeGoNext.Encounters.Encounter do
   @moduledoc """
   Ecto schema for persisted encounter records.
-  Stores encounter metadata and cached analysis results.
+  Stores transitional import bookkeeping for combat log encounter boundaries.
   Events are parsed on-demand from the combat log file via CombatLogParser.
   """
   use Ecto.Schema
@@ -18,26 +18,25 @@ defmodule WeGoNext.Encounters.Encounter do
   }
 
   schema "encounters" do
-    field :wow_encounter_id, :string
-    field :name, :string
-    field :difficulty_id, :integer
-    field :difficulty_name, :string
-    field :group_size, :integer
-    field :instance_id, :string
-    field :start_time, :utc_datetime_usec
-    field :end_time, :utc_datetime_usec
-    field :success, :boolean
-    field :fight_time_ms, :integer
-    field :start_byte, :integer
-    field :end_byte, :integer
-    # Pre-computed analysis results (deaths, damage, failures, summary)
-    field :analysis, :map, default: %{}
-    # Storage tier for future use
-    field :storage_tier, :string, default: "hot"
+    field(:wow_encounter_id, :string)
+    field(:name, :string)
+    field(:difficulty_id, :integer)
+    field(:difficulty_name, :string)
+    field(:group_size, :integer)
+    field(:instance_id, :string)
+    field(:start_time, :utc_datetime_usec)
+    field(:end_time, :utc_datetime_usec)
+    field(:success, :boolean)
+    field(:fight_time_ms, :integer)
+    field(:start_byte, :integer)
+    field(:end_byte, :integer)
     # Mark as reset (intentional boss reset to clear debuffs)
-    field :is_reset, :boolean, default: false
+    field(:is_reset, :boolean, default: false)
+    # Explicit bridge target for medallion UI routes. This is not persisted on
+    # public.encounters; it is attached by WeGoNext.Gold.EncounterIdentity.
+    field(:dim_encounter_id, :integer, virtual: true)
 
-    belongs_to :combat_log_file, CombatLogFile
+    belongs_to(:combat_log_file, CombatLogFile)
 
     timestamps()
   end
@@ -59,8 +58,6 @@ defmodule WeGoNext.Encounters.Encounter do
       :start_byte,
       :end_byte,
       :combat_log_file_id,
-      :analysis,
-      :storage_tier,
       :is_reset
     ])
     |> validate_required([:wow_encounter_id, :name, :combat_log_file_id])
@@ -68,13 +65,8 @@ defmodule WeGoNext.Encounters.Encounter do
 
   @doc """
   Creates an Ecto encounter from the in-memory Encounter struct.
-
-  Options:
-    - :analysis - pre-computed analysis results to cache (map)
   """
-  def from_parsed(parsed_encounter, _raw_lines, combat_log_file_id, start_byte, end_byte, opts \\ []) do
-    analysis = Keyword.get(opts, :analysis, %{})
-
+  def from_parsed(parsed_encounter, _raw_lines, combat_log_file_id, start_byte, end_byte) do
     %{
       wow_encounter_id: parsed_encounter.id,
       name: parsed_encounter.name,
@@ -88,14 +80,13 @@ defmodule WeGoNext.Encounters.Encounter do
       fight_time_ms: parsed_encounter.fight_time_ms,
       start_byte: start_byte,
       end_byte: end_byte,
-      combat_log_file_id: combat_log_file_id,
-      analysis: analysis,
-      storage_tier: "hot"
+      combat_log_file_id: combat_log_file_id
     }
   end
 
   @doc """
-  Converts this Ecto record back to an in-memory Encounter struct for analysis.
+  Converts this Ecto record back to an in-memory Encounter struct for legacy
+  diagnostics and projection parity checks.
   Parses events from the combat log file using stored byte offsets.
   """
   def to_encounter_struct(%__MODULE__{} = enc) do
@@ -129,11 +120,13 @@ defmodule WeGoNext.Encounters.Encounter do
 
   defp format_timestamp_for_zig(%DateTime{} = dt) do
     ms = div(elem(dt.microsecond, 0), 1000)
+
     "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
   end
 
   defp format_timestamp_for_zig(%NaiveDateTime{} = dt) do
     ms = div(elem(dt.microsecond, 0), 1000)
+
     "#{dt.month}/#{dt.day}/#{dt.year} #{String.pad_leading("#{dt.hour}", 2, "0")}:#{String.pad_leading("#{dt.minute}", 2, "0")}:#{String.pad_leading("#{dt.second}", 2, "0")}.#{ms}-0"
   end
 
@@ -141,7 +134,6 @@ defmodule WeGoNext.Encounters.Encounter do
 
   @doc """
   Converts this Ecto record to a lightweight Encounter struct (no events).
-  Use when you have cached analysis and don't need to re-parse raw_log.
   """
   def to_lightweight_struct(%__MODULE__{} = enc) do
     alias WeGoNext.Encounter

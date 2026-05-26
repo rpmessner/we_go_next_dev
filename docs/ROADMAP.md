@@ -1,546 +1,118 @@
-# WeGoNext - Development Roadmap
-
-**Project:** WoW Combat Log Analysis Tool
-**Target Launch:** Midnight Expansion Raids (March 2026)
-**Last Updated:** 2026-05-16
-
-> **Priority note:** [VISION.md](VISION.md) (April 2026 rewrite) is the canonical statement of priorities. The pre-April direction below — "raid leadership tool" — has been re-centered around **personal play first** (my play this pull → my play over time → raid-wide → sharing). Roadmap phases below are still useful as a work breakdown but read priorities through VISION.
-
----
-
-## Vision
-
-Build a combat-log analysis tool that provides:
-1. **Personal between-pull analysis** - what *I* did wrong, how my rotation broke down, where I can improve
-2. **Raid-wide diagnosis** - what killed us, who failed mechanics, who needs coaching
-3. **M+ run analysis** - first-class M+ support, especially for failed keys
-4. **Strategy diagrams** with annotated minimaps for Discord (post-MVP)
-5. **Private coaching** reports for individual players (post-MVP)
-
-This is NOT a damage meter. It's the analysis layer that answers "why" questions a meter glosses over.
-
-### Why Between-Pull Focus (Not Live)
-
-WoW buffers combat log writes during active combat - data can be delayed by minutes. The external log file is **not suitable for true real-time** during pulls. However:
-- Log flushes immediately on `ENCOUNTER_END`
-- We poll the file and detect new encounters within seconds
-- Analysis is ready during runback/rebuff - when it's actually actionable
-- No addon required, works with stock WoW combat logging
-
-True live-during-combat would require a companion addon (post-MVP consideration).
-
----
-
-## Timeline to Midnight
-
-**Now:** November 2025
-**Midnight Launch:** March 2, 2026
-**Raid Opening:** Mid-March 2026 (typically 1-2 weeks after launch)
-**Available Time:** ~3-4 months until raid opening
-
-### Milestone Schedule
-
-| Milestone | Target | Description |
-|-----------|--------|-------------|
-| **M1: Core Events** | ✅ Nov 2025 | Death tracking, damage taken analysis |
-| **M2: Discovery Mode** | ✅ Nov 2025 | Surface interesting events, basic UI |
-| **M3: Criteria System** | ✅ Nov 2025 | Mark/track mechanics, failure detection |
-| **M4: File Refresh** | ✅ Nov 2025 | Manual refresh, incremental parsing |
-| **M5: Analysis Reports** | ✅ Nov 2025 | Between-pull summaries, trends |
-| **M6: Zig Parser Rewrite** | ✅ Apr 2026 | Replace Elixir parser with Zig NIF; drop `encounter_events` table |
-| **M7: M+ Data Layer** | ✅ Apr 2026 | GameData modules for 8 Midnight dungeons; minimaps; trash-pull skeleton |
-| **M8: M+ Runtime Wiring** | In progress | Detect `CHALLENGE_MODE_START/END`; parse trash gaps; map NPC IDs |
-| **M9: Pre-Launch Polish** | Early Mar 2026 | Final testing, bug fixes |
-| **MVP Launch** | **Mid-March 2026** | **Ready for Midnight raids Day 1** |
-| **Post-MVP: Player Reports** | Q2 2026 | Private coaching for Discord DMs |
-| **Post-MVP: Strategy Diagrams** | Q2-Q3 2026 | Minimap annotations, Discord export |
-| **Post-MVP: Addon Distribution** | Q3-Q4 2026 | In-game results sharing |
-
----
-
-## Phase 1: Core Event Processing
-
-**Goal:** Extract diagnostic-relevant events from combat logs
-**Target:** December 2025
-
-### 1A: Death Analysis (Priority: CRITICAL) ✅ COMPLETE
-
-The most important diagnostic: who died and why.
-
-**Tasks:**
-- [x] Parse `UNIT_DIED` events
-- [x] Track last N damage events before death (death recap)
-- [x] Identify killing blow (ability, source)
-- [x] Calculate overkill amount
-- [x] Track time of death in encounter
-- [ ] Aggregate deaths per player across pulls (future)
-
-**Output:** "Player X died at 2:34 to [Ability] from [Source]. Took 450k damage in last 3 seconds."
-
-### 1B: Damage Taken Tracking (Priority: HIGH) ✅ COMPLETE
-
-Track what's hitting the raid.
-
-**Tasks:**
-- [x] Parse `SPELL_DAMAGE`, `SPELL_PERIODIC_DAMAGE`, `SWING_DAMAGE`
-- [x] Track damage by ability (group similar damage)
-- [x] Track damage by target (who's taking damage)
-- [x] Identify high-damage abilities (potential mechanics)
-- [x] Calculate DTPS (damage taken per second) per player
-- [x] Flag players taking significantly more damage than others
-- [x] Tank/non-tank split, class colors, spell icons in UI
-
-**Output:** "[Ability X] hit 8 players for average 120k damage. Player Y took 3 hits."
-
-### 1C: Interrupt Tracking (Priority: HIGH) ✅ COMPLETE
-
-Critical for many mechanics.
-
-**Tasks:**
-- [x] Parse `SPELL_INTERRUPT` events
-- [x] Parse `SPELL_CAST_SUCCESS` for completed enemy casts
-- [x] Track successful interrupts (who interrupted what)
-- [x] Detect missed interrupts (cast completed without interrupt)
-- [ ] Build interrupt assignment tracking (future: who was supposed to kick)
-
-**Output:** Shows per-player interrupt counts, per-spell interrupt rates, and missed kicks.
-
-### 1D: Debuff Tracking (Priority: MEDIUM) ✅ COMPLETE
-
-Many mechanics apply debuffs that need handling.
-
-**Tasks:**
-- [x] Parse `SPELL_AURA_APPLIED`, `SPELL_AURA_REMOVED`, `SPELL_AURA_APPLIED_DOSE`
-- [x] Track debuff applications by player
-- [x] Track debuff duration
-- [x] Identify debuffs applied to multiple players (raid-wide mechanics)
-- [x] Flag players with most debuff applications
-
-**Output:** Shows top debuffs raid-wide and players with most debuff applications.
-
----
-
-## Phase 2: Discovery Mode
-
-**Goal:** Surface interesting events without predefined criteria
-**Status:** 2A and 2B complete; 2C (pull comparison) deferred
-
-### 2A: Event Aggregation ✅
-
-**Tasks:**
-- [x] Group events by ability/spell ID
-- [x] Calculate frequency, total damage, affected players
-- [x] Rank abilities by "interestingness" (damage, frequency, deaths caused)
-- [x] Filter out noise (auto-attacks, minor damage)
-- [x] Present top N "notable" abilities per pull (Damage Taken tab)
-
-### 2B: Basic Web Interface ✅
-
-**Tasks:**
-- [x] Create Phoenix application
-- [x] Pull selector (encounter list grouped by instance)
-- [x] Event summary view (Summary / Deaths / Damage Taken / Failures / Debuffs tabs)
-- [x] Sortable/filterable tables
-- [x] Basic styling (Tailwind 0.4)
-
-### 2C: Pull Comparison (deferred)
-
-**Tasks:**
-- [ ] Compare current pull to previous attempts
-- [ ] Highlight what changed (more deaths, new damage source)
-- [ ] Show improvement trends (fewer failures over attempts)
-- [ ] Pull timeline showing key events
-
----
-
-## Phase 3: Criteria System ✅ COMPLETE
-
-**Goal:** Allow marking abilities as tracked mechanics
-**Completed:** November 2025
-
-### 3A: Mechanic Types ✅
-
-Defined categories for tracked abilities:
-
-- **Avoidable Damage** - Damage that shouldn't happen (standing in fire)
-- **Required Interrupt** - Casts that must be kicked
-- **Soak Mechanic** - Damage that needs to be shared
-- **Spread Mechanic** - Debuff requiring players to separate
-- **Stack Mechanic** - Requires grouping up
-- **Tank Mechanic** - Tank-specific handling
-- **Healer Mechanic** - Requires healing response
-
-### 3B: Criteria Builder UI ✅
-
-**Tasks:**
-- [x] Click ability in damage tab to create criteria
-- [x] Select mechanic type from modal
-- [x] Threshold configuration (hardcoded defaults, UI future)
-- [ ] Add notes/description (future)
-- [ ] Preview what this criteria would flag (future)
-
-### 3C: Boss Profiles (Partial)
-
-**Tasks:**
-- [x] Criteria auto-associated with boss encounter
-- [x] Criteria loaded when viewing boss encounter
-- [ ] Export/import profiles (JSON) - future
-- [ ] Share profiles with raid team - future
-
-### 3D: Failure Detection ✅
-
-**Tasks:**
-- [x] Match events against active criteria
-- [x] Generate failure records (who, what, when)
-- [x] Aggregate failures per player and per mechanic
-- [x] Display failures prominently in UI
-
----
-
-## Phase 4: File Watching & Refresh
-
-**Goal:** Detect new encounters and refresh dashboard
-**Status:** Manual refresh implemented (MVP), auto-polling deferred
-
-### Current Implementation (MVP)
-
-Manual refresh via "Refresh" button in the UI. This works reliably and is the recommended approach for MVP.
-
-**Completed:**
-- [x] Incremental log parsing (only reads new bytes)
-- [x] Log rotation detection
-- [x] Manual "Refresh" button for syncing
-- [x] Encounter list updates immediately on refresh
-
-### Archived: Auto-Polling (Nice-to-Have)
-
-Auto-polling was implemented but removed because WoW's combat log buffering makes it unreliable and confusing. Manual refresh works well and is simpler.
-
-If revisited far in the future:
-- Smarter heuristics for detecting actual new encounters
-- Only poll after detecting `ENCOUNTER_END` pattern
-
-### Dashboard Polish
-
-**Tasks:**
-- [x] Most recent encounter prominently displayed
-- [x] Quick navigation between pulls
-- [x] Glanceable summary (deaths, key failures)
-- [ ] Keyboard shortcuts for common actions
-
----
-
-## Phase 5: Analysis Reports
-
-**Goal:** Between-pull summaries and coaching reports
-**Target:** July 2026
-
-### 5A: Pull Summary Report ✅ COMPLETE
-
-**Tasks:**
-- [x] Automatic generation when encounter ends
-- [x] Deaths with causes
-- [x] Mechanic failures ranked by impact
-- [x] What killed us (if wipe)
-- [x] Players needing coaching identified
-- [x] Actionable recommendations generated
-- [ ] Comparison to previous best attempt (future)
-
-### 5B: Player Reports
-
-**Tasks:**
-- [ ] Per-player breakdown of their failures
-- [ ] Private (not shown to raid, only to you)
-- [ ] Exportable (copy/paste to Discord DM)
-- [ ] Trends over multiple pulls
-- [ ] Specific, actionable feedback
-
-### 5C: Progress Tracking
-
-**Tasks:**
-- [ ] Track attempts per boss
-- [ ] Best attempt progress (lowest boss %)
-- [ ] Failure trends (are we improving on mechanic X?)
-- [ ] Session summary (tonight's progression)
-
----
-
-## Phase 6: Strategy Diagrams
-
-**Goal:** Visual aids for raid coordination
-**Target:** September 2026
-
-### 6A: Minimap Integration
-
-**Tasks:**
-- [ ] Source datamined minimap backgrounds
-- [ ] Map encounter areas to minimap coordinates
-- [ ] Display minimap in web interface
-
-### 6B: Annotation Tools
-
-**Tasks:**
-- [ ] Place markers (raid markers, custom icons)
-- [ ] Draw arrows (movement paths)
-- [ ] Add text labels
-- [ ] Define positions (group assignments)
-- [ ] Color coding by role/group
-
-### 6C: Data Overlay
-
-**Tasks:**
-- [ ] Overlay death locations from combat data
-- [ ] Show where damage events occurred
-- [ ] Heat maps of problematic areas
-- [ ] Movement patterns (if position data available)
-
-### 6D: Export
-
-**Tasks:**
-- [ ] Export as PNG image
-- [ ] Optimized for Discord embedding
-- [ ] Include legend/key
-- [ ] Batch export (multiple phases/positions)
-
----
-
-## Phase 6B: Addon-Based Results Distribution (Optional)
-
-**Goal:** Automated distribution of analysis results to raid members
-**Target:** Post-MVP (Q3-Q4 2026)
-
-### Why an Addon?
-
-**Without addon (MVP):**
-- Raid lead reads we_go_next web UI
-- Manually calls out failures to raid
-- Players don't see their personal stats
-
-**With addon:**
-- we_go_next writes analysis to SavedVariables
-- Server operator `/reload` → addon reads results
-- Addon broadcasts via addon comm to all raid members
-- Each player sees personalized performance breakdown
-- No verbal callouts needed
-
-### Workflow
-
-```
-Combat Log → we_go_next analyzes → Writes WeGoNextResults.lua
-                                          ↓
-                        Server operator /reload in WoW
-                                          ↓
-                        WeGoNext addon reads SavedVariables
-                                          ↓
-                        Addon broadcasts via C_ChatInfo.SendAddonMessage
-                                          ↓
-                        All raid members' addons display results
+# Roadmap
+
+This roadmap tracks the current board direction at a durable level. The task
+board remains the source of truth for exact status and dependencies.
+
+## Current Focus
+
+The backend medallion foundation and first operator controls are in place:
+
+- bronze combat-log provenance and live/archive reconciliation,
+- silver encounter-grain projections,
+- gold dimensions and `fact_failure`,
+- rules schema and criterion snapshot promotion,
+- source-data ingestion groundwork for DBM and WowAnalyzer,
+- gold rebuild boundary via `WeGoNext.Gold.RebuildEncounter`,
+- rules bootstrap/promotion and rebuild/reimport controls,
+- gold-backed `/failures` and `/encounters/:id` LiveViews.
+
+The immediate product problem is not more source-row workflow. The product needs
+real current-tier mechanics from the imported logs to become editable rules, then
+recomputed facts, then visible failures in the preview/detail UI.
+
+The source strategy is documented in
+[`MECHANIC_SOURCE_STRATEGY.md`](MECHANIC_SOURCE_STRATEGY.md). In short:
+
+```text
+Observed spells in current logs
+  -> source annotations from journal, boss mods, guide/reminder sources
+  -> code-defined raid mechanic catalogs
+  -> synced editable rules for supported semantics
+  -> gold rebuild
+  -> real failures in encounter preview and failures views
 ```
 
-### 6B.1: WoW Addon (WeGoNext)
+## Near-Term Execution Order
 
-**Tasks:**
-- [ ] Create addon structure with TOC file
-- [ ] Read `WeGoNextResults` SavedVariable after reload
-- [ ] Broadcast results via addon communication channel (`RAID`)
-- [ ] Listen for broadcasts from other addon users
-- [ ] Display personalized stats to each player
-- [ ] Slash commands: `/wgn show`, `/wgn share`
+1. `#69 Define Raid Mechanics As Code And Prune Extraction Tooling`
+   - define current-tier raid mechanics in `WeGoNext.GameData.Raids.*`,
+   - use AI-assisted research, observed logs, and source annotations to scaffold
+     code entries,
+   - treat DBM/WowAnalyzer/journal tooling as optional scaffolding helpers,
+   - sync curated code modules into editable rules.
 
-**SavedVariables Format:**
-```lua
-WeGoNextResults = {
-    encounter = {id = 2887, name = "...", pull_number = 12},
-    summary = {result = "WIPE", percent = 43, ...},
-    players = {
-        ["Mittwoch-WyrmrestAccord"] = {
-            deaths = 2,
-            causes = {"Diabolic Ritual", ...},
-            tips = {"Move faster..."},
-        },
-        -- ... all raid members
-    }
-}
-```
+2. `#40 Match Source Mechanics Against Current Silver Observations`
+   - rename in implementation toward observed mechanics/source annotations,
+   - list spells that actually appear in imported current-tier logs,
+   - attach DBM/WowAnalyzer/reference metadata as annotations,
+   - show counts, affected players, damage, debuffs, casts, interrupts, and
+     encounter scope.
 
-### 6B.2: we_go_next Integration
+3. `#42 Import Matched Source Mechanics Directly Into Rules`
+   - sync editable rules from code-defined observed mechanics with strong source
+     support,
+   - dedupe by active ruleset, spell, encounter scope, difficulty scope, and
+     mechanic type,
+   - skip separate source-row review/override state as product workflow.
 
-**Tasks:**
-- [ ] Add SavedVariables writer module
-- [ ] Web UI button: "Prepare Results for Sharing"
-- [ ] Generate personalized coaching tips per player
-- [ ] Write to WoW SavedVariables path
-- [ ] Show instructions: "Run /reload then /wgn share"
+4. `#66 Import Matched Avoidable Damage Rules And Rebuild Facts`
+   - ship the first complete real-data loop for avoidable damage,
+   - default imported avoidable rules to `threshold.max_hits = 0`,
+   - promote active rules and rebuild `gold.fact_failure`,
+   - verify real player failures appear from imported logs.
 
-**File Path:**
-```
-/mnt/g/World of Warcraft/_retail_/WTF/Account/{account}/SavedVariables/WeGoNext.lua
-```
+5. `#67 Show Real Failure Preview On Encounter Detail`
+   - display rule-backed failure facts for the selected pull,
+   - include player, spell/mechanic, count, damage, and source annotations,
+   - make empty states point to the exact missing step.
 
-### 6B.3: Player UI
+6. `#61 Tighten Interrupt Silver Semantics For Real Rule Imports`
+   - stop presenting broad NPC cast-success observations as confirmed missed
+     interrupts,
+   - import interrupt rules only once the supporting observation is trustworthy,
+   - keep labels honest until then.
 
-**In-game display options:**
-- **Chat output:** Simple text summary to raid chat
-- **Whispers:** Personal stats whispered to each player
-- **Custom frame:** Popup window with detailed breakdown
-- **Slash command:** `/wgn me` to re-view personal stats
+7. `#44 Expand Fact Semantics For Source-Imported Mechanics`
+   - add soak, spread, stack, tank, healer, dispel, and defensive semantics only
+     after the supporting silver grain exists,
+   - do not auto-create failure rules for unsupported semantics.
 
-**Example Output:**
-```
-╔════════════════════════════════════╗
-║  Pull #12 - Plexus Sentinel       ║
-║  WIPE at 43% (3:45)                ║
-╠════════════════════════════════════╣
-║  Your Performance:                 ║
-║  ✓ Interrupts: 4/4 (100%)          ║
-║  ✗ Deaths: 2 (Diabolic Ritual)     ║
-║  ⚠ Avoidable Damage: 850k          ║
-║                                    ║
-║  Tip: Move faster out of ritual    ║
-╚════════════════════════════════════╝
-```
+## Source-Data Direction
 
-### 6B.4: MCP Usage (Development Only)
+DBM, BigWigs, WowAnalyzer, Blizzard journal data, Warcraft Logs, MRT reminders,
+WeakAuras, and guide sites should be treated as source annotations. They help
+explain and classify spells that appear in local logs. They are not independent
+truth that should silently create failure facts.
 
-MCP server (`wow_mcp`) is used **only during addon development**:
-- Deploy addon: `mix deploy_bridge --version retail`
-- Test SavedVariables parsing
-- Debug addon issues
+Existing DBM/WowAnalyzer source-data tables may remain as parsed source rows
+while they are useful, but new user-facing work should avoid source-row review
+language. Prefer:
 
-**Not used during raids** - runtime workflow is:
-1. we_go_next writes SavedVariables file directly
-2. You `/reload`
-3. Addon handles everything else
+- observed mechanics,
+- source annotations,
+- rule status,
+- direct editable rules.
 
-### Implementation Notes
+## Additional Fact Semantics
 
-- **Similar to Method Raid Tools:** Raid lead shares, everyone receives via addon comm
-- **Opt-in:** Players without addon installed see nothing (no spam)
-- **Privacy:** Only players in your raid group receive broadcasts
-- **Caching:** Results cached in addon for `/wgn show` after initial broadcast
+`gold.fact_failure` currently supports:
 
----
+- `avoidable`: player damage taken by matching spell and threshold,
+- `interrupt`: missed interrupt facts, currently limited by known silver
+  semantics gaps.
 
-## Phase 7: Polish & Launch Prep
+Avoidable damage is the first real-data target because the local logs already
+have `silver.damage_taken` and `silver.damage_taken_event`. Interrupts come next
+after `#61`. Other mechanic types should remain visible as observed/annotated
+rows until their fact semantics are defensible.
 
-**Goal:** Production-ready for Midnight raids
-**Target:** November 2026 - January 2026
+## Guiding Constraints
 
-### 7A: Testing with Current Content
-
-**Tasks:**
-- [ ] Test with Manaforge Omega progression
-- [ ] Test with alt raids
-- [ ] Validate accuracy of failure detection
-- [ ] Performance testing (long raid nights)
-
-### 7B: UX Refinement
-
-**Tasks:**
-- [ ] Dashboard layout optimization
-- [ ] Keyboard shortcuts
-- [ ] Mobile-friendly views (for checking between pulls)
-- [ ] Customizable layouts
-
-### 7C: Documentation
-
-**Tasks:**
-- [ ] User guide
-- [ ] Boss profile sharing guide
-- [ ] Troubleshooting common issues
-
----
-
-## Technical Priorities
-
-### Critical Path (Blocks Everything)
-1. Death analysis - Core diagnostic ✅
-2. File watching - Enables auto-refresh on encounter end ✅
-3. Criteria system - Enables meaningful tracking ✅
-
-### High Value (Core Features)
-4. Damage taken tracking ✅
-5. Interrupt tracking ✅
-6. Between-pull dashboard ✅
-7. Pull summaries ✅
-
-### Medium Value (Full Experience)
-8. Debuff tracking ✅
-9. Strategy diagrams
-10. Progress tracking
-11. Player reports
-
-### Nice to Have (Polish)
-12. Sound alerts
-13. Mobile views
-14. Profile sharing
-15. Heat maps
-16. Auto-polling (if manual refresh becomes annoying)
-
----
-
-## Success Criteria
-
-### MVP (Midnight Launch)
-- [x] Manual refresh detects new encounters reliably
-- [x] Deaths and failures displayed immediately after pull
-- [x] Criteria system working (mark abilities to track)
-- [x] Failures shown on dashboard
-- [x] Between-pull summary generated automatically
-- [ ] Stable for 3+ hour raid nights
-
-### Full Product
-- [ ] Strategy diagrams with minimap
-- [ ] Player coaching reports
-- [ ] Progress tracking across sessions
-- [ ] Boss profile library
-- [ ] Polished, professional UI
-
----
-
-## PRIME DIRECTIVE
-
-**MVP MUST launch with Midnight raids (late Jan - March 2026).**
-
-### Scope Cuts if Behind Schedule
-
-If we're falling behind, cut in this order:
-
-1. **Phase 6 (Strategy Diagrams)** - Nice to have, not essential
-2. **Phase 7 (Polish)** - Ship rough, fix later
-3. **Phase 5C (Progress Tracking)** - Manual tracking is fine
-4. **Phase 3B (Criteria Builder UI)** - Hardcode common mechanics instead
-5. **Phase 5B (Player Reports)** - Just raid lead view first
-
-### Non-Negotiable for MVP
-
-These MUST work for launch:
-- [x] Death tracking with cause (Phase 1A) ✅
-- [x] Manual refresh with encounter detection (Phase 4) ✅
-- [x] Dashboard showing deaths/failures after pull ends (Phase 4C) ✅
-- [x] Basic criteria matching (Phase 3D) ✅
-- [x] Between-pull summary (Phase 5A) ✅
-
-**All non-negotiable MVP features are complete!**
-
-Everything else can come in patches after launch.
-
-**Post-Midnight:** Once we ship for Midnight, deadline pressure relaxes. We can take time for polish, new features, and proper iteration without a hard target.
-
----
-
-## Notes
-
-- **Iteration over perfection**: Ship working features, refine based on actual raid use
-- **Current content testing**: Use ongoing Manaforge Omega progression to validate
-- **Private by default**: Tool is for raid leaders, not public shaming
-- **Build during progression**: Best tested when we're actually struggling with content
-- **Launch date is sacred**: Cut scope, not the deadline
-
----
-
-## Archived: Previous Roadmap
-
-The previous roadmap (focused on personal DPS and spec-specific rotation analysis) has been superseded by this raid diagnostic focus. Key concepts like normalizer pipelines and event processing remain relevant but are now in service of mechanic detection rather than rotation optimization.
-
-See `docs/sessions/2025-11-23_wowanalyzer_research.md` for the previous direction.
+- Keep combat logs as the primary truth for what appears in the user's data.
+- Prefer observed spell previews over hidden source-row queues.
+- Prefer direct editable rules over durable source-row review/override workflow.
+- Prefer gold rebuilds when rules or gold logic changes.
+- Do not reintroduce `public.mechanic_criteria` or analyzer-cache tabs.
+- Keep raw combat-log bronze separate from patch/source-data bronze.
+- Keep UI labels honest about whether a row is observed data, a source
+  annotation, an editable rule, or a rebuilt failure fact.

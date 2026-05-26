@@ -1,8 +1,13 @@
 defmodule WeGoNext do
   @moduledoc """
-  Main module for parsing and analyzing WoW combat logs.
+  Legacy diagnostic helpers for parsing and analyzing WoW combat logs.
 
-  Focused on raid diagnostics: deaths, damage taken, interrupts, mechanic failures.
+  These analyzer-backed functions are retained for command-line inspection and
+  silver projection parity checks. New UI and read-model work should use the
+  bronze/silver/gold/rules pipeline instead of adding dependencies here.
+
+  This module is the intentional compatibility boundary for
+  `WeGoNext.Analyzers.*` calls in application code.
   """
 
   alias WeGoNext.{CombatLogParser, Encounter}
@@ -28,6 +33,7 @@ defmodule WeGoNext do
               events: []
             }
           end)
+
         {:ok, encounters}
 
       {:error, reason} ->
@@ -117,7 +123,9 @@ defmodule WeGoNext do
     duration = Encounter.fight_time_sec(encounter)
     duration_str = format_duration(duration)
 
-    IO.puts("\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status} (#{duration_str})")
+    IO.puts(
+      "\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status} (#{duration_str})"
+    )
 
     if Enum.empty?(damage_stats.all) do
       IO.puts("   No damage taken data")
@@ -183,7 +191,10 @@ defmodule WeGoNext do
 
     missed_count = length(interrupt_stats.missed_casts)
 
-    IO.puts("\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status} (#{duration_str})")
+    IO.puts(
+      "\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status} (#{duration_str})"
+    )
+
     IO.puts("   Total Interrupts: #{total_interrupts}, Missed Kicks: #{missed_count}")
 
     if total_interrupts > 0 or missed_count > 0 do
@@ -232,7 +243,10 @@ defmodule WeGoNext do
     total_debuffs = length(debuff_stats.applications)
     unique_debuffs = map_size(debuff_stats.by_spell)
 
-    IO.puts("\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status} (#{duration_str})")
+    IO.puts(
+      "\n#{index}. #{encounter.name} (#{encounter.difficulty_name}) - #{status} (#{duration_str})"
+    )
+
     IO.puts("   Total Debuff Applications: #{total_debuffs}, Unique Debuffs: #{unique_debuffs}")
 
     if total_debuffs > 0 do

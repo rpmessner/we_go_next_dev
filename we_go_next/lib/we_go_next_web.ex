@@ -87,16 +87,6 @@ defmodule WeGoNextWeb do
       # Encounter-specific components (player names, wowhead links, etc.)
       import WeGoNextWeb.EncounterComponents
 
-      # Tab components for encounter detail view
-      alias WeGoNextWeb.Components.Tabs.BetweenPullTab
-      alias WeGoNextWeb.Components.Tabs.SummaryTab
-      alias WeGoNextWeb.Components.Tabs.FailuresTab
-      alias WeGoNextWeb.Components.Tabs.DeathsTab
-      alias WeGoNextWeb.Components.Tabs.DamageTakenTab
-      alias WeGoNextWeb.Components.Tabs.DamageDoneTab
-      alias WeGoNextWeb.Components.Tabs.InterruptsTab
-      alias WeGoNextWeb.Components.Tabs.DebuffsTab
-
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
 

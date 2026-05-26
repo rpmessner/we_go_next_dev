@@ -38,13 +38,23 @@ defmodule WeGoNext.MixProject do
         "esbuild we_go_next --minify",
         "phx.digest"
       ],
+      quality: [
+        "format --check-formatted",
+        "zig.get",
+        "cmd sh -c 'for i in $(seq 1 30); do if find \"$HOME/.cache/zigler\" -maxdepth 3 -type f -name zig -perm /111 | grep -q .; then exit 0; fi; sleep 1; done; echo \"zig executable not found\"; exit 1'",
+        "compile --warnings-as-errors",
+        "credo --only warning",
+        "ecto.create --quiet",
+        "ecto.migrate --quiet",
+        "test"
+      ],
       test: ["test"]
     ]
   end
 
   # Ensure test always runs in test env, even if MIX_ENV is set in shell
   def cli do
-    [preferred_envs: [test: :test]]
+    [preferred_envs: [quality: :test, test: :test]]
   end
 
   defp deps do

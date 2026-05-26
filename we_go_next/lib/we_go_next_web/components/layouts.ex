@@ -10,5 +10,5 @@ defmodule WeGoNextWeb.Layouts do
   """
   use WeGoNextWeb, :html
 
-  embed_templates "layouts/*"
+  embed_templates("layouts/*")
 end

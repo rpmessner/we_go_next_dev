@@ -17,9 +17,9 @@ defmodule WeGoNext.GameData.Instances do
     # Could also be Seat of the Triumvirate or Magister's Terrace - add when seen
 
     # Midnight Raids
-    2913 => "The Voidspire",
-    # 2914 => "The Dreamrift",
-    # 2916 => "March of Quel'Danas",
+    2912 => "The Voidspire",
+    2913 => "March on Quel'Danas",
+    2939 => "The Dreamrift"
   }
 
   @doc "Returns the instance name for a journal instance ID, or nil if unknown."

@@ -118,7 +118,15 @@ defmodule WeGoNext.MythicPlusRun do
 
   # Compute trash segments — the byte gaps between encounters within the run
   defp compute_trash_segments(%__MODULE__{} = run) do
-    segments = build_trash_segments(run.start_byte, run.start_timestamp, run.encounters, run.end_byte, run.end_timestamp)
+    segments =
+      build_trash_segments(
+        run.start_byte,
+        run.start_timestamp,
+        run.encounters,
+        run.end_byte,
+        run.end_timestamp
+      )
+
     %{run | trash_segments: segments}
   end
 
@@ -133,9 +141,15 @@ defmodule WeGoNext.MythicPlusRun do
       [] ->
         # No encounters — entire run is trash (or very short key)
         if run_end_byte do
-          [%{start_byte: run_start_byte, end_byte: run_end_byte,
-             start_timestamp: run_start_ts, end_timestamp: run_end_ts,
-             label: "Trash"}]
+          [
+            %{
+              start_byte: run_start_byte,
+              end_byte: run_end_byte,
+              start_timestamp: run_start_ts,
+              end_timestamp: run_end_ts,
+              label: "Trash"
+            }
+          ]
         else
           []
         end
@@ -146,13 +160,15 @@ defmodule WeGoNext.MythicPlusRun do
 
         before_first =
           if first.start_byte > run_start_byte do
-            [%{
-              start_byte: run_start_byte,
-              end_byte: first.start_byte,
-              start_timestamp: run_start_ts,
-              end_timestamp: first.start_timestamp,
-              label: "Trash (before #{first.name})"
-            }]
+            [
+              %{
+                start_byte: run_start_byte,
+                end_byte: first.start_byte,
+                start_timestamp: run_start_ts,
+                end_timestamp: first.start_timestamp,
+                label: "Trash (before #{first.name})"
+              }
+            ]
           else
             []
           end
@@ -162,13 +178,15 @@ defmodule WeGoNext.MythicPlusRun do
           |> Enum.chunk_every(2, 1, :discard)
           |> Enum.flat_map(fn [prev, next] ->
             if next.start_byte > prev.end_byte do
-              [%{
-                start_byte: prev.end_byte,
-                end_byte: next.start_byte,
-                start_timestamp: prev.end_timestamp,
-                end_timestamp: next.start_timestamp,
-                label: "Trash (#{prev.name} → #{next.name})"
-              }]
+              [
+                %{
+                  start_byte: prev.end_byte,
+                  end_byte: next.start_byte,
+                  start_timestamp: prev.end_timestamp,
+                  end_timestamp: next.start_timestamp,
+                  label: "Trash (#{prev.name} → #{next.name})"
+                }
+              ]
             else
               []
             end
@@ -176,13 +194,15 @@ defmodule WeGoNext.MythicPlusRun do
 
         after_last =
           if run_end_byte && last.end_byte < run_end_byte do
-            [%{
-              start_byte: last.end_byte,
-              end_byte: run_end_byte,
-              start_timestamp: last.end_timestamp,
-              end_timestamp: run_end_ts,
-              label: "Trash (after #{last.name})"
-            }]
+            [
+              %{
+                start_byte: last.end_byte,
+                end_byte: run_end_byte,
+                start_timestamp: last.end_timestamp,
+                end_timestamp: run_end_ts,
+                label: "Trash (after #{last.name})"
+              }
+            ]
           else
             []
           end
