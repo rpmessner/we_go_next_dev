@@ -197,17 +197,56 @@ defmodule WeGoNextWeb.EncounterLive.Show do
         </section>
 
         <section class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Imported Data</h2>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Pull Signals</h2>
           <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <.count_item label="Players" value={@counts.players} />
-            <.count_item label="Damage Groups" value={@counts.damage_taken_groups} />
-            <.count_item label="Damage Hits" value={@counts.damage_taken_events} />
-            <.count_item label="Damage Done Groups" value={@counts.damage_done_groups} />
-            <.count_item label="Deaths" value={@counts.deaths} />
-            <.count_item label="Interrupt Opportunities" value={@counts.interrupt_opportunities} />
-            <.count_item label="Debuffs" value={@counts.debuff_applications} />
-            <.count_item label="Defensive Windows" value={@counts.defensive_buff_windows} />
-            <.count_item label="Mechanic Failures" value={@counts.failure_facts} />
+            <.signal_item
+              label="Deaths"
+              value={to_string(@counts.deaths || 0)}
+              detail={pluralize_label(@counts.deaths || 0, "player death")}
+              tone={if @counts.deaths > 0, do: :danger, else: :ok}
+            />
+            <.signal_item
+              label="Tracked Failures"
+              value={to_string(@failure_preview.counts.failures || 0)}
+              detail={pluralize_label(@failure_preview.counts.players || 0, "player")}
+              tone={if @failure_preview.counts.failures > 0, do: :danger, else: :ok}
+            />
+            <.signal_item
+              label="Failure Damage"
+              value={format_number(@failure_preview.counts.damage || 0)}
+              detail={pluralize_label(@failure_preview.counts.mechanics || 0, "tracked mechanic")}
+              tone={if (@failure_preview.counts.damage || 0) > 0, do: :danger, else: :ok}
+            />
+            <.signal_item
+              label="Missed Kicks"
+              value={to_string(missed_interrupt_count(@interrupt_coverage))}
+              detail={pluralize_label(length(@interrupt_coverage.spell_coverage), "watched spell")}
+              tone={if missed_interrupt_count(@interrupt_coverage) > 0, do: :warning, else: :ok}
+            />
+            <.signal_item
+              label="Low Damage"
+              value={to_string(length(@pull_review.low_dps))}
+              detail="survivors below pace"
+              tone={if @pull_review.low_dps == [], do: :ok, else: :warning}
+            />
+            <.signal_item
+              label="Top Damage Taken"
+              value={top_damage_taken_value(@pull_review.damage_taken_spells)}
+              detail={top_damage_taken_label(@pull_review.damage_taken_spells)}
+              tone={if @pull_review.damage_taken_spells == [], do: :ok, else: :neutral}
+            />
+            <.signal_item
+              label="Encounter Debuffs"
+              value={to_string(length(@pull_review.debuffs.boss))}
+              detail={pluralize_label(total_debuff_applications(@pull_review.debuffs.boss), "application")}
+              tone={if @pull_review.debuffs.boss == [], do: :ok, else: :neutral}
+            />
+            <.signal_item
+              label="Roster"
+              value={to_string(@counts.players || 0)}
+              detail={format_roster_detail(@encounter.group_size)}
+              tone={:neutral}
+            />
           </div>
         </section>
 
@@ -1260,6 +1299,21 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   attr(:label, :string, required: true)
   attr(:value, :string, required: true)
+  attr(:detail, :string, required: true)
+  attr(:tone, :atom, default: :neutral)
+
+  defp signal_item(assigns) do
+    ~H"""
+    <div class={["rounded border px-3 py-2", signal_item_class(@tone)]}>
+      <div class="text-xs font-medium uppercase tracking-wide opacity-75">{@label}</div>
+      <div class="mt-1 text-lg font-semibold">{@value}</div>
+      <div class="mt-1 text-xs opacity-80">{@detail}</div>
+    </div>
+    """
+  end
+
+  attr(:label, :string, required: true)
+  attr(:value, :string, required: true)
   attr(:tone, :atom, default: :neutral)
 
   defp pull_stat(assigns) do
@@ -1324,6 +1378,11 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   defp pull_stat_class(:ok), do: "border-emerald-800/70 bg-emerald-950/20 text-emerald-100"
   defp pull_stat_class(_tone), do: "border-zinc-700 bg-zinc-800 text-zinc-100"
 
+  defp signal_item_class(:danger), do: "border-red-800/70 bg-red-950/30 text-red-100"
+  defp signal_item_class(:warning), do: "border-yellow-800/70 bg-yellow-950/30 text-yellow-100"
+  defp signal_item_class(:ok), do: "border-emerald-800/70 bg-emerald-950/20 text-emerald-100"
+  defp signal_item_class(_tone), do: "border-zinc-700 bg-zinc-900 text-zinc-100"
+
   defp total_damage_done(players) do
     players |> Enum.map(& &1.total_damage) |> Enum.sum()
   end
@@ -1346,6 +1405,25 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   end
 
   defp missed_interrupt_count(_coverage), do: 0
+
+  defp top_damage_taken_value([spell | _rest]), do: format_number(spell.total_damage)
+  defp top_damage_taken_value(_spells), do: "0"
+
+  defp top_damage_taken_label([spell | _rest]) do
+    "#{spell.spell_name || "Unknown"} · #{spell.hits} hit#{plural(spell.hits)}"
+  end
+
+  defp top_damage_taken_label(_spells), do: "no damage taken"
+
+  defp total_debuff_applications(debuffs) do
+    debuffs |> Enum.map(& &1.applications) |> Enum.sum()
+  end
+
+  defp format_roster_detail(nil), do: "players observed"
+  defp format_roster_detail(group_size), do: "#{group_size} expected"
+
+  defp pluralize_label(1, label), do: "1 #{label}"
+  defp pluralize_label(count, label), do: "#{count} #{label}s"
 
   defp tagged_mechanic_count(mechanics), do: Enum.count(mechanics, &tagged_mechanic?/1)
   defp untagged_mechanic_count(mechanics), do: Enum.count(mechanics, &(not tagged_mechanic?(&1)))

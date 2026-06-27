@@ -95,6 +95,15 @@ defmodule WeGoNext.Silver.ProjectorTest do
                total_amount: 2_500,
                hit_count: 2,
                max_hit: 1_500
+             },
+             %{
+               encounter_dim_id: @encounter_dim_id,
+               source_guid: "Player-Dps",
+               target_guid: "Vehicle-Boss",
+               spell_id: 789,
+               total_amount: 10_000,
+               hit_count: 1,
+               max_hit: 10_000
              }
            ] = projection.damage_done
 

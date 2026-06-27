@@ -5,6 +5,7 @@ defmodule WeGoNext.SourceDataTest do
 
   alias WeGoNext.Repo
   alias WeGoNext.SourceData
+  alias WeGoNext.Gold.DimEncounter
 
   alias WeGoNext.SourceData.{
     DbmMechanicCandidate,
@@ -12,8 +13,11 @@ defmodule WeGoNext.SourceDataTest do
     EncounterSpellReference,
     SourceImport,
     SpellReference,
+    WarcraftLogsApiFetch,
     WowAnalyzerTimelineCandidate
   }
+
+  alias WeGoNext.Silver.{DamageDone, PlayerInfo}
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
@@ -47,6 +51,10 @@ defmodule WeGoNext.SourceDataTest do
 
     assert WowAnalyzerTimelineCandidate.__schema__(:association, :source_import).related ==
              SourceImport
+
+    assert WarcraftLogsApiFetch.__schema__(:prefix) == "source_data"
+    assert WarcraftLogsApiFetch.__schema__(:source) == "warcraft_logs_api_fetch"
+    assert WarcraftLogsApiFetch.__schema__(:association, :source_import).related == SourceImport
   end
 
   test "imports a DBM file idempotently with source and line provenance" do
@@ -371,6 +379,207 @@ defmodule WeGoNext.SourceDataTest do
              SourceData.import_wowanalyzer_sources(roots: [missing_root])
   end
 
+  test "imports Warcraft Logs API response payload idempotently as external evidence" do
+    bronze_root = make_bronze_root!()
+
+    payload =
+      warcraft_logs_payload(%{"id" => 1, "type" => "damage", "abilityGameID" => 1_214_081})
+
+    fetched_at = ~U[2026-05-31 12:00:00.000000Z]
+
+    assert {:ok, first_import} =
+             SourceData.import_warcraft_logs_api_response(%{
+               report_code: "abc123",
+               fight_id: 17,
+               source_url: "https://www.warcraftlogs.com/reports/abc123#fight=17",
+               query_name: "DamageTakenEvents",
+               query_document:
+                 "query DamageTakenEvents($fightIDs: [Int]) { reportData { report { events { data } } } }",
+               query_variables: %{fightIDs: [17]},
+               request_params: %{startTime: 0, endTime: 90_000},
+               response_payload: payload,
+               fetched_at: fetched_at,
+               channel: "retail",
+               build_key: "local",
+               bronze_root: bronze_root,
+               metadata: %{comparison_target: "local silver damage taken"}
+             })
+
+    assert first_import.source_import_action == :inserted
+    assert first_import.fetch.report_code == "abc123"
+    assert first_import.fetch.fight_id == 17
+    assert first_import.fetch.query_name == "DamageTakenEvents"
+    assert first_import.fetch.query_variables == %{"fightIDs" => [17]}
+    assert first_import.fetch.request_params == %{"endTime" => 90_000, "startTime" => 0}
+    assert first_import.fetch.response_payload == payload
+    assert first_import.fetch.fetched_at == fetched_at
+    assert first_import.fetch.response_hash == first_import.source_import.content_hash
+    assert first_import.fetch.request_hash =~ ~r/^[0-9a-f]{64}$/
+    assert first_import.fetch.response_hash =~ ~r/^[0-9a-f]{64}$/
+    assert first_import.fetch.artifact_path =~ bronze_root
+    assert first_import.fetch.artifact_hash =~ ~r/^[0-9a-f]{64}$/
+    assert first_import.fetch.artifact_bytes > 0
+    assert File.regular?(first_import.fetch.artifact_path)
+    assert first_import.fetch.product == "wow"
+    assert first_import.fetch.channel == "retail"
+    assert first_import.fetch.build_key == "local"
+
+    source_import = Repo.get!(SourceImport, first_import.source_import.id)
+    assert source_import.source_system == "warcraft_logs_api"
+    assert source_import.source_path == first_import.fetch.artifact_path
+    assert source_import.metadata["source_format"] == "warcraft_logs_api_response"
+    assert source_import.metadata["annotation_only"] =~ "does not create active rules"
+    assert source_import.metadata["request_params"] == %{"endTime" => 90_000, "startTime" => 0}
+    assert source_import.metadata["artifact_path"] == first_import.fetch.artifact_path
+
+    assert source_import.metadata["canonical_source_uri"] =~
+             "warcraftlogs://reports/abc123/fights/17"
+
+    artifact = first_import.fetch.artifact_path |> File.read!() |> Jason.decode!()
+    assert artifact["response_payload"] == payload
+    assert artifact["response_hash"] == first_import.fetch.response_hash
+
+    assert {:ok, second_import} =
+             SourceData.import_warcraft_logs_api_response(%{
+               report_code: "abc123",
+               fight_id: 17,
+               source_url: "https://www.warcraftlogs.com/reports/abc123#fight=17",
+               query_name: "DamageTakenEvents",
+               query_document:
+                 "query DamageTakenEvents($fightIDs: [Int]) { reportData { report { events { data } } } }",
+               query_variables: %{fightIDs: [17]},
+               request_params: %{startTime: 0, endTime: 90_000},
+               response_payload: payload,
+               fetched_at: fetched_at,
+               channel: "retail",
+               build_key: "local",
+               bronze_root: bronze_root
+             })
+
+    assert second_import.source_import_action == :updated
+    assert second_import.source_import.id == first_import.source_import.id
+    assert second_import.fetch.id == first_import.fetch.id
+    assert Repo.aggregate(SourceImport, :count) == 1
+    assert Repo.aggregate(WarcraftLogsApiFetch, :count) == 1
+
+    assert SourceData.list_warcraft_logs_api_fetches(report_code: "abc123", fight_id: "17")
+           |> Enum.map(& &1.id) == [first_import.fetch.id]
+  end
+
+  test "changed Warcraft Logs API response creates a new versioned source import" do
+    bronze_root = make_bronze_root!()
+
+    attrs = %{
+      report_code: "abc123",
+      fight_id: 17,
+      query_name: "Events",
+      request_params: %{startTime: 0, endTime: 90_000},
+      fetched_at: ~U[2026-05-31 12:00:00.000000Z],
+      bronze_root: bronze_root
+    }
+
+    assert {:ok, first_import} =
+             SourceData.import_warcraft_logs_api_response(
+               Map.put(attrs, :response_payload, warcraft_logs_payload(%{"id" => 1}))
+             )
+
+    assert {:ok, second_import} =
+             SourceData.import_warcraft_logs_api_response(
+               Map.put(attrs, :response_payload, warcraft_logs_payload(%{"id" => 2}))
+             )
+
+    assert second_import.source_import_action == :inserted
+    refute second_import.source_import.id == first_import.source_import.id
+    refute second_import.fetch.response_hash == first_import.fetch.response_hash
+    assert Repo.aggregate(SourceImport, :count) == 2
+    assert Repo.aggregate(WarcraftLogsApiFetch, :count) == 2
+  end
+
+  test "imports Warcraft Logs API response JSON files" do
+    bronze_root = make_bronze_root!()
+    path = write_json_fixture(warcraft_logs_payload(%{"id" => 1, "type" => "cast"}))
+
+    assert {:ok, import} =
+             SourceData.import_warcraft_logs_api_response_file(path,
+               report_code: "file123",
+               fight_id: 22,
+               query_name: "Casts",
+               request_params: %{startTime: 10, endTime: 20},
+               bronze_root: bronze_root
+             )
+
+    assert import.source_import_action == :inserted
+    assert import.fetch.report_code == "file123"
+    assert import.fetch.response_payload["data"]
+    assert File.regular?(import.fetch.artifact_path)
+  end
+
+  test "compares Warcraft Logs damage done totals against local silver rows" do
+    bronze_root = make_bronze_root!()
+
+    encounter =
+      %DimEncounter{}
+      |> DimEncounter.changeset(%{
+        wow_encounter_id: "wcl-compare",
+        name: "WCL Compare",
+        difficulty_id: 16
+      })
+      |> Repo.insert!()
+
+    insert_player_info!(encounter, "Player-Dps", "Dps-Realm")
+    insert_player_info!(encounter, "Player-Other", "Other-Realm")
+    insert_damage_done!(encounter, "Player-Dps", "Creature-Boss", 101, 1_000)
+    insert_damage_done!(encounter, "Player-Dps", "Creature-Add", 102, 500)
+    insert_damage_done!(encounter, "Player-Other", "Creature-Boss", 101, 200)
+
+    assert {:ok, import} =
+             SourceData.import_warcraft_logs_api_response(%{
+               report_code: "abc123",
+               fight_id: 17,
+               query_name: "DamageDoneTable",
+               response_payload:
+                 warcraft_logs_table_payload([
+                   %{"id" => 1, "name" => "Dps", "total" => 1_500, "type" => "Warlock"},
+                   %{"id" => 2, "name" => "Other", "total" => 250, "type" => "Mage"},
+                   %{"id" => 3, "name" => "Missing", "total" => 100, "type" => "Priest"}
+                 ]),
+               fetched_at: ~U[2026-05-31 12:00:00.000000Z],
+               bronze_root: bronze_root
+             })
+
+    assert {:ok, comparison} =
+             SourceData.compare_warcraft_logs_damage_done(encounter.id, import.fetch)
+
+    assert comparison.local_total == 1_700
+    assert comparison.warcraft_logs_total == 1_850
+    assert comparison.delta == -150
+    assert comparison.artifact_path == import.fetch.artifact_path
+    assert comparison.matched_count == 1
+    assert comparison.mismatched_count == 1
+    assert comparison.warcraft_logs_only_count == 1
+
+    assert [
+             %{
+               player_name: "Dps-Realm",
+               local_total: 1_500,
+               warcraft_logs_total: 1_500,
+               status: :matched
+             },
+             %{
+               player_name: "Missing",
+               local_total: 0,
+               warcraft_logs_total: 100,
+               status: :warcraft_logs_only
+             },
+             %{
+               player_name: "Other-Realm",
+               local_total: 200,
+               warcraft_logs_total: 250,
+               status: :mismatched
+             }
+           ] = comparison.players
+  end
+
   test "spell reference lookup honors source priority and build-separated channels" do
     attrs = %{
       spell_id: 123_456,
@@ -663,6 +872,18 @@ defmodule WeGoNext.SourceDataTest do
     directory
   end
 
+  defp make_bronze_root! do
+    directory =
+      Path.join(
+        System.tmp_dir!(),
+        "wgn-warcraft-logs-bronze-#{System.unique_integer([:positive])}"
+      )
+
+    File.mkdir_p!(directory)
+    on_exit(fn -> File.rm_rf(directory) end)
+    directory
+  end
+
   defp write_dbm_module!(root, relative_path, body) do
     path = Path.join(root, relative_path)
     File.mkdir_p!(Path.dirname(path))
@@ -688,5 +909,66 @@ defmodule WeGoNext.SourceDataTest do
     on_exit(fn -> File.rm_rf(directory) end)
 
     path
+  end
+
+  defp warcraft_logs_payload(event) do
+    %{
+      "data" => %{
+        "reportData" => %{
+          "report" => %{
+            "events" => %{
+              "data" => [event]
+            }
+          }
+        }
+      }
+    }
+  end
+
+  defp warcraft_logs_table_payload(entries) do
+    %{
+      "data" => %{
+        "reportData" => %{
+          "report" => %{
+            "table" => %{
+              "data" => %{
+                "entries" => entries
+              }
+            }
+          }
+        }
+      }
+    }
+  end
+
+  defp insert_player_info!(%DimEncounter{} = encounter, player_guid, player_name) do
+    %PlayerInfo{}
+    |> PlayerInfo.changeset(%{
+      encounter_dim_id: encounter.id,
+      player_guid: player_guid,
+      player_name: player_name,
+      detected_role: "dps"
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_damage_done!(
+         %DimEncounter{} = encounter,
+         source_guid,
+         target_guid,
+         spell_id,
+         total_amount
+       ) do
+    %DamageDone{}
+    |> DamageDone.changeset(%{
+      encounter_dim_id: encounter.id,
+      source_guid: source_guid,
+      target_guid: target_guid,
+      spell_id: spell_id,
+      total_amount: total_amount,
+      hit_count: 1,
+      max_hit: total_amount
+    })
+    |> Repo.insert!()
   end
 end

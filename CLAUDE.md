@@ -438,7 +438,42 @@ If scope pressure appears:
 - **Iterative**: Start generic, add boss-specific criteria during prog
 - **Between-pull focus**: Analysis ready during runback when it's actionable
 
+## How We Build: Spec / Verifier / Environment
+
+Three disciplines, not a post-hoc checklist (lineage: Karpathy's three-layer model, adopted from the `agent-orchestration-app` charter). They're the _method_ — when something feels off, the question to reach for is "which layer is this?"
+
+- **Spec** — state the objective precisely enough that nothing is left to assume, with a measurable done-condition. For medallion work that means a concrete observable outcome ("`Arcane Expulsion` failures appear in `/failures` for log X after sync + rebuild"), never "improve the warehouse" or "clean up the projector." If you can't name the row, count, or UI state that proves it done, the spec isn't ready — plan it into Linear first (see the `~/dev` working agreement) and give a short rundown for pushback _before_ executing.
+- **Verifier** — close the loop with automated checks _plus evidence_, not an eyeball pass or an assertion. The evidence is what was actually observed (the failing→passing test, the fact-row count before/after a rebuild, the readiness diagnostic), not "looks done." `mix test` + `mix credo` (zero compile warnings) are the floor; real-data dogfooding through the medallion UI is the proof for anything touching facts/dimensions. A "done" without referenced evidence is not verified — use the `verify-before-claiming` skill.
+- **Environment** — enforce safety in code, not in prose. Branch before committing; commit/PR only when asked; never auto-merge; don't reintroduce legacy `public.mechanic_criteria` or analyzer-cache surfaces; bump failure-derivation stamps when fact semantics change so stale rows are mechanically detectable. A rule you merely intend to follow is not a boundary — a check or a guard is.
+
+The constraint that keeps all three honest: **you can outsource the doing, not the understanding.** Every change ultimately resolves against a person reading the diff and its evidence.
+
+## Quality Loop
+
+Treat each correctness/quality pass as a loop with a real loss function (adapted from the `ui-o-matic` quality-ratchet loop). "Make it better" is too vague to act on; "rebuild `fact_failure` so missed-interrupt counts stop double-counting, dropping the row count from N to the expected M" is actionable.
+
+1. Collect the relevant signal (a failing test, a stale/empty medallion state, missing failures over a real log, a credo finding).
+2. Pick one narrow hypothesis.
+3. Patch only the files that hypothesis needs.
+4. Run checks (`mix test` — `--failed` / `path:line` to stay fast; `mix credo`; `mix precommit` when present).
+5. Compare before/after on a stable, comparable signal (test pass count, credo warning count, fact-row deltas, readiness diagnostics, parse throughput).
+6. Human reviews the diff plus that evidence.
+7. Commit (granular, per phase) — only when asked.
+
+**Ratchet vs rubric.** A _ratchet_ is a mechanical check emitting a stable, comparable output (tests → green, credo warnings → 0, fact-row deltas, derivation stamps, a repeatable parse benchmark). A _rubric_ is human/LLM judgment, and is not a ratchet until it produces a repeatable, low-noise output. Prefer ratchets; when a review finding recurs, promote it into a check (a test or a credo rule) so the loop catches it next time instead of a human re-finding it.
+
+**Performance.** Measure before optimizing, with a repeatable benchmark, then compare before/after — don't guess at the hot path. The combat-log parser / Zig NIF and the silver projectors are the realistic hot paths; benchmark the specific stage rather than eyeballing it.
+
 ## Testing
+
+### Use the lowest faithful test layer
+
+Unlike the `ui-o-matic` addon — which can only get real behavior out of a live WoW client and so leans on in-game probes — everything here is testable inside the Elixir/Phoenix stack. Put each test at the cheapest layer that can faithfully assert the behavior: don't push pure logic up into a slow feature spec, and don't fake out behavior that only the full stack exercises.
+
+- **Unit (`ExUnit`, no DB)** — pure logic: `LogReader`/parser decoding, projector transforms, fact/threshold math, criterion validation, source-data parsers. Fast lane; most coverage lives here.
+- **Context/integration (`DataCase`, DB)** — silver projections and gold fact rebuilds against seeded rows, rules sync, migrations, anything keyed on `encounter_dim_id`. Assert the rebuild/read-model output, not internals.
+- **LiveView / controller (`ConnCase`, `Phoenix.LiveViewTest`)** — `/failures` and other medallion read-model views, plus their empty/stale/missing states and the settings/import flows.
+- **Feature (`Wallaby`, page objects)** — end-to-end real-data dogfooding (import → encounter → failure preview). Slowest; reserve for the cross-cutting flow and use the page-object pattern below.
 
 ### Feature Tests with Page Objects
 

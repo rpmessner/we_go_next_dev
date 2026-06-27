@@ -591,7 +591,10 @@ defmodule WeGoNext.Silver.Projector do
   defp player_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Player-")
   defp player_guid?(_guid), do: false
 
-  defp npc_guid?(guid) when is_binary(guid), do: String.starts_with?(guid, "Creature-")
+  defp npc_guid?(guid) when is_binary(guid) do
+    String.starts_with?(guid, "Creature-") or String.starts_with?(guid, "Vehicle-")
+  end
+
   defp npc_guid?(_guid), do: false
 
   defp hostile_npc_source?(event) do

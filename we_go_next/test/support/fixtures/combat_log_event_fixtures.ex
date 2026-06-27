@@ -72,6 +72,16 @@ defmodule WeGoNext.Fixtures.CombatLogEventFixtures do
         spell_name: "Nuke",
         amount: 1_500
       ),
+      spell_damage_event(
+        time_into_fight: 3.8,
+        source_guid: "Player-Dps",
+        source_name: "Dps-Realm",
+        target_guid: "Vehicle-Boss",
+        target_name: "Boss Vehicle",
+        spell_id: 789,
+        spell_name: "Vehicle Nuke",
+        amount: 10_000
+      ),
       spell_interrupt_event(
         time_into_fight: 4.0,
         source_guid: "Player-Dps",
