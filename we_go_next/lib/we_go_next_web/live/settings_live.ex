@@ -14,6 +14,7 @@ defmodule WeGoNextWeb.SettingsLive do
      |> assign(:user, user)
      |> assign(:path_input, user.wow_logs_path || "")
      |> assign(:path_valid, check_path_valid(user.wow_logs_path))
+     |> assign(:warcraft_logs_client_name_input, user.warcraft_logs_client_name || "")
      |> assign(:watching_file, watching_file)}
   end
 
@@ -42,6 +43,56 @@ defmodule WeGoNextWeb.SettingsLive do
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to save path")}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "save_warcraft_logs_credentials",
+        %{"warcraft_logs" => %{"client_name" => client_name, "api_key" => api_key}},
+        socket
+      ) do
+    user = socket.assigns.user
+    api_key = String.trim(api_key || "")
+
+    result =
+      if api_key == "" and Accounts.warcraft_logs_credentials_configured?(user) do
+        Accounts.update_warcraft_logs_client_name(user, client_name)
+      else
+        Accounts.set_warcraft_logs_credentials(user, client_name, api_key)
+      end
+
+    case result do
+      {:ok, user} ->
+        {:noreply,
+         socket
+         |> assign(:user, user)
+         |> assign(:warcraft_logs_client_name_input, user.warcraft_logs_client_name || "")
+         |> put_flash(:info, "Warcraft Logs credentials saved")}
+
+      {:error, :client_name_required} ->
+        {:noreply, put_flash(socket, :error, "Warcraft Logs client name is required")}
+
+      {:error, :api_key_required} ->
+        {:noreply, put_flash(socket, :error, "Warcraft Logs API key is required")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to save Warcraft Logs credentials")}
+    end
+  end
+
+  @impl true
+  def handle_event("clear_warcraft_logs_credentials", _params, socket) do
+    case Accounts.clear_warcraft_logs_credentials(socket.assigns.user) do
+      {:ok, user} ->
+        {:noreply,
+         socket
+         |> assign(:user, user)
+         |> assign(:warcraft_logs_client_name_input, "")
+         |> put_flash(:info, "Warcraft Logs credentials cleared")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to clear Warcraft Logs credentials")}
     end
   end
 
@@ -142,6 +193,81 @@ defmodule WeGoNextWeb.SettingsLive do
         </form>
       </div>
 
+      <div class="bg-zinc-800 rounded-lg p-6 border border-zinc-700">
+        <div class="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-semibold text-zinc-100">Warcraft Logs Credentials</h2>
+            <p class="mt-1 text-sm text-zinc-400">
+              Saved locally for report fetches. The key is encrypted before it is stored.
+            </p>
+          </div>
+          <span class={[
+            "rounded px-2 py-1 text-xs font-semibold",
+            if(warcraft_logs_configured?(@user),
+              do: "bg-green-900 text-green-300",
+              else: "bg-zinc-700 text-zinc-300"
+            )
+          ]}>
+            {if warcraft_logs_configured?(@user), do: "Configured", else: "Not configured"}
+          </span>
+        </div>
+
+        <form phx-submit="save_warcraft_logs_credentials" class="space-y-4">
+          <div>
+            <label
+              for="warcraft_logs_client_name"
+              class="block text-sm font-medium text-zinc-400 mb-1"
+            >
+              Client Name
+            </label>
+            <input
+              type="text"
+              name="warcraft_logs[client_name]"
+              id="warcraft_logs_client_name"
+              value={@warcraft_logs_client_name_input}
+              class="w-full bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-wow-gold focus:ring-1 focus:ring-wow-gold"
+              placeholder="Warcraft Logs client name"
+            />
+          </div>
+
+          <div>
+            <label for="warcraft_logs_api_key" class="block text-sm font-medium text-zinc-400 mb-1">
+              API Key
+            </label>
+            <input
+              type="password"
+              name="warcraft_logs[api_key]"
+              id="warcraft_logs_api_key"
+              value=""
+              autocomplete="off"
+              class="w-full bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-wow-gold focus:ring-1 focus:ring-wow-gold"
+              placeholder={if warcraft_logs_configured?(@user), do: "Saved key unchanged", else: "Paste API key"}
+            />
+            <p class="mt-1 text-xs text-zinc-500">
+              Leave blank to keep the saved key when changing only the client name.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="submit"
+              class="px-4 py-2 bg-wow-gold text-zinc-900 font-semibold rounded hover:bg-yellow-400"
+            >
+              Save Credentials
+            </button>
+            <button
+              :if={warcraft_logs_configured?(@user)}
+              type="button"
+              phx-click="clear_warcraft_logs_credentials"
+              data-confirm="Clear saved Warcraft Logs credentials?"
+              class="px-4 py-2 bg-zinc-700 text-zinc-100 font-semibold rounded hover:bg-zinc-600"
+            >
+              Clear
+            </button>
+          </div>
+        </form>
+      </div>
+
       <%!-- Current settings summary --%>
       <div class="bg-zinc-800 rounded-lg p-6 border border-zinc-700">
         <h2 class="text-lg font-semibold text-zinc-100 mb-4">Current Configuration</h2>
@@ -162,9 +288,17 @@ defmodule WeGoNextWeb.SettingsLive do
               {if @watching_file, do: Path.basename(@watching_file.file_path), else: "None"}
             </dd>
           </div>
+          <div class="flex">
+            <dt class="text-zinc-500 w-40">Warcraft Logs:</dt>
+            <dd class={if warcraft_logs_configured?(@user), do: "text-green-400", else: "text-zinc-500"}>
+              {if warcraft_logs_configured?(@user), do: "#{@user.warcraft_logs_client_name} (key saved)", else: "Not configured"}
+            </dd>
+          </div>
         </dl>
       </div>
     </div>
     """
   end
+
+  defp warcraft_logs_configured?(user), do: Accounts.warcraft_logs_credentials_configured?(user)
 end

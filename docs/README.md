@@ -9,6 +9,8 @@ This directory contains current durable documentation for the project. Historica
 - [`MECHANIC_SOURCE_STRATEGY.md`](MECHANIC_SOURCE_STRATEGY.md) — source hierarchy for turning observed log mechanics into real rules.
 - [`OPERATIONS.md`](OPERATIONS.md) — everyday import, rules, rebuild, and reimport workflows.
 - [`ROADMAP.md`](ROADMAP.md) — current board-aligned execution order.
+- [`PUBLIC_MIRROR_DESIGN.md`](PUBLIC_MIRROR_DESIGN.md) — proposed parser/public split for mirroring gold analysis data to a hosted read-only app.
+- [`PUBLIC_MIRROR_REVIEW_BRIEF.md`](PUBLIC_MIRROR_REVIEW_BRIEF.md) — review brief for critiquing the public-mirror plan before implementation.
 
 ## Documentation Rules
 

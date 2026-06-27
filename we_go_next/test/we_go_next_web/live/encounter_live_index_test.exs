@@ -1,7 +1,7 @@
 defmodule WeGoNextWeb.EncounterLiveIndexTest do
   use WeGoNextWeb.ConnCase, async: false
 
-  alias WeGoNext.{Accounts, CombatLogFile, FileWatcher}
+  alias WeGoNext.{Accounts, CombatLogFile, FileWatcher, WarcraftLogs}
   alias WeGoNext.Encounters.Encounter
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Repo
@@ -87,6 +87,32 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     refute html =~ "Force Reimport Log"
   end
 
+  test "renders a Warcraft Logs report URL association for an imported log", %{conn: conn} do
+    user = Accounts.get_or_create_default_user()
+    log = insert_combat_log!(user, "/tmp/wgn-wcl-linked.log")
+    insert_encounter!(log, %{start_time: ~U[2026-04-12 20:00:00Z]})
+
+    assert {:ok, _log} =
+             WarcraftLogs.associate_report(
+               log,
+               "https://www.warcraftlogs.com/reports/abc123#fight=17&type=damage-done"
+             )
+
+    html =
+      conn
+      |> get(~p"/")
+      |> html_response(200)
+
+    assert html =~ "Warcraft Logs report URL"
+    assert html =~ "WCL report abc123 fight 17"
+
+    updated = Repo.get!(CombatLogFile, log.id)
+    assert updated.warcraft_logs_report_url =~ "/reports/abc123"
+    assert updated.warcraft_logs_report_code == "abc123"
+    assert updated.warcraft_logs_fight_id == 17
+    assert updated.warcraft_logs_linked_at
+  end
+
   test "import dropdown only contains unimported discovered logs", %{conn: conn} do
     user = Accounts.get_or_create_default_user()
     dir = Path.join(System.tmp_dir!(), "wgn-home-logs-#{System.unique_integer([:positive])}")
@@ -107,7 +133,9 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
       |> html_response(200)
 
     assert html =~ ~s(value="#{unimported_path}")
+    assert html =~ "log date Jan 02, 2026"
     refute html =~ ~s(<option value="#{imported_path}")
+    refute html =~ "modified"
     refute html =~ "Currently loaded:"
     refute html =~ "✓ (complete)"
   end

@@ -28,7 +28,11 @@ Bronze owns raw operational inputs and provenance.
   - `warcraftlogsarchive/Archive-WoWCombatLog-*.txt`
 - Archive reconciliation preserves the logical `combat_log_files` row when the Warcraft Logs uploader moves a file.
 
-`WeGoNext.FileWatcher` is no longer a polling watcher. It is a current-log pointer used by the UI and import flow.
+`WeGoNext.FileWatcher` is the current-log coordinator used by the UI and import
+flow. In the current runtime it also polls the tracked file and starts
+supervised sync tasks for appended completed encounters. The Reactor/Oban
+refactor keeps the current-log pointer and scheduling trigger, but moves sync
+execution and medallion builds into durable jobs.
 
 ### Silver
 
@@ -131,12 +135,19 @@ Current source-data groundwork:
 - `source_data.encounter_reference`
 - `source_data.encounter_spell_reference`
 - `source_data.wowanalyzer_timeline_candidate`
+- `source_data.warcraft_logs_api_fetch`
 - `WeGoNext.SourceData.DBM.Parser`
 - `WeGoNext.SourceData.WowAnalyzer.Parser`
 
 DBM imports create parsed source rows with source file, line number, module metadata, warning constructor, role filters, labels, comments, confidence, and review status. The parser is a focused static Lua tokenizer/call extractor for DBM declaration forms, not Lua execution. Tree-sitter Lua was evaluated as a broader AST option, but the current narrow Elixir parser is sufficient for `DBM:NewMod`, module metadata setters, `mod:NewSpecialWarning*`, and warning `SetAlert` calls without adding a native parser dependency. These rows are source annotations, not active rules. They do not write gold facts directly.
 
 WowAnalyzer timeline imports create parsed source rows from local raid boss timeline metadata such as `src/game/raids/vs_dr_mqd`. Rows capture encounter id/name, timeline type (`ability` or `debuff`), event type (`cast`, `begincast`, `summon`, `debuff`, or `buff`), spell id, comment-derived mechanic hints, source file/line, repository revision, and repository license. These rows are also annotations only; they do not call WowAnalyzer runtime code and do not write active rules, promoted criterion snapshots, or facts.
+
+Warcraft Logs API imports write flat JSON bronze artifacts under the local bronze root (`var/bronze/warcraft_logs` by default) and catalog them in `source_data.warcraft_logs_api_fetch`. Rows capture report code, fight id, source URL, query metadata, request parameters, fetch timestamp, request hash, response hash, artifact path/hash/size, raw JSON payload, and provenance metadata. These rows are separate from `combat_log_files`; local WoW combat logs remain the parser input, while Warcraft Logs rows are used only for validation and investigation.
+
+The first WCL validation read model compares local `silver.damage_done` player totals against WCL damage-done table entries for a matching report/fight. It is a sanity-check path for parser/projection math and does not mutate silver, gold, rules, or imported WCL evidence.
+
+Warcraft Logs credentials are local user settings. The client name is stored as configuration metadata; the API key is encrypted with the Phoenix endpoint secret before persistence and is only decrypted when a fetch workflow needs it. Imported `combat_log_files` can store an associated WCL report URL, parsed report code, and optional fight id so validation workflows can start from a local log row rather than copied CLI arguments.
 
 Spell, encounter, and encounter-spell references are conformed, build-scoped source-data dimensions used by rules, observed-mechanic previews, and gold promotion code to resolve display names and encounter scope without relying on static JSON names. Reference rows carry product, channel, build key/version, locale, source system, source priority, optional `source_import_id`, and metadata. Retail, beta, and PTR rows coexist by channel/build scope; lookups prefer lower `source_priority` values within an explicit build scope.
 
@@ -159,7 +170,7 @@ The source hierarchy and constraints are documented in
 [`MECHANIC_SOURCE_STRATEGY.md`](MECHANIC_SOURCE_STRATEGY.md). New UI should use
 language like observed mechanics, source annotations, and rule status.
 
-## Import Flow
+## Current Import Flow
 
 ```text
 ImportWorker
@@ -172,6 +183,178 @@ ImportWorker
 ```
 
 Only newly inserted encounter boundaries run the medallion import path during normal import. Existing fully imported logs can be force-reimported from byte zero through the UI.
+
+## Target Durable Orchestration
+
+The current inline import path is being refactored toward Reactor plus Oban.
+This is the target contract for tasks `#99` through `#104`; until those tasks
+land, the current import flow above remains the runtime behavior.
+
+### Responsibility Split
+
+Oban owns durable scheduling, uniqueness, retries, queue concurrency, operator
+visibility, and handoff between long-running units of work.
+
+Reactor owns the ordered dependency graph inside one medallion build. Reactor
+steps should call existing bronze, silver, gold, and rules APIs rather than
+moving layer logic into workers.
+
+The core boundary is:
+
+```text
+Oban job: discover/sync one combat log
+  -> scan completed encounter boundaries
+  -> insert or fetch public.encounters rows
+  -> enqueue one Oban job per inserted or explicitly requested encounter
+
+Oban job: build one encounter
+  -> Reactor workflow: WeGoNext.Medallion.BuildEncounter
+     -> load public encounter + combat_log_file
+     -> parse events from bronze file bytes
+     -> get or create gold.dim_encounter
+     -> Silver.project_and_persist/2
+     -> Gold.RebuildEncounter.rebuild/2
+     -> emit build summary
+
+Oban job: rebuild gold for one encounter
+  -> Gold.RebuildEncounter.rebuild/2
+```
+
+### Queues
+
+- `:log_sync` for initial imports, manual syncs, watcher-triggered syncs, and
+  force reimports. Concurrency target: `1` to `2` locally. Uniqueness should
+  prevent overlapping work for the same `combat_log_file_id` or unresolved file
+  path.
+- `:medallion_build` for per-encounter bronze-to-silver-to-gold builds.
+  Concurrency target: CPU and database limited, initially `2`. These jobs parse
+  bounded byte ranges and can run independently after boundary insertion.
+- `:gold_rebuild` for rules-triggered or operator-triggered gold-only rebuilds.
+  Concurrency target: `2` to `4`, because they avoid reparsing raw log bytes and
+  read from silver.
+- `:source_import` may be used by source-data import tasks later, but source
+  annotations must not enqueue combat-log medallion facts directly.
+
+### Reactor Workflows
+
+`WeGoNext.Medallion.BuildEncounter` is the first required Reactor workflow. Its
+inputs are `encounter_id`, optional `combat_log_file_id`, and build options such
+as `ruleset_id` or `ruleset: :active`. It returns a compact summary:
+
+```elixir
+%{
+  encounter_id: public_encounter_id,
+  combat_log_file_id: combat_log_file_id,
+  dim_encounter_id: dim_encounter_id,
+  silver_counts: %{...},
+  gold: %{fact_failure: %{deleted: count, inserted: count, skipped: term | nil}}
+}
+```
+
+Steps:
+
+1. Load `public.encounters` and its `combat_log_files` row.
+2. Parse normalized events with `CombatLogParser.parse_events/4` using the
+   encounter byte range and start timestamp.
+3. Get or create `gold.dim_encounter` using the existing source identity rules:
+   prefer `source_head_sha256` plus `start_byte`, fall back to `source_file_path`
+   plus `start_byte`.
+4. Persist silver through `WeGoNext.Silver.project_and_persist/2`.
+5. Rebuild encounter-level gold through `WeGoNext.Gold.RebuildEncounter`.
+6. Publish a completion event and return the summary.
+
+The workflow must be safe to rerun for the same encounter. Silver upserts by
+natural key, gold fact rebuilds replace rows for one encounter/ruleset, and
+`gold.dim_encounter` lookup avoids duplicate dimensions.
+
+Rules sync is a separate workflow only if it needs multi-step durability. The
+preferred first pass is to keep `WeGoNext.Rules.sync_current_tier_rules/1` as
+the rules boundary and enqueue gold rebuild jobs after rules have been synced
+and promoted.
+
+### Job Boundaries and Uniqueness
+
+Log sync jobs use one of these uniqueness keys:
+
+- Existing row: `{"log_sync", combat_log_file_id, force_reimport?}`.
+- New path before row creation: `{"log_sync_path", user_id, normalized_file_path}`.
+
+The sync worker creates or refreshes the `combat_log_files` row, reconciles live
+to archive moves, scans from `last_parsed_byte`, inserts completed encounter
+boundaries, advances progress only through the last completed boundary, and
+enqueues medallion build jobs for inserted encounters. Existing encounters are
+not rebuilt by a normal sync.
+
+Encounter boundary insertion remains the byte-range idempotency gate. For one
+logical combat log, the stable boundary identity is `combat_log_file_id` plus
+`start_byte` and `end_byte`; after archive reconciliation, source identity may
+also use the preserved `head_sha256` plus byte range. The sync worker should
+resolve or insert `public.encounters` first, then enqueue jobs by the resulting
+public encounter id.
+
+Medallion build jobs use:
+
+```text
+{"medallion_build", public_encounter_id, build_kind}
+```
+
+`build_kind` is normally `:import`. Explicit reimport or silver rebuild flows
+may use a distinct kind, but they must still be idempotent for the same
+encounter byte range.
+
+Gold rebuild jobs use:
+
+```text
+{"gold_rebuild", dim_encounter_id, ruleset_key}
+```
+
+`ruleset_key` is `active` or the explicit ruleset id. This prevents duplicate
+rule-triggered rebuilds for the same encounter while allowing an explicit test
+or backfill to choose another ruleset.
+
+### Progress and Failure Events
+
+LiveView should observe progress through PubSub events emitted by workers, not
+by long-lived LiveView-owned tasks. Events should include enough IDs to refresh
+read models from the database:
+
+- `{:log_sync_started, %{combat_log_file_id: id | nil, path: path}}`
+- `{:log_sync_progress, %{combat_log_file_id: id, bytes_read: n, total_bytes: n, encounters_found: n}}`
+- `{:encounter_build_enqueued, %{encounter_id: id, dim_encounter_id: id | nil}}`
+- `{:encounter_build_finished, %{encounter_id: id, dim_encounter_id: id, silver_counts: counts, gold: result}}`
+- `{:medallion_job_failed, %{kind: kind, ids: ids, reason: reason, attempt: n}}`
+
+Oban remains the source of truth for retry state. LiveViews should display
+summaries from refreshed database rows plus recent PubSub events; they should
+not depend on process-local task state.
+
+### Retry Policy
+
+- Log sync jobs: retry transient file, parser, and database errors with modest
+  backoff. Missing files should attempt archive reconciliation first. If no
+  replacement exists, record/log a skip rather than retrying forever.
+- Per-encounter build jobs: retry parser and database errors. The workflow is
+  idempotent, so a retry can rerun all steps.
+- Gold rebuild jobs: retry database/rules lookup errors. A missing active
+  ruleset should return the existing skipped rebuild result instead of being a
+  failed job.
+- Force reimport jobs should be explicit and operator-triggered. They may delete
+  transitional `public.encounters` rows for the selected log before rescanning,
+  but they must not purge unrelated logs or gold dimensions without a separate
+  explicit operation.
+
+### Migration Path
+
+1. Add Oban/Reactor dependencies, migrations, queues, and test configuration.
+2. Introduce `WeGoNext.Medallion.BuildEncounter` and prove it matches the
+   current inline `Importer` medallion path.
+3. Create per-encounter Oban build workers and have imports enqueue them.
+4. Move `ImportWorker` and `FileWatcher.sync_now/0` execution onto Oban while
+   preserving their public UI-facing APIs.
+5. Route rules-triggered and operator-triggered gold rebuilds through
+   `:gold_rebuild` jobs.
+6. Remove `Task.Supervisor` import coordination once no production medallion
+   build path depends on it.
 
 ## Rebuild Flow
 

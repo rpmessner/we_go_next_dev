@@ -35,7 +35,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
               <option value="">Choose a log file...</option>
               <%= for log <- @log_files do %>
                 <option value={log.full_path} selected={@selected_log == log.full_path}>
-                  {log.filename} ({format_size(log.size)}) - modified {format_log_date(log.modified)}
+                  {log.filename} ({format_size(log.size)}) - log date {format_log_date(log.filename_datetime)}
                 </option>
               <% end %>
             </select>

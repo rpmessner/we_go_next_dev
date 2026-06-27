@@ -10,7 +10,16 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   """
   use WeGoNextWeb, :live_view
 
-  alias WeGoNext.{EncounterStore, Accounts, Repo, CombatLogFile, Importer, ImportWorker}
+  alias WeGoNext.{
+    Accounts,
+    CombatLogFile,
+    EncounterStore,
+    Importer,
+    ImportWorker,
+    Repo,
+    WarcraftLogs
+  }
+
   alias WeGoNextWeb.Components.{LogSelector, ImportedLogsSwitcher, EncounterList}
   import Ecto.Query
 
@@ -143,6 +152,50 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   @impl true
   def handle_event("reimport_log", %{"path" => path}, socket) do
     do_import(socket, path, force_reimport: true)
+  end
+
+  @impl true
+  def handle_event("save_warcraft_logs_url", %{"file_id" => file_id, "url" => url}, socket) do
+    with {:ok, file_id} <- parse_id(file_id),
+         %CombatLogFile{} = combat_log_file <-
+           get_user_combat_log(socket.assigns.user.id, file_id),
+         {:ok, _combat_log_file} <- WarcraftLogs.associate_report(combat_log_file, url) do
+      {:noreply,
+       socket
+       |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+       |> maybe_refresh_current_combat_log(file_id)
+       |> put_flash(:info, "Warcraft Logs report linked")}
+    else
+      {:error, :missing_report_code} ->
+        {:noreply, put_flash(socket, :error, "Enter a Warcraft Logs report URL")}
+
+      {:error, :invalid_fight_id} ->
+        {:noreply,
+         put_flash(socket, :error, "The Warcraft Logs fight id must be a positive number")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to link Warcraft Logs report")}
+
+      nil ->
+        {:noreply, put_flash(socket, :error, "Imported log not found")}
+    end
+  end
+
+  @impl true
+  def handle_event("clear_warcraft_logs_url", %{"file_id" => file_id}, socket) do
+    with {:ok, file_id} <- parse_id(file_id),
+         %CombatLogFile{} = combat_log_file <-
+           get_user_combat_log(socket.assigns.user.id, file_id),
+         {:ok, _combat_log_file} <- WarcraftLogs.clear_report_association(combat_log_file) do
+      {:noreply,
+       socket
+       |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+       |> maybe_refresh_current_combat_log(file_id)
+       |> put_flash(:info, "Warcraft Logs report link cleared")}
+    else
+      _reason ->
+        {:noreply, put_flash(socket, :error, "Failed to clear Warcraft Logs report link")}
+    end
   end
 
   # ============================================================================
@@ -381,9 +434,38 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       last_parsed_byte: clf.last_parsed_byte,
       encounter_count: count(e.id),
       first_encounter_start_at: min(e.start_time),
-      is_complete: clf.is_complete
+      is_complete: clf.is_complete,
+      warcraft_logs_report_url: clf.warcraft_logs_report_url,
+      warcraft_logs_report_code: clf.warcraft_logs_report_code,
+      warcraft_logs_fight_id: clf.warcraft_logs_fight_id,
+      warcraft_logs_linked_at: clf.warcraft_logs_linked_at
     })
     |> order_by([clf], desc: clf.last_parsed_at)
     |> Repo.all()
   end
+
+  defp get_user_combat_log(user_id, file_id) do
+    Repo.get_by(CombatLogFile, id: file_id, user_id: user_id)
+  end
+
+  defp maybe_refresh_current_combat_log(socket, file_id) do
+    case socket.assigns.combat_log_file do
+      %CombatLogFile{id: ^file_id} ->
+        assign(socket, :combat_log_file, Repo.get(CombatLogFile, file_id))
+
+      _combat_log_file ->
+        socket
+    end
+  end
+
+  defp parse_id(id) when is_integer(id), do: {:ok, id}
+
+  defp parse_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {integer, ""} -> {:ok, integer}
+      _ -> {:error, :invalid_id}
+    end
+  end
+
+  defp parse_id(_id), do: {:error, :invalid_id}
 end

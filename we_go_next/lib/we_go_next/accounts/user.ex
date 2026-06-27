@@ -7,6 +7,9 @@ defmodule WeGoNext.Accounts.User do
     field(:wow_logs_path, :string)
     field(:last_loaded_log, :string)
     field(:character_name, :string)
+    field(:warcraft_logs_client_name, :string)
+    field(:warcraft_logs_api_key_encrypted, :string)
+    field(:warcraft_logs_api_key_set_at, :utc_datetime_usec)
     field(:is_admin, :boolean, default: false)
 
     timestamps()
@@ -22,6 +25,13 @@ defmodule WeGoNext.Accounts.User do
 
   def settings_changeset(user, attrs) do
     user
-    |> cast(attrs, [:wow_logs_path, :last_loaded_log, :character_name])
+    |> cast(attrs, [
+      :wow_logs_path,
+      :last_loaded_log,
+      :character_name,
+      :warcraft_logs_client_name,
+      :warcraft_logs_api_key_encrypted,
+      :warcraft_logs_api_key_set_at
+    ])
   end
 end

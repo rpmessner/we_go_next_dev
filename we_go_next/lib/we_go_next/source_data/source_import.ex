@@ -2,9 +2,10 @@ defmodule WeGoNext.SourceData.SourceImport do
   @moduledoc """
   Versioned source-data import record.
 
-  These records describe non-combat-log source inputs such as DBM addon modules
-  or future game-data extracts. They are intentionally separate from
-  `combat_log_files`, which remains the operational catalog for raw combat logs.
+  These records describe non-combat-log source inputs such as DBM addon modules,
+  WowAnalyzer source files, Warcraft Logs API payloads, or future game-data
+  extracts. They are intentionally separate from `combat_log_files`, which
+  remains the operational catalog for raw combat logs.
   """
 
   use Ecto.Schema

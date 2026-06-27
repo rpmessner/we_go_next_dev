@@ -59,6 +59,7 @@ defmodule WeGoNext.AccountsTest do
     File.write!(Path.join(archive_dir, "WoWCombatLog-should-not-match.txt"), "ignore me")
 
     assert {:ok, logs} = Accounts.list_combat_logs(user)
+    assert Enum.map(logs, & &1.full_path) == [live_path, archive_path]
 
     logs_by_path = Map.new(logs, &{&1.full_path, &1})
 
@@ -66,13 +67,37 @@ defmodule WeGoNext.AccountsTest do
 
     assert %{
              filename: "WoWCombatLog-051626_111133.txt",
+             filename_datetime: ~N[2026-05-16 11:11:33],
              source: :live
            } = logs_by_path[live_path]
 
     assert %{
              filename: "Archive-WoWCombatLog-051326_214806.txt",
+             filename_datetime: ~N[2026-05-13 21:48:06],
              source: :warcraftlogs_archive
            } = logs_by_path[archive_path]
+  end
+
+  test "Warcraft Logs API key is encrypted before storage", %{user: user} do
+    assert {:ok, updated} =
+             Accounts.set_warcraft_logs_credentials(user, "Local WCL Client", "secret-api-key")
+
+    assert updated.warcraft_logs_client_name == "Local WCL Client"
+    assert updated.warcraft_logs_api_key_set_at
+    refute updated.warcraft_logs_api_key_encrypted == "secret-api-key"
+    refute updated.warcraft_logs_api_key_encrypted =~ "secret"
+    assert {:ok, "secret-api-key"} = Accounts.warcraft_logs_api_key(updated)
+    assert Accounts.warcraft_logs_credentials_configured?(updated)
+
+    assert {:ok, renamed} =
+             Accounts.update_warcraft_logs_client_name(updated, "Renamed WCL Client")
+
+    assert renamed.warcraft_logs_client_name == "Renamed WCL Client"
+    assert renamed.warcraft_logs_api_key_encrypted == updated.warcraft_logs_api_key_encrypted
+
+    assert {:ok, cleared} = Accounts.clear_warcraft_logs_credentials(renamed)
+    refute Accounts.warcraft_logs_credentials_configured?(cleared)
+    assert Accounts.warcraft_logs_api_key(cleared) == :error
   end
 
   defp sha256(data) do

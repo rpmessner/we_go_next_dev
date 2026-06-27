@@ -25,6 +25,10 @@ defmodule WeGoNext.CombatLogFile do
     )
 
     field(:head_sha256, :string)
+    field(:warcraft_logs_report_url, :string)
+    field(:warcraft_logs_report_code, :string)
+    field(:warcraft_logs_fight_id, :integer)
+    field(:warcraft_logs_linked_at, :utc_datetime_usec)
     # Mark as complete when fully parsed and a newer log exists (dead log)
     field(:is_complete, :boolean, default: false)
 
@@ -45,6 +49,10 @@ defmodule WeGoNext.CombatLogFile do
       :last_parsed_at,
       :source,
       :head_sha256,
+      :warcraft_logs_report_url,
+      :warcraft_logs_report_code,
+      :warcraft_logs_fight_id,
+      :warcraft_logs_linked_at,
       :user_id,
       :is_complete
     ])

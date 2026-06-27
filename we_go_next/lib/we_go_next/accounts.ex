@@ -6,6 +6,7 @@ defmodule WeGoNext.Accounts do
   require Logger
 
   alias WeGoNext.{CombatLogFile, FileWatcher, Repo}
+  alias WeGoNext.Accounts.SecretBox
   alias WeGoNext.Accounts.User
   alias WeGoNext.Bronze.{CombatLogReconciler, FileFingerprint}
 
@@ -68,6 +69,63 @@ defmodule WeGoNext.Accounts do
   end
 
   @doc """
+  Stores Warcraft Logs credentials for local API usage.
+
+  The API key is encrypted before persistence and should never be logged or
+  rendered back to the browser.
+  """
+  def set_warcraft_logs_credentials(%User{} = user, client_name, api_key) do
+    client_name = trim_or_nil(client_name)
+    api_key = trim_or_nil(api_key)
+
+    cond do
+      is_nil(client_name) ->
+        {:error, :client_name_required}
+
+      is_nil(api_key) ->
+        {:error, :api_key_required}
+
+      true ->
+        with {:ok, encrypted_api_key} <- SecretBox.encrypt(api_key) do
+          update_user_settings(user, %{
+            warcraft_logs_client_name: client_name,
+            warcraft_logs_api_key_encrypted: encrypted_api_key,
+            warcraft_logs_api_key_set_at: DateTime.utc_now()
+          })
+        end
+    end
+  end
+
+  @doc """
+  Updates the saved Warcraft Logs client name without replacing the saved key.
+  """
+  def update_warcraft_logs_client_name(%User{} = user, client_name) do
+    case trim_or_nil(client_name) do
+      nil -> {:error, :client_name_required}
+      client_name -> update_user_settings(user, %{warcraft_logs_client_name: client_name})
+    end
+  end
+
+  def clear_warcraft_logs_credentials(%User{} = user) do
+    update_user_settings(user, %{
+      warcraft_logs_client_name: nil,
+      warcraft_logs_api_key_encrypted: nil,
+      warcraft_logs_api_key_set_at: nil
+    })
+  end
+
+  def warcraft_logs_api_key(%User{warcraft_logs_api_key_encrypted: encrypted})
+      when is_binary(encrypted) do
+    SecretBox.decrypt(encrypted)
+  end
+
+  def warcraft_logs_api_key(%User{}), do: :error
+
+  def warcraft_logs_credentials_configured?(%User{} = user) do
+    is_binary(user.warcraft_logs_client_name) and is_binary(user.warcraft_logs_api_key_encrypted)
+  end
+
+  @doc """
   Updates the last loaded log for a user.
   """
   def set_last_loaded_log(%User{} = user, log_path) do
@@ -92,7 +150,7 @@ defmodule WeGoNext.Accounts do
         logs =
           @log_sources
           |> Enum.flat_map(&list_logs_for_source(path, &1, user))
-          |> Enum.sort_by(& &1.modified, {:desc, NaiveDateTime})
+          |> Enum.sort_by(&log_sort_datetime/1, {:desc, NaiveDateTime})
 
         {:ok, logs}
 
@@ -140,9 +198,39 @@ defmodule WeGoNext.Accounts do
       filename: filename,
       full_path: full_path,
       size: stat.size,
+      filename_datetime: filename_datetime(filename),
       modified: modified_ndt,
       source: source
     }
+  end
+
+  defp log_sort_datetime(%{filename_datetime: %NaiveDateTime{} = filename_datetime}),
+    do: filename_datetime
+
+  defp log_sort_datetime(%{modified: %NaiveDateTime{} = modified}), do: modified
+
+  defp filename_datetime(filename) do
+    case Regex.run(
+           ~r/^(?:Archive-)?WoWCombatLog-(\d{2})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.txt$/,
+           filename
+         ) do
+      [_, month, day, year, hour, minute, second] ->
+        with {month, ""} <- Integer.parse(month),
+             {day, ""} <- Integer.parse(day),
+             {year, ""} <- Integer.parse(year),
+             {hour, ""} <- Integer.parse(hour),
+             {minute, ""} <- Integer.parse(minute),
+             {second, ""} <- Integer.parse(second),
+             {:ok, datetime} <-
+               NaiveDateTime.new(2000 + year, month, day, hour, minute, second) do
+          datetime
+        else
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
   end
 
   defp maybe_backfill_head_sha256(_full_path, nil), do: :ok
@@ -188,4 +276,15 @@ defmodule WeGoNext.Accounts do
   end
 
   defp maybe_reconcile_archive_move(_full_path, _source, _user), do: :ok
+
+  defp trim_or_nil(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> case do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp trim_or_nil(_value), do: nil
 end

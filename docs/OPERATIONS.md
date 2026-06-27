@@ -27,7 +27,42 @@ Open `http://localhost:4000`.
 
 Imports are incremental by `combat_log_files.last_parsed_byte`. Re-importing an unchanged log should add zero encounters.
 
-The Settings page says “Import” and “Current Log” because there is no filesystem auto-watch loop. WoW appends only to the newest active log. Older logs and archive logs are useful for review and force-reimport, not live append tracking.
+The Settings page says “Import” and “Current Log” because live append tracking
+is tied to the selected current log. WoW appends only to the newest active log.
+Older logs and archive logs are useful for review and force-reimport, not live
+append tracking.
+
+### Planned Durable Import Orchestration
+
+Task `#98` defines the target import contract for the Reactor/Oban refactor.
+Until tasks `#99` through `#104` land, imports still run through the current
+inline path. After the refactor:
+
+```text
+/ or /settings import action
+  -> Oban :log_sync job
+  -> completed encounter boundary scan
+  -> public.encounters rows
+  -> Oban :medallion_build jobs
+  -> Reactor per-encounter build
+  -> silver rows and gold facts
+  -> PubSub completion events for LiveView refresh
+```
+
+Operators should think of log import as durable queued work, not as a
+LiveView-owned task. Refreshing or closing the browser should not cancel an
+import or medallion build.
+
+Expected queues:
+
+- `:log_sync` for initial imports, manual current-log syncs, watcher-triggered
+  syncs, and force reimports.
+- `:medallion_build` for bounded per-encounter parse/project/rebuild work.
+- `:gold_rebuild` for rules-triggered and operator-triggered gold-only
+  rebuilds.
+
+Normal syncs enqueue medallion builds only for newly inserted encounter
+boundaries. Existing encounters are not silently rebuilt.
 
 ## Force Reimport
 
@@ -107,6 +142,59 @@ mix wgn.rebuild_gold --ruleset-id 456
 
 The task uses `WeGoNext.Gold.RebuildEncounter`, the same boundary used by the importer.
 
+### Planned Durable Rebuild Orchestration
+
+After the Reactor/Oban refactor, explicit rebuilds should use `:gold_rebuild`
+jobs instead of a direct long-running loop in a UI process. The gold rebuild job
+key is:
+
+```text
+{"gold_rebuild", dim_encounter_id, ruleset_key}
+```
+
+`ruleset_key` is `active` for the current active ruleset or the explicit
+ruleset id passed by an operator/test. This prevents duplicate concurrent
+rebuilds for the same encounter and ruleset while keeping explicit backfills
+possible.
+
+The smallest-rebuild rule remains unchanged:
+
+- rules changed: sync/promote rules, then enqueue gold rebuild jobs,
+- gold fact logic changed: enqueue gold rebuild jobs,
+- silver projection changed: force reimport affected logs,
+- parser or boundary logic changed: force reimport and purge only when identity
+  or offset assumptions changed.
+
+Gold-only rebuilds should not reparse combat logs. They read existing silver
+rows and call `WeGoNext.Gold.RebuildEncounter`.
+
+## Durable Job State
+
+The Oban refactor should expose progress and failures through PubSub plus the
+database, not process-local task state.
+
+Expected progress events:
+
+- `:log_sync_started`
+- `:log_sync_progress`
+- `:encounter_build_enqueued`
+- `:encounter_build_finished`
+- `:medallion_job_failed`
+
+If an import appears stuck after the refactor, inspect Oban jobs first. Retry
+state belongs to Oban. LiveView screens should refresh from database rows and
+recent PubSub events rather than owning the running process.
+
+Retry expectations:
+
+- missing live files reconcile against Warcraft Logs archive paths before
+  failing,
+- unchanged or incomplete current logs should no-op cleanly,
+- per-encounter medallion builds can safely rerun because silver upserts and
+  gold encounter rebuilds are idempotent,
+- missing active rulesets should produce the existing skipped gold rebuild
+  result, not an endlessly retrying job.
+
 ## Import DBM Source Annotations
 
 DBM import reads installed Midnight DBM Lua modules as source evidence. It statically extracts module metadata, special warning declarations, alert tokens, source file/line provenance, and tentative mechanic hints. It does not execute Lua, sync active mechanics, or rebuild gold facts.
@@ -179,6 +267,84 @@ mix wgn.import_wowanalyzer \
 
 Imported rows are stored in `source_data.wowanalyzer_timeline_candidate` with source file/line, comments, `repository_revision`, and `repository_license` (`AGPL-3.0-or-later` for the local checkout). Treat these rows as source annotations and scaffolding input for code-defined raid mechanics.
 
+## Import Warcraft Logs API Evidence
+
+Warcraft Logs API import stores flat JSON bronze artifacts and catalogs them in source-data. It does not import local combat logs, sync active mechanics, or rebuild gold facts.
+
+Configure credentials in the web UI:
+
+1. Open Settings.
+2. Save a Warcraft Logs client name and API key.
+3. The API key is encrypted before it is stored and is never rendered back to the page.
+
+Associate a WCL report with an imported local log:
+
+1. Open the home page.
+2. Find the imported log row.
+3. Paste a WCL report URL into the row's Warcraft Logs URL field.
+4. Save the link.
+
+The URL parser stores the report code and, when present, the fight id from URLs like:
+
+```text
+https://www.warcraftlogs.com/reports/abc123#fight=17&type=damage-done
+```
+
+Fetch WCL damage-done table data for a report/fight and save it as a bronze artifact:
+
+```bash
+WARCRAFT_LOGS_ACCESS_TOKEN=... mix wgn.import_warcraft_logs \
+  --report-code abc123 \
+  --fight-id 17 \
+  --preset damage-done \
+  --build-key local
+```
+
+Fetch and immediately compare the WCL damage-done table against a parsed gold encounter:
+
+```bash
+WARCRAFT_LOGS_ACCESS_TOKEN=... mix wgn.import_warcraft_logs \
+  --report-code abc123 \
+  --fight-id 17 \
+  --preset damage-done \
+  --compare-encounter-dim-id 163 \
+  --build-key local
+```
+
+Import an already saved response payload:
+
+```bash
+mix wgn.import_warcraft_logs \
+  --file /path/to/response.json \
+  --report-code abc123 \
+  --fight-id 17 \
+  --query-name Events
+```
+
+Optional request provenance:
+
+```bash
+mix wgn.import_warcraft_logs \
+  --file /path/to/response.json \
+  --report-code abc123 \
+  --fight-id 17 \
+  --query-name Events \
+  --query-file /path/to/query.graphql \
+  --request-params-file /path/to/request_params.json \
+  --build-key local
+```
+
+Imported artifacts are stored under `var/bronze/warcraft_logs/reports/<report-code>/fights/<fight-id>/` by default. Pass `--bronze-root /path/to/root` to use a different local artifact root.
+
+Imported rows are cataloged in `source_data.warcraft_logs_api_fetch` and versioned through `source_data.source_import` by response hash. Treat them as comparison evidence for local silver/gold projections, not as rule or fact input.
+
+Programmatic damage-done comparison:
+
+```elixir
+fetch = WeGoNext.SourceData.list_warcraft_logs_api_fetches(report_code: "abc123", fight_id: 17) |> hd()
+WeGoNext.SourceData.compare_warcraft_logs_damage_done(163, fetch)
+```
+
 ## Inspect Source Annotations
 
 Use the source-data context to inspect parsed source rows while updating raid
@@ -187,6 +353,7 @@ mechanic code:
 ```elixir
 WeGoNext.SourceData.list_dbm_candidates(encounter_id: 3306)
 WeGoNext.SourceData.list_wowanalyzer_timeline_candidates(encounter_id: 3306)
+WeGoNext.SourceData.list_warcraft_logs_api_fetches(report_code: "abc123", fight_id: 17)
 ```
 
 Supported filters include `:encounter_id`, `:spell_id`, and
