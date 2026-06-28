@@ -18,6 +18,10 @@ defmodule WeGoNextWeb.Router do
     plug(WeGoNextWeb.Plugs.RequireMode, :parser)
   end
 
+  pipeline :public_viewer do
+    plug(WeGoNextWeb.Plugs.PublicViewer)
+  end
+
   scope "/", WeGoNextWeb do
     pipe_through(:browser)
 
@@ -36,5 +40,13 @@ defmodule WeGoNextWeb.Router do
     pipe_through(:api)
 
     post("/ingest", IngestController, :create)
+  end
+
+  scope "/r/:slug", WeGoNextWeb do
+    pipe_through([:browser, :public_viewer])
+
+    live("/", PublicLive.Encounters, :index)
+    live("/failures", PublicLive.Failures, :index)
+    live("/encounters/:source_encounter_key", PublicLive.EncounterFailures, :show)
   end
 end
