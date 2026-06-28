@@ -16,13 +16,23 @@ defmodule WeGoNext.Application do
   end
 
   @doc false
-  def children(mode \\ WeGoNext.mode()) do
+  def children(mode \\ WeGoNext.mode(), opts \\ []) do
+    migrate_on_boot? =
+      Keyword.get(
+        opts,
+        :run_migrations_on_boot,
+        Application.get_env(:we_go_next, :run_migrations_on_boot, false)
+      )
+
     [
       # Start the Repo
-      WeGoNext.Repo,
-      # Start the PubSub system
-      {Phoenix.PubSub, name: WeGoNext.PubSub}
+      WeGoNext.Repo
     ] ++
+      release_migrator_children(migrate_on_boot?) ++
+      [
+        # Start the PubSub system
+        {Phoenix.PubSub, name: WeGoNext.PubSub}
+      ] ++
       parser_children(mode) ++
       [
         # Start the Endpoint (http/https)
@@ -42,6 +52,9 @@ defmodule WeGoNext.Application do
   end
 
   defp parser_children(:public), do: []
+
+  defp release_migrator_children(true), do: [WeGoNext.ReleaseMigrator]
+  defp release_migrator_children(false), do: []
 
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.
