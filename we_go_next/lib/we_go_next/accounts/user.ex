@@ -10,6 +10,9 @@ defmodule WeGoNext.Accounts.User do
     field(:warcraft_logs_client_name, :string)
     field(:warcraft_logs_api_key_encrypted, :string)
     field(:warcraft_logs_api_key_set_at, :utc_datetime_usec)
+    field(:mirror_public_base_url, :string)
+    field(:mirror_ingest_token_encrypted, :string)
+    field(:mirror_ingest_token_set_at, :utc_datetime_usec)
     field(:is_admin, :boolean, default: false)
 
     timestamps()
@@ -31,7 +34,10 @@ defmodule WeGoNext.Accounts.User do
       :character_name,
       :warcraft_logs_client_name,
       :warcraft_logs_api_key_encrypted,
-      :warcraft_logs_api_key_set_at
+      :warcraft_logs_api_key_set_at,
+      :mirror_public_base_url,
+      :mirror_ingest_token_encrypted,
+      :mirror_ingest_token_set_at
     ])
   end
 end

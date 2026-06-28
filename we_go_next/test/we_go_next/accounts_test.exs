@@ -100,6 +100,26 @@ defmodule WeGoNext.AccountsTest do
     assert Accounts.warcraft_logs_api_key(cleared) == :error
   end
 
+  test "mirror ingest token is encrypted before storage", %{user: user} do
+    assert {:ok, updated} =
+             Accounts.set_mirror_upload_settings(
+               user,
+               "https://public.example",
+               "secret-ingest-token"
+             )
+
+    assert updated.mirror_public_base_url == "https://public.example"
+    assert updated.mirror_ingest_token_set_at
+    refute updated.mirror_ingest_token_encrypted == "secret-ingest-token"
+    refute updated.mirror_ingest_token_encrypted =~ "secret"
+    assert {:ok, "secret-ingest-token"} = Accounts.mirror_ingest_token(updated)
+    assert Accounts.mirror_upload_configured?(updated)
+
+    assert {:ok, cleared} = Accounts.clear_mirror_upload_settings(updated)
+    refute Accounts.mirror_upload_configured?(cleared)
+    assert Accounts.mirror_ingest_token(cleared) == :error
+  end
+
   defp sha256(data) do
     :sha256
     |> :crypto.hash(data)

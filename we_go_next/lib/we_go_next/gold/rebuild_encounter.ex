@@ -7,6 +7,7 @@ defmodule WeGoNext.Gold.RebuildEncounter do
   """
 
   alias WeGoNext.Gold.{DimEncounter, FactFailure}
+  alias WeGoNext.Mirror.Outbox
 
   @type rebuild_result :: %{
           fact_failure: map()
@@ -29,6 +30,7 @@ defmodule WeGoNext.Gold.RebuildEncounter do
   def rebuild(encounter_dim_id, opts) when is_integer(encounter_dim_id) and is_list(opts) do
     case FactFailure.rebuild_for_encounter(encounter_dim_id, rebuild_opts(opts)) do
       {:ok, result} ->
+        maybe_enqueue_mirror_upload(encounter_dim_id, opts)
         {:ok, %{fact_failure: result}}
 
       {:error, :active_ruleset_not_found} ->
@@ -36,6 +38,15 @@ defmodule WeGoNext.Gold.RebuildEncounter do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp maybe_enqueue_mirror_upload(encounter_dim_id, opts) do
+    if Keyword.get(opts, :enqueue_mirror_upload, true) do
+      case Outbox.enqueue_for_encounter(encounter_dim_id) do
+        {:ok, _upload} -> :ok
+        {:error, _reason} -> :ok
+      end
     end
   end
 

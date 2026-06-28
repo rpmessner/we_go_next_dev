@@ -74,6 +74,7 @@ defmodule WeGoNext.MixProject do
       {:ecto_sql, "~> 3.10"},
       {:phoenix_ecto, "~> 4.4"},
       {:postgrex, "~> 0.17"},
+      {:req, "~> 0.5"},
       {:wallaby, "~> 0.30", runtime: false, only: :test},
       {:tidewave, "~> 0.6", only: :dev},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

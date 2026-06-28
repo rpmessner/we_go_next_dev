@@ -9,6 +9,7 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
     RebuildEncounter
   }
 
+  alias WeGoNext.Mirror.MirrorUpload
   alias WeGoNext.Repo
   alias WeGoNext.Rules.Ruleset
   alias WeGoNext.Silver.{DamageTaken, PlayerInfo}
@@ -80,6 +81,20 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
             }} = RebuildEncounter.rebuild(encounter)
   end
 
+  test "rebuild/2 enqueues mirror upload intent after successful rebuild" do
+    encounter = insert_dim_encounter_with_source_key!("boss-mirror")
+    ruleset = insert_ruleset!("Mirror Ruleset", "active")
+    insert_criterion!(ruleset, encounter, 303)
+
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", 303, 100, 1)
+
+    assert {:ok, %{fact_failure: %{inserted: 1}}} = RebuildEncounter.rebuild(encounter)
+
+    assert %MirrorUpload{state: "pending"} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: encounter.source_encounter_key)
+  end
+
   defp insert_dim_encounter!(wow_encounter_id) do
     %DimEncounter{}
     |> DimEncounter.changeset(%{
@@ -89,6 +104,23 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
       difficulty_name: "Mythic",
       group_size: 20,
       instance_id: "test-instance"
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_dim_encounter_with_source_key!(wow_encounter_id) do
+    %DimEncounter{}
+    |> DimEncounter.changeset(%{
+      source_head_sha256: String.duplicate("a", 64),
+      wow_encounter_id: wow_encounter_id,
+      name: "Test Boss",
+      difficulty_id: 16,
+      difficulty_name: "Mythic",
+      group_size: 20,
+      instance_id: "test-instance",
+      start_time: ~U[2026-06-28 20:00:00Z],
+      start_byte: System.unique_integer([:positive]),
+      end_byte: System.unique_integer([:positive]) + 1000
     })
     |> Repo.insert!()
   end
