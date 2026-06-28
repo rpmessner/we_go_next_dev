@@ -399,6 +399,7 @@ defmodule WeGoNext.Rules do
          [
            :ruleset_id,
            :ruleset_version,
+           :criterion_key,
            :product,
            :channel,
            :build_version,

@@ -6,6 +6,10 @@ defmodule WeGoNext.Gold.FactFailure.Builders.MissedInterrupt do
   attributed to the raid sentinel rather than an individual player.
   """
 
+  @semantics_version 1
+
+  def semantics_version, do: @semantics_version
+
   def cte_name, do: "interrupt_rows"
 
   def cte(opts \\ []) do

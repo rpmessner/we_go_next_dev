@@ -6,11 +6,14 @@ defmodule WeGoNext.Gold.DimEncounter do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias WeGoNext.Mirror.Keys
+
   @schema_prefix "gold"
 
   @type t :: %__MODULE__{}
 
   schema "dim_encounter" do
+    field(:source_encounter_key, :string)
     field(:source_file_path, :string)
     field(:source_head_sha256, :string)
     field(:wow_encounter_id, :string)
@@ -34,6 +37,7 @@ defmodule WeGoNext.Gold.DimEncounter do
     dim_encounter
     |> cast(attrs, [
       :source_file_path,
+      :source_encounter_key,
       :source_head_sha256,
       :wow_encounter_id,
       :name,
@@ -48,6 +52,31 @@ defmodule WeGoNext.Gold.DimEncounter do
       :start_byte,
       :end_byte
     ])
+    |> put_source_encounter_key()
     |> validate_required([:wow_encounter_id, :name])
+    |> unique_constraint(:source_encounter_key)
+  end
+
+  defp put_source_encounter_key(changeset) do
+    if get_field(changeset, :source_encounter_key) do
+      changeset
+    else
+      key =
+        changeset
+        |> fields_for_key()
+        |> Keys.source_encounter_key()
+
+      if key, do: put_change(changeset, :source_encounter_key, key), else: changeset
+    end
+  end
+
+  defp fields_for_key(changeset) do
+    %{
+      source_head_sha256: get_field(changeset, :source_head_sha256),
+      start_byte: get_field(changeset, :start_byte),
+      end_byte: get_field(changeset, :end_byte),
+      wow_encounter_id: get_field(changeset, :wow_encounter_id),
+      start_time: get_field(changeset, :start_time)
+    }
   end
 end

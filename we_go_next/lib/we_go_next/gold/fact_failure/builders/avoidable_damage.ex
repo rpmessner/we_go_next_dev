@@ -6,6 +6,10 @@ defmodule WeGoNext.Gold.FactFailure.Builders.AvoidableDamage do
   criterion `threshold.max_hits` value. Damage totals are preserved on the fact.
   """
 
+  @semantics_version 1
+
+  def semantics_version, do: @semantics_version
+
   def cte_name, do: "avoidable_rows"
 
   def cte(_opts \\ []) do

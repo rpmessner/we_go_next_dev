@@ -45,7 +45,7 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
 
   test "rebuild/2 passes through an explicit ruleset id", %{encounter: encounter} do
     active_ruleset = insert_ruleset!("Active Ruleset", "active")
-    explicit_ruleset = insert_ruleset!("Explicit Ruleset", "draft")
+    explicit_ruleset = insert_ruleset!("Explicit Ruleset", "draft", build_key: "explicit")
 
     active_criterion = insert_criterion!(active_ruleset, encounter, 202)
     explicit_criterion = insert_criterion!(explicit_ruleset, encounter, 202)
@@ -93,9 +93,9 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
     |> Repo.insert!()
   end
 
-  defp insert_ruleset!(name, status) do
+  defp insert_ruleset!(name, status, attrs \\ %{}) do
     %Ruleset{}
-    |> Ruleset.changeset(%{name: name, status: status})
+    |> Ruleset.changeset(Map.merge(%{name: name, status: status}, Map.new(attrs)))
     |> Repo.insert!()
   end
 
@@ -105,6 +105,10 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
       source_rule_id: System.unique_integer([:positive]),
       ruleset_id: ruleset.id,
       ruleset_version: ruleset.version,
+      product: ruleset.product,
+      channel: ruleset.channel,
+      build_version: ruleset.build_version,
+      build_key: ruleset.build_key,
       spell_id: spell_id,
       spell_name: "Bad #{spell_id}",
       mechanic_type: "avoidable",

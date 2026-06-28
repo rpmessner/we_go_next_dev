@@ -8,6 +8,10 @@ defmodule WeGoNext.Gold.FactFailure.Builders.TargetedCone do
   attributed to the assigned player.
   """
 
+  @semantics_version 1
+
+  def semantics_version, do: @semantics_version
+
   def cte_name, do: "targeted_cone_rows"
 
   def cte(_opts \\ []) do

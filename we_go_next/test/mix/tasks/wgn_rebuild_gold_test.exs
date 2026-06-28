@@ -47,7 +47,7 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
 
   test "accepts explicit ruleset id and keeps active ruleset facts intact" do
     active_ruleset = insert_ruleset!("Active Ruleset", "active")
-    draft_ruleset = insert_ruleset!("Draft Ruleset", "draft")
+    draft_ruleset = insert_ruleset!("Draft Ruleset", "draft", build_key: "draft")
     encounter = insert_dim_encounter!("boss-one")
 
     active_criterion = insert_criterion!(active_ruleset, encounter, 303)
@@ -135,9 +135,9 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
     |> Repo.insert!()
   end
 
-  defp insert_ruleset!(name, status) do
+  defp insert_ruleset!(name, status, attrs \\ %{}) do
     %Ruleset{}
-    |> Ruleset.changeset(%{name: name, status: status})
+    |> Ruleset.changeset(Map.merge(%{name: name, status: status}, Map.new(attrs)))
     |> Repo.insert!()
   end
 
@@ -147,6 +147,10 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
       source_rule_id: System.unique_integer([:positive]),
       ruleset_id: ruleset.id,
       ruleset_version: ruleset.version,
+      product: ruleset.product,
+      channel: ruleset.channel,
+      build_version: ruleset.build_version,
+      build_key: ruleset.build_key,
       spell_id: spell_id,
       spell_name: "Bad #{spell_id}",
       mechanic_type: "avoidable",
