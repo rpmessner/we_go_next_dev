@@ -1,19 +1,19 @@
 defmodule WeGoNextWeb.PublicLive.Failures do
   use WeGoNextWeb, :live_view
 
-  alias WeGoNext.Gold.{FailureSummary, PublicReadModels}
+  alias WeGoNext.Gold.PublicReadModels
 
   @impl true
-  def mount(%{"slug" => slug}, _session, socket) do
-    rows = FailureSummary.list_grouped_failures()
-    encounters = PublicReadModels.list_encounters()
+  def mount(%{"slug" => slug}, %{"public_report_id" => report_id}, socket) do
+    rows = PublicReadModels.grouped_failures(report_id)
+    encounters = PublicReadModels.list_encounters(report_id)
 
     {:ok,
      socket
      |> assign(:page_title, "Public Failure Totals")
      |> assign(:slug, slug)
      |> assign(:rows, rows)
-     |> assign(:player_groups, FailureSummary.group_by_player(rows))
+     |> assign(:player_groups, PublicReadModels.group_by_player(rows))
      |> assign(:encounter_count, length(encounters))}
   end
 

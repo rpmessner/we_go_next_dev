@@ -3,11 +3,12 @@ defmodule WeGoNextWeb.IngestController do
 
   alias WeGoNext.Mirror.Ingest
 
-  def create(conn, params) do
+  def create(%{path_params: %{"slug" => slug}} = conn, params) do
     with :ok <- authorize(conn),
-         {:ok, result} <- Ingest.upsert_snapshot(params) do
+         {:ok, result} <- Ingest.upsert_snapshot(slug, params) do
       json(conn, %{
         status: "ok",
+        report_slug: result.public_report.slug,
         source_encounter_key: result.encounter.source_encounter_key,
         deleted: result.deleted,
         inserted: result.inserted

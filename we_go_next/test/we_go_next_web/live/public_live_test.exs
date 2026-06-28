@@ -2,26 +2,24 @@ defmodule WeGoNextWeb.PublicLiveTest do
   use WeGoNextWeb.ConnCase, async: false
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
+  alias WeGoNext.Mirror.PublicReport
   alias WeGoNext.Repo
   alias WeGoNext.Rules.Ruleset
 
   setup do
     original_mode = WeGoNext.mode()
-    original_slug = Application.get_env(:we_go_next, :public_viewer_slug)
 
     Application.put_env(:we_go_next, :mode, :public)
-    Application.put_env(:we_go_next, :public_viewer_slug, "raid-night")
 
     on_exit(fn ->
       Application.put_env(:we_go_next, :mode, original_mode)
-      restore_env(:public_viewer_slug, original_slug)
     end)
 
-    :ok
+    %{report: insert_report!("raid-night", "Raid Night")}
   end
 
-  test "valid slug renders public encounter list", %{conn: conn} do
-    encounter = insert_encounter!("encounter-one", "Boss One", ~U[2026-06-28 20:00:00Z])
+  test "valid report slug renders public encounter list", %{conn: conn, report: report} do
+    encounter = insert_encounter!(report, "encounter-one", "Boss One", ~U[2026-06-28 20:00:00Z])
     player = insert_player!("Player-One", "One")
     criterion = insert_criterion!("criterion-swirl", 101, "Swirl", "avoidable")
     insert_failure!(encounter, player, criterion, 2, 500)
@@ -44,14 +42,25 @@ defmodule WeGoNextWeb.PublicLiveTest do
            |> response(404) == "Not Found"
   end
 
+  test "disabled report slug returns 404", %{conn: conn} do
+    insert_report!("disabled-report", "Disabled", false)
+
+    assert conn
+           |> get(~p"/r/disabled-report")
+           |> response(404) == "Not Found"
+  end
+
   test "public mode parser routes remain unavailable", %{conn: conn} do
     assert conn
            |> get(~p"/settings")
            |> response(404) == "Not Found"
   end
 
-  test "public failures page renders grouped gold failures without readiness panel", %{conn: conn} do
-    encounter = insert_encounter!("encounter-one", "Boss One", ~U[2026-06-28 20:00:00Z])
+  test "public failures page renders grouped gold failures without readiness panel", %{
+    conn: conn,
+    report: report
+  } do
+    encounter = insert_encounter!(report, "encounter-one", "Boss One", ~U[2026-06-28 20:00:00Z])
     player = insert_player!("Player-One", "One")
     criterion = insert_criterion!("criterion-swirl", 101, "Swirl", "avoidable")
     insert_failure!(encounter, player, criterion, 3, 700)
@@ -69,8 +78,11 @@ defmodule WeGoNextWeb.PublicLiveTest do
     refute html =~ "Settings"
   end
 
-  test "public encounter failure page renders per-encounter breakdown", %{conn: conn} do
-    encounter = insert_encounter!("encounter-one", "Boss One", ~U[2026-06-28 20:00:00Z])
+  test "public encounter failure page renders per-encounter breakdown", %{
+    conn: conn,
+    report: report
+  } do
+    encounter = insert_encounter!(report, "encounter-one", "Boss One", ~U[2026-06-28 20:00:00Z])
     player = insert_player!("Player-One", "One")
     criterion = insert_criterion!("criterion-kick", 202, "Shadow Volley", "interrupt")
     insert_failure!(encounter, player, criterion, 1, 0)
@@ -95,6 +107,28 @@ defmodule WeGoNextWeb.PublicLiveTest do
     assert html =~ "Encounter Not Found"
   end
 
+  test "public report only renders encounters scoped to that report", %{
+    conn: conn,
+    report: report
+  } do
+    other_report = insert_report!("other-report", "Other")
+    encounter = insert_encounter!(report, "shared-key", "Boss One", ~U[2026-06-28 20:00:00Z])
+    other = insert_encounter!(other_report, "shared-key", "Other Boss", ~U[2026-06-28 21:00:00Z])
+    player = insert_player!("Player-One", "One")
+    criterion = insert_criterion!("criterion-swirl", 101, "Swirl", "avoidable")
+
+    insert_failure!(encounter, player, criterion, 1, 100)
+    insert_failure!(other, player, criterion, 9, 900)
+
+    html =
+      conn
+      |> get(~p"/r/raid-night")
+      |> html_response(200)
+
+    assert html =~ "Boss One"
+    refute html =~ "Other Boss"
+  end
+
   test "public LiveViews do not reference Accounts or silver modules" do
     source =
       [
@@ -110,12 +144,16 @@ defmodule WeGoNextWeb.PublicLiveTest do
     refute source =~ "silver."
   end
 
-  defp restore_env(key, nil), do: Application.delete_env(:we_go_next, key)
-  defp restore_env(key, value), do: Application.put_env(:we_go_next, key, value)
+  defp insert_report!(slug, title, enabled \\ true) do
+    %PublicReport{}
+    |> PublicReport.changeset(%{slug: slug, title: title, enabled: enabled})
+    |> Repo.insert!()
+  end
 
-  defp insert_encounter!(source_encounter_key, name, start_time) do
+  defp insert_encounter!(%PublicReport{} = report, source_encounter_key, name, start_time) do
     %DimEncounter{}
     |> DimEncounter.changeset(%{
+      public_report_id: report.id,
       source_encounter_key: source_encounter_key,
       wow_encounter_id: source_encounter_key,
       name: name,

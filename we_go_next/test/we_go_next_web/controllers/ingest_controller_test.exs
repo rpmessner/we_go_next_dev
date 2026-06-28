@@ -4,6 +4,7 @@ defmodule WeGoNextWeb.IngestControllerTest do
   import Plug.Conn
 
   alias WeGoNext.Gold.FactFailure
+  alias WeGoNext.Mirror.PublicReport
   alias WeGoNext.Repo
 
   setup do
@@ -25,26 +26,28 @@ defmodule WeGoNextWeb.IngestControllerTest do
     response =
       conn
       |> put_req_header("authorization", "Bearer test-token")
-      |> post(~p"/api/ingest", snapshot())
+      |> post(~p"/api/reports/raid-night/ingest", snapshot())
       |> json_response(200)
 
     assert response["status"] == "ok"
+    assert response["report_slug"] == "raid-night"
     assert response["source_encounter_key"] == "endpoint-encounter"
     assert response["inserted"] == 1
+    assert Repo.get_by!(PublicReport, slug: "raid-night").enabled
     assert Repo.aggregate(FactFailure, :count) == 1
   end
 
   test "rejects missing or wrong bearer token", %{conn: conn} do
     assert %{"error" => "unauthorized"} =
              conn
-             |> post(~p"/api/ingest", snapshot())
+             |> post(~p"/api/reports/raid-night/ingest", snapshot())
              |> json_response(401)
 
     assert %{"error" => "unauthorized"} =
              conn
              |> recycle()
              |> put_req_header("authorization", "Bearer wrong")
-             |> post(~p"/api/ingest", snapshot())
+             |> post(~p"/api/reports/raid-night/ingest", snapshot())
              |> json_response(401)
   end
 
@@ -52,7 +55,7 @@ defmodule WeGoNextWeb.IngestControllerTest do
     assert %{"error" => "unsupported_schema_version"} =
              conn
              |> put_req_header("authorization", "Bearer test-token")
-             |> post(~p"/api/ingest", %{snapshot() | schema_version: 999})
+             |> post(~p"/api/reports/raid-night/ingest", %{snapshot() | schema_version: 999})
              |> json_response(422)
   end
 
@@ -63,7 +66,7 @@ defmodule WeGoNextWeb.IngestControllerTest do
              conn
              |> put_req_header("authorization", "Bearer test-token")
              |> put_req_header("content-length", "2")
-             |> post(~p"/api/ingest", snapshot())
+             |> post(~p"/api/reports/raid-night/ingest", snapshot())
              |> json_response(413)
   end
 

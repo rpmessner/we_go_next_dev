@@ -4,12 +4,12 @@ defmodule WeGoNextWeb.PublicLive.Encounters do
   alias WeGoNext.Gold.PublicReadModels
 
   @impl true
-  def mount(%{"slug" => slug}, _session, socket) do
+  def mount(%{"slug" => slug}, %{"public_report_id" => report_id}, socket) do
     {:ok,
      socket
      |> assign(:page_title, "Public Encounters")
      |> assign(:slug, slug)
-     |> assign(:encounters, PublicReadModels.list_encounters())}
+     |> assign(:encounters, PublicReadModels.list_encounters(report_id))}
   end
 
   @impl true

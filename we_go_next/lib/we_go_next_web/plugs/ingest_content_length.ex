@@ -11,7 +11,13 @@ defmodule WeGoNextWeb.Plugs.IngestContentLength do
   def init(opts), do: opts
 
   @impl true
-  def call(%Plug.Conn{request_path: "/api/ingest"} = conn, _opts) do
+  def call(%Plug.Conn{request_path: "/api/reports/" <> rest} = conn, _opts) do
+    if String.ends_with?(rest, "/ingest"), do: reject_oversize(conn), else: conn
+  end
+
+  def call(conn, _opts), do: conn
+
+  defp reject_oversize(conn) do
     max_bytes = Application.get_env(:we_go_next, :mirror_ingest_max_bytes, 1_000_000)
 
     case content_length(conn) do
@@ -25,8 +31,6 @@ defmodule WeGoNextWeb.Plugs.IngestContentLength do
         conn
     end
   end
-
-  def call(conn, _opts), do: conn
 
   defp content_length(conn) do
     conn

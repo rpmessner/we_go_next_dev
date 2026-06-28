@@ -6,19 +6,21 @@ defmodule WeGoNext.Mirror.Ingest do
   import Ecto.Query
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
+  alias WeGoNext.Mirror.PublicReport
   alias WeGoNext.Repo
 
   @schema_version 1
 
-  @spec upsert_snapshot(map()) :: {:ok, map()} | {:error, term()}
-  def upsert_snapshot(snapshot) when is_map(snapshot) do
+  @spec upsert_snapshot(String.t(), map()) :: {:ok, map()} | {:error, term()}
+  def upsert_snapshot(report_slug, snapshot) when is_binary(report_slug) and is_map(snapshot) do
     with :ok <- validate_schema_version(snapshot),
          {:ok, encounter_attrs} <- encounter_attrs(snapshot),
          {:ok, player_attrs} <- player_attrs(snapshot),
          {:ok, criterion_attrs} <- criterion_attrs(snapshot),
          {:ok, fact_attrs} <- fact_attrs(snapshot) do
       Repo.transaction(fn ->
-        encounter = upsert_encounter!(encounter_attrs)
+        report = upsert_public_report!(report_slug, snapshot)
+        encounter = upsert_encounter!(report, encounter_attrs)
         players_by_guid = upsert_players!(player_attrs)
         criteria_by_key = upsert_criteria!(criterion_attrs)
 
@@ -35,10 +37,13 @@ defmodule WeGoNext.Mirror.Ingest do
             criteria_by_key
           )
 
-        %{encounter: encounter, deleted: deleted, inserted: inserted}
+        %{public_report: report, encounter: encounter, deleted: deleted, inserted: inserted}
       end)
     end
   end
+
+  @spec upsert_snapshot(map()) :: {:error, :missing_public_report_slug}
+  def upsert_snapshot(snapshot) when is_map(snapshot), do: {:error, :missing_public_report_slug}
 
   defp validate_schema_version(snapshot) do
     case get(snapshot, :schema_version) do
@@ -140,7 +145,24 @@ defmodule WeGoNext.Mirror.Ingest do
     KeyError -> {:error, :invalid_facts}
   end
 
-  defp upsert_encounter!(attrs) do
+  defp upsert_public_report!(slug, snapshot) do
+    title =
+      snapshot
+      |> get(:report, %{})
+      |> get(:title, slug)
+
+    %PublicReport{}
+    |> PublicReport.changeset(%{slug: slug, title: title, enabled: true})
+    |> Repo.insert!(
+      on_conflict: {:replace, [:title, :updated_at]},
+      conflict_target: [:slug],
+      returning: true
+    )
+  end
+
+  defp upsert_encounter!(%PublicReport{} = report, attrs) do
+    attrs = Map.put(attrs, :public_report_id, report.id)
+
     %DimEncounter{}
     |> DimEncounter.changeset(attrs)
     |> Repo.insert!(
@@ -159,7 +181,9 @@ defmodule WeGoNext.Mirror.Ingest do
            :fight_time_ms,
            :updated_at
          ]},
-      conflict_target: [:source_encounter_key],
+      conflict_target:
+        {:unsafe_fragment,
+         "(public_report_id, source_encounter_key) WHERE public_report_id IS NOT NULL"},
       returning: true
     )
   end

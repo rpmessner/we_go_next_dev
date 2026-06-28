@@ -4,7 +4,7 @@ defmodule WeGoNext.Gold.PublicReadModels do
 
   These queries intentionally depend only on mirrored gold tables. Public
   LiveViews should use this module instead of parser/operator read models that
-  can touch silver, rules, accounts, or transitional public tables.
+  can touch silver, rules, accounts, or transitional app-domain tables.
   """
 
   import Ecto.Query
@@ -17,14 +17,19 @@ defmodule WeGoNext.Gold.PublicReadModels do
         }
 
   @doc """
-  Lists mirrored encounters with aggregate failure counts.
+  Lists mirrored encounters for one public report with aggregate failure counts.
   """
-  @spec list_encounters(filters()) :: [map()]
-  def list_encounters(filters \\ %{}) when is_map(filters) do
+  @spec list_encounters(pos_integer(), filters()) :: [map()]
+  def list_encounters(public_report_id, filters \\ %{})
+      when is_integer(public_report_id) and is_map(filters) do
     limit = Map.get(filters, :limit, 50)
 
     DimEncounter
-    |> where([encounter], not is_nil(encounter.source_encounter_key))
+    |> where(
+      [encounter],
+      encounter.public_report_id == ^public_report_id and
+        not is_nil(encounter.source_encounter_key)
+    )
     |> join(:left, [encounter], failure in FactFailure,
       on: failure.encounter_dim_id == encounter.id
     )
@@ -55,9 +60,13 @@ defmodule WeGoNext.Gold.PublicReadModels do
   @doc """
   Returns one encounter's failure breakdown by player and criterion.
   """
-  @spec encounter_failures(String.t()) :: {:ok, map()} | {:error, :not_found}
-  def encounter_failures(source_encounter_key) when is_binary(source_encounter_key) do
-    case Repo.get_by(DimEncounter, source_encounter_key: source_encounter_key) do
+  @spec encounter_failures(pos_integer(), String.t()) :: {:ok, map()} | {:error, :not_found}
+  def encounter_failures(public_report_id, source_encounter_key)
+      when is_integer(public_report_id) and is_binary(source_encounter_key) do
+    case Repo.get_by(DimEncounter,
+           public_report_id: public_report_id,
+           source_encounter_key: source_encounter_key
+         ) do
       %DimEncounter{} = encounter ->
         rows = failure_rows(encounter.id)
 
@@ -72,6 +81,71 @@ defmodule WeGoNext.Gold.PublicReadModels do
       nil ->
         {:error, :not_found}
     end
+  end
+
+  @doc """
+  Returns grouped failure totals for one public report.
+  """
+  @spec grouped_failures(pos_integer()) :: [map()]
+  def grouped_failures(public_report_id) when is_integer(public_report_id) do
+    FactFailure
+    |> join(:inner, [failure], encounter in assoc(failure, :encounter))
+    |> join(:inner, [failure, encounter], player in assoc(failure, :player))
+    |> join(:inner, [failure, encounter, player], criterion in assoc(failure, :criterion))
+    |> where(
+      [failure, encounter, player, criterion],
+      encounter.public_report_id == ^public_report_id
+    )
+    |> group_by([failure, encounter, player, criterion], [
+      player.player_guid,
+      player.player_name,
+      criterion.criterion_key,
+      criterion.spell_id,
+      criterion.spell_name,
+      criterion.mechanic_type,
+      criterion.boss_name,
+      criterion.boss_encounter_id,
+      criterion.difficulty_id
+    ])
+    |> order_by([failure, encounter, player, criterion],
+      asc: player.player_name,
+      desc: sum(failure.failure_count),
+      asc: criterion.spell_name
+    )
+    |> select([failure, encounter, player, criterion], %{
+      player_guid: player.player_guid,
+      player_name: player.player_name,
+      criterion_key: criterion.criterion_key,
+      spell_id: criterion.spell_id,
+      spell_name: criterion.spell_name,
+      mechanic_type: criterion.mechanic_type,
+      boss_name: criterion.boss_name,
+      boss_encounter_id: criterion.boss_encounter_id,
+      difficulty_id: criterion.difficulty_id,
+      failure_count: coalesce(sum(failure.failure_count), 0),
+      total_damage: coalesce(sum(failure.total_damage), 0)
+    })
+    |> Repo.all()
+    |> Enum.map(&normalize_aggregate_row/1)
+  end
+
+  @doc """
+  Groups failure rows by player.
+  """
+  @spec group_by_player([map()]) :: [map()]
+  def group_by_player(rows) when is_list(rows) do
+    rows
+    |> Enum.group_by(&{&1.player_guid, &1.player_name})
+    |> Enum.map(fn {{player_guid, player_name}, failures} ->
+      %{
+        player_guid: player_guid,
+        player_name: player_name,
+        failure_count: Enum.sum(Enum.map(failures, & &1.failure_count)),
+        total_damage: Enum.sum(Enum.map(failures, & &1.total_damage)),
+        failures: failures
+      }
+    end)
+    |> Enum.sort_by(&{String.downcase(&1.player_name || ""), &1.player_guid || ""})
   end
 
   defp failure_rows(encounter_dim_id) do
@@ -130,29 +204,16 @@ defmodule WeGoNext.Gold.PublicReadModels do
     }
   end
 
-  defp group_by_player(rows) do
-    rows
-    |> Enum.group_by(&{&1.player_guid, &1.player_name})
-    |> Enum.map(fn {{player_guid, player_name}, failures} ->
-      %{
-        player_guid: player_guid,
-        player_name: player_name,
-        failure_count: Enum.sum(Enum.map(failures, & &1.failure_count)),
-        total_damage: Enum.sum(Enum.map(failures, & &1.total_damage)),
-        failures: failures
-      }
-    end)
-    |> Enum.sort_by(&{String.downcase(&1.player_name || ""), &1.player_guid || ""})
+  defp normalize_aggregate_row(row) do
+    row
+    |> Map.update!(:failure_count, &to_integer/1)
+    |> Map.update!(:total_damage, &to_integer/1)
+    |> maybe_update(:failing_player_count, &to_integer/1)
+    |> maybe_update(:criterion_count, &to_integer/1)
   end
 
-  defp normalize_aggregate_row(row) do
-    %{
-      row
-      | failure_count: to_integer(row.failure_count),
-        total_damage: to_integer(row.total_damage),
-        failing_player_count: to_integer(row.failing_player_count),
-        criterion_count: to_integer(row.criterion_count)
-    }
+  defp maybe_update(map, key, fun) do
+    if Map.has_key?(map, key), do: Map.update!(map, key, fun), else: map
   end
 
   defp to_integer(%Decimal{} = value), do: Decimal.to_integer(value)

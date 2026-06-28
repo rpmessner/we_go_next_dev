@@ -2,7 +2,7 @@ defmodule WeGoNext.Mirror.IngestTest do
   use ExUnit.Case, async: false
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
-  alias WeGoNext.Mirror.Ingest
+  alias WeGoNext.Mirror.{Ingest, PublicReport}
   alias WeGoNext.Repo
 
   setup do
@@ -13,10 +13,14 @@ defmodule WeGoNext.Mirror.IngestTest do
   test "upsert_snapshot inserts mirrored dims and facts by stable keys" do
     snapshot = snapshot()
 
-    assert {:ok, %{deleted: 0, inserted: 2}} = Ingest.upsert_snapshot(snapshot)
+    assert {:ok, %{deleted: 0, inserted: 2, public_report: %PublicReport{slug: "raid-night"}}} =
+             Ingest.upsert_snapshot("raid-night", snapshot)
 
     assert %DimEncounter{name: "Mirror Boss", success: false} =
-             Repo.get_by!(DimEncounter, source_encounter_key: "encounter-key-1")
+             Repo.get_by!(DimEncounter,
+               public_report_id: Repo.get_by!(PublicReport, slug: "raid-night").id,
+               source_encounter_key: "encounter-key-1"
+             )
 
     assert Repo.get_by!(DimPlayer, player_guid: "Player-One").player_name == "One"
 
@@ -29,8 +33,8 @@ defmodule WeGoNext.Mirror.IngestTest do
   test "reposting an unchanged snapshot does not duplicate rows" do
     snapshot = snapshot()
 
-    assert {:ok, %{inserted: 2}} = Ingest.upsert_snapshot(snapshot)
-    assert {:ok, %{inserted: 2}} = Ingest.upsert_snapshot(snapshot)
+    assert {:ok, %{inserted: 2}} = Ingest.upsert_snapshot("raid-night", snapshot)
+    assert {:ok, %{inserted: 2}} = Ingest.upsert_snapshot("raid-night", snapshot)
 
     assert Repo.aggregate(DimEncounter, :count) == 1
     assert Repo.aggregate(DimPlayer |> where_player_one(), :count) == 1
@@ -42,8 +46,8 @@ defmodule WeGoNext.Mirror.IngestTest do
     original = snapshot()
     reduced = %{original | facts: [hd(original.facts)]}
 
-    assert {:ok, %{inserted: 2}} = Ingest.upsert_snapshot(original)
-    assert {:ok, %{deleted: 2, inserted: 1}} = Ingest.upsert_snapshot(reduced)
+    assert {:ok, %{inserted: 2}} = Ingest.upsert_snapshot("raid-night", original)
+    assert {:ok, %{deleted: 2, inserted: 1}} = Ingest.upsert_snapshot("raid-night", reduced)
 
     assert Repo.aggregate(FactFailure, :count) == 1
     assert Repo.get_by!(FactFailure, total_damage: 500).failure_count == 2
@@ -52,7 +56,15 @@ defmodule WeGoNext.Mirror.IngestTest do
   test "rejects unsupported schema versions" do
     assert {:error, {:unsupported_schema_version, 999}} =
              %{snapshot() | schema_version: 999}
-             |> Ingest.upsert_snapshot()
+             |> then(&Ingest.upsert_snapshot("raid-night", &1))
+  end
+
+  test "same source encounter key can exist in multiple public reports" do
+    assert {:ok, %{inserted: 2}} = Ingest.upsert_snapshot("raid-one", snapshot())
+    assert {:ok, %{inserted: 2}} = Ingest.upsert_snapshot("raid-two", snapshot())
+
+    assert Repo.aggregate(DimEncounter, :count) == 2
+    assert Repo.aggregate(FactFailure, :count) == 4
   end
 
   defp snapshot do

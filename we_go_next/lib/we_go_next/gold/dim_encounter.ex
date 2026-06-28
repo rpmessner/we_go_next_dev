@@ -13,6 +13,7 @@ defmodule WeGoNext.Gold.DimEncounter do
   @type t :: %__MODULE__{}
 
   schema "dim_encounter" do
+    field(:public_report_id, :integer)
     field(:source_encounter_key, :string)
     field(:source_file_path, :string)
     field(:source_head_sha256, :string)
@@ -37,6 +38,7 @@ defmodule WeGoNext.Gold.DimEncounter do
     dim_encounter
     |> cast(attrs, [
       :source_file_path,
+      :public_report_id,
       :source_encounter_key,
       :source_head_sha256,
       :wow_encounter_id,
@@ -54,7 +56,10 @@ defmodule WeGoNext.Gold.DimEncounter do
     ])
     |> put_source_encounter_key()
     |> validate_required([:wow_encounter_id, :name])
-    |> unique_constraint(:source_encounter_key)
+    |> unique_constraint(:source_encounter_key,
+      name: :dim_encounter_source_encounter_key_parser_index
+    )
+    |> unique_constraint(:source_encounter_key, name: :dim_encounter_report_source_key_index)
   end
 
   defp put_source_encounter_key(changeset) do

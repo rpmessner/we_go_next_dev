@@ -3,6 +3,7 @@ defmodule WeGoNext.Gold.PublicReadModelsTest do
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Gold.PublicReadModels
+  alias WeGoNext.Mirror.PublicReport
   alias WeGoNext.Repo
   alias WeGoNext.Rules.Ruleset
 
@@ -12,8 +13,9 @@ defmodule WeGoNext.Gold.PublicReadModelsTest do
   end
 
   test "list_encounters returns gold-backed encounter aggregates" do
-    old = insert_encounter!("old", ~U[2026-06-01 20:00:00Z])
-    recent = insert_encounter!("recent", ~U[2026-06-02 20:00:00Z])
+    report = insert_report!("raid-night")
+    old = insert_encounter!(report, "old", ~U[2026-06-01 20:00:00Z])
+    recent = insert_encounter!(report, "recent", ~U[2026-06-02 20:00:00Z])
     player = insert_player!("Player-One", "One")
     criterion = insert_criterion!(101, "Swirl")
 
@@ -35,14 +37,15 @@ defmodule WeGoNext.Gold.PublicReadModelsTest do
                failure_count: 1,
                total_damage: 100
              }
-           ] = PublicReadModels.list_encounters()
+           ] = PublicReadModels.list_encounters(report.id)
 
     assert recent_key == recent.source_encounter_key
     assert old_key == old.source_encounter_key
   end
 
   test "encounter_failures returns per-encounter player and criterion breakdown" do
-    encounter = insert_encounter!("breakdown", ~U[2026-06-03 20:00:00Z])
+    report = insert_report!("raid-night")
+    encounter = insert_encounter!(report, "breakdown", ~U[2026-06-03 20:00:00Z])
     one = insert_player!("Player-One", "One")
     two = insert_player!("Player-Two", "Two")
     swirl = insert_criterion!(101, "Swirl")
@@ -52,7 +55,8 @@ defmodule WeGoNext.Gold.PublicReadModelsTest do
     insert_failure!(encounter, one, volley, 1, 0)
     insert_failure!(encounter, two, swirl, 4, 900)
 
-    assert {:ok, breakdown} = PublicReadModels.encounter_failures(encounter.source_encounter_key)
+    assert {:ok, breakdown} =
+             PublicReadModels.encounter_failures(report.id, encounter.source_encounter_key)
 
     assert breakdown.encounter.source_encounter_key == encounter.source_encounter_key
 
@@ -72,19 +76,43 @@ defmodule WeGoNext.Gold.PublicReadModelsTest do
   end
 
   test "encounter_failures returns not_found for unknown source encounter key" do
-    assert {:error, :not_found} = PublicReadModels.encounter_failures("missing")
+    report = insert_report!("raid-night")
+
+    assert {:error, :not_found} = PublicReadModels.encounter_failures(report.id, "missing")
+  end
+
+  test "read models are scoped to one public report" do
+    first_report = insert_report!("raid-one")
+    second_report = insert_report!("raid-two")
+    first = insert_encounter!(first_report, "shared-key", ~U[2026-06-04 20:00:00Z])
+    second = insert_encounter!(second_report, "shared-key", ~U[2026-06-04 21:00:00Z])
+    player = insert_player!("Player-One", "One")
+    criterion = insert_criterion!(101, "Swirl")
+
+    insert_failure!(first, player, criterion, 1, 100)
+    insert_failure!(second, player, criterion, 5, 900)
+
+    assert [%{failure_count: 1, total_damage: 100}] =
+             PublicReadModels.list_encounters(first_report.id)
+
+    assert [%{failure_count: 5, total_damage: 900}] =
+             PublicReadModels.list_encounters(second_report.id)
+
+    assert {:ok, %{counts: %{failure_count: 1}}} =
+             PublicReadModels.encounter_failures(first_report.id, "shared-key")
   end
 
   test "public read models query only mirrored gold tables" do
-    encounter = insert_encounter!("gold-only", ~U[2026-06-04 20:00:00Z])
+    report = insert_report!("raid-night")
+    encounter = insert_encounter!(report, "gold-only", ~U[2026-06-04 20:00:00Z])
     player = insert_player!("Player-One", "One")
     criterion = insert_criterion!(101, "Swirl")
     insert_failure!(encounter, player, criterion, 1, 100)
 
     queries =
       capture_repo_queries(fn ->
-        PublicReadModels.list_encounters()
-        PublicReadModels.encounter_failures(encounter.source_encounter_key)
+        PublicReadModels.list_encounters(report.id)
+        PublicReadModels.encounter_failures(report.id, encounter.source_encounter_key)
       end)
 
     assert Enum.any?(queries, &String.contains?(&1, ~s("gold"."dim_encounter")))
@@ -141,9 +169,17 @@ defmodule WeGoNext.Gold.PublicReadModelsTest do
     end
   end
 
-  defp insert_encounter!(suffix, start_time) do
+  defp insert_report!(slug) do
+    %PublicReport{}
+    |> PublicReport.changeset(%{slug: slug, title: slug, enabled: true})
+    |> Repo.insert!()
+  end
+
+  defp insert_encounter!(%PublicReport{} = report, suffix, start_time) do
     %DimEncounter{}
     |> DimEncounter.changeset(%{
+      public_report_id: report.id,
+      source_encounter_key: suffix,
       source_head_sha256: String.duplicate("a", 64),
       wow_encounter_id: "boss-#{suffix}",
       name: "Boss #{suffix}",

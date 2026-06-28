@@ -28,7 +28,11 @@ defmodule WeGoNext.Mirror.OutboxTest do
     result =
       Outbox.process_pending(
         limit: 1,
-        config: %{public_base_url: "https://public.example/", ingest_token: "secret"},
+        config: %{
+          public_base_url: "https://public.example/",
+          ingest_token: "secret",
+          report_slug: "raid-night"
+        },
         post_fun: fn url, snapshot, token ->
           :ets.insert(calls, {:call, url, snapshot.encounter.source_encounter_key, token})
           {:ok, %{status: 200, body: %{"status" => "ok"}}}
@@ -37,7 +41,10 @@ defmodule WeGoNext.Mirror.OutboxTest do
 
     assert result == %{published: 1, error: 0}
 
-    assert [{:call, "https://public.example/api/ingest", "success-key", "secret"}] =
+    assert [
+             {:call, "https://public.example/api/reports/raid-night/ingest", "success-key",
+              "secret"}
+           ] =
              :ets.lookup(calls, :call)
 
     assert %MirrorUpload{state: "published", published_at: %DateTime{}, attempt_count: 1} =
@@ -50,7 +57,11 @@ defmodule WeGoNext.Mirror.OutboxTest do
 
     result =
       Outbox.process_pending(
-        config: %{public_base_url: "https://public.example", ingest_token: "secret"},
+        config: %{
+          public_base_url: "https://public.example",
+          ingest_token: "secret",
+          report_slug: "raid-night"
+        },
         post_fun: fn _url, _snapshot, _token -> {:ok, %{status: 500, body: "nope"}} end
       )
 

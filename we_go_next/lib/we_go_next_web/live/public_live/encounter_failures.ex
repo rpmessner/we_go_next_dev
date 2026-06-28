@@ -4,8 +4,12 @@ defmodule WeGoNextWeb.PublicLive.EncounterFailures do
   alias WeGoNext.Gold.PublicReadModels
 
   @impl true
-  def mount(%{"slug" => slug, "source_encounter_key" => source_encounter_key}, _session, socket) do
-    case PublicReadModels.encounter_failures(source_encounter_key) do
+  def mount(
+        %{"slug" => slug, "source_encounter_key" => source_encounter_key},
+        %{"public_report_id" => report_id},
+        socket
+      ) do
+    case PublicReadModels.encounter_failures(report_id, source_encounter_key) do
       {:ok, breakdown} ->
         {:ok,
          socket

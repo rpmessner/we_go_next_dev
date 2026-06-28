@@ -35,10 +35,6 @@ if ingest_token = System.get_env("INGEST_TOKEN") do
   config :we_go_next, mirror_ingest_token: ingest_token
 end
 
-if viewer_slug = System.get_env("VIEWER_SLUG") do
-  config :we_go_next, public_viewer_slug: viewer_slug
-end
-
 if config_env() == :prod do
   run_migrations_on_boot? =
     System.get_env("RUN_MIGRATIONS_ON_BOOT", "true") in ["1", "true", "TRUE"]

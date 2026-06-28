@@ -39,7 +39,7 @@ defmodule WeGoNextWeb.Router do
   scope "/api", WeGoNextWeb do
     pipe_through(:api)
 
-    post("/ingest", IngestController, :create)
+    post("/reports/:slug/ingest", IngestController, :create)
   end
 
   scope "/r/:slug", WeGoNextWeb do

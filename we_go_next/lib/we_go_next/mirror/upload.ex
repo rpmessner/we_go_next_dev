@@ -24,9 +24,9 @@ defmodule WeGoNext.Mirror.Upload do
 
   defp upload_config(opts) do
     case Keyword.get(opts, :config) do
-      %{public_base_url: base_url, ingest_token: token}
-      when is_binary(base_url) and is_binary(token) ->
-        {:ok, %{public_base_url: base_url, ingest_token: token}}
+      %{public_base_url: base_url, ingest_token: token, report_slug: report_slug}
+      when is_binary(base_url) and is_binary(token) and is_binary(report_slug) ->
+        {:ok, %{public_base_url: base_url, ingest_token: token, report_slug: report_slug}}
 
       nil ->
         default_upload_config()
@@ -41,7 +41,12 @@ defmodule WeGoNext.Mirror.Upload do
 
     with true <- Accounts.mirror_upload_configured?(user),
          {:ok, token} <- Accounts.mirror_ingest_token(user) do
-      {:ok, %{public_base_url: user.mirror_public_base_url, ingest_token: token}}
+      {:ok,
+       %{
+         public_base_url: user.mirror_public_base_url,
+         ingest_token: token,
+         report_slug: "default"
+       }}
     else
       false -> {:error, :mirror_upload_not_configured}
       :error -> {:error, :mirror_upload_not_configured}
@@ -52,7 +57,7 @@ defmodule WeGoNext.Mirror.Upload do
     url =
       config.public_base_url
       |> String.trim_trailing("/")
-      |> Kernel.<>("/api/ingest")
+      |> Kernel.<>("/api/reports/#{URI.encode(config.report_slug)}/ingest")
 
     if post_fun = Keyword.get(opts, :post_fun) do
       post_fun.(url, snapshot, config.ingest_token)

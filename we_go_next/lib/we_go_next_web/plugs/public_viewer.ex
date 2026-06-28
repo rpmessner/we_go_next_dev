@@ -1,9 +1,12 @@
 defmodule WeGoNextWeb.Plugs.PublicViewer do
   @moduledoc """
-  Shared-secret slug gate for public mirror viewer routes.
+  Public report slug gate for public mirror viewer routes.
   """
 
   import Plug.Conn
+
+  alias WeGoNext.Mirror.PublicReport
+  alias WeGoNext.Repo
 
   @behaviour Plug
 
@@ -12,21 +15,22 @@ defmodule WeGoNextWeb.Plugs.PublicViewer do
 
   @impl true
   def call(conn, _opts) do
-    expected = Application.get_env(:we_go_next, :public_viewer_slug)
-    slug = conn.path_params["slug"]
+    case public_report(conn.path_params["slug"]) do
+      %PublicReport{} = report ->
+        conn
+        |> put_session(:public_report_id, report.id)
+        |> put_session(:public_report_slug, report.slug)
+        |> put_session(:public_report_title, report.title)
 
-    if valid_slug?(slug, expected) do
-      put_session(conn, :public_viewer_slug, slug)
-    else
-      conn
-      |> send_resp(:not_found, "Not Found")
-      |> halt()
+      nil ->
+        conn
+        |> send_resp(:not_found, "Not Found")
+        |> halt()
     end
   end
 
-  defp valid_slug?(slug, expected) when is_binary(slug) and is_binary(expected) do
-    byte_size(slug) == byte_size(expected) and Plug.Crypto.secure_compare(slug, expected)
-  end
+  defp public_report(slug) when is_binary(slug),
+    do: Repo.get_by(PublicReport, slug: slug, enabled: true)
 
-  defp valid_slug?(_slug, _expected), do: false
+  defp public_report(_slug), do: nil
 end
