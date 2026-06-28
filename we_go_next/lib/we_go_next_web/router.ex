@@ -14,12 +14,21 @@ defmodule WeGoNextWeb.Router do
     plug(:accepts, ["json"])
   end
 
+  pipeline :parser_mode do
+    plug(WeGoNextWeb.Plugs.RequireMode, :parser)
+  end
+
   scope "/", WeGoNextWeb do
     pipe_through(:browser)
 
+    live("/failures", FailureLive.Index, :index)
+  end
+
+  scope "/", WeGoNextWeb do
+    pipe_through([:browser, :parser_mode])
+
     live("/", EncounterLive.Index, :index)
     live("/encounters/:id", EncounterLive.Show, :show)
-    live("/failures", FailureLive.Index, :index)
     live("/settings", SettingsLive, :index)
   end
 end

@@ -4,6 +4,31 @@ import Config
 # during releases. It is executed after compilation and before the
 # temporary application is started.
 
+case System.get_env("MODE") do
+  nil ->
+    :ok
+
+  "" ->
+    :ok
+
+  "parser" ->
+    config :we_go_next, mode: :parser
+
+  "public" ->
+    config :we_go_next, mode: :public
+
+  mode ->
+    raise "MODE must be either parser or public, got: #{inspect(mode)}"
+end
+
+if database_url = System.get_env("DATABASE_URL") do
+  pool_size = String.to_integer(System.get_env("POOL_SIZE") || "10")
+
+  config :we_go_next, WeGoNext.Repo,
+    url: database_url,
+    pool_size: pool_size
+end
+
 if config_env() == :prod do
   secret_key_base =
     System.get_env("SECRET_KEY_BASE") ||

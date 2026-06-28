@@ -13,6 +13,20 @@ defmodule WeGoNext do
   alias WeGoNext.{CombatLogParser, Encounter}
   alias WeGoNext.Analyzers.{DeathAnalyzer, DamageTakenAnalyzer, InterruptAnalyzer, DebuffAnalyzer}
 
+  @type mode :: :parser | :public
+
+  @doc """
+  Returns the application run mode.
+
+  `:parser` is the local operator app that imports combat logs and builds
+  medallion rows. `:public` is the hosted read-only app that serves mirrored
+  gold data without parser/import processes.
+  """
+  @spec mode() :: mode()
+  def mode do
+    Application.get_env(:we_go_next, :mode, :parser)
+  end
+
   @doc """
   Scans a combat log file and returns encounter boundaries.
   """

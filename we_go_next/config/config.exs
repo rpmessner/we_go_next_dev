@@ -4,7 +4,8 @@ import Config
 
 # Configure the Repo
 config :we_go_next,
-  ecto_repos: [WeGoNext.Repo]
+  ecto_repos: [WeGoNext.Repo],
+  mode: :parser
 
 config :we_go_next, WeGoNext.Repo,
   username: "postgres",

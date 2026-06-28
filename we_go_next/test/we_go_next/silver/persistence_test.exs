@@ -37,7 +37,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
     assert counts == %{
              damage_taken: 2,
              damage_taken_event: 4,
-             damage_done: 1,
+             damage_done: 2,
              death: 1,
              interrupt_opportunity: 2,
              debuff_application: 2,
@@ -47,7 +47,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
 
     assert Repo.aggregate(DamageTaken, :count) == 2
     assert Repo.aggregate(DamageTakenEvent, :count) == 4
-    assert Repo.aggregate(DamageDone, :count) == 1
+    assert Repo.aggregate(DamageDone, :count) == 2
     assert Repo.aggregate(Death, :count) == 1
     assert Repo.aggregate(InterruptOpportunity, :count) == 2
     assert Repo.aggregate(DebuffApplication, :count) == 2
@@ -95,7 +95,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
 
     assert Repo.aggregate(DamageTaken, :count) == 2
     assert Repo.aggregate(DamageTakenEvent, :count) == 4
-    assert Repo.aggregate(DamageDone, :count) == 1
+    assert Repo.aggregate(DamageDone, :count) == 2
     assert Repo.aggregate(Death, :count) == 1
     assert Repo.aggregate(InterruptOpportunity, :count) == 2
     assert Repo.aggregate(DebuffApplication, :count) == 2
