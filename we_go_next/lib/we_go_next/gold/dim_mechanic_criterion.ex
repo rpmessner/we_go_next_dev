@@ -76,6 +76,45 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
     |> unique_constraint(:criterion_key)
   end
 
+  @doc false
+  def mirror_changeset(dim_criterion, attrs) do
+    dim_criterion
+    |> cast(attrs, [
+      :criterion_key,
+      :ruleset_id,
+      :ruleset_version,
+      :product,
+      :channel,
+      :build_version,
+      :build_key,
+      :spell_id,
+      :spell_name,
+      :mechanic_type,
+      :boss_encounter_id,
+      :boss_name,
+      :difficulty_id,
+      :threshold,
+      :notes,
+      :active
+    ])
+    |> put_criterion_key()
+    |> validate_required([
+      :criterion_key,
+      :ruleset_id,
+      :ruleset_version,
+      :product,
+      :channel,
+      :spell_id,
+      :spell_name,
+      :mechanic_type,
+      :threshold,
+      :active
+    ])
+    |> validate_inclusion(:mechanic_type, @mechanic_types)
+    |> validate_number(:ruleset_version, greater_than: 0)
+    |> unique_constraint(:criterion_key)
+  end
+
   def mechanic_types, do: @mechanic_types
 
   defp put_criterion_key(changeset) do

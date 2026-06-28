@@ -29,6 +29,10 @@ if database_url = System.get_env("DATABASE_URL") do
     pool_size: pool_size
 end
 
+if ingest_token = System.get_env("INGEST_TOKEN") do
+  config :we_go_next, mirror_ingest_token: ingest_token
+end
+
 if config_env() == :prod do
   secret_key_base =
     System.get_env("SECRET_KEY_BASE") ||

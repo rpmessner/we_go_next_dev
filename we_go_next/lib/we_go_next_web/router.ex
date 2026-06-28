@@ -31,4 +31,10 @@ defmodule WeGoNextWeb.Router do
     live("/encounters/:id", EncounterLive.Show, :show)
     live("/settings", SettingsLive, :index)
   end
+
+  scope "/api", WeGoNextWeb do
+    pipe_through(:api)
+
+    post("/ingest", IngestController, :create)
+  end
 end
