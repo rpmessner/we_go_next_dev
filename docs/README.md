@@ -8,7 +8,8 @@ This directory contains current durable documentation for the project. Historica
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — current medallion warehouse, rules, source-data, and LiveView architecture.
 - [`MECHANIC_SOURCE_STRATEGY.md`](MECHANIC_SOURCE_STRATEGY.md) — source hierarchy for turning observed log mechanics into real rules.
 - [`OPERATIONS.md`](OPERATIONS.md) — everyday import, rules, rebuild, and reimport workflows.
-- [`ROADMAP.md`](ROADMAP.md) — current board-aligned execution order.
+- [`ROADMAP.md`](ROADMAP.md) — durable index of initiatives, direction, and guiding constraints.
+- [`initiatives/`](initiatives/README.md) — per-initiative scope docs, each backed by a Linear project on the WE board.
 - [`PUBLIC_MIRROR_DESIGN.md`](PUBLIC_MIRROR_DESIGN.md) — proposed parser/public split for mirroring gold analysis data to a hosted read-only app.
 - [`PUBLIC_MIRROR_REVIEW_BRIEF.md`](PUBLIC_MIRROR_REVIEW_BRIEF.md) — review brief for critiquing the public-mirror plan before implementation.
 
