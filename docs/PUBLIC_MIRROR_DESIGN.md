@@ -184,7 +184,7 @@ gh secret set GIGALIXIR_EMAIL --env production --body '<account email>'
 
 ## Rough phasing
 
-Tracked on Linear: project [we_go_next — Public Gold Mirror](https://linear.app/wow-ui-o-matic/project/we-go-next-public-gold-mirror-3bbd3de9c0eb) (team WOW), issues **WOW-181 … WOW-188** (one per phase below).
+Tracked on Linear: project [Public Gold Mirror](https://linear.app/we-go-next/project/public-gold-mirror-55ce8feabbb8) (workspace `we-go-next`, team `WE`), issues **WE-5 … WE-12** (one per phase below).
 
 1. **Run-mode foundation** — `:mode` config + `WeGoNext.mode/0`, gate the parser supervision trio, default `:parser` (zero local behavior change). `runtime.exs` gains `DATABASE_URL`/`MODE`. **Public-mode boot test**: parser children absent, `/settings` 404, public routes load without `CombatLogParser`.
 2. **Mirror-key schema + serializer** — migrations adding `source_encounter_key` to `gold.dim_encounter` and `criterion_key` (incl. the `criterion_semantics_hash`) to `gold.dim_mechanic_criterion`: columns + unique indexes (both DBs) + backfill of existing rows. Deterministic key computation (encounter key at gold build, criterion key at promotion); per-builder `@semantics_version` + `mechanic_type → semantics_version` resolver. `Mirror.encode_encounter_snapshot/1` + field stripping. Unit tests: key determinism; **threshold change → new `criterion_key`**; **`semantics_version` bump → new `criterion_key` with threshold unchanged**; the **every-mechanic-has-a-`semantics_version` guard test**; payload shape.
