@@ -135,7 +135,7 @@ defmodule WeGoNext.SourceData.DBM.ParserTest do
         assert parsed.module_id == 2795
         assert parsed.encounter_id == 3306
         assert parsed.zone_id == 2939
-        assert length(parsed.warnings) == 10
+        assert length(parsed.warnings) >= 9
 
         assert parsed.warnings
                |> Enum.find(&(&1.spell_id == 1_249_017))

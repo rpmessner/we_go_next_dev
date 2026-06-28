@@ -972,6 +972,10 @@ select {
   min-width: 0px;
 }
 
+.min-w-full {
+  min-width: 100%;
+}
+
 .max-w-6xl {
   max-width: 72rem;
 }

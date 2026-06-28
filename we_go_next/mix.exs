@@ -11,6 +11,7 @@ defmodule WeGoNext.MixProject do
       aliases: aliases(),
       deps: deps(),
       listeners: [Phoenix.CodeReloader],
+      releases: releases(),
       test_pattern: "*_test.exs",
       test_paths: ["test"]
     ]
@@ -74,10 +75,20 @@ defmodule WeGoNext.MixProject do
       {:ecto_sql, "~> 3.10"},
       {:phoenix_ecto, "~> 4.4"},
       {:postgrex, "~> 0.17"},
+      {:req, "~> 0.5"},
       {:wallaby, "~> 0.30", runtime: false, only: :test},
       {:tidewave, "~> 0.6", only: :dev},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:zigler, "~> 0.15.1", runtime: false}
+    ]
+  end
+
+  defp releases do
+    [
+      we_go_next: [
+        include_executables_for: [:unix],
+        applications: [runtime_tools: :permanent]
+      ]
     ]
   end
 end

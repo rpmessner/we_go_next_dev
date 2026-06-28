@@ -480,33 +480,37 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
   end
 
   defp insert_failure!(%DimEncounter{} = encounter, %DimPlayer{} = player) do
-    %DimMechanicCriterion{}
-    |> DimMechanicCriterion.changeset(%{
-      source_rule_id: System.unique_integer([:positive]),
-      ruleset_id: System.unique_integer([:positive]),
-      ruleset_version: 1,
-      spell_id: 101,
-      spell_name: "Bad",
-      mechanic_type: "avoidable",
-      threshold: %{"max_hits" => 0}
+    criterion = get_or_insert_failure_criterion!()
+
+    %FactFailure{}
+    |> FactFailure.changeset(%{
+      encounter_dim_id: encounter.id,
+      player_dim_id: player.id,
+      criterion_dim_id: criterion.id,
+      ruleset_id: criterion.ruleset_id,
+      ruleset_version: criterion.ruleset_version,
+      product: criterion.product,
+      channel: criterion.channel,
+      build_version: criterion.build_version,
+      build_key: criterion.build_key,
+      failure_count: 1,
+      total_damage: 100
     })
     |> Repo.insert!()
-    |> then(fn criterion ->
-      %FactFailure{}
-      |> FactFailure.changeset(%{
-        encounter_dim_id: encounter.id,
-        player_dim_id: player.id,
-        criterion_dim_id: criterion.id,
-        ruleset_id: criterion.ruleset_id,
-        ruleset_version: criterion.ruleset_version,
-        product: criterion.product,
-        channel: criterion.channel,
-        build_version: criterion.build_version,
-        build_key: criterion.build_key,
-        failure_count: 1,
-        total_damage: 100
+  end
+
+  defp get_or_insert_failure_criterion! do
+    Repo.get_by(DimMechanicCriterion, spell_id: 101, mechanic_type: "avoidable") ||
+      %DimMechanicCriterion{}
+      |> DimMechanicCriterion.changeset(%{
+        source_rule_id: System.unique_integer([:positive]),
+        ruleset_id: System.unique_integer([:positive]),
+        ruleset_version: 1,
+        spell_id: 101,
+        spell_name: "Bad",
+        mechanic_type: "avoidable",
+        threshold: %{"max_hits" => 0}
       })
       |> Repo.insert!()
-    end)
   end
 end

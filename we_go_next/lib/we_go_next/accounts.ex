@@ -126,6 +126,50 @@ defmodule WeGoNext.Accounts do
   end
 
   @doc """
+  Stores public mirror upload settings for the local parser.
+  """
+  def set_mirror_upload_settings(%User{} = user, public_base_url, ingest_token) do
+    public_base_url = trim_or_nil(public_base_url)
+    ingest_token = trim_or_nil(ingest_token)
+
+    cond do
+      is_nil(public_base_url) ->
+        {:error, :public_base_url_required}
+
+      is_nil(ingest_token) ->
+        {:error, :ingest_token_required}
+
+      true ->
+        with {:ok, encrypted_token} <- SecretBox.encrypt(ingest_token) do
+          update_user_settings(user, %{
+            mirror_public_base_url: public_base_url,
+            mirror_ingest_token_encrypted: encrypted_token,
+            mirror_ingest_token_set_at: DateTime.utc_now()
+          })
+        end
+    end
+  end
+
+  def clear_mirror_upload_settings(%User{} = user) do
+    update_user_settings(user, %{
+      mirror_public_base_url: nil,
+      mirror_ingest_token_encrypted: nil,
+      mirror_ingest_token_set_at: nil
+    })
+  end
+
+  def mirror_ingest_token(%User{mirror_ingest_token_encrypted: encrypted})
+      when is_binary(encrypted) do
+    SecretBox.decrypt(encrypted)
+  end
+
+  def mirror_ingest_token(%User{}), do: :error
+
+  def mirror_upload_configured?(%User{} = user) do
+    is_binary(user.mirror_public_base_url) and is_binary(user.mirror_ingest_token_encrypted)
+  end
+
+  @doc """
   Updates the last loaded log for a user.
   """
   def set_last_loaded_log(%User{} = user, log_path) do

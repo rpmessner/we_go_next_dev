@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   quality:
     name: Quality
@@ -35,16 +38,16 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Set up BEAM
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@0f75c29430f34bb5af4cce5e3b7f6a8860fca236
         with:
           otp-version: "28"
           elixir-version: "1.19"
 
       - name: Set up Zig
-        uses: mlugg/setup-zig@v2
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29
         with:
           version: "0.15.2"
 
@@ -54,13 +57,15 @@ jobs:
           echo "ZIG_EXECUTABLE_PATH=$(command -v zig)" >> "$GITHUB_ENV"
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: |
+            ~/.cache/zigler
+            we_go_next/_build
             we_go_next/deps
-          key: ${{ runner.os }}-mix-deps-${{ hashFiles('we_go_next/mix.lock') }}
+          key: ${{ runner.os }}-mix-${{ hashFiles('we_go_next/mix.lock') }}
           restore-keys: |
-            ${{ runner.os }}-mix-deps-
+            ${{ runner.os }}-mix-
 
       - name: Install Hex and Rebar
         run: |
@@ -72,3 +77,25 @@ jobs:
 
       - name: Run quality gate
         run: mix quality
+
+  deploy:
+    name: Deploy public mirror
+    runs-on: ubuntu-latest
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+
+      - name: Deploy to Gigalixir
+        uses: gigalixir/gigalixir-action@f9b91af95fb3cdb979b9a772f98c9be3935c6d6e
+        with:
+          gigalixir_email: ${{ secrets.GIGALIXIR_EMAIL }}
+          gigalixir_api_key: ${{ secrets.GIGALIXIR_API_KEY }}
+          app_name: we-go-next
+          app_subfolder: we_go_next
+          deploy_timeout: "300"

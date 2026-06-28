@@ -61,7 +61,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
     assert counts == %{
              damage_taken: 2,
              damage_taken_event: 4,
-             damage_done: 1,
+             damage_done: 2,
              death: 1,
              interrupt_opportunity: 2,
              debuff_application: 2,

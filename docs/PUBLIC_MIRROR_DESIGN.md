@@ -108,14 +108,14 @@ One router, runtime-mode-guarded plugs (mode is runtime config, so routes can't 
 - Add **`Req`** (no runtime HTTP client exists today; the only outbound call is a `:httpc` CLI mix task — do not reuse that pattern).
 - New module `WeGoNext.Mirror`:
   - `encode_encounter_snapshot/1` — gold rows → the payload above, computing `source_encounter_key`/`criterion_key` and stripping operator-local fields.
-  - `Mirror.Upload.publish(encounter_dim_id)` — POST to `<public>/api/ingest` with `Authorization: Bearer <token>`.
+  - `Mirror.Upload.publish(encounter_dim_id)` — POST to `<public>/api/reports/:slug/ingest` with `Authorization: Bearer <token>`.
 - **Trigger:** emit publish intent from **`Gold.RebuildEncounter.rebuild/2`** after the full gold rebuild succeeds (review should-fix — *not* directly from `FactFailure.Rebuilder`, which stays focused on fact-table replacement; `RebuildEncounter` is the documented gold-rebuild boundary). Enqueue onto a parser-only `Task.Supervisor`; publish failures must never break a rebuild.
 - **Outbox** (because publish is automatic and the network is flaky): a `mirror_uploads` table keyed/**coalesced by `source_encounter_key`**, tracking `state` (`pending|published|stale|error`), `last_error`, `published_at`. Re-rebuild marks the row `stale` → re-publish. The worker processes with **bounded concurrency + rate limiting** so a mass rebuild can't storm the public endpoint. An optional `batch_id` is for observability only — never a public fact key.
 - **Secrets:** store the ingest bearer token via the existing `Accounts.SecretBox` (PBKDF2 off `secret_key_base`) in a new encrypted `users` column, mirroring the `warcraft_logs_api_key_encrypted` + `*_set_at` pattern exactly. Public-app base URL stored alongside (plaintext setting).
 
 ## Public app: ingest + auth
 
-- New `:api` scope (the pipeline already exists, unused): `POST /api/ingest`.
+- New `:api` scope (the pipeline already exists, unused): `POST /api/reports/:slug/ingest`.
 - **Ingest hardening — required v1 acceptance criteria** (not implementation notes; this is an internet-facing write endpoint, so a leaked token or retry loop must not churn the DB):
   - bearer token, **constant-time** compared against `INGEST_TOKEN` env; HTTPS only;
   - strict **`Content-Length` cap** + **JSON decode size/depth limit** (reject before parsing);
@@ -123,15 +123,15 @@ One router, runtime-mode-guarded plugs (mode is runtime config, so routes can't 
   - **transaction timeout** on the upsert;
   - **request logging by snapshot hash** (idempotency/replay visibility);
   - **rate limiting** at the endpoint or reverse-proxy layer.
-- `Mirror.Ingest.upsert_snapshot/1` — the transactional stable-key upsert described above.
-- **Viewer auth** — the shared-secret slug from `VIEWER_SLUG` env (rotatable on redeploy). The `:public_viewer` plug is the only gate; there is no user table.
+- `Mirror.Ingest.upsert_snapshot/2` — the transactional stable-key upsert described above, scoped to the report slug.
+- **Viewer auth** — database-backed public report slugs. The `:public_viewer` plug looks up an enabled `public_reports` row and scopes all public read models to that report.
 
 ## Deployment (Gigalixir)
 
 Target is the existing Gigalixir account, app `we-go-next`. Today there is **no release config, no Dockerfile, and `runtime.exs` doesn't read `DATABASE_URL`** — all net-new.
 
 - `mix.exs` — add a `releases/0`.
-- `runtime.exs` (prod) — read `DATABASE_URL`, `POOL_SIZE`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`, and the new `MODE` (→ `:mode`), `INGEST_TOKEN`, `VIEWER_SLUG`. Keep these env-driven so the platform stays swappable.
+- `runtime.exs` (prod) — read `DATABASE_URL`, `POOL_SIZE`, `SECRET_KEY_BASE`, `PHX_HOST`, `PORT`, and the new `MODE` (→ `:mode`), `INGEST_TOKEN`. Keep these env-driven so the platform stays swappable.
 - **Build via Dockerfile, not buildpack.** Two repo facts force this: (1) the mix project lives in `we_go_next/`, not the repo root, which the stock Elixir buildpack doesn't expect; (2) the Zig NIF (`zigler`) needs the Zig toolchain at compile time, which the buildpack lacks. A Dockerfile installs Zig in the build stage and sets build context to `we_go_next/`; the runtime image carries the compiled `.so` (it loads but is never invoked in `:public`). Confirm the exact Gigalixir "enable Docker build" step at implementation time before relying on it.
 - **Migrations:** use a boot-time release migrator (`WeGoNext.Release.migrate/0` run on app start), so no SSH key is needed and GitHub's secret surface stays at two credentials. (Alternative: `gigalixir-action@v0` + a `GIGALIXIR_SSH_PRIVATE_KEY` secret to run SSH migrations as an explicit CI step — rejected for the larger secret surface.)
 - **DB:** Gigalixir-managed Postgres for public, injected as `DATABASE_URL` config. It runs the same migrations; only the gold tables are ever populated (empty silver/bronze tables are harmless). Optionally scope migrations later if the empty tables bother us.
@@ -147,9 +147,9 @@ The central security decision: the app's runtime secrets **never enter GitHub.**
 | Tier | Lives in | Values |
 |---|---|---|
 | Deploy-auth (lets CI trigger a deploy) | GitHub **Environment** (`production`) secrets | `GIGALIXIR_EMAIL`, `GIGALIXIR_API_KEY` |
-| Runtime (the app's actual secrets) | **Gigalixir config** (`gigalixir config:set`) | `SECRET_KEY_BASE`, `DATABASE_URL` (auto), `INGEST_TOKEN`, `VIEWER_SLUG`, `MODE=public` |
+| Runtime (the app's actual secrets) | **Gigalixir config** (`gigalixir config:set`) | `SECRET_KEY_BASE`, `DATABASE_URL` (auto), `INGEST_TOKEN`, `MODE=public` |
 
-A GitHub compromise can redeploy code but does not surrender the ingest token, viewer slug, or DB URL.
+A GitHub compromise can redeploy code but does not surrender the ingest token or DB URL.
 
 ### GitHub-side hardening
 
@@ -180,7 +180,7 @@ gh secret set GIGALIXIR_EMAIL --env production --body '<account email>'
 
 - Strip `source_file_path`, `source_head_sha256`, and byte offsets from every payload — they fold into `source_encounter_key` as a hash and are never sent raw (operator-local, non-analytic).
 - `player_guid` is a WoW GUID for the raiders' own characters; the shared-link slug is the privacy gate. Failure counts are mildly socially sensitive — the link is the agreed boundary.
-- Ingest token and viewer slug are both rotatable via env + redeploy.
+- The ingest token is rotatable via env + redeploy. Public report slugs are data and can be disabled or rotated by changing `public_reports` rows.
 
 ## Rough phasing
 

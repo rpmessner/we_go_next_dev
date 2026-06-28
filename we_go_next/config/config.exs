@@ -4,7 +4,9 @@ import Config
 
 # Configure the Repo
 config :we_go_next,
-  ecto_repos: [WeGoNext.Repo]
+  ecto_repos: [WeGoNext.Repo],
+  mode: :parser,
+  mirror_ingest_max_bytes: 1_000_000
 
 config :we_go_next, WeGoNext.Repo,
   username: "postgres",
