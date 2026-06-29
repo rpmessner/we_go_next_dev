@@ -1,6 +1,8 @@
 # Public Mirror Deployment
 
 The public mirror deploys from GitHub Actions after a green push to `main`.
+CI deploys the `we_go_next/` subfolder to Gigalixir, so buildpack config lives
+in `we_go_next/elixir_buildpack.config`.
 
 ## GitHub Flow
 
