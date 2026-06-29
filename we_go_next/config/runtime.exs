@@ -28,7 +28,8 @@ if database_url = System.get_env("DATABASE_URL") do
 
   config :we_go_next, WeGoNext.Repo,
     url: database_url,
-    pool_size: pool_size
+    pool_size: pool_size,
+    ssl: true
 end
 
 if ingest_token = System.get_env("INGEST_TOKEN") do
