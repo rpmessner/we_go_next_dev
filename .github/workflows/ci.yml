@@ -90,6 +90,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Compute public mirror subtree SHA
+        id: public-mirror-subtree
+        run: |
+          echo "sha=$(git subtree split -q --prefix we_go_next HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Gigalixir
         uses: gigalixir/gigalixir-action@f9b91af95fb3cdb979b9a772f98c9be3935c6d6e
         with:
@@ -97,4 +102,5 @@ jobs:
           gigalixir_api_key: ${{ secrets.GIGALIXIR_API_KEY }}
           app_name: we-go-next
           app_subfolder: we_go_next
+          git_ref: ${{ steps.public-mirror-subtree.outputs.sha }}
           deploy_timeout: "300"
