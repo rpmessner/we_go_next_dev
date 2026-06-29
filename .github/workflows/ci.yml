@@ -61,7 +61,6 @@ jobs:
         with:
           path: |
             ~/.cache/zigler
-            we_go_next/_build
             we_go_next/deps
           key: ${{ runner.os }}-mix-${{ hashFiles('we_go_next/mix.lock') }}
           restore-keys: |
