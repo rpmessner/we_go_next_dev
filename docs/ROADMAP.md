@@ -25,8 +25,10 @@ Active, in suggested order:
 2. [Mechanic Classification System](initiatives/02-mechanic-classification-system.md) — standardized buckets + bespoke detectors + seed data.
 3. [User Mechanic Classification UI](initiatives/03-user-classification-ui.md) — operator authoring/overrides + `unavoidable` suppression.
 4. [Fact Semantics Expansion](initiatives/04-fact-semantics-expansion.md) — real facts for non-avoidable buckets.
+5. [Encounter Document Read Models](initiatives/05-encounter-documents.md) — per-encounter JSON documents as the medallion's read-model product; frontend renders from documents.
+6. [Public Analysis Mirror](initiatives/06-public-analysis-mirror.md) — opted-in documents uploaded to a private R2 bucket; same frontend hosted publicly behind the `/r/:slug` gate.
 
-Parallel: [Public Gold Mirror](PUBLIC_MIRROR_DESIGN.md) — hosted read-only mirror of gold facts for raid members.
+Superseded parallel track: [Public Gold Mirror](PUBLIC_MIRROR_DESIGN.md) (DB-backed mirror, built through WE-12) — replaced by initiatives 5–6, see [`ENCOUNTER_DOCUMENTS_DESIGN.md`](ENCOUNTER_DOCUMENTS_DESIGN.md).
 
 Completed: [Medallion Foundation](historical/initiative-medallion-foundation.md) (archived).
 
