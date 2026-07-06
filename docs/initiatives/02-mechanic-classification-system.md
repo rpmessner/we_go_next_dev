@@ -61,4 +61,4 @@ This initiative defines mechanic meaning and rule seed shape.
 
 ## Related
 
-[`../ROADMAP.md`](../ROADMAP.md) · [`../MECHANIC_SOURCE_STRATEGY.md`](../MECHANIC_SOURCE_STRATEGY.md) · [Initiative 5](05-gold-encounter-detail.md) · Wipefest `EventConfigs` (reference only)
+[`../ROADMAP.md`](../ROADMAP.md) · [`../MECHANIC_SOURCE_STRATEGY.md`](../MECHANIC_SOURCE_STRATEGY.md) · [Initiative 5](05-encounter-documents.md) · Wipefest `EventConfigs` (reference only)

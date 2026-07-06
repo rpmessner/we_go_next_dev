@@ -60,4 +60,4 @@ summaries, or debuffs.
 
 ## Related
 
-[`../ROADMAP.md`](../ROADMAP.md) · [`../MECHANIC_SOURCE_STRATEGY.md`](../MECHANIC_SOURCE_STRATEGY.md) · [`../ARCHITECTURE.md`](../ARCHITECTURE.md) · [Initiative 5](05-gold-encounter-detail.md)
+[`../ROADMAP.md`](../ROADMAP.md) · [`../MECHANIC_SOURCE_STRATEGY.md`](../MECHANIC_SOURCE_STRATEGY.md) · [`../ARCHITECTURE.md`](../ARCHITECTURE.md) · [Initiative 5](05-encounter-documents.md)

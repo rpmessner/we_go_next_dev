@@ -7,12 +7,13 @@ in `we_go_next/elixir_buildpack.config`.
 This document covers deployment and current upload operations only. The current
 public surface is a provisional failure-fact preview; the product plan for
 mirroring the full local encounter analysis page is
-[`PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`](PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md).
+[`ENCOUNTER_DOCUMENTS_DESIGN.md`](ENCOUNTER_DOCUMENTS_DESIGN.md).
 
-The current upload operations below describe the legacy Phoenix ingest path. The
-active public-gold plan is to have the medallion build write versioned JSON
-artifacts locally, upload those artifacts to Cloudflare, and have the Gigalixir
-public app read them from Cloudflare.
+The current upload operations below describe the legacy Phoenix ingest path,
+which will be pruned (WE-36). The active plan is to have the medallion build
+write versioned per-encounter JSON documents locally, upload opted-in documents
+to a private Cloudflare R2 bucket (WE-31/WE-33), and have the Gigalixir public
+app read them from R2 (WE-32).
 
 ## GitHub Flow
 
@@ -128,6 +129,6 @@ The current public encounters page may show zero players/damage for uploaded
 encounters that have no `gold.fact_failure` rows. That is a limitation of the
 current provisional failure-fact contract, not proof that the local encounter has
 no analysis data. The full-detail contract is tracked in
-[`PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`](PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md).
+[`ENCOUNTER_DOCUMENTS_DESIGN.md`](ENCOUNTER_DOCUMENTS_DESIGN.md).
 
 Do not add `INGEST_TOKEN`, `DATABASE_URL`, or `SECRET_KEY_BASE` to GitHub just to automate this smoke test.

@@ -40,4 +40,4 @@ view updates its default presentation accordingly.
 
 ## Related
 
-[`../ROADMAP.md`](../ROADMAP.md) · [Initiative 2](02-mechanic-classification-system.md) · [Initiative 4](04-fact-semantics-expansion.md) · [Initiative 5](05-gold-encounter-detail.md) · [Initiative 6](06-public-analysis-mirror.md)
+[`../ROADMAP.md`](../ROADMAP.md) · [Initiative 2](02-mechanic-classification-system.md) · [Initiative 4](04-fact-semantics-expansion.md) · [Initiative 5](05-encounter-documents.md) · [Initiative 6](06-public-analysis-mirror.md)

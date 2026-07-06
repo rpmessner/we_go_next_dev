@@ -25,4 +25,4 @@ A mechanic type emits correct `fact_failure` rows from a real pull, with a docum
 
 ## Related
 
-[`../ROADMAP.md`](../ROADMAP.md) · [`../ARCHITECTURE.md`](../ARCHITECTURE.md) (silver grain) · [Initiative 3](03-user-classification-ui.md) · [Initiative 5](05-gold-encounter-detail.md)
+[`../ROADMAP.md`](../ROADMAP.md) · [`../ARCHITECTURE.md`](../ARCHITECTURE.md) (silver grain) · [Initiative 3](03-user-classification-ui.md) · [Initiative 5](05-encounter-documents.md)

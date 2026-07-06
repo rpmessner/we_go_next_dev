@@ -1,21 +1,8 @@
 # Public Gold Mirror — Design
 
-Status: **implemented as plumbing; product scope superseded** as of 2026-06-29.
-Author session: 2026-06-27. This design produced the parser/public runtime
-split, Gigalixir deploy path, report slugs, ingest endpoint, stable mirror keys,
-and parser-side upload outbox.
+> ⚠️ **SUPERSEDED (2026-07-06).** The DB-backed mirror this doc designs (HTTP ingest → public Postgres → gold-only `PublicLive.*` views) was built (WE-5…WE-12) and is now being replaced by **JSON-first encounter documents** — the medallion build emits per-encounter JSON docs; the same frontend renders them locally from disk and publicly from a private Cloudflare R2 bucket; the ingest path is pruned. See [`ENCOUNTER_DOCUMENTS_DESIGN.md`](ENCOUNTER_DOCUMENTS_DESIGN.md). Still current from this doc: the run-mode split, `Mirror.Keys`/`source_encounter_key`, the `mirror_uploads` outbox, the `/r/:slug` slug gate, and the Gigalixir release/CI pipeline.
 
-The product assumption in this document is now known to be too narrow: mirroring
-only `gold.dim_encounter`, `gold.dim_player`, `gold.dim_mechanic_criterion`, and
-`gold.fact_failure` does **not** put the useful local encounter analysis page
-online. The current implementation is a failure-fact preview and deploy/ingest
-proof, not the finished public mirror.
-
-Current direction: [`PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`](PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md).
-That direction now treats public gold as a JSON artifact pipeline: the medallion
-build writes versioned public-safe JSON files, the local frontend reads those
-files, and the uploader syncs them to Cloudflare for the Gigalixir public app to
-read.
+Status: **superseded** (was: built through WE-12). Author session: 2026-06-27. Incorporates the findings from [`sessions/2026-06-27_public_mirror_plan_review.md`](sessions/2026-06-27_public_mirror_plan_review.md) (round 1) and the criterion-key/schema/semantics-version follow-ups (rounds 2–3, see *Resolved by review* below). The reviewer's final guardrail — pin down where `semantics_version` lives and how it's bumped — is captured in the *Stable keys* section and phase 2 tests.
 
 ## Goal
 

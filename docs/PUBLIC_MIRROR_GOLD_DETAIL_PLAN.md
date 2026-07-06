@@ -1,7 +1,13 @@
 # Public Mirror Gold Detail Plan
 
-Status: **current direction** as of 2026-06-29. Work is factored into
-[Initiative 5 — Gold Encounter Detail Read Models](initiatives/05-gold-encounter-detail.md)
+> ⚠️ **SUPERSEDED (2026-07-06)** by [`ENCOUNTER_DOCUMENTS_DESIGN.md`](ENCOUNTER_DOCUMENTS_DESIGN.md).
+> The "promote every detail section into gold read models" strategy below is no
+> longer required: the document generator serializes existing read models at
+> build time, and the JSON documents themselves are the contract. Initiatives 5
+> and 6 were reworked accordingly (WE-25…WE-36).
+
+Status: ~~current direction as of 2026-06-29~~ superseded. Work was factored into
+Initiative 5 (now [Encounter Document Read Models](initiatives/05-encounter-documents.md))
 and [Initiative 6 — Public Analysis Mirror](initiatives/06-public-analysis-mirror.md).
 
 ## Problem

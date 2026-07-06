@@ -72,10 +72,10 @@ deployment and upload mechanics, but it does not yet mirror the useful local
 encounter detail page because that page still depends on silver-derived read
 models for roster, deaths, damage, debuffs, interrupts/casts, and other pull
 detail. Public-sharing work should now follow
-`docs/PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`: define public-safe gold encounter
-detail read models, emit versioned JSON files as part of the medallion build,
-switch the local frontend to that JSON contract, then upload the same artifacts
-to Cloudflare for the Gigalixir public app to read.
+`docs/ENCOUNTER_DOCUMENTS_DESIGN.md`: the medallion build emits versioned
+per-encounter JSON documents, the local frontend renders from those documents
+on disk, and opted-in documents are uploaded to a private Cloudflare R2 bucket
+for the Gigalixir public app to read (same frontend, `/r/:slug` gate).
 
 **Current board focus:** make real current-tier failures appear from code-defined raid mechanics over real combat logs. Source-data imports from DBM, WowAnalyzer, and journal/reference metadata are scaffolding for authoring those code files, not a separate candidate/review/promotion product path.
 

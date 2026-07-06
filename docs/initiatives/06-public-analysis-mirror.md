@@ -1,79 +1,21 @@
-# Initiative 6 — Public Analysis Mirror
+# Initiative 6 — Public Analysis Mirror (Documents on R2)
 
-Status: **Plumbing built; product gated by Initiative 5.** Linear: existing Public
-Gold Mirror project, to be reshaped after the gold detail contract is split.
+Linear project: [6. Public Analysis Mirror](https://linear.app/we-go-next/project/c8d8c68a7bbe) (WE-31…WE-34, WE-36). Design: [`../ENCOUNTER_DOCUMENTS_DESIGN.md`](../ENCOUNTER_DOCUMENTS_DESIGN.md). Depends on initiative 5.
 
 ## Goal
 
-Publish the real encounter analysis page to the hosted public app by uploading
-the public-safe gold encounter detail JSON artifacts to Cloudflare.
-
-This initiative should not define mechanic semantics, Wipefest-style
-classification, or the local encounter detail read model. It deploys and mirrors
-the contract produced by Initiative 5.
-
-## What Already Exists
-
-WE-5 through WE-12 built useful infrastructure:
-
-- parser/public runtime mode;
-- Gigalixir deployment;
-- runtime config for public mode;
-- report slugs under `/r/:slug`;
-- ingest endpoint with bearer token auth;
-- stable encounter/criterion keys;
-- parser-side upload outbox;
-- provisional failure-fact public pages.
-
-The existing Phoenix ingest path is legacy plumbing for the provisional
-failure-fact preview. The new product path should publish static/versioned JSON
-objects to Cloudflare and have the Gigalixir app read those objects.
-
-## Current Limitation
-
-The deployed public site currently mirrors only failure facts and related
-dimensions. That is useful as a deploy/ingest proof, but it does not represent
-the local encounter detail page.
-
-Do not expand the failure-fact preview into a separate product. Replace it once
-the gold encounter detail contract exists.
-
-## Dependencies
-
-| Dependency | Why |
-|---|---|
-| Initiative 5 — Gold Encounter Detail Read Models | Defines the JSON artifacts public should read and render |
-| Initiative 2 avoidable-loop smoke test | Supplies the first useful mechanic/failure section |
-| Initiative 4 — Fact semantics expansion | Supplies additional mechanic/failure sections over time |
-| Initiative 3 — User classification UI | Supplies user-authored rule changes that affect mirrored facts |
-| Cloudflare artifact storage | Stores the public-safe report/encounter JSON files read by Gigalixir |
+Host the same frontend publicly (Gigalixir, `MODE=public`), fed by encounter documents in a **private Cloudflare R2 bucket** instead of a mirrored Postgres. Upload is opt-in per log file (checkbox) plus a per-encounter Upload/Re-upload button. The DB-mirror ingest path is pruned; the public DB shrinks to `public_reports` slugs.
 
 ## Scope
 
-- Upload the full gold encounter detail JSON artifact set, not raw silver and not
-  only `gold.fact_failure`.
-- Replace public report and encounter JSON objects on each upload without
-  exposing mixed-schema reads.
-- Keep report scoping by slug.
-- Keep schema-version rejection and retryable outbox behavior.
-- Render the public-safe subset of the local detail page.
-- Add an operator control or Mix task for draining the outbox.
-- Surface upload errors locally.
-- Keep the Gigalixir public app read-only with respect to encounter analysis
-  data; it should fetch/read Cloudflare artifacts rather than accepting medallion
-  writes.
+- **WE-31** — upload documents to R2 through the `mirror_uploads` outbox plus a real drain worker (`Documents.UploadWorker`, parser-mode child; today nothing drains the outbox). Upload = put encounter doc + refresh the public `index.json`.
+- **WE-33** — publish controls: `combat_log_files.publish_enabled` checkbox (auto-enqueue on rebuild), encounter-detail Upload/Re-upload button, upload-state diagnostics without SQL.
+- **WE-32** — public frontend reads documents from R2 under `/r/:slug` (slug gate unchanged); slug provisioning release task; Gigalixir env swap (drop `INGEST_TOKEN`, add R2 read credentials).
+- **WE-36** — prune the ingest path: `Mirror.Ingest`, `IngestController` + `/api` route, `IngestContentLength`, `Mirror.Upload`/`Mirror.Snapshot`, `Gold.PublicReadModels`, `PublicLive.*` thin views, mirror upload user settings, public-DB gold ingestion; gate `/failures` parser-only.
+- **WE-34** — end-to-end smoke: rebuild fixture locally → doc lands in R2 → public page renders expected sections (factful + zero-failure encounters).
 
-## Acceptance
+## Non-goals (v1)
 
-For one real encounter:
-
-1. Local detail renders from medallion-produced JSON artifacts.
-2. Parser uploads those artifacts to Cloudflare under the report slug.
-3. Public `/r/:slug/encounters/:source_encounter_key` renders the same
-   public-safe sections as local.
-4. Public does not query silver, parser modules, `Accounts`, rules internals,
-   source-data internals, or a public medallion database for encounter detail.
-
-## Related
-
-[`../PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`](../PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md) · [`../PUBLIC_MIRROR_DEPLOYMENT.md`](../PUBLIC_MIRROR_DEPLOYMENT.md) · [Initiative 5](05-gold-encounter-detail.md)
+- No unpublish/retraction — toggling off only stops future uploads; stale docs remain in the bucket.
+- No per-user accounts; the shared-secret `/r/:slug` link stays the privacy boundary.
+- No document deletion, compression, or caching until measured need.

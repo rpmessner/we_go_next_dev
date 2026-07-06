@@ -1,6 +1,13 @@
 # Initiative 5 — Gold Encounter Detail Read Models
 
-Status: **Planned / dependency hub.** Linear: not yet split after WE-24.
+> ⚠️ **SUPERSEDED (2026-07-06)** by [Initiative 5 — Encounter Document Read Models](05-encounter-documents.md)
+> (design: [`../ENCOUNTER_DOCUMENTS_DESIGN.md`](../ENCOUNTER_DOCUMENTS_DESIGN.md)).
+> The document generator serializes existing read models at build time, so the
+> per-section gold read-model buildout below is not required. The section
+> inventory and player-impact context requirements remain useful input to WE-25,
+> WE-27, and WE-28.
+
+Status: ~~Planned / dependency hub~~ superseded.
 
 ## Goal
 
