@@ -4,6 +4,16 @@ The public mirror deploys from GitHub Actions after a green push to `main`.
 CI deploys the `we_go_next/` subfolder to Gigalixir, so buildpack config lives
 in `we_go_next/elixir_buildpack.config`.
 
+This document covers deployment and current upload operations only. The current
+public surface is a provisional failure-fact preview; the product plan for
+mirroring the full local encounter analysis page is
+[`PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`](PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md).
+
+The current upload operations below describe the legacy Phoenix ingest path. The
+active public-gold plan is to have the medallion build write versioned JSON
+artifacts locally, upload those artifacts to Cloudflare, and have the Gigalixir
+public app read them from Cloudflare.
+
 ## GitHub Flow
 
 1. Pull requests run the `quality` job only.
@@ -36,6 +46,73 @@ gigalixir config:set INGEST_TOKEN=<ingest-token>
 Public report slugs are database-backed records created by ingesting into a
 report URL. They are not deployment config.
 
+## Local Upload Configuration
+
+This section applies to the current provisional failure-fact preview. It should
+be replaced by Cloudflare artifact-upload configuration when Initiative 6 is
+reshaped.
+
+The local parser stores mirror upload settings on the default local user. There
+is not yet a Settings UI for this.
+
+```bash
+cd we_go_next
+iex -S mix
+```
+
+```elixir
+alias WeGoNext.Accounts
+
+user = Accounts.get_or_create_default_user()
+
+Accounts.set_mirror_upload_settings(
+  user,
+  "https://we-go-next.gigalixirapp.com",
+  "same-value-as-gigalixir-INGEST_TOKEN"
+)
+```
+
+The default report slug is `default`, so uploads go to:
+
+```text
+https://we-go-next.gigalixirapp.com/api/reports/default/ingest
+```
+
+and the viewer URL is:
+
+```text
+https://we-go-next.gigalixirapp.com/r/default
+```
+
+## Uploading Queued Rows
+
+Gold rebuilds enqueue mirror upload intents in `mirror_uploads`; they do not
+currently perform network uploads inline. Drain the outbox manually:
+
+```bash
+cd we_go_next
+mix run -e 'IO.inspect(WeGoNext.Mirror.Outbox.process_pending(limit: 50))'
+```
+
+Repeat until no rows are published. To inspect local outbox state:
+
+```bash
+cd we_go_next
+mix run -e '
+import Ecto.Query
+alias WeGoNext.Repo
+alias WeGoNext.Mirror.MirrorUpload
+IO.inspect(Repo.all(from u in MirrorUpload, select: {u.state, count(u.id)}, group_by: u.state))
+'
+```
+
+Common failure modes:
+
+- `:nxdomain` in `last_error` means the saved public base URL is misspelled.
+- HTTP `401` means the local saved token does not match Gigalixir `INGEST_TOKEN`.
+- HTTP `422` with `unsupported_schema_version` means local and public code are
+  on incompatible snapshot versions; deploy public, then retry the outbox.
+
 ## Smoke Test
 
 After approving and completing a `main` deployment:
@@ -46,5 +123,11 @@ curl -i https://<public-host>/r/<report-slug>
 
 Expected result before the report has been ingested: HTTP 404.
 Expected result after ingesting at least once into that report slug: HTTP 200 with the public encounters page.
+
+The current public encounters page may show zero players/damage for uploaded
+encounters that have no `gold.fact_failure` rows. That is a limitation of the
+current provisional failure-fact contract, not proof that the local encounter has
+no analysis data. The full-detail contract is tracked in
+[`PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`](PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md).
 
 Do not add `INGEST_TOKEN`, `DATABASE_URL`, or `SECRET_KEY_BASE` to GitHub just to automate this smoke test.

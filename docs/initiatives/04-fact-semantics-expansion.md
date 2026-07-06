@@ -15,10 +15,14 @@ Give the non-avoidable buckets real `fact_failure` semantics, one type at a time
 
 Interrupt (#61) is next after the avoidable loop. The rest (#44) are gated per-type on silver grain and should split into per-type tickets when each becomes active — do not pre-create failing rules for types without semantics.
 
+Initiative 5 can build non-mechanic gold encounter detail sections before all of
+these fact types exist. It should depend on this initiative only for
+mechanic-specific failure sections.
+
 ## Acceptance (per type)
 
 A mechanic type emits correct `fact_failure` rows from a real pull, with a documented silver grain backing it, **before** it is offered as a user-taggable failing bucket.
 
 ## Related
 
-[`../ROADMAP.md`](../ROADMAP.md) · [`../ARCHITECTURE.md`](../ARCHITECTURE.md) (silver grain) · [Initiative 3](03-user-classification-ui.md)
+[`../ROADMAP.md`](../ROADMAP.md) · [`../ARCHITECTURE.md`](../ARCHITECTURE.md) (silver grain) · [Initiative 3](03-user-classification-ui.md) · [Initiative 5](05-gold-encounter-detail.md)

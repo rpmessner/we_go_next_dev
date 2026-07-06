@@ -10,8 +10,9 @@ This directory contains current durable documentation for the project. Historica
 - [`OPERATIONS.md`](OPERATIONS.md) — everyday import, rules, rebuild, and reimport workflows.
 - [`ROADMAP.md`](ROADMAP.md) — durable index of initiatives, direction, and guiding constraints.
 - [`initiatives/`](initiatives/README.md) — per-initiative scope docs, each backed by a Linear project on the WE board.
-- [`PUBLIC_MIRROR_DESIGN.md`](PUBLIC_MIRROR_DESIGN.md) — proposed parser/public split for mirroring gold analysis data to a hosted read-only app.
-- [`PUBLIC_MIRROR_DEPLOYMENT.md`](PUBLIC_MIRROR_DEPLOYMENT.md) — GitHub Actions, Gigalixir config, and smoke-test flow for the public mirror.
+- [`PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`](PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md) — strategy note for backing the real encounter analysis page with public-safe gold detail JSON artifacts; implementation is split into Initiatives 5 and 6.
+- [`PUBLIC_MIRROR_DESIGN.md`](PUBLIC_MIRROR_DESIGN.md) — implemented parser/public plumbing design; product scope superseded by the gold detail plan.
+- [`PUBLIC_MIRROR_DEPLOYMENT.md`](PUBLIC_MIRROR_DEPLOYMENT.md) — GitHub Actions, Gigalixir config, local upload setup, and smoke-test flow for the public mirror.
 - [`PUBLIC_MIRROR_REVIEW_BRIEF.md`](PUBLIC_MIRROR_REVIEW_BRIEF.md) — review brief for critiquing the public-mirror plan before implementation.
 
 ## Documentation Rules
@@ -33,3 +34,7 @@ Bronze combat logs and source metadata
 ```
 
 The short-term product goal is to make real combat logs usable through the medallion path: import logs, discover observed mechanics, enrich them with source annotations, create editable rules, rebuild derived facts, diagnose empty states, and show real failures in encounter preview and failure summary views.
+
+For public sharing, the current direction is to promote frontend-visible
+encounter analysis into gold-backed JSON artifacts, read those artifacts from
+the local frontend, and upload the same files to Cloudflare for the hosted app.

@@ -1,6 +1,6 @@
 # Public Gold Mirror — Review Brief
 
-> ⚠️ **SUPERSEDED (2026-06-27).** This brief described the *original* plan. It has been reviewed twice and the design was reworked in response — see [`sessions/2026-06-27_public_mirror_plan_review.md`](sessions/2026-06-27_public_mirror_plan_review.md) and the *Resolved by review* section of [`PUBLIC_MIRROR_DESIGN.md`](PUBLIC_MIRROR_DESIGN.md). **Do not review the bets below as current** — several (the "four gold tables serve detail" claim, `source_rule_id`, the encounter natural key) are already resolved.
+> ⚠️ **SUPERSEDED.** This brief described the original pre-build plan. It was first superseded by [`PUBLIC_MIRROR_DESIGN.md`](PUBLIC_MIRROR_DESIGN.md), and the product scope was superseded again on 2026-06-29 by [`PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`](PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md). **Do not review the bets below as current** — the "four gold tables serve detail" direction is now explicitly rejected as only provisional plumbing.
 >
 > **For a re-review, target the reworked design's still-open points instead:**
 > 1. `criterion_key` semantics — is folding `criterion_semantics_hash` (threshold + per-mechanic `semantics_version`) into the key correct, and should `active` be in the key or stay operational state?
