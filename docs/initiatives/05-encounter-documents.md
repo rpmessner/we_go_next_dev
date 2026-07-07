@@ -8,7 +8,7 @@ Make per-encounter JSON documents the read-model product of the medallion build,
 
 ## Scope
 
-- **WE-25** — inventory the document contract: every rendered encounter-detail section/field, classified public vs operator-only; pick the real-encounter regression fixture.
+- **WE-25** — inventory the document contract: every rendered encounter-detail section/field, classified public vs operator-only; pick the real-encounter regression fixture. Contract: [`../ENCOUNTER_DOCUMENT_CONTRACT_INVENTORY.md`](../ENCOUNTER_DOCUMENT_CONTRACT_INVENTORY.md).
 - **WE-29** — versioned document schema (`schema_version`, `generated_at`, derivation stamp) + generator wired into `Gold.RebuildEncounter.rebuild/2`; `mix wgn.rebuild_documents` backfill; minimal FileSystem store. Documents keyed by `source_encounter_key`.
 - **WE-35** — `Documents.Store` behaviour with FileSystem + R2 (S3-compatible, `req_s3`) adapters; R2 credentials via the `Accounts.SecretBox` pattern + Settings UI; env-driven config.
 - **WE-30** — re-tool the local encounter detail + list frontend to render from documents; URLs move to `/encounters/:source_encounter_key`; stale/empty/missing-document states diagnosable in the UI.

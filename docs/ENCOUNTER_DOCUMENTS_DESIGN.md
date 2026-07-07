@@ -59,7 +59,7 @@ Two document kinds, both versioned with `schema_version`, `generated_at`, and th
 
 Identity is `source_encounter_key` (`Mirror.Keys.source_encounter_key/1`, already a stored, unique column on `gold.dim_encounter`). An encounter that cannot be keyed cannot be documented/published — same error rule as the mirror design. Encounter URLs use the key in **both** modes (`/encounters/:source_encounter_key` locally, `/r/:slug/encounters/:source_encounter_key` publicly) so links are portable between local and public.
 
-Sections that are operator-only (e.g. `observed_mechanics` rule diagnostics, readiness hints) are carried in the document but **marked** so the public renderer can hide them; the exact split is settled by the WE-25 inventory.
+Sections that are operator-only (e.g. `observed_mechanics` rule diagnostics, readiness hints) are carried in the document but **marked** so the public renderer can hide them; the exact split is recorded in the WE-25 inventory: [`ENCOUNTER_DOCUMENT_CONTRACT_INVENTORY.md`](ENCOUNTER_DOCUMENT_CONTRACT_INVENTORY.md).
 
 ### Document store seam
 
@@ -94,7 +94,7 @@ The frontend reads through a mode-selected store: parser → FileSystem, public 
 
 Project **5. Encounter Document Read Models** (reworked from "Gold Encounter Detail Read Models"):
 
-1. **WE-25** — Inventory the encounter document contract (all rendered sections/fields; classify public vs operator-only; pick the real-encounter regression fixture).
+1. **WE-25** — Inventory the encounter document contract (all rendered sections/fields; classify public vs operator-only; pick the real-encounter regression fixture): [`ENCOUNTER_DOCUMENT_CONTRACT_INVENTORY.md`](ENCOUNTER_DOCUMENT_CONTRACT_INVENTORY.md).
 2. **WE-29** — Versioned document schema + build-time generator wired into `Gold.RebuildEncounter` (+ `mix wgn.rebuild_documents` backfill); minimal FileSystem store.
 3. **WE-35** — `Documents.Store` seam: FileSystem + R2 adapters, credentials via SecretBox + Settings UI, env config.
 4. **WE-30** — Re-tool the local frontend (encounter detail + list) to render from documents; URLs keyed by `source_encounter_key`; stale/empty document states diagnosable in the UI.
