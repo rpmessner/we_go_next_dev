@@ -39,12 +39,14 @@ defmodule WeGoNext.Documents.Store.R2 do
 
   def config do
     case Application.get_env(:we_go_next, :documents_r2) do
-      nil -> account_config()
+      nil -> account_config(WeGoNext.mode())
       config -> normalize_config(config)
     end
   end
 
-  defp account_config do
+  defp account_config(:public), do: {:error, :r2_not_configured}
+
+  defp account_config(:parser) do
     user = Accounts.get_or_create_default_user()
 
     with true <- Accounts.document_r2_configured?(user),

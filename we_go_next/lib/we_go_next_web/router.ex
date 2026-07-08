@@ -45,8 +45,8 @@ defmodule WeGoNextWeb.Router do
   scope "/r/:slug", WeGoNextWeb do
     pipe_through([:browser, :public_viewer])
 
-    live("/", PublicLive.Encounters, :index)
+    live("/", PublicDocumentLive.Index, :index)
     live("/failures", PublicLive.Failures, :index)
-    live("/encounters/:source_encounter_key", PublicLive.EncounterFailures, :show)
+    live("/encounters/:source_encounter_key", PublicDocumentLive.Show, :show)
   end
 end

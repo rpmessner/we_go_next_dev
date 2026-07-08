@@ -17,6 +17,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
   attr(:is_admin, :boolean, required: true)
   attr(:log_files, :list, default: [])
   attr(:loading, :boolean, default: false)
+  attr(:base_path, :string, default: "")
 
   def render(assigns) do
     groups = group_encounters(assigns.encounter_records, assigns.show_resets)
@@ -40,7 +41,12 @@ defmodule WeGoNextWeb.Components.EncounterList do
       </div>
       <div class="space-y-6">
         <%= for group <- @groups do %>
-          <.instance_group group={group} is_admin={@is_admin} open_menu_id={@open_menu_id} />
+          <.instance_group
+            group={group}
+            is_admin={@is_admin}
+            open_menu_id={@open_menu_id}
+            base_path={@base_path}
+          />
         <% end %>
       </div>
     </div>
@@ -54,6 +60,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
   attr(:group, :map, required: true)
   attr(:is_admin, :boolean, required: true)
   attr(:open_menu_id, :any, default: nil)
+  attr(:base_path, :string, default: "")
 
   defp instance_group(assigns) do
     ~H"""
@@ -75,6 +82,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
             idx={idx}
             is_admin={@is_admin}
             open_menu_id={@open_menu_id}
+            base_path={@base_path}
           />
         <% end %>
       </div>
@@ -97,6 +105,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
   attr(:idx, :integer, required: true)
   attr(:is_admin, :boolean, required: true)
   attr(:open_menu_id, :any, default: nil)
+  attr(:base_path, :string, default: "")
 
   defp encounter_card(assigns) do
     ~H"""
@@ -107,7 +116,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
     ]}>
       <.link
         :if={@encounter.source_encounter_key}
-        navigate={"/encounters/#{@encounter.source_encounter_key}"}
+        navigate={"#{@base_path}/encounters/#{@encounter.source_encounter_key}"}
         class="absolute inset-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-zinc-900"
         aria-label={"Open #{@encounter.name}"}
       >

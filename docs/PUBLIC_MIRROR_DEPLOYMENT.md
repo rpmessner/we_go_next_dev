@@ -4,16 +4,11 @@ The public mirror deploys from GitHub Actions after a green push to `main`.
 CI deploys the `we_go_next/` subfolder to Gigalixir, so buildpack config lives
 in `we_go_next/elixir_buildpack.config`.
 
-This document covers deployment and current upload operations only. The current
-public surface is a provisional failure-fact preview; the product plan for
-mirroring the full local encounter analysis page is
-[`ENCOUNTER_DOCUMENTS_DESIGN.md`](ENCOUNTER_DOCUMENTS_DESIGN.md).
-
-The current upload operations below describe the legacy Phoenix ingest path,
-which will be pruned (WE-36). The active plan is to have the medallion build
-write versioned per-encounter JSON documents locally, upload opted-in documents
-to a private Cloudflare R2 bucket (WE-31/WE-33), and have the Gigalixir public
-app read them from R2 (WE-32).
+This document covers deployment and current upload operations only. The public
+surface reads uploaded encounter documents from a private Cloudflare R2 bucket
+behind the `/r/:slug` shared-link gate. The legacy Phoenix ingest path remains
+in the codebase until WE-36, but it is no longer the public encounter list/detail
+render path.
 
 ## GitHub Flow
 
@@ -38,14 +33,32 @@ gigalixir config:set WE_GO_NEXT_MODE=public
 gigalixir config:set MODE=public
 gigalixir config:set RUN_MIGRATIONS_ON_BOOT=true
 gigalixir config:set PHX_HOST=<public-host>
-gigalixir config:set INGEST_TOKEN=<ingest-token>
+gigalixir config:set DOCUMENTS_STORE=r2
+gigalixir config:set R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+gigalixir config:set R2_BUCKET=<bucket>
+gigalixir config:set R2_ACCESS_KEY_ID=<read-access-key-id>
+gigalixir config:set R2_SECRET_ACCESS_KEY=<read-secret-access-key>
 ```
 
 `DATABASE_URL` should be provided by the Gigalixir-managed Postgres attachment.
 `SECRET_KEY_BASE` must also be present in Gigalixir config.
 
-Public report slugs are database-backed records created by ingesting into a
-report URL. They are not deployment config.
+Do not set `INGEST_TOKEN` for the document-backed public surface. The ingest
+controller is legacy code pending WE-36.
+
+Public report slugs are database-backed records. Provision or update them from
+the deployed release console:
+
+```bash
+gigalixir run 'bin/we_go_next eval "WeGoNext.Release.upsert_public_report(\"raid-night\", \"Raid Night\")"'
+```
+
+Disable a shared link without deleting uploaded documents by setting the third
+argument to `false`:
+
+```bash
+gigalixir run 'bin/we_go_next eval "WeGoNext.Release.upsert_public_report(\"raid-night\", \"Raid Night\", false)"'
+```
 
 ## Local Upload Configuration
 
@@ -81,9 +94,11 @@ index.json
 
 ## Legacy HTTP Outbox
 
-The older provisional failure-fact mirror path still has `mirror_uploads` rows
-and `WeGoNext.Mirror.Outbox`, but parser credentials are no longer stored on the
-user. Prefer the document store path above for new public-sharing work.
+The older provisional failure-fact mirror path and HTTP ingest controller still
+exist until WE-36. The `mirror_uploads` table remains active as the document
+upload ledger, but `WeGoNext.Documents.UploadWorker` now drains it by writing
+`encounters/<source_encounter_key>.json` and refreshing public `index.json` in
+the configured R2 bucket.
 
 Only drain the legacy outbox when explicitly testing the old HTTP ingest path,
 and pass upload config directly from the caller:
@@ -127,13 +142,20 @@ After approving and completing a `main` deployment:
 curl -i https://<public-host>/r/<report-slug>
 ```
 
-Expected result before the report has been ingested: HTTP 404.
-Expected result after ingesting at least once into that report slug: HTTP 200 with the public encounters page.
+Expected result before the slug is provisioned: HTTP 404.
+Expected result after the slug is provisioned: HTTP 200 with the public
+encounters page. If no documents have been uploaded, the page explains that the
+public document index is empty.
 
-The current public encounters page may show zero players/damage for uploaded
-encounters that have no `gold.fact_failure` rows. That is a limitation of the
-current provisional failure-fact contract, not proof that the local encounter has
-no analysis data. The full-detail contract is tracked in
-[`ENCOUNTER_DOCUMENTS_DESIGN.md`](ENCOUNTER_DOCUMENTS_DESIGN.md).
+After uploading at least one opted-in encounter, confirm the R2 bucket contains:
 
-Do not add `INGEST_TOKEN`, `DATABASE_URL`, or `SECRET_KEY_BASE` to GitHub just to automate this smoke test.
+```text
+encounters/<source_encounter_key>.json
+index.json
+```
+
+Then reload `/r/<report-slug>` and open
+`/r/<report-slug>/encounters/<source_encounter_key>`.
+
+Do not add `DATABASE_URL`, `SECRET_KEY_BASE`, or R2 credentials to GitHub just
+to automate this smoke test.
