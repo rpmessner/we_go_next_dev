@@ -87,6 +87,43 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     refute html =~ "Force Reimport Log"
   end
 
+  test "toggles publish setting on imported log rows", %{conn: conn} do
+    user = Accounts.get_or_create_default_user()
+    log = insert_combat_log!(user, "/tmp/wgn-publish-toggle.log")
+    insert_encounter!(log, %{start_time: ~U[2026-04-12 20:00:00Z]})
+
+    html =
+      conn
+      |> get(~p"/")
+      |> html_response(200)
+
+    assert html =~ "Publish"
+    assert html =~ ~s(phx-click="toggle_publish_enabled")
+    refute Repo.get!(CombatLogFile, log.id).publish_enabled
+
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{__changed__: %{}, user: user, combat_log_file: nil}
+    }
+
+    assert {:noreply, socket} =
+             WeGoNextWeb.EncounterLive.Index.handle_event(
+               "toggle_publish_enabled",
+               %{"file_id" => to_string(log.id)},
+               socket
+             )
+
+    assert Repo.get!(CombatLogFile, log.id).publish_enabled
+
+    assert {:noreply, _socket} =
+             WeGoNextWeb.EncounterLive.Index.handle_event(
+               "toggle_publish_enabled",
+               %{"file_id" => to_string(log.id)},
+               socket
+             )
+
+    refute Repo.get!(CombatLogFile, log.id).publish_enabled
+  end
+
   test "renders a Warcraft Logs report URL association for an imported log", %{conn: conn} do
     user = Accounts.get_or_create_default_user()
     log = insert_combat_log!(user, "/tmp/wgn-wcl-linked.log")

@@ -31,6 +31,7 @@ defmodule WeGoNext.CombatLogFile do
     field(:warcraft_logs_linked_at, :utc_datetime_usec)
     # Mark as complete when fully parsed and a newer log exists (dead log)
     field(:is_complete, :boolean, default: false)
+    field(:publish_enabled, :boolean, default: false)
 
     belongs_to(:user, User)
     has_many(:encounters, WeGoNext.Encounters.Encounter)
@@ -54,7 +55,8 @@ defmodule WeGoNext.CombatLogFile do
       :warcraft_logs_fight_id,
       :warcraft_logs_linked_at,
       :user_id,
-      :is_complete
+      :is_complete,
+      :publish_enabled
     ])
     |> validate_required([:file_path, :user_id, :source])
     |> validate_inclusion(:source, @sources)

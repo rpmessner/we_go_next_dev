@@ -10,7 +10,7 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
   }
 
   alias WeGoNext.Mirror.MirrorUpload
-  alias WeGoNext.Repo
+  alias WeGoNext.{CombatLogFile, Repo}
   alias WeGoNext.Rules.Ruleset
   alias WeGoNext.Silver.{DamageTaken, PlayerInfo}
 
@@ -99,13 +99,28 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
             }} = RebuildEncounter.rebuild(encounter)
   end
 
-  test "rebuild/2 enqueues mirror upload intent after successful rebuild" do
+  test "rebuild/2 does not enqueue mirror upload intent when source file publish is disabled" do
     encounter = insert_dim_encounter_with_source_key!("boss-mirror")
     ruleset = insert_ruleset!("Mirror Ruleset", "active")
     insert_criterion!(ruleset, encounter, 303)
 
     insert_player_info!(encounter, "Player-One", "One")
     insert_damage_taken!(encounter, "Player-One", 303, 100, 1)
+
+    assert {:ok, %{fact_failure: %{inserted: 1}}} = RebuildEncounter.rebuild(encounter)
+
+    refute Repo.get_by(MirrorUpload, source_encounter_key: encounter.source_encounter_key)
+  end
+
+  test "rebuild/2 enqueues mirror upload intent when source file publish is enabled" do
+    encounter = insert_dim_encounter_with_source_key!("boss-mirror-enabled")
+    insert_combat_log!(encounter, publish_enabled: true)
+
+    ruleset = insert_ruleset!("Mirror Enabled Ruleset", "active")
+    insert_criterion!(ruleset, encounter, 404)
+
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", 404, 100, 1)
 
     assert {:ok, %{fact_failure: %{inserted: 1}}} = RebuildEncounter.rebuild(encounter)
 
@@ -133,6 +148,28 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
       end_byte: source_start_byte + 1000
     })
     |> Repo.insert!()
+  end
+
+  defp insert_combat_log!(%DimEncounter{} = encounter, attrs) do
+    %CombatLogFile{}
+    |> CombatLogFile.changeset(
+      Map.merge(
+        %{
+          user_id: insert_user_id!(),
+          file_path: encounter.source_file_path || "/tmp/#{encounter.source_encounter_key}.log",
+          source: :live,
+          head_sha256: encounter.source_head_sha256,
+          last_parsed_at: DateTime.utc_now(),
+          publish_enabled: false
+        },
+        Map.new(attrs)
+      )
+    )
+    |> Repo.insert!()
+  end
+
+  defp insert_user_id! do
+    WeGoNext.Accounts.get_or_create_default_user().id
   end
 
   defp insert_dim_encounter_with_source_key!(wow_encounter_id) do

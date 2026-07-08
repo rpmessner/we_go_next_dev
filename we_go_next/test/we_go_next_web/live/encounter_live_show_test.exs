@@ -10,6 +10,7 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
   }
 
   alias WeGoNext.{Documents, Repo}
+  alias WeGoNext.Mirror.MirrorUpload
 
   alias WeGoNext.Silver.{
     DamageDone,
@@ -373,6 +374,72 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     assert html =~ to_string(Documents.current_derivation_version())
   end
 
+  test "shows upload button and manually queues a document upload", %{conn: conn} do
+    write_fixture_document!("upload-source-key")
+
+    html =
+      conn
+      |> get(~p"/encounters/upload-source-key")
+      |> html_response(200)
+
+    assert html =~ "Public Upload"
+    assert html =~ "Not queued"
+    assert html =~ "Upload"
+    assert html =~ ~s(phx-click="enqueue_upload")
+
+    {:ok, document} = Documents.fetch_encounter("upload-source-key")
+
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{__changed__: %{}, flash: %{}, document: document}
+    }
+
+    assert {:noreply, _socket} =
+             WeGoNextWeb.EncounterLive.Show.handle_event("enqueue_upload", %{}, socket)
+
+    assert %MirrorUpload{state: "pending"} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: "upload-source-key")
+  end
+
+  test "shows re-upload label for published documents", %{conn: conn} do
+    write_fixture_document!("published-source-key")
+
+    insert_upload!("published-source-key", %{
+      state: "published",
+      attempt_count: 1,
+      published_at: ~U[2026-07-08 20:20:00Z]
+    })
+
+    html =
+      conn
+      |> get(~p"/encounters/published-source-key")
+      |> html_response(200)
+
+    assert html =~ "Published"
+    assert html =~ "Re-upload"
+    assert html =~ "Attempts 1"
+  end
+
+  test "shows upload error diagnostics", %{conn: conn} do
+    write_fixture_document!("error-source-key")
+
+    insert_upload!("error-source-key", %{
+      state: "error",
+      attempt_count: 2,
+      last_error: "{:error, :r2_not_configured}",
+      last_attempted_at: ~U[2026-07-08 20:25:00Z]
+    })
+
+    html =
+      conn
+      |> get(~p"/encounters/error-source-key")
+      |> html_response(200)
+
+    assert html =~ "Error"
+    assert html =~ "Upload error"
+    assert html =~ "r2_not_configured"
+    assert html =~ "Attempts 2"
+  end
+
   defp insert_dim_encounter!(attrs \\ %{}) do
     source_start_byte = System.unique_integer([:positive])
 
@@ -662,5 +729,20 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     Map.merge(map, overrides, fn _key, left, right ->
       if is_map(left) and is_map(right), do: deep_merge(left, right), else: right
     end)
+  end
+
+  defp insert_upload!(source_encounter_key, attrs) do
+    %MirrorUpload{}
+    |> MirrorUpload.changeset(
+      Map.merge(
+        %{
+          source_encounter_key: source_encounter_key,
+          state: "pending",
+          attempt_count: 0
+        },
+        attrs
+      )
+    )
+    |> Repo.insert!()
   end
 end

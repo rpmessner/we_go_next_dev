@@ -157,6 +157,25 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   end
 
   @impl true
+  def handle_event("toggle_publish_enabled", %{"file_id" => file_id}, socket) do
+    with {:ok, file_id} <- parse_id(file_id),
+         %CombatLogFile{} = combat_log_file <-
+           get_user_combat_log(socket.assigns.user.id, file_id),
+         {:ok, _combat_log_file} <-
+           combat_log_file
+           |> CombatLogFile.changeset(%{publish_enabled: !combat_log_file.publish_enabled})
+           |> Repo.update() do
+      {:noreply,
+       socket
+       |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+       |> maybe_refresh_current_combat_log(file_id)}
+    else
+      _reason ->
+        {:noreply, put_flash(socket, :error, "Failed to update publish setting")}
+    end
+  end
+
+  @impl true
   def handle_event("save_warcraft_logs_url", %{"file_id" => file_id, "url" => url}, socket) do
     with {:ok, file_id} <- parse_id(file_id),
          %CombatLogFile{} = combat_log_file <-
@@ -503,7 +522,8 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       warcraft_logs_report_url: clf.warcraft_logs_report_url,
       warcraft_logs_report_code: clf.warcraft_logs_report_code,
       warcraft_logs_fight_id: clf.warcraft_logs_fight_id,
-      warcraft_logs_linked_at: clf.warcraft_logs_linked_at
+      warcraft_logs_linked_at: clf.warcraft_logs_linked_at,
+      publish_enabled: clf.publish_enabled
     })
     |> order_by([clf], desc: clf.last_parsed_at)
     |> Repo.all()

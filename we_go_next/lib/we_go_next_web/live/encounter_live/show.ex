@@ -10,6 +10,8 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   use WeGoNextWeb, :live_view
 
   alias WeGoNext.{Accounts, Documents}
+  alias WeGoNext.Mirror.{MirrorUpload, Outbox}
+  alias WeGoNext.Repo
   alias WeGoNext.WowClass
 
   import WeGoNextWeb.EncounterComponents,
@@ -28,6 +30,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:user, user)
          |> assign(:document, document)
          |> assign(:document_state, document_state(document))
+         |> assign(:upload, upload_state(document.source_encounter_key))
          |> assign(:encounter, document.encounter)
          |> assign(:counts, document.counts)
          |> assign(:roster, document.roster)
@@ -48,6 +51,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:user, user)
          |> assign(:document, nil)
          |> assign(:document_state, {:missing, source_encounter_key})
+         |> assign(:upload, nil)
          |> assign(:encounter, nil)
          |> assign(:counts, %{})
          |> assign(:roster, [])
@@ -98,6 +102,17 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   end
 
   @impl true
+  def handle_event("enqueue_upload", _params, socket) do
+    source_encounter_key = socket.assigns.document.source_encounter_key
+    {:ok, _upload} = Outbox.enqueue(source_encounter_key)
+
+    {:noreply,
+     socket
+     |> assign(:upload, upload_state(source_encounter_key))
+     |> put_flash(:info, "Encounter upload queued")}
+  end
+
+  @impl true
   def render(%{encounter: nil} = assigns) do
     ~H"""
     <div class="space-y-6">
@@ -134,6 +149,8 @@ defmodule WeGoNextWeb.EncounterLive.Show do
       </div>
 
       <.document_state_banner state={@document_state} document={@document} />
+
+      <.upload_panel upload={@upload} />
 
       <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <.pull_stat
@@ -1278,6 +1295,45 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   defp document_state_banner(assigns), do: ~H""
 
+  attr(:upload, :map, required: true)
+
+  defp upload_panel(assigns) do
+    ~H"""
+    <section class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
+            Public Upload
+          </h2>
+          <p class="mt-2 text-sm text-zinc-300">
+            State:
+            <span class={upload_state_class(@upload.state)}>{@upload.label}</span>
+            <span class="text-zinc-500">
+              &middot; Attempts {@upload.attempt_count}
+            </span>
+          </p>
+          <p :if={@upload.last_attempted_at} class="mt-1 text-xs text-zinc-500">
+            Last attempted {format_datetime(@upload.last_attempted_at)}
+          </p>
+          <p :if={@upload.published_at} class="mt-1 text-xs text-zinc-500">
+            Published {format_datetime(@upload.published_at)}
+          </p>
+          <p :if={@upload.last_error} class="mt-2 rounded border border-red-800/70 bg-red-950/30 px-3 py-2 text-sm text-red-100">
+            Upload error: <span class="font-mono">{@upload.last_error}</span>
+          </p>
+        </div>
+        <button
+          type="button"
+          phx-click="enqueue_upload"
+          class="rounded bg-wow-gold px-3 py-2 text-sm font-semibold text-zinc-950 hover:bg-yellow-300"
+        >
+          {@upload.button_label}
+        </button>
+      </div>
+    </section>
+    """
+  end
+
   attr(:tab, :atom, required: true)
   attr(:active, :atom, required: true)
   attr(:count, :integer, default: nil)
@@ -1386,6 +1442,50 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   defp parse_tab("interrupts"), do: :interrupts
   defp parse_tab("personal"), do: :personal
   defp parse_tab(_tab), do: :overview
+
+  defp upload_state(source_encounter_key) do
+    case Repo.get_by(MirrorUpload, source_encounter_key: source_encounter_key) do
+      %MirrorUpload{} = upload ->
+        %{
+          state: upload.state,
+          label: upload_label(upload.state),
+          button_label: upload_button_label(upload.state),
+          attempt_count: upload.attempt_count || 0,
+          last_attempted_at: upload.last_attempted_at,
+          published_at: upload.published_at,
+          last_error: upload.last_error
+        }
+
+      nil ->
+        %{
+          state: "not_queued",
+          label: "Not queued",
+          button_label: "Upload",
+          attempt_count: 0,
+          last_attempted_at: nil,
+          published_at: nil,
+          last_error: nil
+        }
+    end
+  end
+
+  defp upload_label("pending"), do: "Pending"
+  defp upload_label("stale"), do: "Queued"
+  defp upload_label("published"), do: "Published"
+  defp upload_label("error"), do: "Error"
+  defp upload_label(_state), do: "Not queued"
+
+  defp upload_button_label("published"), do: "Re-upload"
+  defp upload_button_label(_state), do: "Upload"
+
+  defp upload_state_class("published"),
+    do: "rounded bg-emerald-950 px-2 py-1 text-xs font-medium text-emerald-300"
+
+  defp upload_state_class("error"),
+    do: "rounded bg-red-950 px-2 py-1 text-xs font-medium text-red-300"
+
+  defp upload_state_class(_state),
+    do: "rounded bg-zinc-700 px-2 py-1 text-xs font-medium text-zinc-300"
 
   defp document_state(document) do
     current_version = Documents.current_derivation_version()
