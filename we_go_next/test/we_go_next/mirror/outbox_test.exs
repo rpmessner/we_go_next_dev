@@ -1,13 +1,22 @@
 defmodule WeGoNext.Mirror.OutboxTest do
   use ExUnit.Case, async: false
 
-  alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Mirror.{MirrorUpload, Outbox}
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.Ruleset
+
+  alias WeGoNext.Support.{
+    FailingDestinationDocumentStore,
+    StubDestinationDocumentStore,
+    StubSourceDocumentStore
+  }
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
+
+    StubSourceDocumentStore.reset!()
+    StubDestinationDocumentStore.reset!()
+
     :ok
   end
 
@@ -19,50 +28,77 @@ defmodule WeGoNext.Mirror.OutboxTest do
     assert Repo.aggregate(MirrorUpload, :count) == 1
   end
 
-  test "process_pending publishes a bounded batch and marks rows published" do
-    encounter = insert_snapshot_rows!("success-key")
-    Outbox.enqueue(encounter.source_encounter_key)
+  test "process_pending uploads a bounded batch and refreshes a public index of uploaded encounters" do
+    put_source_document!("already-uploaded", ~U[2026-07-08 19:00:00Z])
+    put_source_document!("pending-key", ~U[2026-07-08 20:00:00Z])
+    put_source_document!("not-uploaded", ~U[2026-07-08 21:00:00Z])
 
-    calls = :ets.new(:upload_calls, [:public])
+    insert_upload!("already-uploaded", "published")
+    Outbox.enqueue("pending-key")
+    Outbox.enqueue("not-uploaded")
 
     result =
       Outbox.process_pending(
         limit: 1,
-        config: %{
-          public_base_url: "https://public.example/",
-          ingest_token: "secret",
-          report_slug: "raid-night"
-        },
-        post_fun: fn url, snapshot, token ->
-          :ets.insert(calls, {:call, url, snapshot.encounter.source_encounter_key, token})
-          {:ok, %{status: 200, body: %{"status" => "ok"}}}
-        end
+        max_concurrency: 2,
+        source_store: StubSourceDocumentStore,
+        destination_store: StubDestinationDocumentStore
       )
 
     assert result == %{published: 1, error: 0}
 
-    assert [
-             {:call, "https://public.example/api/reports/raid-night/ingest", "success-key",
-              "secret"}
-           ] =
-             :ets.lookup(calls, :call)
-
     assert %MirrorUpload{state: "published", published_at: %DateTime{}, attempt_count: 1} =
-             Repo.get_by!(MirrorUpload, source_encounter_key: "success-key")
+             Repo.get_by!(MirrorUpload, source_encounter_key: "pending-key")
+
+    assert %MirrorUpload{state: "pending", attempt_count: 0} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: "not-uploaded")
+
+    assert {:ok, pending_body} =
+             StubDestinationDocumentStore.fetch("encounters/pending-key.json")
+
+    assert Jason.decode!(pending_body)["source_encounter_key"] == "pending-key"
+
+    assert {:ok, index_body} = StubDestinationDocumentStore.fetch("index.json")
+    index = Jason.decode!(index_body)
+
+    assert Enum.map(index["encounters"], & &1["source_encounter_key"]) == [
+             "pending-key",
+             "already-uploaded"
+           ]
   end
 
-  test "process_pending records upload errors for retry" do
-    encounter = insert_snapshot_rows!("error-key")
-    Outbox.enqueue(encounter.source_encounter_key)
+  test "process_pending keeps all concurrently uploaded encounters in the public index" do
+    put_source_document!("first-key", ~U[2026-07-08 20:00:00Z])
+    put_source_document!("second-key", ~U[2026-07-08 20:05:00Z])
+
+    Outbox.enqueue("first-key")
+    Outbox.enqueue("second-key")
+
+    assert %{published: 2, error: 0} =
+             Outbox.process_pending(
+               limit: 2,
+               max_concurrency: 2,
+               source_store: StubSourceDocumentStore,
+               destination_store: StubDestinationDocumentStore
+             )
+
+    assert {:ok, index_body} = StubDestinationDocumentStore.fetch("index.json")
+
+    assert Enum.map(Jason.decode!(index_body)["encounters"], & &1["source_encounter_key"]) == [
+             "second-key",
+             "first-key"
+           ]
+  end
+
+  test "process_pending marks rows error when the public index refresh fails" do
+    put_source_document!("error-key", ~U[2026-07-08 20:00:00Z])
+    Outbox.enqueue("error-key")
 
     result =
       Outbox.process_pending(
-        config: %{
-          public_base_url: "https://public.example",
-          ingest_token: "secret",
-          report_slug: "raid-night"
-        },
-        post_fun: fn _url, _snapshot, _token -> {:ok, %{status: 500, body: "nope"}} end
+        limit: 1,
+        source_store: StubSourceDocumentStore,
+        destination_store: FailingDestinationDocumentStore
       )
 
     assert result == %{published: 0, error: 1}
@@ -70,57 +106,59 @@ defmodule WeGoNext.Mirror.OutboxTest do
     assert %MirrorUpload{state: "error", last_error: last_error, attempt_count: 1} =
              Repo.get_by!(MirrorUpload, source_encounter_key: "error-key")
 
-    assert last_error =~ "http_error"
+    assert last_error =~ "index_failed"
+    assert {:ok, _body} = StubDestinationDocumentStore.fetch("encounters/error-key.json")
+    assert {:error, :enoent} = StubDestinationDocumentStore.fetch("index.json")
   end
 
-  defp insert_snapshot_rows!(source_encounter_key) do
-    encounter =
-      %DimEncounter{}
-      |> DimEncounter.changeset(%{
+  defp put_source_document!(source_encounter_key, start_time) do
+    document = document(source_encounter_key, start_time)
+
+    StubSourceDocumentStore.put(
+      "encounters/#{source_encounter_key}.json",
+      Jason.encode!(document)
+    )
+  end
+
+  defp document(source_encounter_key, start_time) do
+    %{
+      schema_version: 1,
+      generated_at: "2026-07-08T20:10:00Z",
+      derivation_version: "test",
+      source_encounter_key: source_encounter_key,
+      encounter: %{
+        id: System.unique_integer([:positive]),
         source_encounter_key: source_encounter_key,
-        wow_encounter_id: source_encounter_key,
-        name: "Mirror Boss",
-        start_time: ~U[2026-06-28 20:00:00Z]
-      })
-      |> Repo.insert!()
+        wow_encounter_id: "fixture-boss",
+        name: "Fixture Boss #{source_encounter_key}",
+        difficulty_id: 16,
+        difficulty_name: "Mythic",
+        group_size: 20,
+        instance_id: "fixture-instance",
+        start_time: start_time,
+        end_time: DateTime.add(start_time, 300, :second),
+        success: false,
+        fight_time_ms: 300_000,
+        operator: %{}
+      },
+      counts: %{players: 1, deaths: 0, interrupt_opportunities: 0, operator: %{}},
+      roster: [],
+      deaths: [],
+      pull_review: %{damage_done: [], low_dps: [], damage_taken_spells: [], debuffs: %{all: []}},
+      failure_preview: %{counts: %{mechanics: 0, players: 0, failures: 0, damage: 0}},
+      interrupt_coverage: %{spell_coverage: [], player_contributions: []},
+      personal_pull_summary: %{players: []},
+      observed_mechanics: %{mechanics: []}
+    }
+  end
 
-    player =
-      %DimPlayer{}
-      |> DimPlayer.changeset(%{player_guid: "Player-#{source_encounter_key}", player_name: "One"})
-      |> Repo.insert!()
-
-    ruleset =
-      %Ruleset{}
-      |> Ruleset.changeset(%{name: "Outbox Rules #{source_encounter_key}"})
-      |> Repo.insert!()
-
-    criterion =
-      %DimMechanicCriterion{}
-      |> DimMechanicCriterion.changeset(%{
-        source_rule_id: System.unique_integer([:positive]),
-        ruleset_id: ruleset.id,
-        ruleset_version: ruleset.version,
-        spell_id: System.unique_integer([:positive]),
-        spell_name: "Bad",
-        mechanic_type: "avoidable",
-        threshold: %{"max_hits" => 0}
-      })
-      |> Repo.insert!()
-
-    %FactFailure{}
-    |> FactFailure.changeset(%{
-      encounter_dim_id: encounter.id,
-      player_dim_id: player.id,
-      criterion_dim_id: criterion.id,
-      ruleset_id: criterion.ruleset_id,
-      ruleset_version: criterion.ruleset_version,
-      product: criterion.product,
-      channel: criterion.channel,
-      failure_count: 1,
-      total_damage: 100
+  defp insert_upload!(source_encounter_key, state) do
+    %MirrorUpload{}
+    |> MirrorUpload.changeset(%{
+      source_encounter_key: source_encounter_key,
+      state: state,
+      published_at: if(state == "published", do: DateTime.utc_now(), else: nil)
     })
     |> Repo.insert!()
-
-    encounter
   end
 end

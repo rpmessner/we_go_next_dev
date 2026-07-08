@@ -7,6 +7,9 @@ config :we_go_next, sql_sandbox: true
 # still drive it explicitly with WeGoNext.FileWatcher.sync_now/0.
 config :we_go_next, file_watcher_poll_interval_ms: false
 
+# Tests drain document uploads explicitly.
+config :we_go_next, document_upload_worker_interval_ms: false
+
 # We run a server during Wallaby tests
 config :we_go_next, WeGoNextWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],

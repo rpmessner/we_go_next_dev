@@ -46,6 +46,8 @@ defmodule WeGoNext.Application do
       {Task.Supervisor, name: WeGoNext.ImportTaskSupervisor},
       # Import worker (manages imports per user, survives page refresh)
       WeGoNext.ImportWorker,
+      # Public document upload worker (drains mirror_uploads in parser mode)
+      WeGoNext.Documents.UploadWorker,
       # Start the file watcher (tracks current combat log file)
       WeGoNext.FileWatcher
     ]

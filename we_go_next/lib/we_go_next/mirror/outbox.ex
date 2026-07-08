@@ -5,8 +5,9 @@ defmodule WeGoNext.Mirror.Outbox do
 
   import Ecto.Query
 
+  alias WeGoNext.Documents.Upload
   alias WeGoNext.Gold.DimEncounter
-  alias WeGoNext.Mirror.{MirrorUpload, Upload}
+  alias WeGoNext.Mirror.MirrorUpload
   alias WeGoNext.Repo
 
   @doc """
@@ -68,18 +69,24 @@ defmodule WeGoNext.Mirror.Outbox do
   @spec process_pending(keyword()) :: %{published: non_neg_integer(), error: non_neg_integer()}
   def process_pending(opts \\ []) do
     limit = Keyword.get(opts, :limit, 5)
-    publish_opts = Keyword.drop(opts, [:limit])
+    max_concurrency = Keyword.get(opts, :max_concurrency, 2)
+    publish_opts = Keyword.drop(opts, [:limit, :max_concurrency])
 
     MirrorUpload
     |> where([upload], upload.state in ["pending", "stale", "error"])
     |> order_by([upload], asc: upload.updated_at, asc: upload.id)
     |> limit(^limit)
     |> Repo.all()
-    |> Enum.reduce(%{published: 0, error: 0}, fn upload, totals ->
-      case publish_upload(upload, publish_opts) do
-        {:ok, _upload} -> %{totals | published: totals.published + 1}
-        {:error, _upload} -> %{totals | error: totals.error + 1}
-      end
+    |> Task.async_stream(
+      &publish_upload(&1, publish_opts),
+      max_concurrency: max_concurrency,
+      ordered: false,
+      timeout: Keyword.get(opts, :timeout, 30_000)
+    )
+    |> Enum.reduce(%{published: 0, error: 0}, fn
+      {:ok, {:ok, _upload}}, totals -> %{totals | published: totals.published + 1}
+      {:ok, {:error, _upload}}, totals -> %{totals | error: totals.error + 1}
+      {:exit, _reason}, totals -> %{totals | error: totals.error + 1}
     end)
   end
 

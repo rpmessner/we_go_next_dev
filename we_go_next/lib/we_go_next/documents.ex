@@ -107,6 +107,12 @@ defmodule WeGoNext.Documents do
 
   def current_derivation_version, do: Derivation.current_version()
 
+  @doc """
+  Builds the public index entry for an encounter document.
+  """
+  @spec index_entry(map()) :: map()
+  def index_entry(document), do: build_index_entry(document)
+
   defp encounter_ids(opts) do
     query =
       DimEncounter
@@ -159,7 +165,7 @@ defmodule WeGoNext.Documents do
       index
       |> Map.get("encounters", [])
       |> Enum.reject(&(Map.get(&1, "source_encounter_key") == source_encounter_key))
-      |> Kernel.++([index_entry(document)])
+      |> Kernel.++([build_index_entry(document)])
       |> Enum.sort_by(
         &{field(&1, :start_time) || "", field(&1, :source_encounter_key) || ""},
         :desc
@@ -172,7 +178,7 @@ defmodule WeGoNext.Documents do
     }
   end
 
-  defp index_entry(document) do
+  defp build_index_entry(document) do
     encounter = field!(document, :encounter)
     counts = field(document, :counts) || %{}
 
