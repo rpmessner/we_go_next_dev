@@ -40,6 +40,33 @@ if documents_root = System.get_env("DOCUMENTS_ROOT") do
   config :we_go_next, documents_root: documents_root
 end
 
+case System.get_env("DOCUMENTS_STORE") do
+  nil ->
+    :ok
+
+  "" ->
+    :ok
+
+  "filesystem" ->
+    config :we_go_next, documents_store: WeGoNext.Documents.Store.FileSystem
+
+  "r2" ->
+    config :we_go_next, documents_store: WeGoNext.Documents.Store.R2
+
+  store ->
+    raise "DOCUMENTS_STORE must be either filesystem or r2, got: #{inspect(store)}"
+end
+
+if r2_endpoint = System.get_env("R2_ENDPOINT") do
+  config :we_go_next,
+    documents_r2: %{
+      endpoint: r2_endpoint,
+      bucket: System.fetch_env!("R2_BUCKET"),
+      access_key_id: System.fetch_env!("R2_ACCESS_KEY_ID"),
+      secret_access_key: System.fetch_env!("R2_SECRET_ACCESS_KEY")
+    }
+end
+
 if config_env() == :prod do
   run_migrations_on_boot? =
     System.get_env("RUN_MIGRATIONS_ON_BOOT", "true") in ["1", "true", "TRUE"]

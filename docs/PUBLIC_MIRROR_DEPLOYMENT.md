@@ -49,53 +49,58 @@ report URL. They are not deployment config.
 
 ## Local Upload Configuration
 
-This section applies to the current provisional failure-fact preview. It should
-be replaced by Cloudflare artifact-upload configuration when Initiative 6 is
-reshaped.
+The local parser writes generated encounter documents through
+`WeGoNext.Documents.Store`. The default store is filesystem-backed and rooted at
+`DOCUMENTS_ROOT`. To smoke-test the R2 path, set:
 
-The local parser stores mirror upload settings on the default local user. There
-is not yet a Settings UI for this.
+```bash
+DOCUMENTS_STORE=r2
+R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+R2_BUCKET=<bucket>
+R2_ACCESS_KEY_ID=<write-access-key-id>
+R2_SECRET_ACCESS_KEY=<write-secret-access-key>
+```
+
+Parser-side R2 write credentials can also be saved from the Settings page. The
+secret access key is encrypted with the same `Accounts.SecretBox` pattern used
+for Warcraft Logs credentials.
+
+Operator smoke that still needs a real bucket:
 
 ```bash
 cd we_go_next
-iex -S mix
+DOCUMENTS_STORE=r2 mix wgn.rebuild_documents --encounter-id <encounter_dim_id>
 ```
 
-```elixir
-alias WeGoNext.Accounts
-
-user = Accounts.get_or_create_default_user()
-
-Accounts.set_mirror_upload_settings(
-  user,
-  "https://we-go-next.gigalixirapp.com",
-  "same-value-as-gigalixir-INGEST_TOKEN"
-)
-```
-
-The default report slug is `default`, so uploads go to:
+Then confirm both keys exist in the bucket:
 
 ```text
-https://we-go-next.gigalixirapp.com/api/reports/default/ingest
+encounters/<source_encounter_key>.json
+index.json
 ```
 
-and the viewer URL is:
+## Legacy HTTP Outbox
 
-```text
-https://we-go-next.gigalixirapp.com/r/default
-```
+The older provisional failure-fact mirror path still has `mirror_uploads` rows
+and `WeGoNext.Mirror.Outbox`, but parser credentials are no longer stored on the
+user. Prefer the document store path above for new public-sharing work.
 
-## Uploading Queued Rows
-
-Gold rebuilds enqueue mirror upload intents in `mirror_uploads`; they do not
-currently perform network uploads inline. Drain the outbox manually:
+Only drain the legacy outbox when explicitly testing the old HTTP ingest path,
+and pass upload config directly from the caller:
 
 ```bash
 cd we_go_next
-mix run -e 'IO.inspect(WeGoNext.Mirror.Outbox.process_pending(limit: 50))'
+mix run -e 'IO.inspect(WeGoNext.Mirror.Outbox.process_pending(
+  limit: 50,
+  config: %{
+    public_base_url: "https://<public-host>",
+    ingest_token: "<INGEST_TOKEN>",
+    report_slug: "default"
+  }
+))'
 ```
 
-Repeat until no rows are published. To inspect local outbox state:
+To inspect local outbox state:
 
 ```bash
 cd we_go_next
@@ -109,8 +114,8 @@ IO.inspect(Repo.all(from u in MirrorUpload, select: {u.state, count(u.id)}, grou
 
 Common failure modes:
 
-- `:nxdomain` in `last_error` means the saved public base URL is misspelled.
-- HTTP `401` means the local saved token does not match Gigalixir `INGEST_TOKEN`.
+- `:nxdomain` in `last_error` means the supplied public base URL is misspelled.
+- HTTP `401` means the supplied token does not match Gigalixir `INGEST_TOKEN`.
 - HTTP `422` with `unsupported_schema_version` means local and public code are
   on incompatible snapshot versions; deploy public, then retry the outbox.
 

@@ -1,7 +1,8 @@
 defmodule WeGoNext.Documents.EncounterDocumentTest do
   use ExUnit.Case, async: false
 
-  alias WeGoNext.Documents.{EncounterDocument, Store}
+  alias WeGoNext.Documents
+  alias WeGoNext.Documents.EncounterDocument
 
   alias WeGoNext.Gold.{
     DimEncounter,
@@ -74,15 +75,16 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
     assert observed["facts"]["failure_count"] == 1
   end
 
-  test "filesystem store writes encounter document and index", %{documents_root: documents_root} do
+  test "document generation writes encounter document and index", %{
+    documents_root: documents_root
+  } do
     encounter = insert_encounter!("indexed-boss")
     insert_player_info!(encounter, "Player-One", "One")
 
-    assert {:ok, document} =
-             EncounterDocument.encode(encounter.id, generated_at: ~U[2026-07-08 12:00:00Z])
-
-    assert {:ok, encounter_path} = Store.FileSystem.put_encounter(document)
-    assert {:ok, index_path} = Store.FileSystem.refresh_index()
+    assert {:ok, %{encounter_path: encounter_path, index_path: index_path}} =
+             Documents.generate_for_encounter(encounter.id,
+               generated_at: ~U[2026-07-08 12:00:00Z]
+             )
 
     assert encounter_path ==
              Path.join([documents_root, "encounters", "#{encounter.source_encounter_key}.json"])

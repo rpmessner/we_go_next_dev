@@ -100,24 +100,41 @@ defmodule WeGoNext.AccountsTest do
     assert Accounts.warcraft_logs_api_key(cleared) == :error
   end
 
-  test "mirror ingest token is encrypted before storage", %{user: user} do
+  test "document R2 secret access key is encrypted before storage", %{user: user} do
     assert {:ok, updated} =
-             Accounts.set_mirror_upload_settings(
+             Accounts.set_document_r2_credentials(
                user,
-               "https://public.example",
-               "secret-ingest-token"
+               "https://r2.example",
+               "raid-documents",
+               "access-key-id",
+               "secret-access-key"
              )
 
-    assert updated.mirror_public_base_url == "https://public.example"
-    assert updated.mirror_ingest_token_set_at
-    refute updated.mirror_ingest_token_encrypted == "secret-ingest-token"
-    refute updated.mirror_ingest_token_encrypted =~ "secret"
-    assert {:ok, "secret-ingest-token"} = Accounts.mirror_ingest_token(updated)
-    assert Accounts.mirror_upload_configured?(updated)
+    assert updated.document_r2_endpoint == "https://r2.example"
+    assert updated.document_r2_bucket == "raid-documents"
+    assert updated.document_r2_access_key_id == "access-key-id"
+    assert updated.document_r2_secret_access_key_set_at
+    refute updated.document_r2_secret_access_key_encrypted == "secret-access-key"
+    refute updated.document_r2_secret_access_key_encrypted =~ "secret"
+    assert {:ok, "secret-access-key"} = Accounts.document_r2_secret_access_key(updated)
+    assert Accounts.document_r2_configured?(updated)
 
-    assert {:ok, cleared} = Accounts.clear_mirror_upload_settings(updated)
-    refute Accounts.mirror_upload_configured?(cleared)
-    assert Accounts.mirror_ingest_token(cleared) == :error
+    assert {:ok, renamed} =
+             Accounts.update_document_r2_settings(
+               updated,
+               "https://r2-renamed.example",
+               "renamed-documents",
+               "renamed-access-key-id"
+             )
+
+    assert renamed.document_r2_endpoint == "https://r2-renamed.example"
+
+    assert renamed.document_r2_secret_access_key_encrypted ==
+             updated.document_r2_secret_access_key_encrypted
+
+    assert {:ok, cleared} = Accounts.clear_document_r2_credentials(renamed)
+    refute Accounts.document_r2_configured?(cleared)
+    assert Accounts.document_r2_secret_access_key(cleared) == :error
   end
 
   defp sha256(data) do

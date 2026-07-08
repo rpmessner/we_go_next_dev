@@ -42,4 +42,30 @@ defmodule WeGoNextWeb.SettingsLiveTest do
     assert html =~ "key saved"
     refute html =~ "secret-api-key"
   end
+
+  test "renders saved R2 document store credentials without rendering the secret key", %{
+    conn: conn
+  } do
+    user = Accounts.get_or_create_default_user()
+
+    assert {:ok, _user} =
+             Accounts.set_document_r2_credentials(
+               user,
+               "https://account.r2.cloudflarestorage.com",
+               "raid-documents",
+               "access-key-id",
+               "secret-access-key"
+             )
+
+    html =
+      conn
+      |> get(~p"/settings")
+      |> html_response(200)
+
+    assert html =~ "R2 Document Store"
+    assert html =~ "Configured"
+    assert html =~ "raid-documents"
+    assert html =~ "key saved"
+    refute html =~ "secret-access-key"
+  end
 end

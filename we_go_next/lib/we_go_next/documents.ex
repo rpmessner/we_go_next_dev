@@ -27,8 +27,9 @@ defmodule WeGoNext.Documents do
   def generate_for_encounter(encounter_dim_id, opts)
       when is_integer(encounter_dim_id) and is_list(opts) do
     with {:ok, document} <- EncounterDocument.encode(encounter_dim_id, opts),
-         {:ok, encounter_path} <- Store.FileSystem.put_encounter(document),
-         {:ok, index_path} <- Store.FileSystem.refresh_index() do
+         store = Store.configured_module(opts),
+         {:ok, encounter_path} <- put_json(store, encounter_key(document), document),
+         {:ok, index_path} <- refresh_index(store, document) do
       {:ok,
        %{
          source_encounter_key: document.source_encounter_key,
@@ -76,4 +77,102 @@ defmodule WeGoNext.Documents do
       :error -> Repo.all(query)
     end
   end
+
+  defp encounter_key(%{source_encounter_key: source_encounter_key}) do
+    "encounters/#{source_encounter_key}.json"
+  end
+
+  defp put_json(store, key, payload) do
+    with {:ok, body} <- Jason.encode(payload),
+         :ok <- store.put(key, body) do
+      {:ok, stored_path(store, key)}
+    end
+  end
+
+  defp refresh_index(store, document) do
+    with {:ok, current_index} <- fetch_index(store),
+         index <- merge_index(current_index, document),
+         {:ok, index_body} <- Jason.encode(index),
+         :ok <- store.put("index.json", index_body) do
+      {:ok, stored_path(store, "index.json")}
+    end
+  end
+
+  defp fetch_index(store) do
+    case store.fetch("index.json") do
+      {:ok, body} -> Jason.decode(body)
+      {:error, :enoent} -> {:ok, empty_index()}
+      {:error, {:http_error, 404, _body}} -> {:ok, empty_index()}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp empty_index do
+    %{"schema_version" => 1, "encounters" => []}
+  end
+
+  defp merge_index(index, document) do
+    source_encounter_key = document.source_encounter_key
+
+    encounters =
+      index
+      |> Map.get("encounters", [])
+      |> Enum.reject(&(Map.get(&1, "source_encounter_key") == source_encounter_key))
+      |> Kernel.++([index_entry(document)])
+      |> Enum.sort_by(
+        &{field(&1, :start_time) || "", field(&1, :source_encounter_key) || ""},
+        :desc
+      )
+
+    %{
+      schema_version: 1,
+      generated_at: DateTime.utc_now(),
+      encounters: encounters
+    }
+  end
+
+  defp index_entry(document) do
+    encounter = field!(document, :encounter)
+    counts = field(document, :counts) || %{}
+
+    failure_counts =
+      case field(document, :failure_preview) do
+        nil -> %{}
+        failure_preview -> field(failure_preview, :counts) || %{}
+      end
+
+    pull_review = field(document, :pull_review) || %{}
+
+    %{
+      source_encounter_key: field!(document, :source_encounter_key),
+      boss: field(encounter, :name),
+      wow_encounter_id: field(encounter, :wow_encounter_id),
+      difficulty_id: field(encounter, :difficulty_id),
+      difficulty_name: field(encounter, :difficulty_name),
+      start_time: field(encounter, :start_time),
+      end_time: field(encounter, :end_time),
+      success: field(encounter, :success),
+      fight_time_ms: field(encounter, :fight_time_ms),
+      headline_counts: %{
+        deaths: field(counts, :deaths) || 0,
+        failures: field(failure_counts, :failures) || 0,
+        failure_damage: field(failure_counts, :damage) || 0,
+        players: field(counts, :players) || 0,
+        low_damage: length(field(pull_review, :low_dps) || [])
+      }
+    }
+  end
+
+  defp field(map, key) when is_map(map) and is_atom(key) do
+    Map.get(map, key) || Map.get(map, Atom.to_string(key))
+  end
+
+  defp field!(map, key) do
+    field(map, key) || raise KeyError, key: key, term: map
+  end
+
+  defp stored_path(WeGoNext.Documents.Store.FileSystem, key),
+    do: WeGoNext.Documents.Store.FileSystem.path_for_key(key)
+
+  defp stored_path(_store, key), do: key
 end

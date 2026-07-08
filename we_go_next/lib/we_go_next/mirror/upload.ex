@@ -3,7 +3,7 @@ defmodule WeGoNext.Mirror.Upload do
   HTTP client for publishing gold snapshots to the hosted public mirror.
   """
 
-  alias WeGoNext.{Accounts, Repo}
+  alias WeGoNext.Repo
   alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Mirror.Snapshot
 
@@ -37,20 +37,7 @@ defmodule WeGoNext.Mirror.Upload do
   end
 
   defp default_upload_config do
-    user = Accounts.get_or_create_default_user()
-
-    with true <- Accounts.mirror_upload_configured?(user),
-         {:ok, token} <- Accounts.mirror_ingest_token(user) do
-      {:ok,
-       %{
-         public_base_url: user.mirror_public_base_url,
-         ingest_token: token,
-         report_slug: "default"
-       }}
-    else
-      false -> {:error, :mirror_upload_not_configured}
-      :error -> {:error, :mirror_upload_not_configured}
-    end
+    {:error, :mirror_upload_not_configured}
   end
 
   defp post_snapshot(config, snapshot, opts) do

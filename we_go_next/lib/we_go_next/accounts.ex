@@ -126,47 +126,91 @@ defmodule WeGoNext.Accounts do
   end
 
   @doc """
-  Stores public mirror upload settings for the local parser.
+  Stores R2 document write credentials for the local parser.
   """
-  def set_mirror_upload_settings(%User{} = user, public_base_url, ingest_token) do
-    public_base_url = trim_or_nil(public_base_url)
-    ingest_token = trim_or_nil(ingest_token)
+  def set_document_r2_credentials(
+        %User{} = user,
+        endpoint,
+        bucket,
+        access_key_id,
+        secret_access_key
+      ) do
+    endpoint = trim_or_nil(endpoint)
+    bucket = trim_or_nil(bucket)
+    access_key_id = trim_or_nil(access_key_id)
+    secret_access_key = trim_or_nil(secret_access_key)
 
     cond do
-      is_nil(public_base_url) ->
-        {:error, :public_base_url_required}
+      is_nil(endpoint) ->
+        {:error, :endpoint_required}
 
-      is_nil(ingest_token) ->
-        {:error, :ingest_token_required}
+      is_nil(bucket) ->
+        {:error, :bucket_required}
+
+      is_nil(access_key_id) ->
+        {:error, :access_key_id_required}
+
+      is_nil(secret_access_key) ->
+        {:error, :secret_access_key_required}
 
       true ->
-        with {:ok, encrypted_token} <- SecretBox.encrypt(ingest_token) do
+        with {:ok, encrypted_secret} <- SecretBox.encrypt(secret_access_key) do
           update_user_settings(user, %{
-            mirror_public_base_url: public_base_url,
-            mirror_ingest_token_encrypted: encrypted_token,
-            mirror_ingest_token_set_at: DateTime.utc_now()
+            document_r2_endpoint: endpoint,
+            document_r2_bucket: bucket,
+            document_r2_access_key_id: access_key_id,
+            document_r2_secret_access_key_encrypted: encrypted_secret,
+            document_r2_secret_access_key_set_at: DateTime.utc_now()
           })
         end
     end
   end
 
-  def clear_mirror_upload_settings(%User{} = user) do
+  def update_document_r2_settings(%User{} = user, endpoint, bucket, access_key_id) do
+    endpoint = trim_or_nil(endpoint)
+    bucket = trim_or_nil(bucket)
+    access_key_id = trim_or_nil(access_key_id)
+
+    cond do
+      is_nil(endpoint) ->
+        {:error, :endpoint_required}
+
+      is_nil(bucket) ->
+        {:error, :bucket_required}
+
+      is_nil(access_key_id) ->
+        {:error, :access_key_id_required}
+
+      true ->
+        update_user_settings(user, %{
+          document_r2_endpoint: endpoint,
+          document_r2_bucket: bucket,
+          document_r2_access_key_id: access_key_id
+        })
+    end
+  end
+
+  def clear_document_r2_credentials(%User{} = user) do
     update_user_settings(user, %{
-      mirror_public_base_url: nil,
-      mirror_ingest_token_encrypted: nil,
-      mirror_ingest_token_set_at: nil
+      document_r2_endpoint: nil,
+      document_r2_bucket: nil,
+      document_r2_access_key_id: nil,
+      document_r2_secret_access_key_encrypted: nil,
+      document_r2_secret_access_key_set_at: nil
     })
   end
 
-  def mirror_ingest_token(%User{mirror_ingest_token_encrypted: encrypted})
+  def document_r2_secret_access_key(%User{document_r2_secret_access_key_encrypted: encrypted})
       when is_binary(encrypted) do
     SecretBox.decrypt(encrypted)
   end
 
-  def mirror_ingest_token(%User{}), do: :error
+  def document_r2_secret_access_key(%User{}), do: :error
 
-  def mirror_upload_configured?(%User{} = user) do
-    is_binary(user.mirror_public_base_url) and is_binary(user.mirror_ingest_token_encrypted)
+  def document_r2_configured?(%User{} = user) do
+    is_binary(user.document_r2_endpoint) and is_binary(user.document_r2_bucket) and
+      is_binary(user.document_r2_access_key_id) and
+      is_binary(user.document_r2_secret_access_key_encrypted)
   end
 
   @doc """

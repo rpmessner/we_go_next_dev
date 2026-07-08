@@ -7,6 +7,7 @@ config :we_go_next,
   ecto_repos: [WeGoNext.Repo],
   mode: :parser,
   mirror_ingest_max_bytes: 1_000_000,
+  documents_store: WeGoNext.Documents.Store.FileSystem,
   documents_root: Path.expand("../documents", __DIR__)
 
 config :we_go_next, WeGoNext.Repo,
