@@ -32,7 +32,7 @@ defmodule WeGoNextWeb.Router do
     pipe_through([:browser, :parser_mode])
 
     live("/", EncounterLive.Index, :index)
-    live("/encounters/:id", EncounterLive.Show, :show)
+    live("/encounters/:source_encounter_key", EncounterLive.Show, :show)
     live("/settings", SettingsLive, :index)
   end
 

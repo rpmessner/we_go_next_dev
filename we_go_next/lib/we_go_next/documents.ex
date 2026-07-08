@@ -7,6 +7,7 @@ defmodule WeGoNext.Documents do
 
   alias WeGoNext.Documents.{EncounterDocument, Store}
   alias WeGoNext.Gold.DimEncounter
+  alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Repo
 
   @type generate_result :: %{
@@ -65,6 +66,46 @@ defmodule WeGoNext.Documents do
       end
     end)
   end
+
+  @doc """
+  Reads the encounter document index from the configured store.
+  """
+  @spec list_index(keyword()) :: {:ok, map()} | {:error, term()}
+  def list_index(opts \\ []) do
+    opts
+    |> Store.configured_module()
+    |> fetch_index()
+    |> case do
+      {:ok, index} -> {:ok, normalize_document(index)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Reads one encounter document by source encounter key from the configured store.
+  """
+  @spec fetch_encounter(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def fetch_encounter(source_encounter_key, opts \\ []) when is_binary(source_encounter_key) do
+    store = Store.configured_module(opts)
+
+    case store.fetch(encounter_key(%{source_encounter_key: source_encounter_key})) do
+      {:ok, body} ->
+        with {:ok, document} <- Jason.decode(body) do
+          {:ok, normalize_document(document)}
+        end
+
+      {:error, :enoent} ->
+        {:error, :missing_document}
+
+      {:error, {:http_error, 404, _body}} ->
+        {:error, :missing_document}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def current_derivation_version, do: Derivation.current_version()
 
   defp encounter_ids(opts) do
     query =
@@ -149,6 +190,7 @@ defmodule WeGoNext.Documents do
       wow_encounter_id: field(encounter, :wow_encounter_id),
       difficulty_id: field(encounter, :difficulty_id),
       difficulty_name: field(encounter, :difficulty_name),
+      instance_id: field(encounter, :instance_id),
       start_time: field(encounter, :start_time),
       end_time: field(encounter, :end_time),
       success: field(encounter, :success),
@@ -175,4 +217,38 @@ defmodule WeGoNext.Documents do
     do: WeGoNext.Documents.Store.FileSystem.path_for_key(key)
 
   defp stored_path(_store, key), do: key
+
+  defp normalize_document(value) when is_list(value), do: Enum.map(value, &normalize_document/1)
+
+  defp normalize_document(value) when is_map(value) do
+    Map.new(value, fn {key, value} -> {normalize_key(key), normalize_value(key, value)} end)
+  end
+
+  defp normalize_document(value), do: value
+
+  defp normalize_value(key, value) when key in ["start_time", "end_time", "generated_at"] do
+    parse_datetime(value)
+  end
+
+  defp normalize_value(_key, value), do: normalize_document(value)
+
+  defp normalize_key(key) when is_atom(key), do: key
+
+  defp normalize_key(key) when is_binary(key) do
+    String.to_existing_atom(key)
+  rescue
+    ArgumentError -> key
+  end
+
+  defp parse_datetime(nil), do: nil
+  defp parse_datetime(%DateTime{} = value), do: value
+
+  defp parse_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> datetime
+      {:error, _reason} -> value
+    end
+  end
+
+  defp parse_datetime(value), do: value
 end

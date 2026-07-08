@@ -71,6 +71,7 @@ defmodule WeGoNext.Integration.Pages.HomePage do
 
   def wait_for_encounters(session, timeout_ms) do
     if Browser.has?(session, Query.css(".encounter-card")) do
+      wait_for_import_worker_idle()
       session
     else
       Process.sleep(500)
@@ -88,6 +89,7 @@ defmodule WeGoNext.Integration.Pages.HomePage do
 
   def wait_for_encounter_count(session, expected_count, timeout_ms) do
     if encounter_count(session) >= expected_count do
+      wait_for_import_worker_idle()
       session
     else
       Process.sleep(500)
@@ -248,5 +250,22 @@ defmodule WeGoNext.Integration.Pages.HomePage do
 
   def go_to_settings(session) do
     click(session, Query.link("Settings"))
+  end
+
+  defp wait_for_import_worker_idle(timeout_ms \\ 30_000)
+
+  defp wait_for_import_worker_idle(timeout_ms) when timeout_ms <= 0 do
+    ExUnit.Assertions.flunk("Timed out waiting for import worker to finish document generation")
+  end
+
+  defp wait_for_import_worker_idle(timeout_ms) do
+    case WeGoNext.ImportWorker.active_imports() do
+      active when active == %{} ->
+        :ok
+
+      _active ->
+        Process.sleep(500)
+        wait_for_import_worker_idle(timeout_ms - 500)
+    end
   end
 end

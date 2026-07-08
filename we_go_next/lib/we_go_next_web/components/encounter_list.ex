@@ -102,12 +102,12 @@ defmodule WeGoNextWeb.Components.EncounterList do
     ~H"""
     <div class={[
       "encounter-card relative",
-      if(@encounter.dim_encounter_id, do: "group cursor-pointer", else: "cursor-default"),
+      if(@encounter.source_encounter_key, do: "group cursor-pointer", else: "cursor-default"),
       if(@encounter.is_reset, do: "opacity-50", else: "")
     ]}>
       <.link
-        :if={@encounter.dim_encounter_id}
-        navigate={"/encounters/#{@encounter.dim_encounter_id}"}
+        :if={@encounter.source_encounter_key}
+        navigate={"/encounters/#{@encounter.source_encounter_key}"}
         class="absolute inset-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-zinc-900"
         aria-label={"Open #{@encounter.name}"}
       >
@@ -208,7 +208,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
       indexed = Enum.with_index(chunk, 1)
       kills = Enum.count(chunk, & &1.success)
-      wipes = Enum.count(chunk, &(not &1.success))
+      wipes = Enum.count(chunk, &(&1.success != true))
 
       %{
         instance_id: first.instance_id,

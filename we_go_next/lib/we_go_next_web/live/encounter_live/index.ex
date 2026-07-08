@@ -13,6 +13,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   alias WeGoNext.{
     Accounts,
     CombatLogFile,
+    Documents,
     EncounterStore,
     Importer,
     ImportWorker,
@@ -36,7 +37,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       Phoenix.PubSub.subscribe(WeGoNext.PubSub, ImportWorker.progress_topic(user.id))
     end
 
-    encounter_records = EncounterStore.list_encounter_records()
+    {encounter_records, documents_state} = document_records()
     log_path = EncounterStore.current_log_path()
     combat_log_file = EncounterStore.current_combat_log_file()
 
@@ -70,6 +71,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:page_title, "Encounters")
      |> assign(:user, user)
      |> assign(:encounter_records, encounter_records)
+     |> assign(:documents_state, documents_state)
      |> assign(:show_resets, false)
      |> assign(:open_menu_id, nil)
      |> assign(:log_path, log_path)
@@ -136,7 +138,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       {:ok, _updated} ->
         {:noreply,
          socket
-         |> assign(:encounter_records, EncounterStore.list_encounter_records())
+         |> assign_document_records()
          |> assign(:open_menu_id, nil)}
 
       {:error, _reason} ->
@@ -210,7 +212,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
          socket
          |> assign(:loading, false)
          |> assign(:import_progress, nil)
-         |> assign(:encounter_records, EncounterStore.list_encounter_records())
+         |> assign_document_records()
          |> assign(:log_path, EncounterStore.current_log_path())
          |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
          |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
@@ -231,7 +233,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   def handle_info({:encounters_loaded, _count}, socket) do
     {:noreply,
      socket
-     |> assign(:encounter_records, EncounterStore.list_encounter_records())}
+     |> assign_document_records()}
   end
 
   @impl true
@@ -255,7 +257,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     socket =
       if found > prev_found do
         socket
-        |> assign(:encounter_records, EncounterStore.list_encounter_records())
+        |> assign_document_records()
         |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
         |> assign_unimported_log_files()
         |> clear_unavailable_selected_log()
@@ -275,7 +277,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   def handle_info({:log_rotated, new_clf, count}, socket) do
     {:noreply,
      socket
-     |> assign(:encounter_records, EncounterStore.list_encounter_records())
+     |> assign_document_records()
      |> assign(:log_path, new_clf.file_path)
      |> assign(:combat_log_file, new_clf)
      |> assign(:log_files, reload_log_files(socket.assigns.user))
@@ -299,7 +301,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         {:noreply,
          socket
          |> assign(:loading, false)
-         |> assign(:encounter_records, EncounterStore.list_encounter_records())
+         |> assign_document_records()
          |> assign(:log_path, EncounterStore.current_log_path())
          |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
          |> put_flash(:info, "Loaded #{count} encounters from database")}
@@ -362,6 +364,31 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         log_files={@log_files}
         loading={@loading}
       />
+
+      <section
+        :if={@encounter_records == [] && !@loading && @documents_state == :empty}
+        class="rounded-lg border border-zinc-700 bg-zinc-800 p-6"
+      >
+        <h2 class="text-lg font-semibold text-zinc-100">No Encounter Documents</h2>
+        <p class="mt-2 text-sm text-zinc-400">
+          No generated encounter documents exist in the configured document store. Import or rebuild pulls to write
+          <span class="font-mono text-zinc-300">index.json</span>
+          and
+          <span class="font-mono text-zinc-300">encounters/*.json</span>
+          before the local detail UI can render them.
+        </p>
+      </section>
+
+      <section
+        :if={@encounter_records == [] && !@loading && match?({:error, _reason}, @documents_state)}
+        class="rounded-lg border border-red-800/70 bg-red-950/30 p-6"
+      >
+        <h2 class="text-lg font-semibold text-red-100">Document Store Unavailable</h2>
+        <p class="mt-2 text-sm text-red-200">
+          The encounter document index could not be read from the configured store:
+          <span class="font-mono">{inspect(elem(@documents_state, 1))}</span>
+        </p>
+      </section>
     </div>
     """
   end
@@ -420,6 +447,44 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     else
       assign(socket, :selected_log, nil)
     end
+  end
+
+  defp assign_document_records(socket) do
+    {records, state} = document_records()
+
+    socket
+    |> assign(:encounter_records, records)
+    |> assign(:documents_state, state)
+  end
+
+  defp document_records do
+    case Documents.list_index() do
+      {:ok, %{encounters: encounters}} when encounters != [] ->
+        {Enum.map(encounters, &document_index_record/1), :ready}
+
+      {:ok, _index} ->
+        {[], :empty}
+
+      {:error, reason} ->
+        {[], {:error, reason}}
+    end
+  end
+
+  defp document_index_record(entry) do
+    %{
+      id: entry.source_encounter_key,
+      source_encounter_key: entry.source_encounter_key,
+      name: entry.boss || "Unknown Encounter",
+      wow_encounter_id: entry.wow_encounter_id,
+      difficulty_id: entry.difficulty_id,
+      difficulty_name: entry.difficulty_name || "Unknown",
+      instance_id: Map.get(entry, :instance_id),
+      start_time: entry.start_time,
+      end_time: entry.end_time,
+      success: entry.success,
+      fight_time_ms: entry.fight_time_ms,
+      is_reset: false
+    }
   end
 
   defp list_imported_logs(user_id) do

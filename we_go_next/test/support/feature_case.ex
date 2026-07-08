@@ -83,7 +83,7 @@ defmodule WeGoNextWeb.FeatureCase do
     {:ok, session: session}
   end
 
-  defp wait_for_import_worker_idle(deadline_ms \\ 5_000) do
+  defp wait_for_import_worker_idle(deadline_ms \\ 30_000) do
     deadline = System.monotonic_time(:millisecond) + deadline_ms
     wait_for_import_worker_idle_until(deadline)
   end

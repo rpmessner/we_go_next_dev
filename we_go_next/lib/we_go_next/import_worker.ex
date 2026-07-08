@@ -74,7 +74,7 @@ defmodule WeGoNext.ImportWorker do
             EncounterStore.import_log(log_path, user_id,
               progress_topic: topic,
               force_reimport: force_reimport,
-              generate_document: generate_document?()
+              generate_document: true
             )
           end)
 
@@ -146,9 +146,5 @@ defmodule WeGoNext.ImportWorker do
     Enum.find_value(state, fn {user_id, info} ->
       if info.task_ref == ref, do: user_id
     end)
-  end
-
-  defp generate_document? do
-    not Application.get_env(:we_go_next, :sql_sandbox, false)
   end
 end

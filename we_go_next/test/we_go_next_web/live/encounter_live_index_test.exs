@@ -159,6 +159,22 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     FileWatcher.watch(log)
     FileWatcher.current_file()
 
+    write_document_index!([
+      %{
+        source_encounter_key: "vorasius-source-key",
+        boss: "Vorasius",
+        wow_encounter_id: "3177",
+        difficulty_id: 15,
+        difficulty_name: "Heroic",
+        instance_id: "2913",
+        start_time: "2026-07-08T20:00:00Z",
+        end_time: "2026-07-08T20:05:00Z",
+        success: false,
+        fight_time_ms: 300_000,
+        headline_counts: %{players: 20, deaths: 0, failures: 0, failure_damage: 0, low_damage: 0}
+      }
+    ])
+
     html =
       conn
       |> get(~p"/")
@@ -193,5 +209,19 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
       )
     )
     |> Repo.insert!()
+  end
+
+  defp write_document_index!(encounters) do
+    path = Path.join(Application.fetch_env!(:we_go_next, :documents_root), "index.json")
+    File.mkdir_p!(Path.dirname(path))
+
+    File.write!(
+      path,
+      Jason.encode!(%{
+        schema_version: 1,
+        generated_at: "2026-07-08T20:10:00Z",
+        encounters: encounters
+      })
+    )
   end
 end

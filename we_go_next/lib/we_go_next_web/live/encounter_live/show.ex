@@ -9,36 +9,34 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   use WeGoNextWeb, :live_view
 
-  alias WeGoNext.Accounts
-  alias WeGoNext.Gold.{EncounterDetail, ObservedMechanics}
+  alias WeGoNext.{Accounts, Documents}
   alias WeGoNext.WowClass
 
   import WeGoNextWeb.EncounterComponents,
     only: [format_duration: 1, format_number: 1, wowhead_link: 1]
 
   @impl true
-  def mount(%{"id" => id} = params, _session, socket) do
+  def mount(%{"source_encounter_key" => source_encounter_key} = params, _session, socket) do
     user = Accounts.get_or_create_default_user()
     active_tab = parse_tab(Map.get(params, "tab"))
 
-    case EncounterDetail.get(id, character_name: user.character_name) do
-      {:ok, detail} ->
-        {:ok, observed_mechanics} = ObservedMechanics.for_encounter(detail.encounter.id)
-
+    case Documents.fetch_encounter(source_encounter_key) do
+      {:ok, document} ->
         {:ok,
          socket
-         |> assign(:page_title, detail.encounter.name)
+         |> assign(:page_title, document.encounter.name)
          |> assign(:user, user)
-         |> assign(:detail, detail)
-         |> assign(:encounter, detail.encounter)
-         |> assign(:counts, detail.counts)
-         |> assign(:roster, detail.roster)
-         |> assign(:deaths, detail.deaths)
-         |> assign(:pull_review, detail.pull_review)
-         |> assign(:failure_preview, detail.failure_preview)
-         |> assign(:interrupt_coverage, detail.interrupt_coverage)
-         |> assign(:observed_mechanics, observed_mechanics)
-         |> assign_personal_summary(detail.personal_pull_summary)
+         |> assign(:document, document)
+         |> assign(:document_state, document_state(document))
+         |> assign(:encounter, document.encounter)
+         |> assign(:counts, document.counts)
+         |> assign(:roster, document.roster)
+         |> assign(:deaths, document.deaths)
+         |> assign(:pull_review, document.pull_review)
+         |> assign(:failure_preview, normalize_failure_preview(document.failure_preview))
+         |> assign(:interrupt_coverage, document.interrupt_coverage)
+         |> assign(:observed_mechanics, normalize_observed_mechanics(document.observed_mechanics))
+         |> assign_personal_summary(document.personal_pull_summary)
          |> assign(:active_tab, active_tab)
          |> assign(:show_untagged_mechanics, false)
          |> assign(:show_player_debuffs, false)}
@@ -48,7 +46,8 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          socket
          |> assign(:page_title, "Encounter Not Found")
          |> assign(:user, user)
-         |> assign(:detail, nil)
+         |> assign(:document, nil)
+         |> assign(:document_state, {:missing, source_encounter_key})
          |> assign(:encounter, nil)
          |> assign(:counts, %{})
          |> assign(:roster, [])
@@ -66,7 +65,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:active_tab, active_tab)
          |> assign(:show_untagged_mechanics, false)
          |> assign(:show_player_debuffs, false)
-         |> assign(:error, not_found_message(reason))}
+         |> assign(:error, not_found_message(reason, source_encounter_key))}
     end
   end
 
@@ -125,7 +124,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
           <.back navigate={~p"/"}>Back to encounters</.back>
           <h1 class="mt-3 text-2xl font-bold text-wow-gold">{@encounter.name}</h1>
           <p class="mt-1 text-sm text-zinc-400">
-            Encounter detail for imported pull #{@encounter.id} &middot; Started {format_datetime(@encounter.start_time)}
+            Encounter document {@document.source_encounter_key} &middot; Started {format_datetime(@encounter.start_time)}
           </p>
         </div>
 
@@ -133,6 +132,8 @@ defmodule WeGoNextWeb.EncounterLive.Show do
           View failures
         </.link>
       </div>
+
+      <.document_state_banner state={@document_state} document={@document} />
 
       <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <.pull_stat
@@ -192,7 +193,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
             <.metadata_item label="WoW Encounter ID" value={@encounter.wow_encounter_id} />
             <.metadata_item label="Instance ID" value={format_value(@encounter.instance_id)} />
             <.metadata_item label="Started" value={format_datetime(@encounter.start_time)} />
-            <.metadata_item label="Pull ID" value={to_string(@encounter.id)} />
+            <.metadata_item label="Source Key" value={@document.source_encounter_key} />
           </div>
         </section>
 
@@ -756,12 +757,12 @@ defmodule WeGoNextWeb.EncounterLive.Show do
                     :for={hit <- event.hit_players}
                     class="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-xs text-zinc-300"
                   >
-                    {hit["player_name"] || hit["player_guid"]}
+                    {field(hit, :player_name) || field(hit, :player_guid)}
                     <span class="text-zinc-500">
-                      {format_role(hit["detected_role"], nil)}
+                      {format_role(field(hit, :detected_role), nil)}
                     </span>
-                    <span :if={(hit["total_damage"] || 0) > 0} class="font-mono text-zinc-400">
-                      {format_number(hit["total_damage"])}
+                    <span :if={(field(hit, :total_damage) || 0) > 0} class="font-mono text-zinc-400">
+                      {format_number(field(hit, :total_damage))}
                     </span>
                   </span>
                 </div>
@@ -1236,6 +1237,47 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     """
   end
 
+  attr(:state, :any, required: true)
+  attr(:document, :map, required: true)
+
+  defp document_state_banner(%{state: :fresh} = assigns), do: ~H""
+
+  defp document_state_banner(%{state: {:stale, current_version}} = assigns) do
+    assigns = assign(assigns, :current_version, current_version)
+
+    ~H"""
+    <section class="rounded-lg border border-yellow-800/70 bg-yellow-950/30 p-4">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-yellow-200">
+        Stale Encounter Document
+      </h2>
+      <p class="mt-2 text-sm text-yellow-100">
+        This document was generated with derivation version
+        <span class="font-mono">{@document.derivation_version || "unknown"}</span>
+        but the app expects
+        <span class="font-mono">{@current_version}</span>.
+        Rebuild encounter documents to refresh failure and read-model semantics.
+      </p>
+    </section>
+    """
+  end
+
+  defp document_state_banner(%{state: :empty} = assigns) do
+    ~H"""
+    <section class="rounded-lg border border-zinc-700 bg-zinc-800 p-4">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-300">
+        Empty Encounter Document
+      </h2>
+      <p class="mt-2 text-sm text-zinc-400">
+        This document exists, but it has no roster, deaths, failures, damage review rows,
+        interrupt coverage, or observed mechanics. Rebuild documents after medallion rebuilds
+        if this pull should have analysis data.
+      </p>
+    </section>
+    """
+  end
+
+  defp document_state_banner(assigns), do: ~H""
+
   attr(:tab, :atom, required: true)
   attr(:active, :atom, required: true)
   attr(:count, :integer, default: nil)
@@ -1344,6 +1386,48 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   defp parse_tab("interrupts"), do: :interrupts
   defp parse_tab("personal"), do: :personal
   defp parse_tab(_tab), do: :overview
+
+  defp document_state(document) do
+    current_version = Documents.current_derivation_version()
+
+    cond do
+      document.derivation_version != current_version -> {:stale, current_version}
+      empty_document?(document) -> :empty
+      true -> :fresh
+    end
+  end
+
+  defp empty_document?(document) do
+    document.roster == [] and document.deaths == [] and
+      document.failure_preview.mechanics == [] and
+      document.pull_review.damage_done == [] and
+      document.pull_review.damage_taken_spells == [] and
+      document.pull_review.debuffs.all == [] and
+      document.interrupt_coverage.spell_coverage == [] and
+      document.observed_mechanics.mechanics == []
+  end
+
+  defp normalize_failure_preview(failure_preview) do
+    Map.put_new(
+      failure_preview,
+      :diagnostics,
+      get_in(failure_preview, [:operator, :diagnostics]) || []
+    )
+  end
+
+  defp normalize_observed_mechanics(observed_mechanics) do
+    Map.update(observed_mechanics, :mechanics, [], fn mechanics ->
+      Enum.map(mechanics, fn mechanic ->
+        operator = Map.get(mechanic, :operator, %{})
+
+        mechanic
+        |> Map.put_new(:catalog, Map.get(operator, :catalog))
+        |> Map.put_new(:criteria, Map.get(operator, :criteria, []))
+        |> Map.put_new(:rule_status, Map.get(operator, :rule_status))
+        |> Map.put_new(:diagnostics, Map.get(operator, :diagnostics, []))
+      end)
+    end)
+  end
 
   defp player_class_style(nil), do: nil
   defp player_class_style(class_id), do: "color: #{WowClass.class_color(class_id)}"
@@ -1474,10 +1558,17 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   defp visible_debuffs(_debuffs, _show_player_debuffs), do: []
 
   defp format_debuff_source(%{source_type: :player}), do: "Player"
+  defp format_debuff_source(%{source_type: "player"}), do: "Player"
   defp format_debuff_source(_debuff), do: "Encounter"
 
   defp format_value(nil), do: "Unknown"
   defp format_value(value), do: to_string(value)
+
+  defp field(map, key) when is_map(map) and is_atom(key) do
+    Map.get(map, key) || Map.get(map, Atom.to_string(key))
+  end
+
+  defp field(_map, _key), do: nil
 
   defp format_mechanic_type(type) when is_atom(type),
     do: type |> Atom.to_string() |> format_mechanic_type()
@@ -1650,6 +1741,11 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     Enum.find(players, &(&1.player_guid == selected_player_guid))
   end
 
-  defp not_found_message(:invalid_id), do: "Pull IDs must be positive numbers."
-  defp not_found_message(:not_found), do: "No imported pull exists for that ID."
+  defp not_found_message(:missing_document, source_encounter_key) do
+    "No encounter document exists for source key #{source_encounter_key}. Rebuild encounter documents or verify the configured document store."
+  end
+
+  defp not_found_message(reason, source_encounter_key) do
+    "Could not load encounter document #{source_encounter_key}: #{inspect(reason)}"
+  end
 end
