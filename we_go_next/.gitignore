@@ -13,6 +13,9 @@
 # Temporary files, for example, from tests.
 /tmp/
 
+# Generated encounter documents.
+/documents/
+
 # Local bronze/source artifacts fetched from external services.
 /var/
 

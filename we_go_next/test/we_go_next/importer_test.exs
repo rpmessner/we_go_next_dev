@@ -19,6 +19,12 @@ defmodule WeGoNext.ImporterTest do
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    original_documents_root = Application.fetch_env!(:we_go_next, :documents_root)
+
+    documents_root =
+      Path.join(System.tmp_dir!(), "wgn-documents-#{System.unique_integer([:positive])}")
+
+    Application.put_env(:we_go_next, :documents_root, documents_root)
 
     dir = Path.join(System.tmp_dir!(), "wgn-importer-#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
@@ -29,7 +35,11 @@ defmodule WeGoNext.ImporterTest do
         wow_logs_path: dir
       })
 
-    on_exit(fn -> File.rm_rf!(dir) end)
+    on_exit(fn ->
+      Application.put_env(:we_go_next, :documents_root, original_documents_root)
+      File.rm_rf!(dir)
+      File.rm_rf(documents_root)
+    end)
 
     {:ok, dir: dir, user: user}
   end

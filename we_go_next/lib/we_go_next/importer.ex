@@ -222,7 +222,7 @@ defmodule WeGoNext.Importer do
         # later completed pull invisible to incremental imports.
         {:ok, updated_clf} = update_file_progress(clf, parsed_end_byte)
 
-        medallion_results = run_medallion_imports(inserted_encounters, updated_clf)
+        medallion_results = run_medallion_imports(inserted_encounters, updated_clf, opts)
 
         {:ok,
          %{
@@ -270,9 +270,9 @@ defmodule WeGoNext.Importer do
     |> Map.fetch!(:end_byte)
   end
 
-  defp run_medallion_imports(encounters, %CombatLogFile{} = clf) do
+  defp run_medallion_imports(encounters, %CombatLogFile{} = clf, opts) do
     Enum.map(encounters, fn encounter ->
-      case run_medallion_import(encounter, clf) do
+      case run_medallion_import(encounter, clf, opts) do
         {:ok, _result} = ok ->
           ok
 
@@ -286,12 +286,12 @@ defmodule WeGoNext.Importer do
     end)
   end
 
-  defp run_medallion_import(%EncounterRecord{} = encounter, %CombatLogFile{} = clf) do
+  defp run_medallion_import(%EncounterRecord{} = encounter, %CombatLogFile{} = clf, opts) do
     with {:ok, events} <- parse_events_for_encounter(clf, encounter),
          {:ok, dim_encounter} <- get_or_create_dim_encounter(encounter, clf),
          {:ok, %{counts: silver_counts}} <-
            Silver.project_and_persist(dim_encounter, events: events),
-         {:ok, gold_result} <- RebuildEncounter.rebuild(dim_encounter) do
+         {:ok, gold_result} <- RebuildEncounter.rebuild(dim_encounter, rebuild_opts(opts)) do
       {:ok,
        %{
          encounter_id: encounter.id,
@@ -301,6 +301,11 @@ defmodule WeGoNext.Importer do
          gold: gold_result
        }}
     end
+  end
+
+  defp rebuild_opts(opts) do
+    opts
+    |> Keyword.take([:generate_document])
   end
 
   defp parse_events_for_encounter(%CombatLogFile{} = clf, %EncounterRecord{} = encounter) do

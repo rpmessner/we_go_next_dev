@@ -6,11 +6,13 @@ defmodule WeGoNext.Gold.RebuildEncounter do
   which gold dimensions or facts need to be rebuilt for an encounter.
   """
 
+  alias WeGoNext.Documents
   alias WeGoNext.Gold.{DimEncounter, FactFailure}
   alias WeGoNext.Mirror.Outbox
 
   @type rebuild_result :: %{
-          fact_failure: map()
+          fact_failure: map(),
+          document: map()
         }
 
   @doc """
@@ -30,14 +32,30 @@ defmodule WeGoNext.Gold.RebuildEncounter do
   def rebuild(encounter_dim_id, opts) when is_integer(encounter_dim_id) and is_list(opts) do
     case FactFailure.rebuild_for_encounter(encounter_dim_id, rebuild_opts(opts)) do
       {:ok, result} ->
-        maybe_enqueue_mirror_upload(encounter_dim_id, opts)
-        {:ok, %{fact_failure: result}}
+        with {:ok, document_result} <- maybe_generate_document(encounter_dim_id, opts) do
+          maybe_enqueue_mirror_upload(encounter_dim_id, opts)
+          {:ok, %{fact_failure: result, document: document_result}}
+        end
 
       {:error, :active_ruleset_not_found} ->
-        {:ok, %{fact_failure: %{deleted: 0, inserted: 0, skipped: :active_ruleset_not_found}}}
+        with {:ok, document_result} <- maybe_generate_document(encounter_dim_id, opts) do
+          {:ok,
+           %{
+             fact_failure: %{deleted: 0, inserted: 0, skipped: :active_ruleset_not_found},
+             document: document_result
+           }}
+        end
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp maybe_generate_document(encounter_dim_id, opts) do
+    if Keyword.get(opts, :generate_document, true) do
+      Documents.generate_for_encounter(encounter_dim_id)
+    else
+      {:ok, %{skipped: :disabled}}
     end
   end
 

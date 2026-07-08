@@ -11,6 +11,18 @@ defmodule WeGoNext.RulesTest do
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    original_documents_root = Application.fetch_env!(:we_go_next, :documents_root)
+
+    documents_root =
+      Path.join(System.tmp_dir!(), "wgn-documents-#{System.unique_integer([:positive])}")
+
+    Application.put_env(:we_go_next, :documents_root, documents_root)
+
+    on_exit(fn ->
+      Application.put_env(:we_go_next, :documents_root, original_documents_root)
+      File.rm_rf(documents_root)
+    end)
+
     :ok
   end
 
@@ -557,14 +569,23 @@ defmodule WeGoNext.RulesTest do
   end
 
   defp insert_dim_encounter!(wow_encounter_id, name, difficulty_id) do
+    source_start_byte = System.unique_integer([:positive])
+
     %DimEncounter{}
     |> DimEncounter.changeset(%{
+      source_head_sha256: String.duplicate("f", 64),
       wow_encounter_id: wow_encounter_id,
       name: name,
       difficulty_id: difficulty_id,
       difficulty_name: "Mythic",
       group_size: 20,
-      instance_id: "test-instance"
+      instance_id: "test-instance",
+      start_time: ~U[2026-06-28 20:00:00Z],
+      end_time: ~U[2026-06-28 20:05:00Z],
+      success: false,
+      fight_time_ms: 300_000,
+      start_byte: source_start_byte,
+      end_byte: source_start_byte + 1000
     })
     |> Repo.insert!()
   end

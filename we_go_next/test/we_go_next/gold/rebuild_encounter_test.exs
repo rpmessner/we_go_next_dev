@@ -16,14 +16,26 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    original_documents_root = Application.fetch_env!(:we_go_next, :documents_root)
+
+    documents_root =
+      Path.join(System.tmp_dir!(), "wgn-documents-#{System.unique_integer([:positive])}")
+
+    Application.put_env(:we_go_next, :documents_root, documents_root)
+
+    on_exit(fn ->
+      Application.put_env(:we_go_next, :documents_root, original_documents_root)
+      File.rm_rf(documents_root)
+    end)
 
     encounter = insert_dim_encounter!("boss-one")
 
-    {:ok, encounter: encounter}
+    {:ok, encounter: encounter, documents_root: documents_root}
   end
 
   test "rebuild/2 runs the current fact_failure builder with the active ruleset", %{
-    encounter: encounter
+    encounter: encounter,
+    documents_root: documents_root
   } do
     ruleset = insert_ruleset!("Active Ruleset", "active")
     criterion = insert_criterion!(ruleset, encounter, 101)
@@ -42,6 +54,12 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
                player_dim_id: player.id,
                criterion_dim_id: criterion.id
              )
+
+    assert File.exists?(
+             Path.join([documents_root, "encounters", "#{encounter.source_encounter_key}.json"])
+           )
+
+    assert File.exists?(Path.join(documents_root, "index.json"))
   end
 
   test "rebuild/2 passes through an explicit ruleset id", %{encounter: encounter} do
@@ -96,19 +114,8 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
   end
 
   defp insert_dim_encounter!(wow_encounter_id) do
-    %DimEncounter{}
-    |> DimEncounter.changeset(%{
-      wow_encounter_id: wow_encounter_id,
-      name: "Test Boss",
-      difficulty_id: 16,
-      difficulty_name: "Mythic",
-      group_size: 20,
-      instance_id: "test-instance"
-    })
-    |> Repo.insert!()
-  end
+    source_start_byte = System.unique_integer([:positive])
 
-  defp insert_dim_encounter_with_source_key!(wow_encounter_id) do
     %DimEncounter{}
     |> DimEncounter.changeset(%{
       source_head_sha256: String.duplicate("a", 64),
@@ -119,8 +126,30 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
       group_size: 20,
       instance_id: "test-instance",
       start_time: ~U[2026-06-28 20:00:00Z],
-      start_byte: System.unique_integer([:positive]),
-      end_byte: System.unique_integer([:positive]) + 1000
+      end_time: ~U[2026-06-28 20:05:00Z],
+      success: false,
+      fight_time_ms: 300_000,
+      start_byte: source_start_byte,
+      end_byte: source_start_byte + 1000
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_dim_encounter_with_source_key!(wow_encounter_id) do
+    source_start_byte = System.unique_integer([:positive])
+
+    %DimEncounter{}
+    |> DimEncounter.changeset(%{
+      source_head_sha256: String.duplicate("a", 64),
+      wow_encounter_id: wow_encounter_id,
+      name: "Test Boss",
+      difficulty_id: 16,
+      difficulty_name: "Mythic",
+      group_size: 20,
+      instance_id: "test-instance",
+      start_time: ~U[2026-06-28 20:00:00Z],
+      start_byte: source_start_byte,
+      end_byte: source_start_byte + 1000
     })
     |> Repo.insert!()
   end
