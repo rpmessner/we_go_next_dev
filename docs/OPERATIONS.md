@@ -383,6 +383,20 @@ mix wgn.rebuild_documents --encounter-id <encounter_dim_id>
 mix run -e 'IO.inspect(WeGoNext.Mirror.Outbox.process_pending(limit: 10, max_concurrency: 2))'
 ```
 
+Repeatable public mirror smoke:
+
+```bash
+mix wgn.public_mirror_smoke \
+  --factful-encounter-id 124 \
+  --zero-failure-encounter-id <zero_failure_encounter_dim_id> \
+  --slug <report-slug> \
+  --public-base-url https://<public-host>
+```
+
+This rebuilds the documents, uploads through `mirror_uploads`, validates the R2
+index/documents, and probes `/r/:slug` plus both detail pages. Copy the result
+block to WE-34, WE-11, and WE-12 after a real-bucket run.
+
 Gigalixir public mode needs R2 read credentials and should not have the old
 ingest token configured:
 

@@ -157,5 +157,22 @@ index.json
 Then reload `/r/<report-slug>` and open
 `/r/<report-slug>/encounters/<source_encounter_key>`.
 
+For the repeatable end-to-end smoke, run the parser-side task with the known
+factful fixture and a zero-failure encounter that still has roster/detail rows:
+
+```bash
+cd we_go_next
+mix wgn.public_mirror_smoke \
+  --factful-encounter-id 124 \
+  --zero-failure-encounter-id <zero_failure_encounter_dim_id> \
+  --slug <report-slug> \
+  --public-base-url https://<public-host>
+```
+
+The task rebuilds both encounter documents, drains the upload outbox to R2,
+checks the uploaded `index.json` and documents, and probes the public list plus
+both detail pages. Post the result block to WE-34 and copy it to WE-11 and WE-12
+as the deployment verification closeout under the document architecture.
+
 Do not add `DATABASE_URL`, `SECRET_KEY_BASE`, or R2 credentials to GitHub just
 to automate this smoke test.
