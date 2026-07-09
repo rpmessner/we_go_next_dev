@@ -11,12 +11,12 @@ defmodule WeGoNextWeb.RunModeRoutingTest do
     :ok
   end
 
-  test "public mode serves gold failure route without parser routes", %{conn: conn} do
+  test "public mode serves only public viewer routes", %{conn: conn} do
     Application.put_env(:we_go_next, :mode, :public)
 
     assert conn
            |> get(~p"/failures")
-           |> html_response(200) =~ "Mechanic Failures"
+           |> response(404) == "Not Found"
 
     assert conn
            |> get(~p"/settings")
@@ -29,6 +29,10 @@ defmodule WeGoNextWeb.RunModeRoutingTest do
 
   test "parser mode keeps local operator routes available", %{conn: conn} do
     Application.put_env(:we_go_next, :mode, :parser)
+
+    assert conn
+           |> get(~p"/failures")
+           |> html_response(200) =~ "Mechanic Failures"
 
     assert conn
            |> get(~p"/settings")

@@ -6,9 +6,8 @@ in `we_go_next/elixir_buildpack.config`.
 
 This document covers deployment and current upload operations only. The public
 surface reads uploaded encounter documents from a private Cloudflare R2 bucket
-behind the `/r/:slug` shared-link gate. The legacy Phoenix ingest path remains
-in the codebase until WE-36, but it is no longer the public encounter list/detail
-render path.
+behind the `/r/:slug` shared-link gate. The legacy Phoenix ingest path has been
+removed.
 
 ## GitHub Flow
 
@@ -43,8 +42,13 @@ gigalixir config:set R2_SECRET_ACCESS_KEY=<read-secret-access-key>
 `DATABASE_URL` should be provided by the Gigalixir-managed Postgres attachment.
 `SECRET_KEY_BASE` must also be present in Gigalixir config.
 
-Do not set `INGEST_TOKEN` for the document-backed public surface. The ingest
-controller is legacy code pending WE-36.
+Remove any old `INGEST_TOKEN` setting from Gigalixir config. The public app no
+longer exposes an ingest endpoint, and document reads use the R2 credentials
+above.
+
+```bash
+gigalixir config:unset INGEST_TOKEN
+```
 
 Public report slugs are database-backed records. Provision or update them from
 the deployed release console:
@@ -92,26 +96,20 @@ encounters/<source_encounter_key>.json
 index.json
 ```
 
-## Legacy HTTP Outbox
+## Document Upload Outbox
 
-The older provisional failure-fact mirror path and HTTP ingest controller still
-exist until WE-36. The `mirror_uploads` table remains active as the document
-upload ledger, but `WeGoNext.Documents.UploadWorker` now drains it by writing
-`encounters/<source_encounter_key>.json` and refreshing public `index.json` in
-the configured R2 bucket.
+The `mirror_uploads` table remains the upload ledger. In parser mode,
+`WeGoNext.Documents.UploadWorker` drains pending, stale, and error rows by
+writing `encounters/<source_encounter_key>.json` and refreshing public
+`index.json` in the configured R2 bucket.
 
-Only drain the legacy outbox when explicitly testing the old HTTP ingest path,
-and pass upload config directly from the caller:
+To manually drain a small batch from IEx or `mix run`:
 
 ```bash
 cd we_go_next
 mix run -e 'IO.inspect(WeGoNext.Mirror.Outbox.process_pending(
   limit: 50,
-  config: %{
-    public_base_url: "https://<public-host>",
-    ingest_token: "<INGEST_TOKEN>",
-    report_slug: "default"
-  }
+  max_concurrency: 2
 ))'
 ```
 
@@ -129,10 +127,12 @@ IO.inspect(Repo.all(from u in MirrorUpload, select: {u.state, count(u.id)}, grou
 
 Common failure modes:
 
-- `:nxdomain` in `last_error` means the supplied public base URL is misspelled.
-- HTTP `401` means the supplied token does not match Gigalixir `INGEST_TOKEN`.
-- HTTP `422` with `unsupported_schema_version` means local and public code are
-  on incompatible snapshot versions; deploy public, then retry the outbox.
+- `:r2_not_configured` means neither env R2 credentials nor parser Settings R2
+  credentials are available.
+- `{:missing_document, source_encounter_key}` means the local encounter document
+  was not generated before upload.
+- HTTP `403` from R2 usually means the access key lacks the needed read/write
+  permission for the bucket.
 
 ## Smoke Test
 

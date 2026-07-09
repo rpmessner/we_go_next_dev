@@ -23,30 +23,18 @@ defmodule WeGoNextWeb.Router do
   end
 
   scope "/", WeGoNextWeb do
-    pipe_through(:browser)
-
-    live("/failures", FailureLive.Index, :index)
-  end
-
-  scope "/", WeGoNextWeb do
     pipe_through([:browser, :parser_mode])
 
     live("/", EncounterLive.Index, :index)
     live("/encounters/:source_encounter_key", EncounterLive.Show, :show)
+    live("/failures", FailureLive.Index, :index)
     live("/settings", SettingsLive, :index)
-  end
-
-  scope "/api", WeGoNextWeb do
-    pipe_through(:api)
-
-    post("/reports/:slug/ingest", IngestController, :create)
   end
 
   scope "/r/:slug", WeGoNextWeb do
     pipe_through([:browser, :public_viewer])
 
     live("/", PublicDocumentLive.Index, :index)
-    live("/failures", PublicLive.Failures, :index)
     live("/encounters/:source_encounter_key", PublicDocumentLive.Show, :show)
   end
 end

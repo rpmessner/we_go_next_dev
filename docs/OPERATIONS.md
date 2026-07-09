@@ -364,6 +364,37 @@ Rows include source file/line provenance, labels/role filters where available,
 comments, and inferred mechanic hints. They are scaffolding input for
 code-defined raid catalogs, not active rules.
 
+## Public Mirror Document Uploads
+
+Public sharing uses generated encounter documents, not DB ingest. The local
+parser writes `encounters/<source_encounter_key>.json` and `index.json` through
+`WeGoNext.Documents.Store`; opted-in uploads are tracked by `mirror_uploads` and
+drained by `WeGoNext.Documents.UploadWorker` in parser mode.
+
+Enable publishing for an imported log from the imported-logs UI, or use the
+Upload/Re-upload button on an encounter detail page to enqueue a single pull.
+The public app reads from R2 under `/r/:slug`; `/failures` is local
+parser-only.
+
+Useful checks:
+
+```bash
+mix wgn.rebuild_documents --encounter-id <encounter_dim_id>
+mix run -e 'IO.inspect(WeGoNext.Mirror.Outbox.process_pending(limit: 10, max_concurrency: 2))'
+```
+
+Gigalixir public mode needs R2 read credentials and should not have the old
+ingest token configured:
+
+```bash
+gigalixir config:unset INGEST_TOKEN
+gigalixir config:set DOCUMENTS_STORE=r2
+gigalixir config:set R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+gigalixir config:set R2_BUCKET=<bucket>
+gigalixir config:set R2_ACCESS_KEY_ID=<read-access-key-id>
+gigalixir config:set R2_SECRET_ACCESS_KEY=<read-secret-access-key>
+```
+
 ## Diagnosing Empty Failures
 
 The `/failures` page has a Data Readiness panel that checks the common empty-state causes:

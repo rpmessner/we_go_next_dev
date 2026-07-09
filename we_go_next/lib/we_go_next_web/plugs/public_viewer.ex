@@ -18,7 +18,6 @@ defmodule WeGoNextWeb.Plugs.PublicViewer do
     case public_report(conn.path_params["slug"]) do
       %PublicReport{} = report ->
         conn
-        |> put_session(:public_report_id, report.id)
         |> put_session(:public_report_slug, report.slug)
         |> put_session(:public_report_title, report.title)
 

@@ -32,10 +32,6 @@ if database_url = System.get_env("DATABASE_URL") do
     ssl: true
 end
 
-if ingest_token = System.get_env("INGEST_TOKEN") do
-  config :we_go_next, mirror_ingest_token: ingest_token
-end
-
 if documents_root = System.get_env("DOCUMENTS_ROOT") do
   config :we_go_next, documents_root: documents_root
 end
