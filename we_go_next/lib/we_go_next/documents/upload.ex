@@ -29,7 +29,7 @@ defmodule WeGoNext.Documents.Upload do
   end
 
   defp refresh_public_index(source_store, destination_store, source_encounter_key) do
-    :global.trans({__MODULE__, :public_index}, fn ->
+    :global.trans({{__MODULE__, :public_index}, self()}, fn ->
       with {:ok, index} <- public_index(source_store, destination_store, source_encounter_key),
            {:ok, index_body} <- Jason.encode(index) do
         destination_store.put("index.json", index_body)
