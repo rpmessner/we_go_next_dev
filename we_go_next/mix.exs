@@ -78,6 +78,7 @@ defmodule WeGoNext.MixProject do
       {:req, "~> 0.5"},
       {:req_s3, "~> 0.2.3"},
       {:wallaby, "~> 0.30", runtime: false, only: :test},
+      {:lazy_html, ">= 0.1.0", only: :test},
       {:tidewave, "~> 0.6", only: :dev},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:zigler, "~> 0.15.1", runtime: false}

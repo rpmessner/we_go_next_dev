@@ -972,10 +972,6 @@ select {
   min-width: 0px;
 }
 
-.min-w-full {
-  min-width: 100%;
-}
-
 .max-w-6xl {
   max-width: 72rem;
 }
@@ -1198,6 +1194,10 @@ select {
   border-color: rgb(21 128 61 / var(--tw-border-opacity));
 }
 
+.border-green-800\/70 {
+  border-color: rgb(22 101 52 / 0.7);
+}
+
 .border-red-600\/60 {
   border-color: rgb(220 38 38 / 0.6);
 }
@@ -1318,6 +1318,10 @@ select {
 
 .bg-green-900\/50 {
   background-color: rgb(20 83 45 / 0.5);
+}
+
+.bg-green-950\/30 {
+  background-color: rgb(5 46 22 / 0.3);
 }
 
 .bg-orange-900 {
@@ -1451,6 +1455,11 @@ select {
 .px-2 {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
+}
+
+.px-2\.5 {
+  padding-left: 0.625rem;
+  padding-right: 0.625rem;
 }
 
 .px-3 {
@@ -2019,6 +2028,11 @@ select {
   border-color: rgb(220 38 38 / var(--tw-border-opacity));
 }
 
+.hover\:border-zinc-500:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(113 113 122 / var(--tw-border-opacity));
+}
+
 .hover\:border-zinc-600:hover {
   --tw-border-opacity: 1;
   border-color: rgb(82 82 91 / var(--tw-border-opacity));
@@ -2067,6 +2081,11 @@ select {
 .hover\:text-wow-gold:hover {
   --tw-text-opacity: 1;
   color: rgb(255 209 0 / var(--tw-text-opacity));
+}
+
+.hover\:text-zinc-100:hover {
+  --tw-text-opacity: 1;
+  color: rgb(244 244 245 / var(--tw-text-opacity));
 }
 
 .hover\:text-zinc-200:hover {

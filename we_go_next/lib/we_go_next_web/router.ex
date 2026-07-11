@@ -26,6 +26,7 @@ defmodule WeGoNextWeb.Router do
     pipe_through([:browser, :parser_mode])
 
     live("/", EncounterLive.Index, :index)
+    live("/logs", LogLive.Index, :index)
     live("/encounters/:source_encounter_key", EncounterLive.Show, :show)
     live("/failures", FailureLive.Index, :index)
     live("/settings", SettingsLive, :index)
