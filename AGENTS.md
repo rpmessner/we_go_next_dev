@@ -33,6 +33,7 @@ The old Midnight launch deadline has passed. The project is no longer organized 
 6. Explain empty and stale medallion states without requiring SQL.
 7. Build encounter detail views from silver/gold read models.
 8. Expand fact/dim/criterion coverage when the supporting data grain is defensible.
+9. Promote frontend-visible encounter analysis into gold-backed read models before treating the hosted public mirror as a true copy of the local detail page.
 
 ### Mythic+ Support
 
@@ -64,6 +65,17 @@ The original analyzer/UI MVP has been pruned from active routing. The current ar
 - ✅ Silver projection tables keyed by `gold.dim_encounter.id`
 - ✅ Gold `fact_failure` proof-of-concept derived from silver/gold tables
 - ✅ Rules schema foundation for authored mechanic criteria
+- ✅ Public mirror plumbing for deploy, report slugs, ingest auth, stable keys, and parser upload outbox
+
+The current hosted public mirror is a provisional failure-fact preview. It proves
+deployment and upload mechanics, but it does not yet mirror the useful local
+encounter detail page because that page still depends on silver-derived read
+models for roster, deaths, damage, debuffs, interrupts/casts, and other pull
+detail. Public-sharing work should now follow
+`docs/ENCOUNTER_DOCUMENTS_DESIGN.md`: the medallion build emits versioned
+per-encounter JSON documents, the local frontend renders from those documents
+on disk, and opted-in documents are uploaded to a private Cloudflare R2 bucket
+for the Gigalixir public app to read (same frontend, `/r/:slug` gate).
 
 **Current board focus:** make real current-tier failures appear from code-defined raid mechanics over real combat logs. Source-data imports from DBM, WowAnalyzer, and journal/reference metadata are scaffolding for authoring those code files, not a separate candidate/review/promotion product path.
 
@@ -153,7 +165,7 @@ New patch/season mechanic source data should be handled by a later bronze/source
 
 - **Bronze/log ingestion** owns raw WoW combat log files and provenance. `combat_log_files` remains the operational catalog for live and Warcraft Logs archive files.
 - **Silver** owns deterministic projections under the `silver` Postgres schema: damage taken, damage taken events, damage done, deaths, current interrupt/cast observations, debuff applications, and player info. Event-grain silver rows are allowed only for named downstream rule, classifier, fact, or UI needs; silver must not become a generic raw combat-log event warehouse. Known gap: `silver.interrupt_opportunity` is currently overbroad and should be tightened/reframed by task `#61`.
-- **Gold** owns analytic dimensions/facts under the `gold` schema. Current fact proof: `gold.fact_failure`.
+- **Gold** owns analytic dimensions/facts and public-safe product read models under the `gold` schema. Current fact proof: `gold.fact_failure`; known gap: the local encounter detail page is not yet fully backed by gold read models.
 - **Rules** owns internal authored mechanic business configuration under the `rules` schema. Product-facing flows should treat code-defined raid mechanics as the rules and hide ruleset/promotion plumbing.
 
 ### Current Medallion Grain
@@ -347,6 +359,13 @@ This project's Linear board lives in the **`we-go-next` workspace, team `WE`** (
 - **Diagrams**: Image generation with minimap backgrounds (future)
 
 ## Recent Updates
+
+### 2026-06-29: Public Mirror Replanned Around Gold Detail Contract
+
+- WE-5 through WE-12 built useful public mirror plumbing: parser/public mode, Gigalixir deploy, report slugs, ingest auth, stable mirror keys, and parser upload outbox.
+- Real-data dogfooding showed the current public surface mirrors only `gold.fact_failure` and related dimensions, which is too narrow to represent the local encounter detail page.
+- The corrected product target is a public-safe gold encounter detail JSON contract covering roster, deaths, damage summaries, debuffs, interrupts/casts where defensible, and failure facts.
+- New public-sharing work should follow `docs/PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`: medallion build emits JSON files, the local frontend reads them, and the uploader syncs them to Cloudflare for the Gigalixir public app. Do not keep expanding the public UI around failure facts alone.
 
 ### 2026-05-18: Failures View and Legacy Analysis Pruning
 

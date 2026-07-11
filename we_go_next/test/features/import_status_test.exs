@@ -14,7 +14,7 @@ defmodule WeGoNext.Features.ImportStatusTest do
       |> HomePage.assert_import_button_text("Import")
     end
 
-    test "moves imported logs to the imported logs list with reimport action", %{session: session} do
+    test "moves imported logs to the logs page with reimport action", %{session: session} do
       setup_user_with_fixtures()
 
       session
@@ -25,9 +25,11 @@ defmodule WeGoNext.Features.ImportStatusTest do
       |> HomePage.wait_for_encounters()
 
       session
-      |> HomePage.assert_imported_logs_visible()
+      |> LogsPage.navigate()
+      |> LogsPage.ensure_page_loaded()
+      |> LogsPage.assert_imported_logs_visible()
 
-      assert HomePage.has_reimport_button?(session)
+      assert LogsPage.has_reimport_button?(session)
     end
 
     test "does not expose purge controls after import", %{session: session} do
@@ -46,6 +48,12 @@ defmodule WeGoNext.Features.ImportStatusTest do
       |> HomePage.wait_for_encounters()
 
       refute HomePage.has_purge_button?(session)
+
+      session
+      |> LogsPage.navigate()
+      |> LogsPage.ensure_page_loaded()
+
+      refute LogsPage.has_purge_button?(session)
     end
 
     test "reimport action reparses an imported log", %{session: session} do
@@ -62,7 +70,10 @@ defmodule WeGoNext.Features.ImportStatusTest do
       assert HomePage.encounter_count(session) > 0
 
       session
-      |> HomePage.click_reimport()
+      |> LogsPage.navigate()
+      |> LogsPage.click_reimport()
+      |> LogsPage.wait_for_import_complete()
+      |> HomePage.navigate()
       |> HomePage.wait_for_encounters()
 
       assert HomePage.encounter_count(session) > 0

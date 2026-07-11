@@ -27,8 +27,15 @@ Current working pieces:
 - Rules schema with draft/active/archived rulesets and promoted gold snapshots.
 - DBM source-data ingestion groundwork for inferred mechanic candidates.
 - LiveView pages for encounter import/listing, settings, and failures.
+- Public mirror plumbing for deploy, ingest, report slugs, and upload outbox.
 
 Legacy analyzer-cache pages and `public.mechanic_criteria` are no longer active architecture. New UI work should use silver/gold/rules read models.
+
+The public mirror currently exposes only a provisional failure-fact preview. The
+next public-sharing work is to have the medallion build emit versioned
+per-encounter JSON documents, render the local frontend from those documents,
+and upload opted-in documents to a private Cloudflare R2 bucket for the
+Gigalixir public app; see `docs/ENCOUNTER_DOCUMENTS_DESIGN.md`.
 
 ## Quick Start
 

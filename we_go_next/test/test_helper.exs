@@ -1,3 +1,6 @@
+# Wipe test-generated encounter documents from previous runs.
+File.rm_rf!(Application.fetch_env!(:we_go_next, :documents_root))
+
 ExUnit.start()
 
 case Application.ensure_all_started(:wallaby) do

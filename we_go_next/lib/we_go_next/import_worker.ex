@@ -32,6 +32,13 @@ defmodule WeGoNext.ImportWorker do
   end
 
   @doc """
+  Returns all currently tracked imports.
+  """
+  def active_imports do
+    GenServer.call(__MODULE__, :active_imports)
+  end
+
+  @doc """
   Returns the PubSub topic for import progress updates.
   """
   def progress_topic(user_id) do
@@ -66,7 +73,8 @@ defmodule WeGoNext.ImportWorker do
           Task.Supervisor.async_nolink(WeGoNext.ImportTaskSupervisor, fn ->
             EncounterStore.import_log(log_path, user_id,
               progress_topic: topic,
-              force_reimport: force_reimport
+              force_reimport: force_reimport,
+              generate_document: true
             )
           end)
 
@@ -86,6 +94,11 @@ defmodule WeGoNext.ImportWorker do
   def handle_call({:get_status, user_id}, _from, state) do
     status = Map.get(state, user_id)
     {:reply, status, state}
+  end
+
+  @impl true
+  def handle_call(:active_imports, _from, state) do
+    {:reply, state, state}
   end
 
   @impl true

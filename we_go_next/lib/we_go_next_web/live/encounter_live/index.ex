@@ -2,25 +2,24 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   @moduledoc """
   LiveView for the encounter list / home page.
 
-  Handles:
-  - Log file selection and import
-  - Switching between imported logs
-  - Displaying encounter list
-  - Real-time updates via PubSub
+  Handles log file selection/import and renders the encounter list from
+  generated encounter documents. Per-log management (publish, reimport,
+  Warcraft Logs links) lives at `/logs` (`WeGoNextWeb.LogLive.Index`).
   """
   use WeGoNextWeb, :live_view
 
   alias WeGoNext.{
     Accounts,
     CombatLogFile,
-    EncounterStore,
+    Documents,
     Importer,
     ImportWorker,
-    Repo,
-    WarcraftLogs
+    Repo
   }
 
-  alias WeGoNextWeb.Components.{LogSelector, ImportedLogsSwitcher, EncounterList}
+  alias WeGoNext.Gold.DimEncounter
+
+  alias WeGoNextWeb.Components.{EncounterList, LogSelector}
   import Ecto.Query
 
   # ============================================================================
@@ -28,7 +27,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   # ============================================================================
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     user = Accounts.get_or_create_default_user()
 
     if connected?(socket) do
@@ -36,9 +35,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       Phoenix.PubSub.subscribe(WeGoNext.PubSub, ImportWorker.progress_topic(user.id))
     end
 
-    encounter_records = EncounterStore.list_encounter_records()
-    log_path = EncounterStore.current_log_path()
-    combat_log_file = EncounterStore.current_combat_log_file()
+    {encounter_records, documents_state} = document_records()
 
     log_files =
       case Accounts.list_combat_logs(user) do
@@ -48,12 +45,13 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
     imported_logs = list_imported_logs(user.id)
 
-    unimported_log_files = unimported_log_files(log_files, imported_logs)
+    selector_logs = selector_logs(log_files, imported_logs)
+    filter_log_id = default_filter_log_id(imported_logs)
 
     selected_log =
-      case unimported_log_files do
-        [single_log] -> single_log.full_path
-        _ -> nil
+      case imported_logs do
+        [%{file_path: path} | _rest] -> path
+        [] -> if(length(selector_logs) == 1, do: hd(selector_logs).full_path, else: "all")
       end
 
     {loading, import_progress, selected_log} =
@@ -69,15 +67,20 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      socket
      |> assign(:page_title, "Encounters")
      |> assign(:user, user)
-     |> assign(:encounter_records, encounter_records)
+     |> assign(:documents_state, documents_state)
      |> assign(:show_resets, false)
+     |> assign(:sort_direction, sort_direction(params))
      |> assign(:open_menu_id, nil)
-     |> assign(:log_path, log_path)
-     |> assign(:combat_log_file, combat_log_file)
      |> assign(:log_files, log_files)
-     |> assign(:unimported_log_files, unimported_log_files)
+     |> assign(:selector_logs, selector_logs)
      |> assign(:imported_logs, imported_logs)
+     |> assign(:filter_log_id, filter_log_id)
+     |> assign(
+       :encounter_records,
+       filter_records(encounter_records, filter_log_id, imported_logs)
+     )
      |> assign(:selected_log, selected_log)
+     |> assign(:import_enabled, import_enabled?(selected_log, imported_logs))
      |> assign(:loading, loading)
      |> assign(:error, nil)
      |> assign(:import_progress, import_progress)}
@@ -88,9 +91,22 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   # ============================================================================
 
   @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, assign(socket, :sort_direction, sort_direction(params))}
+  end
+
+  @impl true
   def handle_event("select_log", params, socket) do
     path = params["log_path"]
-    {:noreply, assign(socket, :selected_log, path)}
+
+    filter_log_id = filter_id_for_path(path, socket.assigns.imported_logs)
+
+    {:noreply,
+     socket
+     |> assign(:selected_log, path)
+     |> assign(:filter_log_id, filter_log_id)
+     |> assign(:import_enabled, import_enabled?(path, socket.assigns.imported_logs))
+     |> assign_document_records()}
   end
 
   @impl true
@@ -100,18 +116,8 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     if path == "" do
       {:noreply, assign(socket, :error, "Please select a log file")}
     else
-      do_import(socket, path, force_reimport: false)
+      do_import(socket, path)
     end
-  end
-
-  @impl true
-  def handle_event("load_imported", %{"file_id" => file_id}, socket) do
-    file_id = String.to_integer(file_id)
-
-    {:noreply,
-     socket
-     |> assign(:loading, true)
-     |> start_async(:load_from_db, fn -> EncounterStore.load_from_db(file_id) end)}
   end
 
   @impl true
@@ -136,7 +142,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       {:ok, _updated} ->
         {:noreply,
          socket
-         |> assign(:encounter_records, EncounterStore.list_encounter_records())
+         |> assign_document_records()
          |> assign(:open_menu_id, nil)}
 
       {:error, _reason} ->
@@ -150,52 +156,13 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   end
 
   @impl true
-  def handle_event("reimport_log", %{"path" => path}, socket) do
-    do_import(socket, path, force_reimport: true)
-  end
+  def handle_event("toggle_sort_direction", _params, socket) do
+    direction = if socket.assigns.sort_direction == :asc, do: :desc, else: :asc
 
-  @impl true
-  def handle_event("save_warcraft_logs_url", %{"file_id" => file_id, "url" => url}, socket) do
-    with {:ok, file_id} <- parse_id(file_id),
-         %CombatLogFile{} = combat_log_file <-
-           get_user_combat_log(socket.assigns.user.id, file_id),
-         {:ok, _combat_log_file} <- WarcraftLogs.associate_report(combat_log_file, url) do
-      {:noreply,
-       socket
-       |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-       |> maybe_refresh_current_combat_log(file_id)
-       |> put_flash(:info, "Warcraft Logs report linked")}
-    else
-      {:error, :missing_report_code} ->
-        {:noreply, put_flash(socket, :error, "Enter a Warcraft Logs report URL")}
-
-      {:error, :invalid_fight_id} ->
-        {:noreply,
-         put_flash(socket, :error, "The Warcraft Logs fight id must be a positive number")}
-
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to link Warcraft Logs report")}
-
-      nil ->
-        {:noreply, put_flash(socket, :error, "Imported log not found")}
-    end
-  end
-
-  @impl true
-  def handle_event("clear_warcraft_logs_url", %{"file_id" => file_id}, socket) do
-    with {:ok, file_id} <- parse_id(file_id),
-         %CombatLogFile{} = combat_log_file <-
-           get_user_combat_log(socket.assigns.user.id, file_id),
-         {:ok, _combat_log_file} <- WarcraftLogs.clear_report_association(combat_log_file) do
-      {:noreply,
-       socket
-       |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-       |> maybe_refresh_current_combat_log(file_id)
-       |> put_flash(:info, "Warcraft Logs report link cleared")}
-    else
-      _reason ->
-        {:noreply, put_flash(socket, :error, "Failed to clear Warcraft Logs report link")}
-    end
+    {:noreply,
+     socket
+     |> assign(:sort_direction, direction)
+     |> push_patch(to: sort_path(direction))}
   end
 
   # ============================================================================
@@ -206,16 +173,17 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   def handle_info({:import_complete, result}, socket) do
     case result do
       {:ok, count} ->
+        imported_logs = list_imported_logs(socket.assigns.user.id)
+
         {:noreply,
          socket
          |> assign(:loading, false)
          |> assign(:import_progress, nil)
-         |> assign(:encounter_records, EncounterStore.list_encounter_records())
-         |> assign(:log_path, EncounterStore.current_log_path())
-         |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
-         |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-         |> assign_unimported_log_files()
-         |> clear_unavailable_selected_log()
+         |> assign(:imported_logs, imported_logs)
+         |> assign_filter_for_path(socket.assigns.selected_log)
+         |> assign_document_records()
+         |> assign_selector_logs()
+         |> assign(:import_enabled, true)
          |> put_flash(:info, "Imported #{count} encounters")}
 
       {:error, reason} ->
@@ -229,9 +197,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
   @impl true
   def handle_info({:encounters_loaded, _count}, socket) do
-    {:noreply,
-     socket
-     |> assign(:encounter_records, EncounterStore.list_encounter_records())}
+    {:noreply, assign_document_records(socket)}
   end
 
   @impl true
@@ -255,10 +221,9 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     socket =
       if found > prev_found do
         socket
-        |> assign(:encounter_records, EncounterStore.list_encounter_records())
+        |> assign_document_records()
         |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-        |> assign_unimported_log_files()
-        |> clear_unavailable_selected_log()
+        |> assign_selector_logs()
       else
         socket
       end
@@ -275,49 +240,14 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   def handle_info({:log_rotated, new_clf, count}, socket) do
     {:noreply,
      socket
-     |> assign(:encounter_records, EncounterStore.list_encounter_records())
-     |> assign(:log_path, new_clf.file_path)
-     |> assign(:combat_log_file, new_clf)
+     |> assign_document_records()
      |> assign(:log_files, reload_log_files(socket.assigns.user))
      |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-     |> assign_unimported_log_files()
-     |> clear_unavailable_selected_log()
+     |> assign_selector_logs()
      |> put_flash(
        :info,
        "Log rotation detected! Switched to #{Path.basename(new_clf.file_path)} (#{count} encounters)"
      )}
-  end
-
-  # ============================================================================
-  # Async Handlers
-  # ============================================================================
-
-  @impl true
-  def handle_async(:load_from_db, {:ok, result}, socket) do
-    case result do
-      {:ok, count} ->
-        {:noreply,
-         socket
-         |> assign(:loading, false)
-         |> assign(:encounter_records, EncounterStore.list_encounter_records())
-         |> assign(:log_path, EncounterStore.current_log_path())
-         |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
-         |> put_flash(:info, "Loaded #{count} encounters from database")}
-
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:loading, false)
-         |> assign(:error, "Failed to load: #{inspect(reason)}")}
-    end
-  end
-
-  @impl true
-  def handle_async(:load_from_db, {:exit, reason}, socket) do
-    {:noreply,
-     socket
-     |> assign(:loading, false)
-     |> assign(:error, "Failed to load: #{inspect(reason)}")}
   end
 
   # ============================================================================
@@ -331,6 +261,9 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-wow-gold">WoW Raid Diagnostic Tool</h1>
         <div class="flex items-center gap-4">
+          <.link navigate={~p"/logs"} class="text-sm text-zinc-400 hover:text-zinc-200">
+            Logs
+          </.link>
           <.link navigate={~p"/failures"} class="text-sm text-zinc-400 hover:text-zinc-200">
             Failures
           </.link>
@@ -342,26 +275,49 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
       <LogSelector.render
         user={@user}
-        log_files={@unimported_log_files}
+        log_files={@selector_logs}
         selected_log={@selected_log}
+        import_enabled={@import_enabled}
         loading={@loading}
         import_progress={@import_progress}
         error={@error}
       />
 
-      <ImportedLogsSwitcher.render
-        imported_logs={@imported_logs}
-        combat_log_file={@combat_log_file}
-      />
-
       <EncounterList.render
         encounter_records={@encounter_records}
         show_resets={@show_resets}
+        sort_direction={@sort_direction}
+        show_sort_control={true}
         open_menu_id={@open_menu_id}
         is_admin={@user.is_admin}
         log_files={@log_files}
         loading={@loading}
       />
+
+      <section
+        :if={@encounter_records == [] && !@loading && @documents_state == :empty}
+        class="rounded-lg border border-zinc-700 bg-zinc-800 p-6"
+      >
+        <h2 class="text-lg font-semibold text-zinc-100">No Encounter Documents</h2>
+        <p class="mt-2 text-sm text-zinc-400">
+          No generated encounter documents exist in the configured document store. Import or rebuild pulls to write
+          <span class="font-mono text-zinc-300">index.json</span>
+          and
+          <span class="font-mono text-zinc-300">encounters/*.json</span>
+          before the local detail UI can render them.
+        </p>
+      </section>
+
+      <section
+        :if={@encounter_records == [] && !@loading && match?({:error, _reason}, @documents_state)}
+        class="rounded-lg border border-red-800/70 bg-red-950/30 p-6"
+      >
+        <h2 class="text-lg font-semibold text-red-100">Document Store Unavailable</h2>
+        <p class="mt-2 text-sm text-red-200">
+          The encounter document index could not be read from the configured store:
+          <span class="font-mono">{inspect(elem(@documents_state, 1))}</span>
+        </p>
+      </section>
     </div>
     """
   end
@@ -370,12 +326,11 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   # Private Helpers
   # ============================================================================
 
-  defp do_import(socket, path, opts) do
+  defp do_import(socket, path) do
     Accounts.set_last_loaded_log(socket.assigns.user, path)
     user_id = socket.assigns.user.id
-    force_reimport = Keyword.get(opts, :force_reimport, false)
 
-    case ImportWorker.start_import(user_id, path, force_reimport: force_reimport) do
+    case ImportWorker.start_import(user_id, path, force_reimport: false) do
       :ok ->
         {:noreply,
          socket
@@ -398,29 +353,141 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     end
   end
 
-  defp assign_unimported_log_files(socket) do
+  defp assign_selector_logs(socket) do
     assign(
       socket,
-      :unimported_log_files,
-      unimported_log_files(socket.assigns.log_files, socket.assigns.imported_logs)
+      :selector_logs,
+      selector_logs(socket.assigns.log_files, socket.assigns.imported_logs)
     )
   end
 
-  defp unimported_log_files(log_files, imported_logs) do
+  defp selector_logs(log_files, imported_logs) do
     imported_paths = MapSet.new(imported_logs, & &1.file_path)
-    Enum.reject(log_files, &MapSet.member?(imported_paths, &1.full_path))
+
+    imported_options =
+      Enum.map(imported_logs, fn log ->
+        %{
+          full_path: log.file_path,
+          filename: Path.basename(log.file_path),
+          imported: true,
+          encounter_count: log.encounter_count,
+          first_encounter_start_at: log.first_encounter_start_at
+        }
+      end)
+
+    discovered_options =
+      log_files
+      |> Enum.reject(&MapSet.member?(imported_paths, &1.full_path))
+      |> Enum.map(&Map.put(&1, :imported, false))
+
+    imported_options ++ discovered_options
   end
 
-  defp clear_unavailable_selected_log(socket) do
-    selected_log = socket.assigns.selected_log
+  defp assign_document_records(socket) do
+    {records, state} = document_records()
 
-    if is_binary(selected_log) and
-         Enum.any?(socket.assigns.unimported_log_files, &(&1.full_path == selected_log)) do
-      socket
-    else
-      assign(socket, :selected_log, nil)
+    socket
+    |> assign(
+      :encounter_records,
+      filter_records(records, socket.assigns.filter_log_id, socket.assigns.imported_logs)
+    )
+    |> assign(:documents_state, state)
+  end
+
+  defp default_filter_log_id([%{id: id} | _rest]), do: id
+  defp default_filter_log_id([]), do: :all
+
+  defp sort_direction(%{"sort" => "desc"}), do: :desc
+  defp sort_direction(_params), do: :asc
+
+  defp sort_path(:desc), do: ~p"/?sort=desc"
+  defp sort_path(:asc), do: ~p"/"
+
+  defp filter_id_for_path("all", _imported_logs), do: :all
+
+  defp filter_id_for_path(path, imported_logs) do
+    case Enum.find(imported_logs, &(&1.file_path == path)) do
+      %{id: id} -> id
+      nil -> :none
     end
   end
+
+  defp import_enabled?("all", _imported_logs), do: false
+  defp import_enabled?(nil, _imported_logs), do: false
+
+  defp import_enabled?(_path, _imported_logs), do: true
+
+  defp assign_filter_for_path(socket, path) do
+    case Enum.find(socket.assigns.imported_logs, &(&1.file_path == path)) do
+      %{id: id} -> assign(socket, :filter_log_id, id)
+      nil -> socket
+    end
+  end
+
+  defp filter_records(records, :all, _imported_logs), do: records
+  defp filter_records(_records, :none, _imported_logs), do: []
+
+  defp filter_records(records, log_id, imported_logs) do
+    case Enum.find(imported_logs, &(&1.id == log_id)) do
+      %{file_path: file_path} ->
+        keys = log_source_keys(file_path)
+        Enum.filter(records, &MapSet.member?(keys, &1.source_encounter_key))
+
+      nil ->
+        records
+    end
+  end
+
+  defp log_source_keys(file_path) do
+    DimEncounter
+    |> where([d], d.source_file_path == ^file_path)
+    |> select([d], d.source_encounter_key)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  defp document_records do
+    case Documents.list_index() do
+      {:ok, %{encounters: encounters}} when encounters != [] ->
+        records =
+          encounters
+          |> Enum.map(&document_index_record/1)
+          |> Enum.sort_by(&{encounter_timestamp(&1.start_time), &1.source_encounter_key}, :asc)
+
+        {records, :ready}
+
+      {:ok, _index} ->
+        {[], :empty}
+
+      {:error, reason} ->
+        {[], {:error, reason}}
+    end
+  end
+
+  defp document_index_record(entry) do
+    %{
+      id: entry.source_encounter_key,
+      source_encounter_key: entry.source_encounter_key,
+      name: entry.boss || "Unknown Encounter",
+      wow_encounter_id: entry.wow_encounter_id,
+      difficulty_id: entry.difficulty_id,
+      difficulty_name: entry.difficulty_name || "Unknown",
+      instance_id: Map.get(entry, :instance_id),
+      start_time: entry.start_time,
+      end_time: entry.end_time,
+      success: entry.success,
+      fight_time_ms: entry.fight_time_ms,
+      is_reset: false
+    }
+  end
+
+  defp encounter_timestamp(%DateTime{} = start_time),
+    do: DateTime.to_unix(start_time, :microsecond)
+
+  defp encounter_timestamp(%NaiveDateTime{} = start_time),
+    do: NaiveDateTime.diff(start_time, ~N[1970-01-01 00:00:00], :microsecond)
+
+  defp encounter_timestamp(_start_time), do: 0
 
   defp list_imported_logs(user_id) do
     CombatLogFile
@@ -431,41 +498,10 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       id: clf.id,
       file_path: clf.file_path,
       last_parsed_at: clf.last_parsed_at,
-      last_parsed_byte: clf.last_parsed_byte,
       encounter_count: count(e.id),
-      first_encounter_start_at: min(e.start_time),
-      is_complete: clf.is_complete,
-      warcraft_logs_report_url: clf.warcraft_logs_report_url,
-      warcraft_logs_report_code: clf.warcraft_logs_report_code,
-      warcraft_logs_fight_id: clf.warcraft_logs_fight_id,
-      warcraft_logs_linked_at: clf.warcraft_logs_linked_at
+      first_encounter_start_at: min(e.start_time)
     })
-    |> order_by([clf], desc: clf.last_parsed_at)
+    |> order_by([clf, e], desc_nulls_last: min(e.start_time), desc: clf.last_parsed_at)
     |> Repo.all()
   end
-
-  defp get_user_combat_log(user_id, file_id) do
-    Repo.get_by(CombatLogFile, id: file_id, user_id: user_id)
-  end
-
-  defp maybe_refresh_current_combat_log(socket, file_id) do
-    case socket.assigns.combat_log_file do
-      %CombatLogFile{id: ^file_id} ->
-        assign(socket, :combat_log_file, Repo.get(CombatLogFile, file_id))
-
-      _combat_log_file ->
-        socket
-    end
-  end
-
-  defp parse_id(id) when is_integer(id), do: {:ok, id}
-
-  defp parse_id(id) when is_binary(id) do
-    case Integer.parse(id) do
-      {integer, ""} -> {:ok, integer}
-      _ -> {:error, :invalid_id}
-    end
-  end
-
-  defp parse_id(_id), do: {:error, :invalid_id}
 end

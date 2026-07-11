@@ -10,20 +10,32 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
   }
 
   alias WeGoNext.Mirror.MirrorUpload
-  alias WeGoNext.Repo
+  alias WeGoNext.{CombatLogFile, Repo}
   alias WeGoNext.Rules.Ruleset
   alias WeGoNext.Silver.{DamageTaken, PlayerInfo}
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    original_documents_root = Application.fetch_env!(:we_go_next, :documents_root)
+
+    documents_root =
+      Path.join(System.tmp_dir!(), "wgn-documents-#{System.unique_integer([:positive])}")
+
+    Application.put_env(:we_go_next, :documents_root, documents_root)
+
+    on_exit(fn ->
+      Application.put_env(:we_go_next, :documents_root, original_documents_root)
+      File.rm_rf(documents_root)
+    end)
 
     encounter = insert_dim_encounter!("boss-one")
 
-    {:ok, encounter: encounter}
+    {:ok, encounter: encounter, documents_root: documents_root}
   end
 
   test "rebuild/2 runs the current fact_failure builder with the active ruleset", %{
-    encounter: encounter
+    encounter: encounter,
+    documents_root: documents_root
   } do
     ruleset = insert_ruleset!("Active Ruleset", "active")
     criterion = insert_criterion!(ruleset, encounter, 101)
@@ -42,6 +54,12 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
                player_dim_id: player.id,
                criterion_dim_id: criterion.id
              )
+
+    assert File.exists?(
+             Path.join([documents_root, "encounters", "#{encounter.source_encounter_key}.json"])
+           )
+
+    assert File.exists?(Path.join(documents_root, "index.json"))
   end
 
   test "rebuild/2 passes through an explicit ruleset id", %{encounter: encounter} do
@@ -81,7 +99,7 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
             }} = RebuildEncounter.rebuild(encounter)
   end
 
-  test "rebuild/2 enqueues mirror upload intent after successful rebuild" do
+  test "rebuild/2 does not enqueue mirror upload intent when source file publish is disabled" do
     encounter = insert_dim_encounter_with_source_key!("boss-mirror")
     ruleset = insert_ruleset!("Mirror Ruleset", "active")
     insert_criterion!(ruleset, encounter, 303)
@@ -91,24 +109,28 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
 
     assert {:ok, %{fact_failure: %{inserted: 1}}} = RebuildEncounter.rebuild(encounter)
 
+    refute Repo.get_by(MirrorUpload, source_encounter_key: encounter.source_encounter_key)
+  end
+
+  test "rebuild/2 enqueues mirror upload intent when source file publish is enabled" do
+    encounter = insert_dim_encounter_with_source_key!("boss-mirror-enabled")
+    insert_combat_log!(encounter, publish_enabled: true)
+
+    ruleset = insert_ruleset!("Mirror Enabled Ruleset", "active")
+    insert_criterion!(ruleset, encounter, 404)
+
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", 404, 100, 1)
+
+    assert {:ok, %{fact_failure: %{inserted: 1}}} = RebuildEncounter.rebuild(encounter)
+
     assert %MirrorUpload{state: "pending"} =
              Repo.get_by!(MirrorUpload, source_encounter_key: encounter.source_encounter_key)
   end
 
   defp insert_dim_encounter!(wow_encounter_id) do
-    %DimEncounter{}
-    |> DimEncounter.changeset(%{
-      wow_encounter_id: wow_encounter_id,
-      name: "Test Boss",
-      difficulty_id: 16,
-      difficulty_name: "Mythic",
-      group_size: 20,
-      instance_id: "test-instance"
-    })
-    |> Repo.insert!()
-  end
+    source_start_byte = System.unique_integer([:positive])
 
-  defp insert_dim_encounter_with_source_key!(wow_encounter_id) do
     %DimEncounter{}
     |> DimEncounter.changeset(%{
       source_head_sha256: String.duplicate("a", 64),
@@ -119,8 +141,52 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
       group_size: 20,
       instance_id: "test-instance",
       start_time: ~U[2026-06-28 20:00:00Z],
-      start_byte: System.unique_integer([:positive]),
-      end_byte: System.unique_integer([:positive]) + 1000
+      end_time: ~U[2026-06-28 20:05:00Z],
+      success: false,
+      fight_time_ms: 300_000,
+      start_byte: source_start_byte,
+      end_byte: source_start_byte + 1000
+    })
+    |> Repo.insert!()
+  end
+
+  defp insert_combat_log!(%DimEncounter{} = encounter, attrs) do
+    %CombatLogFile{}
+    |> CombatLogFile.changeset(
+      Map.merge(
+        %{
+          user_id: insert_user_id!(),
+          file_path: encounter.source_file_path || "/tmp/#{encounter.source_encounter_key}.log",
+          source: :live,
+          head_sha256: encounter.source_head_sha256,
+          last_parsed_at: DateTime.utc_now(),
+          publish_enabled: false
+        },
+        Map.new(attrs)
+      )
+    )
+    |> Repo.insert!()
+  end
+
+  defp insert_user_id! do
+    WeGoNext.Accounts.get_or_create_default_user().id
+  end
+
+  defp insert_dim_encounter_with_source_key!(wow_encounter_id) do
+    source_start_byte = System.unique_integer([:positive])
+
+    %DimEncounter{}
+    |> DimEncounter.changeset(%{
+      source_head_sha256: String.duplicate("a", 64),
+      wow_encounter_id: wow_encounter_id,
+      name: "Test Boss",
+      difficulty_id: 16,
+      difficulty_name: "Mythic",
+      group_size: 20,
+      instance_id: "test-instance",
+      start_time: ~U[2026-06-28 20:00:00Z],
+      start_byte: source_start_byte,
+      end_byte: source_start_byte + 1000
     })
     |> Repo.insert!()
   end

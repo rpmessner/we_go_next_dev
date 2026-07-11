@@ -8,8 +8,21 @@ Recover the operator capability lost in the legacy system: a UI to classify obse
 
 ## Scope
 
-- **Classify-from-observation UI** — from the observed-events read model (Initiative 1, #40), let the operator tag a spell/debuff as `avoidable` / `soak` / `spread` / `stack` / `interrupt` / etc., creating or updating a rule with the bucket's default threshold.
+- **Classify-from-observation UI** — from the observed/mechanic read model
+  defined by Initiative 2, let the operator tag a spell/debuff as `avoidable` /
+  `soak` / `spread` / `stack` / `interrupt` / etc., creating or updating a rule
+  with the bucket's default threshold.
+  - Classification starts from impact-rich rows, not raw spell names. The row
+    should show who was hit, hit count, total damage, top damaged players,
+    encounter/pull scope, and evidence type before asking the operator to tag it.
+  - The UI must support marking observed debuffs/spells as irrelevant to the
+    analysis page, not only converting them into failure mechanics.
 - **`unavoidable` suppression** — a distinct, **non-failure** tag (an allowlist), marking damage as expected so it is excluded from avoidable-failure surfacing. Cuts false positives on new bosses. Requires a suppression flag honored by the avoidable fact builder. **Not** a `mechanic_type` — model it separately.
+- **Noise suppression in detail views** — unavoidable rot, background aura ticks,
+  and irrelevant debuffs should stop dominating damage/debuff views once tagged.
+  Suppression must preserve the underlying observations for audit/debugging, but
+  the default encounter analysis should emphasize actionable mechanics and
+  outliers.
 - **Edit / override + rebuild** — edit thresholds/scope on existing rules and trigger a gold rebuild from the UI; keep labels honest (observed data vs editable rule vs rebuilt fact).
 
 ## Constraints
@@ -21,6 +34,10 @@ Recover the operator capability lost in the legacy system: a UI to classify obse
 
 On an imported pull for an unseen boss, an operator can tag one observed damage spell as `avoidable` and another as `unavoidable`, rebuild, and see the resulting failures (and the suppression) in the UI — no code change, no SQL.
 
+The same flow must work for debuffs: an operator can mark a debuff as irrelevant,
+unavoidable/background, or a specific mechanic type, and the encounter detail
+view updates its default presentation accordingly.
+
 ## Related
 
-[`../ROADMAP.md`](../ROADMAP.md) · [Initiative 1](01-real-data-failure-loop.md) · [Initiative 4](04-fact-semantics-expansion.md) · [Public Gold Mirror](../PUBLIC_MIRROR_DESIGN.md) (read-only mirror consumes the resulting facts)
+[`../ROADMAP.md`](../ROADMAP.md) · [Initiative 2](02-mechanic-classification-system.md) · [Initiative 4](04-fact-semantics-expansion.md) · [Initiative 5](05-encounter-documents.md) · [Initiative 6](06-public-analysis-mirror.md)

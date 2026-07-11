@@ -9,7 +9,8 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     FactFailure
   }
 
-  alias WeGoNext.Repo
+  alias WeGoNext.{Documents, Repo}
+  alias WeGoNext.Mirror.MirrorUpload
 
   alias WeGoNext.Silver.{
     DamageDone,
@@ -50,16 +51,17 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     insert_interrupt_opportunity!(encounter, 1_000, true)
     insert_interrupt_opportunity!(encounter, 2_000, false)
     insert_failure!(encounter, player)
+    generate_document!(encounter)
 
     html =
       conn
-      |> get(~p"/encounters/#{encounter.id}")
+      |> get(~p"/encounters/#{encounter.source_encounter_key}")
       |> html_response(200)
 
     assert html =~ "Plexus Sentinel"
-    assert html =~ "Encounter detail for imported pull ##{encounter.id}"
+    assert html =~ "Encounter document #{encounter.source_encounter_key}"
     assert html =~ "Started May 01, 2026 08:00 PM"
-    assert html =~ "Pull ID"
+    assert html =~ "Source Key"
     assert html =~ "Pull Signals"
     assert html =~ "Tracked Failures"
     assert html =~ "Failure Damage"
@@ -93,10 +95,11 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     insert_damage_taken_event!(encounter)
     insert_interrupt_opportunity!(encounter, 2_000, false)
     insert_failure!(encounter, player)
+    generate_document!(encounter)
 
     html =
       conn
-      |> get(~p"/encounters/#{encounter.id}?tab=mechanics")
+      |> get(~p"/encounters/#{encounter.source_encounter_key}?tab=mechanics")
       |> html_response(200)
 
     assert html =~ "Pull Review"
@@ -157,9 +160,11 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
              player.player_name == "Early"
            end)
 
+    generate_document!(encounter)
+
     html =
       conn
-      |> get(~p"/encounters/#{encounter.id}?tab=damage")
+      |> get(~p"/encounters/#{encounter.source_encounter_key}?tab=damage")
       |> html_response(200)
 
     assert html =~ "Low Damage Warnings"
@@ -184,10 +189,11 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     insert_debuff_application!(encounter, %{spell_id: 303, source_guid: "Creature-Boss"})
     insert_debuff_application!(encounter, %{spell_id: 404, source_guid: "Player-One"})
     insert_failure!(encounter, player)
+    generate_document!(encounter)
 
     html =
       conn
-      |> get(~p"/encounters/#{encounter.id}?tab=mechanics")
+      |> get(~p"/encounters/#{encounter.source_encounter_key}?tab=mechanics")
       |> html_response(200)
 
     assert html =~ "Damage Taken"
@@ -218,10 +224,11 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     })
 
     insert_failure!(encounter, player)
+    generate_document!(encounter)
 
     html =
       conn
-      |> get(~p"/encounters/#{encounter.id}?tab=failures")
+      |> get(~p"/encounters/#{encounter.source_encounter_key}?tab=failures")
       |> html_response(200)
 
     assert html =~ "Failures"
@@ -266,24 +273,16 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     insert_damage_taken_event!(current)
     insert_defensive_window!(current)
     insert_death!(previous)
+    generate_document!(current)
 
     html =
       conn
-      |> get(~p"/encounters/#{current.id}?tab=personal")
+      |> get(~p"/encounters/#{current.source_encounter_key}?tab=personal")
       |> html_response(200)
 
-    assert html =~ "Defensive Coverage"
-    assert html =~ "Dangerous Events"
-    assert html =~ "Covered"
-    assert html =~ "Unending Resolve"
-    assert html =~ "Failure damage"
-    assert html =~ "Encounter Performance"
-    assert html =~ "Recent Pulls"
-    assert html =~ "Avg Failures"
-    assert html =~ "Failure Delta"
-    assert html =~ "Current pull"
-    assert html =~ "Kill"
-    assert html =~ "Wipe"
+    assert html =~ "Personal Pulls"
+    assert html =~ "Plexus Sentinel"
+    assert html =~ current.source_encounter_key
   end
 
   test "renders not found state for missing pull id", %{conn: conn} do
@@ -293,14 +292,163 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
       |> html_response(200)
 
     assert html =~ "Encounter Not Found"
-    assert html =~ "No imported pull exists for that ID"
+    assert html =~ "No encounter document exists for source key 999999"
+  end
+
+  test "renders encounter detail from a fixture document without read-model rows", %{conn: conn} do
+    write_fixture_document!("fixture-source-key", %{
+      roster: [
+        %{
+          player_guid: "Player-Fixture",
+          player_name: "Fixtureplayer",
+          class_id: 9,
+          spec_id: 266,
+          detected_role: "dps",
+          item_level: 515
+        }
+      ],
+      counts: %{players: 1, deaths: 0, interrupt_opportunities: 0},
+      observed_mechanics: %{
+        counts: %{observed_spells: 1},
+        mechanics: [
+          %{
+            spell_id: 101,
+            spell_name: "Fixture Blast",
+            boss_name: "Fixture Boss",
+            observed: %{total_damage: 100, damage_hits: 1, debuff_applications: 0},
+            facts: %{failure_count: 0},
+            operator: %{catalog: nil, criteria: [], rule_status: "untracked", diagnostics: []}
+          }
+        ]
+      }
+    })
+
+    html =
+      conn
+      |> get(~p"/encounters/fixture-source-key")
+      |> html_response(200)
+
+    assert html =~ "Fixture Boss"
+    assert html =~ "Encounter document fixture-source-key"
+    assert html =~ "Fixtureplayer"
+    assert html =~ "Mechanics"
+    refute html =~ "Encounter Not Found"
+  end
+
+  test "explains empty fixture documents", %{conn: conn} do
+    write_fixture_document!("empty-source-key")
+
+    html =
+      conn
+      |> get(~p"/encounters/empty-source-key")
+      |> html_response(200)
+
+    assert html =~ "Empty Encounter Document"
+    assert html =~ "no roster, deaths, failures, damage review rows"
+    assert html =~ "No player roster data exists for this pull yet."
+  end
+
+  test "explains stale fixture documents", %{conn: conn} do
+    write_fixture_document!("stale-source-key", %{
+      derivation_version: "old-derivation",
+      roster: [
+        %{
+          player_guid: "Player-Stale",
+          player_name: "Staleplayer",
+          class_id: 1,
+          spec_id: 71,
+          detected_role: "dps",
+          item_level: nil
+        }
+      ],
+      counts: %{players: 1, deaths: 0, interrupt_opportunities: 0}
+    })
+
+    html =
+      conn
+      |> get(~p"/encounters/stale-source-key")
+      |> html_response(200)
+
+    assert html =~ "Stale Encounter Document"
+    assert html =~ "old-derivation"
+    assert html =~ to_string(Documents.current_derivation_version())
+  end
+
+  test "shows upload button and manually queues a document upload", %{conn: conn} do
+    write_fixture_document!("upload-source-key")
+
+    html =
+      conn
+      |> get(~p"/encounters/upload-source-key")
+      |> html_response(200)
+
+    assert html =~ "Public Upload"
+    assert html =~ "Not queued"
+    assert html =~ "Upload"
+    assert html =~ ~s(phx-click="enqueue_upload")
+
+    {:ok, document} = Documents.fetch_encounter("upload-source-key")
+
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{__changed__: %{}, flash: %{}, document: document}
+    }
+
+    assert {:noreply, _socket} =
+             WeGoNextWeb.EncounterLive.Show.handle_event("enqueue_upload", %{}, socket)
+
+    assert %MirrorUpload{state: "pending"} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: "upload-source-key")
+  end
+
+  test "shows re-upload label for published documents", %{conn: conn} do
+    write_fixture_document!("published-source-key")
+
+    insert_upload!("published-source-key", %{
+      state: "published",
+      attempt_count: 1,
+      published_at: ~U[2026-07-08 20:20:00Z]
+    })
+
+    html =
+      conn
+      |> get(~p"/encounters/published-source-key")
+      |> html_response(200)
+
+    assert html =~ "Published"
+    assert html =~ "Re-upload"
+    assert html =~ "Attempts 1"
+  end
+
+  test "shows upload error diagnostics", %{conn: conn} do
+    write_fixture_document!("error-source-key")
+
+    insert_upload!("error-source-key", %{
+      state: "error",
+      attempt_count: 2,
+      last_error: "{:error, :r2_not_configured}",
+      last_attempted_at: ~U[2026-07-08 20:25:00Z]
+    })
+
+    html =
+      conn
+      |> get(~p"/encounters/error-source-key")
+      |> html_response(200)
+
+    assert html =~ "Error"
+    assert html =~ "Upload error"
+    assert html =~ "r2_not_configured"
+    assert html =~ "Attempts 2"
   end
 
   defp insert_dim_encounter!(attrs \\ %{}) do
+    source_start_byte = System.unique_integer([:positive])
+
     %DimEncounter{}
     |> DimEncounter.changeset(
       Map.merge(
         %{
+          source_head_sha256: String.duplicate("a", 64),
+          source_encounter_key: "source-key-#{System.unique_integer([:positive])}",
           wow_encounter_id: "2887",
           name: "Plexus Sentinel",
           difficulty_id: 16,
@@ -310,7 +458,9 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
           start_time: ~U[2026-05-01 20:00:00Z],
           end_time: ~U[2026-05-01 20:05:00Z],
           success: false,
-          fight_time_ms: 300_000
+          fight_time_ms: 300_000,
+          start_byte: source_start_byte,
+          end_byte: source_start_byte + 1_000
         },
         attrs
       )
@@ -512,5 +662,87 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
         threshold: %{"max_hits" => 0}
       })
       |> Repo.insert!()
+  end
+
+  defp generate_document!(%DimEncounter{} = encounter) do
+    assert {:ok, _result} = Documents.generate_for_encounter(encounter.id)
+  end
+
+  defp write_fixture_document!(source_encounter_key, overrides \\ %{}) do
+    document =
+      %{
+        schema_version: 1,
+        generated_at: "2026-07-08T20:10:00Z",
+        derivation_version: Documents.current_derivation_version(),
+        source_encounter_key: source_encounter_key,
+        encounter: %{
+          id: 9_001,
+          source_encounter_key: source_encounter_key,
+          wow_encounter_id: "fixture-boss",
+          name: "Fixture Boss",
+          difficulty_id: 16,
+          difficulty_name: "Mythic",
+          group_size: 20,
+          instance_id: "fixture-instance",
+          start_time: "2026-07-08T20:00:00Z",
+          end_time: "2026-07-08T20:05:00Z",
+          success: false,
+          fight_time_ms: 300_000,
+          operator: %{}
+        },
+        counts: %{players: 0, deaths: 0, interrupt_opportunities: 0, operator: %{}},
+        roster: [],
+        deaths: [],
+        pull_review: %{
+          damage_done: [],
+          low_dps: [],
+          damage_taken_spells: [],
+          debuffs: %{all: [], boss: [], player: []}
+        },
+        failure_preview: %{
+          counts: %{mechanics: 0, players: 0, failures: 0, damage: 0},
+          mechanics: [],
+          operator: %{diagnostics: []}
+        },
+        interrupt_coverage: %{spell_coverage: [], player_contributions: []},
+        personal_pull_summary: %{
+          selected_player_guid: nil,
+          players: [],
+          operator: %{selected_player_guid: nil}
+        },
+        observed_mechanics: %{counts: %{observed_spells: 0, operator: %{}}, mechanics: []}
+      }
+      |> deep_merge(overrides)
+
+    path =
+      Path.join([
+        Application.fetch_env!(:we_go_next, :documents_root),
+        "encounters",
+        "#{source_encounter_key}.json"
+      ])
+
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, Jason.encode!(document))
+  end
+
+  defp deep_merge(map, overrides) do
+    Map.merge(map, overrides, fn _key, left, right ->
+      if is_map(left) and is_map(right), do: deep_merge(left, right), else: right
+    end)
+  end
+
+  defp insert_upload!(source_encounter_key, attrs) do
+    %MirrorUpload{}
+    |> MirrorUpload.changeset(
+      Map.merge(
+        %{
+          source_encounter_key: source_encounter_key,
+          state: "pending",
+          attempt_count: 0
+        },
+        attrs
+      )
+    )
+    |> Repo.insert!()
   end
 end

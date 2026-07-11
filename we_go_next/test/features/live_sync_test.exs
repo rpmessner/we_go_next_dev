@@ -1,9 +1,9 @@
 defmodule WeGoNextWeb.Features.LiveSyncTest do
   @moduledoc """
   Integration test that simulates the live combat log sync workflow:
-  1. Import initial log with one encounter
+  1. Import initial log with one encounter from the home page
   2. Simulate WoW appending a new encounter to the log file
-  3. Reimport the log to detect the new encounter
+  3. Reimport the log (from the logs page) to detect the new encounter
   4. Verify the new encounter appears in the dashboard
 
   This tests Phase 2 and 3 of the Integration Roadmap without needing WoW running.
@@ -60,17 +60,19 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
 
     take_screenshot(session, name: "sync_03_after_append")
 
-    # Step 3: Reimport to parse the appended encounter
+    # Step 3: Reimport (from the logs page) to parse the appended encounter
     IO.puts("Clicking Reimport button...")
 
     session
-    |> HomePage.click_reimport()
+    |> LogsPage.navigate()
+    |> LogsPage.click_reimport()
+    |> LogsPage.wait_for_import_complete()
 
-    Process.sleep(2000)
     take_screenshot(session, name: "sync_04_after_refresh")
 
     # Step 4: Verify new encounter appears
     session
+    |> HomePage.navigate()
     |> HomePage.wait_for_encounter_count(2)
     |> HomePage.assert_encounter_count(2)
     |> HomePage.assert_encounter_present("Test Boss")
@@ -111,11 +113,12 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
     File.write!(temp_log_path, second_encounter_content, [:append])
 
     session
-    |> HomePage.click_reimport()
-
-    Process.sleep(2000)
+    |> LogsPage.navigate()
+    |> LogsPage.click_reimport()
+    |> LogsPage.wait_for_import_complete()
 
     session
+    |> HomePage.navigate()
     |> HomePage.wait_for_encounter_count(2)
     |> HomePage.assert_encounter_count(2)
 
@@ -134,11 +137,12 @@ defmodule WeGoNextWeb.Features.LiveSyncTest do
     File.write!(temp_log_path, third_encounter, [:append])
 
     session
-    |> HomePage.click_reimport()
-
-    Process.sleep(2000)
+    |> LogsPage.navigate()
+    |> LogsPage.click_reimport()
+    |> LogsPage.wait_for_import_complete()
 
     session
+    |> HomePage.navigate()
     |> HomePage.wait_for_encounter_count(3)
     |> HomePage.assert_encounter_count(3)
     |> HomePage.assert_encounter_present("Test Boss")

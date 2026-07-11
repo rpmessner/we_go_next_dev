@@ -3,8 +3,8 @@ defmodule WeGoNextWeb.Components.LogSelector do
   Component for selecting and importing WoW combat log files.
 
   Displays:
-  - Unimported log file dropdown
-  - Import button
+  - Imported and discovered log file dropdown
+  - Import button for logs that have not been imported
   - Progress bar during import
   """
   use Phoenix.Component
@@ -14,6 +14,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
   attr(:user, :map, required: true)
   attr(:log_files, :list, required: true)
   attr(:selected_log, :string, default: nil)
+  attr(:import_enabled, :boolean, default: false)
   attr(:loading, :boolean, required: true)
   attr(:import_progress, :map, default: nil)
   attr(:error, :string, default: nil)
@@ -23,34 +24,31 @@ defmodule WeGoNextWeb.Components.LogSelector do
     <div class="bg-zinc-800 rounded-lg p-4 border border-zinc-700">
       <%= if @user.wow_logs_path do %>
         <div class="mb-3">
-          <label class="block text-sm font-medium text-zinc-400 mb-2">
-            Import Combat Log
+          <label for="log-selector" class="block text-sm font-medium text-zinc-400 mb-2">
+            Combat Log
           </label>
-          <form phx-change="select_log" phx-submit="import_log" class="flex gap-2">
+          <form id="log-selector-form" phx-change="select_log" phx-submit="import_log" class="flex gap-2">
             <select
+              id="log-selector"
               name="log_path"
               disabled={@loading}
               class="flex-1 bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-zinc-100 focus:border-wow-gold focus:ring-1 focus:ring-wow-gold disabled:opacity-50"
             >
-              <option value="">Choose a log file...</option>
+              <option value="all" selected={@selected_log == "all"}>All imported logs</option>
               <%= for log <- @log_files do %>
                 <option value={log.full_path} selected={@selected_log == log.full_path}>
-                  {log.filename} ({format_size(log.size)}) - log date {format_log_date(log.filename_datetime)}
+                  {log_label(log)}
                 </option>
               <% end %>
             </select>
             <button
               type="submit"
-              disabled={@loading || !@selected_log}
+              disabled={@loading || !@import_enabled}
               class="px-4 py-2 bg-wow-gold text-zinc-900 font-semibold rounded hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {if @loading, do: "Importing...", else: "Import"}
             </button>
           </form>
-
-          <p :if={@log_files == []} class="mt-2 text-sm text-zinc-500">
-            All discovered combat logs have already been imported. Use Reimport on an imported log row to parse it again.
-          </p>
 
           <.progress_bar :if={@import_progress} progress={@import_progress} />
         </div>
@@ -126,5 +124,18 @@ defmodule WeGoNextWeb.Components.LogSelector do
 
   defp format_log_date(%DateTime{} = datetime) do
     Calendar.strftime(datetime, "%b %d, %Y")
+  end
+
+  defp log_label(%{imported: true} = log) do
+    date =
+      if log.first_encounter_start_at,
+        do: " - " <> Calendar.strftime(log.first_encounter_start_at, "%b %d, %Y"),
+        else: ""
+
+    "#{log.filename} (#{log.encounter_count} encounters#{date})"
+  end
+
+  defp log_label(log) do
+    "#{log.filename} (#{format_size(log.size)}) - log date #{format_log_date(log.filename_datetime)}"
   end
 end

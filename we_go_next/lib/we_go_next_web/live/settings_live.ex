@@ -15,6 +15,9 @@ defmodule WeGoNextWeb.SettingsLive do
      |> assign(:path_input, user.wow_logs_path || "")
      |> assign(:path_valid, check_path_valid(user.wow_logs_path))
      |> assign(:warcraft_logs_client_name_input, user.warcraft_logs_client_name || "")
+     |> assign(:document_r2_endpoint_input, user.document_r2_endpoint || "")
+     |> assign(:document_r2_bucket_input, user.document_r2_bucket || "")
+     |> assign(:document_r2_access_key_id_input, user.document_r2_access_key_id || "")
      |> assign(:watching_file, watching_file)}
   end
 
@@ -93,6 +96,75 @@ defmodule WeGoNextWeb.SettingsLive do
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to clear Warcraft Logs credentials")}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "save_document_r2_credentials",
+        %{
+          "document_r2" => %{
+            "endpoint" => endpoint,
+            "bucket" => bucket,
+            "access_key_id" => access_key_id,
+            "secret_access_key" => secret_access_key
+          }
+        },
+        socket
+      ) do
+    user = socket.assigns.user
+    secret_access_key = String.trim(secret_access_key || "")
+
+    result =
+      if secret_access_key == "" and Accounts.document_r2_configured?(user) do
+        Accounts.update_document_r2_settings(user, endpoint, bucket, access_key_id)
+      else
+        Accounts.set_document_r2_credentials(
+          user,
+          endpoint,
+          bucket,
+          access_key_id,
+          secret_access_key
+        )
+      end
+
+    case result do
+      {:ok, user} ->
+        {:noreply,
+         socket
+         |> assign(:user, user)
+         |> assign_document_r2_inputs(user)
+         |> put_flash(:info, "R2 document store credentials saved")}
+
+      {:error, :endpoint_required} ->
+        {:noreply, put_flash(socket, :error, "R2 endpoint is required")}
+
+      {:error, :bucket_required} ->
+        {:noreply, put_flash(socket, :error, "R2 bucket is required")}
+
+      {:error, :access_key_id_required} ->
+        {:noreply, put_flash(socket, :error, "R2 access key ID is required")}
+
+      {:error, :secret_access_key_required} ->
+        {:noreply, put_flash(socket, :error, "R2 secret access key is required")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to save R2 document store credentials")}
+    end
+  end
+
+  @impl true
+  def handle_event("clear_document_r2_credentials", _params, socket) do
+    case Accounts.clear_document_r2_credentials(socket.assigns.user) do
+      {:ok, user} ->
+        {:noreply,
+         socket
+         |> assign(:user, user)
+         |> assign_document_r2_inputs(user)
+         |> put_flash(:info, "R2 document store credentials cleared")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to clear R2 document store credentials")}
     end
   end
 
@@ -268,6 +340,112 @@ defmodule WeGoNextWeb.SettingsLive do
         </form>
       </div>
 
+      <div class="bg-zinc-800 rounded-lg p-6 border border-zinc-700">
+        <div class="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-semibold text-zinc-100">R2 Document Store</h2>
+            <p class="mt-1 text-sm text-zinc-400">
+              Saved locally for parser uploads. The secret access key is encrypted before it is stored.
+            </p>
+          </div>
+          <span class={[
+            "rounded px-2 py-1 text-xs font-semibold",
+            if(document_r2_configured?(@user),
+              do: "bg-green-900 text-green-300",
+              else: "bg-zinc-700 text-zinc-300"
+            )
+          ]}>
+            {if document_r2_configured?(@user), do: "Configured", else: "Not configured"}
+          </span>
+        </div>
+
+        <form phx-submit="save_document_r2_credentials" class="space-y-4">
+          <div>
+            <label for="document_r2_endpoint" class="block text-sm font-medium text-zinc-400 mb-1">
+              Endpoint
+            </label>
+            <input
+              type="url"
+              name="document_r2[endpoint]"
+              id="document_r2_endpoint"
+              value={@document_r2_endpoint_input}
+              class="w-full bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-wow-gold focus:ring-1 focus:ring-wow-gold"
+              placeholder="https://<account-id>.r2.cloudflarestorage.com"
+            />
+          </div>
+
+          <div>
+            <label for="document_r2_bucket" class="block text-sm font-medium text-zinc-400 mb-1">
+              Bucket
+            </label>
+            <input
+              type="text"
+              name="document_r2[bucket]"
+              id="document_r2_bucket"
+              value={@document_r2_bucket_input}
+              class="w-full bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-wow-gold focus:ring-1 focus:ring-wow-gold"
+              placeholder="we-go-next-documents"
+            />
+          </div>
+
+          <div>
+            <label
+              for="document_r2_access_key_id"
+              class="block text-sm font-medium text-zinc-400 mb-1"
+            >
+              Access Key ID
+            </label>
+            <input
+              type="text"
+              name="document_r2[access_key_id]"
+              id="document_r2_access_key_id"
+              value={@document_r2_access_key_id_input}
+              class="w-full bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-wow-gold focus:ring-1 focus:ring-wow-gold"
+              placeholder="R2 access key ID"
+            />
+          </div>
+
+          <div>
+            <label
+              for="document_r2_secret_access_key"
+              class="block text-sm font-medium text-zinc-400 mb-1"
+            >
+              Secret Access Key
+            </label>
+            <input
+              type="password"
+              name="document_r2[secret_access_key]"
+              id="document_r2_secret_access_key"
+              value=""
+              autocomplete="off"
+              class="w-full bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:border-wow-gold focus:ring-1 focus:ring-wow-gold"
+              placeholder={if document_r2_configured?(@user), do: "Saved key unchanged", else: "Paste secret access key"}
+            />
+            <p class="mt-1 text-xs text-zinc-500">
+              Leave blank to keep the saved secret when changing endpoint, bucket, or access key ID.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="submit"
+              class="px-4 py-2 bg-wow-gold text-zinc-900 font-semibold rounded hover:bg-yellow-400"
+            >
+              Save Credentials
+            </button>
+            <button
+              :if={document_r2_configured?(@user)}
+              type="button"
+              phx-click="clear_document_r2_credentials"
+              data-confirm="Clear saved R2 document store credentials?"
+              class="px-4 py-2 bg-zinc-700 text-zinc-100 font-semibold rounded hover:bg-zinc-600"
+            >
+              Clear
+            </button>
+          </div>
+        </form>
+      </div>
+
       <%!-- Current settings summary --%>
       <div class="bg-zinc-800 rounded-lg p-6 border border-zinc-700">
         <h2 class="text-lg font-semibold text-zinc-100 mb-4">Current Configuration</h2>
@@ -294,6 +472,12 @@ defmodule WeGoNextWeb.SettingsLive do
               {if warcraft_logs_configured?(@user), do: "#{@user.warcraft_logs_client_name} (key saved)", else: "Not configured"}
             </dd>
           </div>
+          <div class="flex">
+            <dt class="text-zinc-500 w-40">R2 Documents:</dt>
+            <dd class={if document_r2_configured?(@user), do: "text-green-400", else: "text-zinc-500"}>
+              {if document_r2_configured?(@user), do: "#{@user.document_r2_bucket} (key saved)", else: "Not configured"}
+            </dd>
+          </div>
         </dl>
       </div>
     </div>
@@ -301,4 +485,13 @@ defmodule WeGoNextWeb.SettingsLive do
   end
 
   defp warcraft_logs_configured?(user), do: Accounts.warcraft_logs_credentials_configured?(user)
+
+  defp document_r2_configured?(user), do: Accounts.document_r2_configured?(user)
+
+  defp assign_document_r2_inputs(socket, user) do
+    socket
+    |> assign(:document_r2_endpoint_input, user.document_r2_endpoint || "")
+    |> assign(:document_r2_bucket_input, user.document_r2_bucket || "")
+    |> assign(:document_r2_access_key_id_input, user.document_r2_access_key_id || "")
+  end
 end

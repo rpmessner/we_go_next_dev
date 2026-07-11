@@ -13,6 +13,7 @@ defmodule WeGoNextWeb.FeatureCase do
       alias WeGoNext.Repo
       alias WeGoNext.Integration.Pages.FailuresPage
       alias WeGoNext.Integration.Pages.HomePage
+      alias WeGoNext.Integration.Pages.LogsPage
       alias WeGoNext.Integration.Pages.SettingsPage
 
       import Ecto
@@ -63,10 +64,45 @@ defmodule WeGoNextWeb.FeatureCase do
     # Clear any existing encounter store state
     WeGoNext.EncounterStore.clear()
 
+    original_documents_root = Application.fetch_env!(:we_go_next, :documents_root)
+
+    documents_root =
+      Path.join(System.tmp_dir!(), "wgn-documents-#{System.unique_integer([:positive])}")
+
+    Application.put_env(:we_go_next, :documents_root, documents_root)
+
+    on_exit(fn ->
+      wait_for_import_worker_idle()
+      Application.put_env(:we_go_next, :documents_root, original_documents_root)
+      File.rm_rf(documents_root)
+    end)
+
     # Set up metadata for phoenix_ecto
     metadata = Phoenix.Ecto.SQL.Sandbox.metadata_for(WeGoNext.Repo, self())
     {:ok, session} = Wallaby.start_session(metadata: metadata)
 
     {:ok, session: session}
+  end
+
+  defp wait_for_import_worker_idle(deadline_ms \\ 30_000) do
+    deadline = System.monotonic_time(:millisecond) + deadline_ms
+    wait_for_import_worker_idle_until(deadline)
+  end
+
+  defp wait_for_import_worker_idle_until(deadline) do
+    if System.monotonic_time(:millisecond) >= deadline do
+      :ok
+    else
+      case WeGoNext.ImportWorker.active_imports() do
+        imports when map_size(imports) == 0 ->
+          :ok
+
+        _imports ->
+          Process.sleep(50)
+          wait_for_import_worker_idle_until(deadline)
+      end
+    end
+  catch
+    :exit, _reason -> :ok
   end
 end
