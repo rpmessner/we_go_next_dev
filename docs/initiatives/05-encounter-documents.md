@@ -2,6 +2,8 @@
 
 Linear project: [5. Encounter Document Read Models](https://linear.app/we-go-next/project/cc8eb6cf7437) (WE-25, WE-27…WE-30, WE-35; WE-26 canceled). Design: [`../ENCOUNTER_DOCUMENTS_DESIGN.md`](../ENCOUNTER_DOCUMENTS_DESIGN.md).
 
+Status: implemented on `rpmessner/public-gold`; local quality gate green; operator review and merge pending. WE-27/WE-28 remain later content-enrichment work.
+
 ## Goal
 
 Make per-encounter JSON documents the read-model product of the medallion build, and render the local frontend from them. The generator serializes the existing read models (`Gold.EncounterDetail`, `Gold.ObservedMechanics`) at build time — silver/gold are read freely then; the render path reads only documents.

@@ -136,6 +136,19 @@ Common failure modes:
 
 ## Smoke Test
 
+Load the operator-owned credentials without copying their values into the
+repository or shell history:
+
+```bash
+source scripts/load-wgn-secrets.sh
+```
+
+The helper reads Cloudflare/R2, Gigalixir, and Linear credentials from
+`~/.ssh`. It also sets `PHX_HOST`/`PUBLIC_BASE_URL` for the existing
+`we-go-next.gigalixirapp.com` app. R2 must first be enabled in Cloudflare and
+the bucket name stored in `~/.ssh/cloudflare_r2_bucket`; the helper warns while
+that file is absent.
+
 After approving and completing a `main` deployment:
 
 ```bash

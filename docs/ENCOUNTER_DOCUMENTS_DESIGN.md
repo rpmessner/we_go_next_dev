@@ -1,6 +1,6 @@
 # Encounter Documents — JSON-First Read Models (Design)
 
-Status: **approved — ready to build** (design only; not yet built). Author session: 2026-07-06 (see [`sessions/2026-07-06_encounter_documents_plan.md`](sessions/2026-07-06_encounter_documents_plan.md)). Supersedes the DB-backed mirror architecture in [`PUBLIC_MIRROR_DESIGN.md`](PUBLIC_MIRROR_DESIGN.md) — the run-mode split, mirror keys, Gigalixir release/CI, and slug-gate work from that design (WE-5…WE-12) carry forward; the **HTTP ingest → public Postgres → gold-only views** path does not.
+Status: **implemented on `rpmessner/public-gold`; local quality gate green; real R2/deployed smoke pending**. Author session: 2026-07-06 (see [`sessions/2026-07-06_encounter_documents_plan.md`](sessions/2026-07-06_encounter_documents_plan.md)). Supersedes the DB-backed mirror architecture in [`PUBLIC_MIRROR_DESIGN.md`](PUBLIC_MIRROR_DESIGN.md) — the run-mode split, mirror keys, Gigalixir release/CI, and slug-gate work from that design (WE-5…WE-12) carry forward; the **HTTP ingest → public Postgres → gold-only views** path does not.
 
 ## Goal
 
@@ -75,7 +75,7 @@ The frontend reads through a mode-selected store: parser → FileSystem, public 
 - Migration: `combat_log_files.publish_enabled :boolean, default: false` — surfaced as a checkbox in the imported-logs UI, mirrored read-only on that file's encounter detail pages.
 - Auto path: `Gold.RebuildEncounter.rebuild/2` enqueues an upload (existing `Outbox.enqueue_for_encounter/1`, coalescing by `source_encounter_key`) **only when** the encounter's log file has `publish_enabled`.
 - Manual path: an **Upload** button on the encounter detail page enqueues regardless of the file flag; it renders **Re-upload** when the encounter's `mirror_uploads` row is `published`.
-- **A worker actually drains the outbox now** — today nothing calls `Outbox.process_pending/1` at runtime (the HTTP leg was inert). `Documents.UploadWorker` is a parser-mode child processing `pending|stale|error` rows with bounded concurrency; "upload" = put the encounter document + refresh the public `index.json` in R2. Upload state/errors are inspectable in the UI (no SQL), reusing the `mirror_uploads` states.
+- **A worker drains the outbox** — `Documents.UploadWorker` is a parser-mode child processing `pending|stale|error` rows with bounded concurrency; "upload" = put the encounter document + refresh the public `index.json` in R2. Upload state/errors are inspectable in the UI (no SQL), reusing the `mirror_uploads` states.
 
 ### Public app
 
