@@ -9,9 +9,9 @@ defmodule WeGoNext.Rules.MechanicCriterion do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias WeGoNext.Mechanics.Taxonomy
   alias WeGoNext.Rules.Ruleset
 
-  @mechanic_types ~w(avoidable interrupt soak spread stack tank_mechanic healer_mechanic targeted_cone)
   @targeted_cone_required_keys ~w(
     target_marker_spell_id
     impact_spell_ids
@@ -67,7 +67,7 @@ defmodule WeGoNext.Rules.MechanicCriterion do
       :threshold,
       :active
     ])
-    |> validate_inclusion(:mechanic_type, @mechanic_types)
+    |> validate_inclusion(:mechanic_type, Taxonomy.rule_types())
     |> validate_threshold()
     |> foreign_key_constraint(:ruleset_id)
     |> unique_constraint([:ruleset_id, :spell_id, :boss_encounter_id, :difficulty_id],
@@ -75,7 +75,7 @@ defmodule WeGoNext.Rules.MechanicCriterion do
     )
   end
 
-  def mechanic_types, do: @mechanic_types
+  def mechanic_types, do: Taxonomy.rule_types()
 
   defp normalize_interrupt_threshold(changeset) do
     if get_field(changeset, :mechanic_type) == "interrupt" and
@@ -83,7 +83,7 @@ defmodule WeGoNext.Rules.MechanicCriterion do
            nil,
            %{}
          ] do
-      put_change(changeset, :threshold, %{"must_interrupt" => true})
+      put_change(changeset, :threshold, Taxonomy.default_threshold(:interrupt))
     else
       changeset
     end

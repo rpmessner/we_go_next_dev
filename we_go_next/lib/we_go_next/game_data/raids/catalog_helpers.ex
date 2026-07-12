@@ -1,6 +1,8 @@
 defmodule WeGoNext.GameData.Raids.CatalogHelpers do
   @moduledoc false
 
+  alias WeGoNext.Mechanics.Taxonomy
+
   def boss(name, encounter_id, dbm_module_id, dbm_module_map_id, zone_id) do
     %{
       name: name,
@@ -79,7 +81,8 @@ defmodule WeGoNext.GameData.Raids.CatalogHelpers do
     }
   end
 
-  defp threshold(%{type: :avoidable, event: :damage_taken}), do: %{"max_hits" => 0}
+  defp threshold(%{type: :avoidable, event: :damage_taken}),
+    do: Taxonomy.default_threshold(:avoidable)
 
   defp threshold(%{rule: %{must_interrupt: must_interrupt}}),
     do: %{"must_interrupt" => must_interrupt}

@@ -73,6 +73,15 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
     assert observed["spell_id"] == 101
     assert observed["observed"]["damage_hits"] == 1
     assert observed["facts"]["failure_count"] == 1
+
+    assert observed["classification"] == %{
+             "key" => "avoidable",
+             "label" => "Avoidable",
+             "actionability" => "actionable",
+             "fact_eligibility" => "supported"
+           }
+
+    refute Map.has_key?(observed["classification"], "threshold")
   end
 
   test "document generation writes encounter document and index", %{

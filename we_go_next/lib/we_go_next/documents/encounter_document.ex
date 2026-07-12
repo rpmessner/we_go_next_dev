@@ -5,6 +5,7 @@ defmodule WeGoNext.Documents.EncounterDocument do
 
   alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Gold.{DimEncounter, EncounterDetail, ObservedMechanics}
+  alias WeGoNext.Mechanics.Taxonomy
 
   @schema_version 1
 
@@ -209,6 +210,7 @@ defmodule WeGoNext.Documents.EncounterDocument do
       boss_name: mechanic.boss_name,
       observed: mechanic.observed,
       facts: mechanic.facts,
+      classification: public_classification(mechanic),
       operator: %{
         catalog: mechanic.catalog,
         criteria: mechanic.criteria,
@@ -217,6 +219,24 @@ defmodule WeGoNext.Documents.EncounterDocument do
       }
     }
   end
+
+  defp public_classification(mechanic) do
+    classification = Taxonomy.fetch!(classification_key(mechanic))
+
+    %{
+      key: classification.key,
+      label: classification.label,
+      actionability: classification.actionability,
+      fact_eligibility: classification.fact_eligibility
+    }
+  end
+
+  defp classification_key(%{catalog: %{mechanic_type: mechanic_type}}), do: mechanic_type
+
+  defp classification_key(%{criteria: [%{mechanic_type: mechanic_type} | _rest]}),
+    do: mechanic_type
+
+  defp classification_key(_mechanic), do: :unknown
 
   defp put_optional(map, _key, []), do: map
   defp put_optional(map, key, value), do: Map.put(map, key, value)
