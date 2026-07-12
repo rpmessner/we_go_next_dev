@@ -59,6 +59,56 @@ defmodule WeGoNext.FileWatcherTest do
     assert parsed_byte == byte_size(live_content <> continuation_content)
   end
 
+  test "sync_now clears a watched log disabled in the database", %{dir: dir, user: user} do
+    log_path = Path.join(dir, "WoWCombatLog-disabled.txt")
+    File.write!(log_path, File.read!(fixture_path("combat_log_base.txt")))
+
+    assert {:ok, %{file: %CombatLogFile{} = live_file}} =
+             Importer.import_log(log_path, user.id)
+
+    FileWatcher.watch(live_file)
+    assert %CombatLogFile{id: id} = FileWatcher.current_file()
+    assert id == live_file.id
+
+    CombatLogFile
+    |> Repo.get!(live_file.id)
+    |> CombatLogFile.changeset(%{watch_enabled: false})
+    |> Repo.update!()
+
+    refute Repo.get!(CombatLogFile, live_file.id).watch_enabled
+    assert %CombatLogFile{id: id} = FileWatcher.current_file()
+    assert id == live_file.id
+    assert FileWatcher.sync_now() in [{:error, :watch_disabled}, {:ok, 0}]
+    assert FileWatcher.current_file() == nil
+  end
+
+  test "only the user's newest live log can be watched", %{dir: dir, user: user} do
+    first = insert_live_log!(user, Path.join(dir, "WoWCombatLog-first.txt"))
+    second = insert_live_log!(user, Path.join(dir, "WoWCombatLog-second.txt"))
+
+    assert {:error, :not_newest_live_log} = FileWatcher.watch(first)
+    refute Repo.get!(CombatLogFile, second.id).watch_enabled
+
+    FileWatcher.watch(second)
+    refute Repo.get!(CombatLogFile, first.id).watch_enabled
+    assert Repo.get!(CombatLogFile, second.id).watch_enabled
+    assert %CombatLogFile{id: second_id} = FileWatcher.current_file()
+    assert second_id == second.id
+  end
+
+  defp insert_live_log!(user, path) do
+    File.write!(path, "fixture")
+
+    %CombatLogFile{}
+    |> CombatLogFile.changeset(%{
+      user_id: user.id,
+      file_path: path,
+      source: :live,
+      head_sha256: String.duplicate("a", 64)
+    })
+    |> Repo.insert!()
+  end
+
   defp fixture_path(name) do
     Path.expand("../fixtures/#{name}", __DIR__)
   end

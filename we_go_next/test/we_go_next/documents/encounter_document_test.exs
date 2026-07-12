@@ -3,6 +3,8 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
 
   alias WeGoNext.Documents
   alias WeGoNext.Documents.EncounterDocument
+  alias WeGoNext.{Accounts, CombatLogFile, RaidNights}
+  alias WeGoNext.Mirror.MirrorUpload
 
   alias WeGoNext.Gold.{
     DimEncounter,
@@ -73,6 +75,15 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
     assert observed["spell_id"] == 101
     assert observed["observed"]["damage_hits"] == 1
     assert observed["facts"]["failure_count"] == 1
+
+    assert observed["classification"] == %{
+             "key" => "avoidable",
+             "label" => "Avoidable",
+             "actionability" => "actionable",
+             "fact_eligibility" => "supported"
+           }
+
+    refute Map.has_key?(observed["classification"], "threshold")
   end
 
   test "document generation writes encounter document and index", %{
@@ -80,6 +91,19 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
   } do
     encounter = insert_encounter!("indexed-boss")
     insert_player_info!(encounter, "Player-One", "One")
+    user = Accounts.get_or_create_default_user()
+
+    log =
+      %CombatLogFile{}
+      |> CombatLogFile.changeset(%{
+        user_id: user.id,
+        file_path: encounter.source_file_path,
+        source: :live,
+        head_sha256: encounter.source_head_sha256,
+        raid_night_name: "Sunday Mythic Progression",
+        publish_enabled: true
+      })
+      |> Repo.insert!()
 
     assert {:ok, %{encounter_path: encounter_path, index_path: index_path}} =
              Documents.generate_for_encounter(encounter.id,
@@ -95,10 +119,25 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
     index_json = index_path |> File.read!() |> Jason.decode!()
 
     assert encounter_json["source_encounter_key"] == encounter.source_encounter_key
+
+    assert encounter_json["raid_night"] == %{
+             "key" => "20260712T105733",
+             "name" => "Sunday Mythic Progression",
+             "date" => "2026-07-12"
+           }
+
     assert [index_entry] = index_json["encounters"]
     assert index_entry["source_encounter_key"] == encounter.source_encounter_key
     assert index_entry["boss"] == "Fixture Boss"
     assert index_entry["headline_counts"]["players"] == 1
+    assert index_entry["raid_night"] == encounter_json["raid_night"]
+
+    assert {:ok, _log} = RaidNights.rename(log, "Renamed Progression Night")
+    renamed_document = encounter_path |> File.read!() |> Jason.decode!()
+    assert renamed_document["raid_night"]["name"] == "Renamed Progression Night"
+
+    assert %MirrorUpload{state: "pending"} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: encounter.source_encounter_key)
   end
 
   defp insert_encounter!(wow_encounter_id) do
@@ -106,6 +145,7 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
 
     %DimEncounter{}
     |> DimEncounter.changeset(%{
+      source_file_path: "/tmp/WoWCombatLog-071226_105733.txt",
       source_head_sha256: String.duplicate("c", 64),
       wow_encounter_id: wow_encounter_id,
       name: "Fixture Boss",

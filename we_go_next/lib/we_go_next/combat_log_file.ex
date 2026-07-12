@@ -12,6 +12,38 @@ defmodule WeGoNext.CombatLogFile do
   @sources [:live, :warcraftlogs_archive]
   @archive_prefix "Archive-WoWCombatLog-"
 
+  @doc """
+  Returns the combat-log creation timestamp embedded in a live or archive filename.
+
+  This is the canonical date for ordering logs. Filesystem modification and parse
+  timestamps describe operational activity and must not change raid-night order.
+  """
+  def filename_datetime(path_or_filename) do
+    filename = Path.basename(path_or_filename)
+
+    case Regex.run(
+           ~r/^(?:Archive-)?WoWCombatLog-(\d{2})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.txt$/,
+           filename
+         ) do
+      [_, month, day, year, hour, minute, second] ->
+        with {month, ""} <- Integer.parse(month),
+             {day, ""} <- Integer.parse(day),
+             {year, ""} <- Integer.parse(year),
+             {hour, ""} <- Integer.parse(hour),
+             {minute, ""} <- Integer.parse(minute),
+             {second, ""} <- Integer.parse(second),
+             {:ok, datetime} <-
+               NaiveDateTime.new(2000 + year, month, day, hour, minute, second) do
+          datetime
+        else
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
   schema "combat_log_files" do
     field(:file_path, :string)
     field(:file_size, :integer)
@@ -31,7 +63,9 @@ defmodule WeGoNext.CombatLogFile do
     field(:warcraft_logs_linked_at, :utc_datetime_usec)
     # Mark as complete when fully parsed and a newer log exists (dead log)
     field(:is_complete, :boolean, default: false)
+    field(:watch_enabled, :boolean, default: false)
     field(:publish_enabled, :boolean, default: false)
+    field(:raid_night_name, :string)
 
     belongs_to(:user, User)
     has_many(:encounters, WeGoNext.Encounters.Encounter)
@@ -56,13 +90,29 @@ defmodule WeGoNext.CombatLogFile do
       :warcraft_logs_linked_at,
       :user_id,
       :is_complete,
-      :publish_enabled
+      :watch_enabled,
+      :publish_enabled,
+      :raid_night_name
     ])
     |> validate_required([:file_path, :user_id, :source])
     |> validate_inclusion(:source, @sources)
     |> validate_format(:head_sha256, ~r/\A[0-9a-f]{64}\z/)
     |> unique_constraint(:file_path)
     |> check_constraint(:source, name: :combat_log_files_source_check)
+  end
+
+  def raid_night_name(%__MODULE__{raid_night_name: name, file_path: path}) do
+    case String.trim(name || "") do
+      "" -> default_raid_night_name(path)
+      name -> name
+    end
+  end
+
+  def default_raid_night_name(path) do
+    case filename_datetime(path) do
+      %NaiveDateTime{} = datetime -> "Raid Night — #{Calendar.strftime(datetime, "%b %d, %Y")}"
+      nil -> "Raid Night"
+    end
   end
 
   @doc """

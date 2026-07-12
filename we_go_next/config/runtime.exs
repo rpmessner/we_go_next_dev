@@ -1,5 +1,9 @@
 import Config
 
+config :we_go_next,
+  public_base_url: System.get_env("PUBLIC_BASE_URL") || "https://we-go-next.gigalixirapp.com",
+  public_report_slug: System.get_env("PUBLIC_REPORT_SLUG") || "raid-night"
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # temporary application is started.

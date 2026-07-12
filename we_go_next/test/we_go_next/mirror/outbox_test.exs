@@ -36,6 +36,7 @@ defmodule WeGoNext.Mirror.OutboxTest do
     insert_upload!("already-uploaded", "published")
     Outbox.enqueue("pending-key")
     Outbox.enqueue("not-uploaded")
+    Phoenix.PubSub.subscribe(WeGoNext.PubSub, Outbox.upload_topic("pending-key"))
 
     result =
       Outbox.process_pending(
@@ -46,6 +47,7 @@ defmodule WeGoNext.Mirror.OutboxTest do
       )
 
     assert result == %{published: 1, error: 0}
+    assert_receive {:mirror_upload_updated, "pending-key"}
 
     assert %MirrorUpload{state: "published", published_at: %DateTime{}, attempt_count: 1} =
              Repo.get_by!(MirrorUpload, source_encounter_key: "pending-key")
@@ -88,6 +90,27 @@ defmodule WeGoNext.Mirror.OutboxTest do
              "second-key",
              "first-key"
            ]
+  end
+
+  test "process_pending can restrict a drain to selected encounter keys" do
+    put_source_document!("unrelated-key", ~U[2026-07-08 19:00:00Z])
+    put_source_document!("selected-key", ~U[2026-07-08 20:00:00Z])
+
+    Outbox.enqueue("unrelated-key")
+    Outbox.enqueue("selected-key")
+
+    assert %{published: 1, error: 0} =
+             Outbox.process_pending(
+               source_encounter_keys: ["selected-key"],
+               source_store: StubSourceDocumentStore,
+               destination_store: StubDestinationDocumentStore
+             )
+
+    assert %MirrorUpload{state: "pending", attempt_count: 0} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: "unrelated-key")
+
+    assert %MirrorUpload{state: "published", attempt_count: 1} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: "selected-key")
   end
 
   test "process_pending marks rows error when the public index refresh fails" do

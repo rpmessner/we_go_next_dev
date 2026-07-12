@@ -18,6 +18,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
   attr(:loading, :boolean, required: true)
   attr(:import_progress, :map, default: nil)
   attr(:error, :string, default: nil)
+  attr(:watch_log, :map, default: nil)
 
   def render(assigns) do
     ~H"""
@@ -49,6 +50,21 @@ defmodule WeGoNextWeb.Components.LogSelector do
               {if @loading, do: "Importing...", else: "Import"}
             </button>
           </form>
+
+          <label
+            :if={@watch_log}
+            class="mt-3 inline-flex items-center gap-2 text-sm text-zinc-300"
+          >
+            <input
+              id="watch-newest-log"
+              type="checkbox"
+              checked={@watch_log.watch_enabled}
+              phx-click="toggle_watch_enabled"
+              phx-value-file_id={@watch_log.id}
+              class="rounded border-zinc-600 bg-zinc-900 text-wow-gold focus:ring-wow-gold"
+            />
+            Watch newest log for completed encounters
+          </label>
 
           <.progress_bar :if={@import_progress} progress={@import_progress} />
         </div>

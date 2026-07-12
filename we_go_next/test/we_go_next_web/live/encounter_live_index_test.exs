@@ -64,6 +64,27 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     assert html =~ ~s(href="/logs")
   end
 
+  test "toggles watching for the newest live log from the home page", %{conn: conn} do
+    user = Accounts.get_or_create_default_user()
+    older = insert_combat_log!(user, "/tmp/WoWCombatLog-home-older.log")
+    newer = insert_combat_log!(user, "/tmp/WoWCombatLog-home-newer.log")
+
+    set_file_mtime!(older, ~U[2026-07-11 20:00:00Z])
+    set_file_mtime!(newer, ~U[2026-07-12 20:00:00Z])
+
+    {:ok, view, html} = Phoenix.LiveViewTest.live(conn, ~p"/")
+
+    assert html =~ ~s(id="watch-newest-log")
+    assert length(Regex.scan(~r/phx-click="toggle_watch_enabled"/, html)) == 1
+
+    view
+    |> Phoenix.LiveViewTest.element("#watch-newest-log")
+    |> Phoenix.LiveViewTest.render_click()
+
+    refute Repo.get!(CombatLogFile, older.id).watch_enabled
+    assert Repo.get!(CombatLogFile, newer.id).watch_enabled
+  end
+
   test "log dropdown contains imported and unimported discovered logs", %{conn: conn} do
     user = Accounts.get_or_create_default_user()
     dir = Path.join(System.tmp_dir!(), "wgn-home-logs-#{System.unique_integer([:positive])}")
@@ -87,6 +108,11 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     assert html =~ ~s(value="#{unimported_path}")
     assert html =~ ~s(value="#{imported_path}")
     assert html =~ "log date Jan 02, 2026"
+
+    {newest_position, _length} = :binary.match(html, unimported_path)
+    {older_position, _length} = :binary.match(html, imported_path)
+    assert newest_position < older_position
+
     assert length(Regex.scan(~r/id="log-selector"/, html)) == 1
     refute html =~ ~s(id="filter-log")
     refute html =~ "modified"
@@ -288,10 +314,20 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
 
     assert pulls == ["Late Pull", "Early Pull"]
     assert html =~ "Newest first"
-    assert_patch(view, ~p"/?sort=desc")
 
-    {:ok, _remounted_view, remounted_html} =
-      Phoenix.LiveViewTest.live(conn, ~p"/?sort=desc")
+    assert_push_event(view, "store_session_preference", %{
+      key: "encounter_sort_direction",
+      value: "desc"
+    })
+
+    {:ok, remounted_view, remounted_html} = Phoenix.LiveViewTest.live(conn, ~p"/?sort=desc")
+
+    assert remounted_html =~ "Oldest first"
+
+    remounted_html =
+      Phoenix.LiveViewTest.render_hook(remounted_view, "restore_session_preferences", %{
+        "encounter_sort_direction" => "desc"
+      })
 
     assert remounted_html =~ "Newest first"
   end
@@ -306,6 +342,12 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
       last_parsed_at: DateTime.utc_now()
     })
     |> Repo.insert!()
+  end
+
+  defp set_file_mtime!(combat_log_file, file_mtime) do
+    combat_log_file
+    |> Ecto.Changeset.change(file_mtime: file_mtime)
+    |> Repo.update!()
   end
 
   defp insert_encounter!(combat_log_file, attrs) do

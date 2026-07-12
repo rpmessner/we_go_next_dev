@@ -80,9 +80,17 @@ defmodule WeGoNext.MixProject do
       {:wallaby, "~> 0.30", runtime: false, only: :test},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:tidewave, "~> 0.6", only: :dev},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:zigler, "~> 0.15.1", runtime: false}
-    ]
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+    ] ++ parser_deps()
+  end
+
+  defp parser_deps do
+    if public_build?(), do: [], else: [{:zigler, "~> 0.15.1", runtime: false}]
+  end
+
+  defp public_build? do
+    System.get_env("WE_GO_NEXT_BUILD") == "public" or
+      System.get_env("WE_GO_NEXT_MODE") == "public"
   end
 
   defp releases do

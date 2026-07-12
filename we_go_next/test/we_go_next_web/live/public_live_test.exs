@@ -41,6 +41,33 @@ defmodule WeGoNextWeb.PublicLiveTest do
     refute html =~ "Upload"
   end
 
+  test "public dashboard filters encounters by named raid night", %{conn: conn} do
+    write_fixture_document!("older-encounter", %{
+      raid_night: %{key: "20260705T120000", name: "Holiday Raid", date: "2026-07-05"},
+      encounter: %{name: "Older Boss", start_time: "2026-07-05T12:30:00Z"}
+    })
+
+    write_fixture_document!("newer-encounter", %{
+      raid_night: %{key: "20260712T105733", name: "Sunday Mythic Progression", date: "2026-07-12"},
+      encounter: %{name: "Newer Boss", start_time: "2026-07-12T11:30:00Z"}
+    })
+
+    {:ok, view, html} = Phoenix.LiveViewTest.live(conn, ~p"/r/raid-night")
+
+    assert html =~ "Sunday Mythic Progression"
+    assert html =~ "Holiday Raid"
+    assert html =~ "Newer Boss"
+    refute html =~ "Older Boss"
+
+    html =
+      view
+      |> Phoenix.LiveViewTest.element("#raid-night-selector")
+      |> Phoenix.LiveViewTest.render_change(%{"raid_night_key" => "20260705T120000"})
+
+    assert html =~ "Older Boss"
+    refute html =~ "Newer Boss"
+  end
+
   test "bad slug returns 404", %{conn: conn} do
     assert conn
            |> get(~p"/r/wrong")
@@ -216,6 +243,11 @@ defmodule WeGoNextWeb.PublicLiveTest do
         generated_at: "2026-07-08T20:10:00Z",
         derivation_version: Documents.current_derivation_version(),
         source_encounter_key: source_encounter_key,
+        raid_night: %{
+          key: "20260708T200000",
+          name: "Raid Night — Jul 08, 2026",
+          date: "2026-07-08"
+        },
         encounter: %{
           id: 9_001,
           source_encounter_key: source_encounter_key,

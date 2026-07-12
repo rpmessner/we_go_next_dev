@@ -10,6 +10,8 @@ defmodule WeGoNext.Mirror.Outbox do
   alias WeGoNext.Mirror.MirrorUpload
   alias WeGoNext.Repo
 
+  def upload_topic(source_encounter_key), do: "mirror_upload:#{source_encounter_key}"
+
   @doc """
   Enqueues publish intent for a gold encounter after a successful rebuild.
   """
@@ -70,10 +72,12 @@ defmodule WeGoNext.Mirror.Outbox do
   def process_pending(opts \\ []) do
     limit = Keyword.get(opts, :limit, 5)
     max_concurrency = Keyword.get(opts, :max_concurrency, 2)
-    publish_opts = Keyword.drop(opts, [:limit, :max_concurrency])
+    source_encounter_keys = Keyword.get(opts, :source_encounter_keys)
+    publish_opts = Keyword.drop(opts, [:limit, :max_concurrency, :source_encounter_keys])
 
     MirrorUpload
     |> where([upload], upload.state in ["pending", "stale", "error"])
+    |> restrict_to_source_encounter_keys(source_encounter_keys)
     |> order_by([upload], asc: upload.updated_at, asc: upload.id)
     |> limit(^limit)
     |> Repo.all()
@@ -89,6 +93,12 @@ defmodule WeGoNext.Mirror.Outbox do
       {:exit, _reason}, totals -> %{totals | error: totals.error + 1}
     end)
   end
+
+  defp restrict_to_source_encounter_keys(query, keys) when is_list(keys) do
+    where(query, [upload], upload.source_encounter_key in ^keys)
+  end
+
+  defp restrict_to_source_encounter_keys(query, _keys), do: query
 
   defp publish_upload(%MirrorUpload{} = upload, opts) do
     case Upload.publish(upload.source_encounter_key, opts) do
@@ -116,8 +126,17 @@ defmodule WeGoNext.Mirror.Outbox do
         last_attempted_at: DateTime.utc_now()
       })
 
-    upload
-    |> MirrorUpload.changeset(attrs)
-    |> Repo.update!()
+    updated_upload =
+      upload
+      |> MirrorUpload.changeset(attrs)
+      |> Repo.update!()
+
+    Phoenix.PubSub.broadcast(
+      WeGoNext.PubSub,
+      upload_topic(updated_upload.source_encounter_key),
+      {:mirror_upload_updated, updated_upload.source_encounter_key}
+    )
+
+    updated_upload
   end
 end

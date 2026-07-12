@@ -191,7 +191,7 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
     user: user
   } do
     content = "COMBAT_LOG_VERSION,22\n"
-    watched_path = Path.join(dir, "WoWCombatLog-watched.txt")
+    watched_path = Path.join(dir, "WoWCombatLog-051726_111133.txt")
     moved_live_path = Path.join(dir, "WoWCombatLog-051626_111133.txt")
     archive_path = Path.join(archive_dir, "Archive-WoWCombatLog-051626_111133.txt")
     File.write!(archive_path, content)
@@ -200,6 +200,7 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
       insert_combat_log_file!(%{
         file_path: watched_path,
         file_size: 1,
+        file_mtime: ~U[2026-05-17 11:11:33Z],
         source: :live,
         user_id: user.id
       })
@@ -207,6 +208,7 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
     insert_combat_log_file!(%{
       file_path: moved_live_path,
       file_size: byte_size(content),
+      file_mtime: ~U[2026-05-16 11:11:33Z],
       source: :live,
       user_id: user.id,
       head_sha256: sha256(content)

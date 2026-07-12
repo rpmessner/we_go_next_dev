@@ -56,7 +56,7 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
     refute Repo.get!(CombatLogFile, log.id).publish_enabled
 
     socket = %Phoenix.LiveView.Socket{
-      assigns: %{__changed__: %{}, user: user, combat_log_file: nil}
+      assigns: %{__changed__: %{}, flash: %{}, user: user, combat_log_file: nil}
     }
 
     assert {:noreply, socket} =
@@ -76,6 +76,86 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
              )
 
     refute Repo.get!(CombatLogFile, log.id).publish_enabled
+  end
+
+  test "names a raid night locally and shows an appropriate default", %{conn: conn} do
+    user = Accounts.get_or_create_default_user()
+    log = insert_combat_log!(user, "/tmp/WoWCombatLog-071226_105733.txt")
+
+    {:ok, view, html} = Phoenix.LiveViewTest.live(conn, ~p"/logs")
+
+    assert html =~ "Raid Night — Jul 12, 2026"
+
+    html =
+      view
+      |> Phoenix.LiveViewTest.form("#raid-night-name-#{log.id}", %{
+        "raid_night" => %{"name" => "Sunday Mythic Progression"}
+      })
+      |> Phoenix.LiveViewTest.render_submit()
+
+    assert html =~ "Sunday Mythic Progression"
+    assert Repo.get!(CombatLogFile, log.id).raid_night_name == "Sunday Mythic Progression"
+  end
+
+  test "toggles live log watching and stops the active watcher", %{conn: conn} do
+    user = Accounts.get_or_create_default_user()
+    log = insert_combat_log!(user, "/tmp/wgn-watch-toggle.log")
+    insert_encounter!(log, %{start_time: ~U[2026-04-12 20:00:00Z]})
+
+    FileWatcher.watch(log)
+    assert %CombatLogFile{id: id} = FileWatcher.current_file()
+    assert id == log.id
+
+    html = conn |> get(~p"/logs") |> html_response(200)
+    assert html =~ "Watch"
+    assert html =~ ~s(phx-click="toggle_watch_enabled")
+
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{__changed__: %{}, user: user, combat_log_file: log}
+    }
+
+    assert {:noreply, _socket} =
+             WeGoNextWeb.LogLive.Index.handle_event(
+               "toggle_watch_enabled",
+               %{"file_id" => to_string(log.id)},
+               socket
+             )
+
+    refute Repo.get!(CombatLogFile, log.id).watch_enabled
+    assert FileWatcher.current_file() == nil
+  end
+
+  test "renders watch control only for the newest live log", %{conn: conn} do
+    user = Accounts.get_or_create_default_user()
+    older = insert_combat_log!(user, "/tmp/WoWCombatLog-older.log")
+    newer = insert_combat_log!(user, "/tmp/WoWCombatLog-newer.log")
+
+    insert_encounter!(older, %{start_time: ~U[2026-04-12 20:00:00Z]})
+    insert_encounter!(newer, %{start_time: ~U[2026-04-19 20:00:00Z]})
+
+    html = conn |> get(~p"/logs") |> html_response(200)
+
+    assert length(Regex.scan(~r/phx-click="toggle_watch_enabled"/, html)) == 1
+  end
+
+  test "rejects a forged watch event for an older live log" do
+    user = Accounts.get_or_create_default_user()
+    older = insert_combat_log!(user, "/tmp/WoWCombatLog-forged-older.log")
+    _newer = insert_combat_log!(user, "/tmp/WoWCombatLog-forged-newer.log")
+
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{__changed__: %{}, flash: %{}, user: user, combat_log_file: nil}
+    }
+
+    assert {:noreply, socket} =
+             WeGoNextWeb.LogLive.Index.handle_event(
+               "toggle_watch_enabled",
+               %{"file_id" => to_string(older.id)},
+               socket
+             )
+
+    refute Repo.get!(CombatLogFile, older.id).watch_enabled
+    assert Phoenix.Flash.get(socket.assigns.flash, :error) == "Failed to update watch setting"
   end
 
   test "renders a Warcraft Logs report URL association for an imported log", %{conn: conn} do

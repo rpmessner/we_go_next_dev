@@ -6,9 +6,8 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias WeGoNext.Mechanics.Taxonomy
   alias WeGoNext.Mirror.Keys
-
-  @mechanic_types ~w(avoidable interrupt soak spread stack tank_mechanic healer_mechanic targeted_cone)
 
   @schema_prefix "gold"
 
@@ -70,7 +69,7 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
       :threshold,
       :active
     ])
-    |> validate_inclusion(:mechanic_type, @mechanic_types)
+    |> validate_inclusion(:mechanic_type, Taxonomy.rule_types())
     |> validate_number(:ruleset_version, greater_than: 0)
     |> unique_constraint(:source_rule_id)
     |> unique_constraint(:criterion_key)
@@ -110,12 +109,12 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
       :threshold,
       :active
     ])
-    |> validate_inclusion(:mechanic_type, @mechanic_types)
+    |> validate_inclusion(:mechanic_type, Taxonomy.rule_types())
     |> validate_number(:ruleset_version, greater_than: 0)
     |> unique_constraint(:criterion_key)
   end
 
-  def mechanic_types, do: @mechanic_types
+  def mechanic_types, do: Taxonomy.rule_types()
 
   defp put_criterion_key(changeset) do
     if get_field(changeset, :criterion_key) do

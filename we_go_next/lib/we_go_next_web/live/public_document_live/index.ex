@@ -11,16 +11,34 @@ defmodule WeGoNextWeb.PublicDocumentLive.Index do
   @impl true
   def mount(%{"slug" => slug}, %{"public_report_title" => title}, socket) do
     {encounter_records, documents_state} = document_records()
+    raid_nights = raid_nights(encounter_records)
+    selected_raid_night_key = raid_nights |> List.first() |> then(&if(&1, do: &1.key, else: :all))
 
     {:ok,
      socket
      |> assign(:page_title, title)
      |> assign(:slug, slug)
      |> assign(:title, title)
-     |> assign(:encounter_records, encounter_records)
+     |> assign(:all_encounter_records, encounter_records)
+     |> assign(:encounter_records, filter_records(encounter_records, selected_raid_night_key))
+     |> assign(:raid_nights, raid_nights)
+     |> assign(:selected_raid_night_key, selected_raid_night_key)
      |> assign(:documents_state, documents_state)
      |> assign(:show_resets, false)
      |> assign(:open_menu_id, nil)}
+  end
+
+  @impl true
+  def handle_event("select_raid_night", %{"raid_night_key" => key}, socket) do
+    selected_key = if key == "all", do: :all, else: key
+
+    {:noreply,
+     socket
+     |> assign(:selected_raid_night_key, selected_key)
+     |> assign(
+       :encounter_records,
+       filter_records(socket.assigns.all_encounter_records, selected_key)
+     )}
   end
 
   @impl true
@@ -33,6 +51,31 @@ defmodule WeGoNextWeb.PublicDocumentLive.Index do
           <h1 class="mt-1 text-2xl font-bold text-wow-gold">{@title}</h1>
         </div>
       </div>
+
+      <form
+        :if={@raid_nights != []}
+        id="raid-night-selector"
+        phx-change="select_raid_night"
+        class="rounded-lg border border-zinc-700 bg-zinc-800 p-4"
+      >
+        <label for="raid-night-select" class="mb-2 block text-sm font-medium text-zinc-400">
+          Raid Night
+        </label>
+        <select
+          id="raid-night-select"
+          name="raid_night_key"
+          class="w-full rounded border border-zinc-600 bg-zinc-900 px-3 py-2 text-zinc-100 focus:border-wow-gold focus:ring-1 focus:ring-wow-gold"
+        >
+          <option value="all" selected={@selected_raid_night_key == :all}>All raid nights</option>
+          <option
+            :for={raid_night <- @raid_nights}
+            value={raid_night.key}
+            selected={@selected_raid_night_key == raid_night.key}
+          >
+            {raid_night.name} ({raid_night.date})
+          </option>
+        </select>
+      </form>
 
       <EncounterList.render
         encounter_records={@encounter_records}
@@ -82,6 +125,8 @@ defmodule WeGoNextWeb.PublicDocumentLive.Index do
   end
 
   defp document_index_record(entry) do
+    raid_night = Map.get(entry, :raid_night) || legacy_raid_night(entry.start_time)
+
     %{
       id: entry.source_encounter_key,
       source_encounter_key: entry.source_encounter_key,
@@ -94,7 +139,32 @@ defmodule WeGoNextWeb.PublicDocumentLive.Index do
       end_time: entry.end_time,
       success: entry.success,
       fight_time_ms: entry.fight_time_ms,
-      is_reset: false
+      is_reset: false,
+      raid_night: raid_night,
+      raid_night_key: raid_night && raid_night.key
     }
   end
+
+  defp raid_nights(records) do
+    records
+    |> Enum.map(& &1.raid_night)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq_by(& &1.key)
+    |> Enum.sort_by(&{&1.date || "", &1.key}, :desc)
+  end
+
+  defp filter_records(records, :all), do: records
+  defp filter_records(records, key), do: Enum.filter(records, &(&1.raid_night_key == key))
+
+  defp legacy_raid_night(%DateTime{} = datetime) do
+    date = DateTime.to_date(datetime)
+
+    %{
+      key: "legacy-#{Date.to_iso8601(date)}",
+      date: Date.to_iso8601(date),
+      name: "Raid Night — #{Calendar.strftime(date, "%b %d, %Y")}"
+    }
+  end
+
+  defp legacy_raid_night(_start_time), do: nil
 end
