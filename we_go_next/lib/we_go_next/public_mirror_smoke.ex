@@ -31,7 +31,7 @@ defmodule WeGoNext.PublicMirrorSmoke do
          {:ok, zero_failure} <- encounter(config.zero_failure_encounter_id),
          {:ok, _totals} <- rebuild_documents(config, [factful.id, zero_failure.id]),
          {:ok, _uploads} <- enqueue_uploads([factful, zero_failure]),
-         drain <- drain_outbox(config),
+         drain <- drain_outbox(config, [factful, zero_failure]),
          :ok <- require_upload_success(drain),
          {:ok, uploaded_index} <- fetch_uploaded_index(config.destination_store),
          {:ok, factful_document} <- fetch_uploaded_document(config.destination_store, factful),
@@ -123,10 +123,11 @@ defmodule WeGoNext.PublicMirrorSmoke do
     {:ok, uploads}
   end
 
-  defp drain_outbox(config) do
+  defp drain_outbox(config, encounters) do
     Outbox.process_pending(
       limit: config.limit,
       max_concurrency: config.max_concurrency,
+      source_encounter_keys: Enum.map(encounters, & &1.source_encounter_key),
       source_store: config.source_store,
       destination_store: config.destination_store
     )
@@ -258,14 +259,19 @@ defmodule WeGoNext.PublicMirrorSmoke do
   end
 
   defp verify_probe_body(body, required, rejected) do
-    missing = Enum.reject(required, &String.contains?(body, &1))
-    present_rejected = Enum.filter(rejected, &String.contains?(body, &1))
+    missing = Enum.reject(required, &contains_visible_text?(body, &1))
+    present_rejected = Enum.filter(rejected, &contains_visible_text?(body, &1))
 
     cond do
       missing != [] -> {:error, {:missing_expected_text, missing}}
       present_rejected != [] -> {:error, {:unexpected_text, present_rejected}}
       true -> :ok
     end
+  end
+
+  defp contains_visible_text?(body, text) do
+    escaped_text = text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+    String.contains?(body, text) or String.contains?(body, escaped_text)
   end
 
   defp factful_spell_name(document) do
