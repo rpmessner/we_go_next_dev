@@ -24,6 +24,10 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
     case Documents.fetch_encounter(source_encounter_key) do
       {:ok, document} ->
+        if connected?(socket) do
+          Phoenix.PubSub.subscribe(WeGoNext.PubSub, Outbox.upload_topic(source_encounter_key))
+        end
+
         {:ok,
          socket
          |> assign(:page_title, document.encounter.name)
@@ -111,6 +115,16 @@ defmodule WeGoNextWeb.EncounterLive.Show do
      |> assign(:upload, upload_state(source_encounter_key))
      |> put_flash(:info, "Encounter upload queued")}
   end
+
+  @impl true
+  def handle_info(
+        {:mirror_upload_updated, source_encounter_key},
+        %{assigns: %{document: %{source_encounter_key: source_encounter_key}}} = socket
+      ) do
+    {:noreply, assign(socket, :upload, upload_state(source_encounter_key))}
+  end
+
+  def handle_info(_message, socket), do: {:noreply, socket}
 
   @impl true
   def render(%{encounter: nil} = assigns) do
@@ -1318,6 +1332,15 @@ defmodule WeGoNextWeb.EncounterLive.Show do
           <p :if={@upload.published_at} class="mt-1 text-xs text-zinc-500">
             Published {format_datetime(@upload.published_at)}
           </p>
+          <a
+            :if={@upload.public_url}
+            href={@upload.public_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-2 inline-flex text-sm font-medium text-wow-gold hover:text-yellow-300"
+          >
+            View public report <span aria-hidden="true">↗</span>
+          </a>
           <p :if={@upload.last_error} class="mt-2 rounded border border-red-800/70 bg-red-950/30 px-3 py-2 text-sm text-red-100">
             Upload error: <span class="font-mono">{@upload.last_error}</span>
           </p>
@@ -1453,7 +1476,8 @@ defmodule WeGoNextWeb.EncounterLive.Show do
           attempt_count: upload.attempt_count || 0,
           last_attempted_at: upload.last_attempted_at,
           published_at: upload.published_at,
-          last_error: upload.last_error
+          last_error: upload.last_error,
+          public_url: public_encounter_url(upload.state, source_encounter_key)
         }
 
       nil ->
@@ -1464,7 +1488,8 @@ defmodule WeGoNextWeb.EncounterLive.Show do
           attempt_count: 0,
           last_attempted_at: nil,
           published_at: nil,
-          last_error: nil
+          last_error: nil,
+          public_url: nil
         }
     end
   end
@@ -1477,6 +1502,14 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   defp upload_button_label("published"), do: "Re-upload"
   defp upload_button_label(_state), do: "Upload"
+
+  defp public_encounter_url("published", source_encounter_key) do
+    base_url = Application.fetch_env!(:we_go_next, :public_base_url) |> String.trim_trailing("/")
+    slug = Application.fetch_env!(:we_go_next, :public_report_slug)
+    "#{base_url}/r/#{slug}/encounters/#{source_encounter_key}"
+  end
+
+  defp public_encounter_url(_state, _source_encounter_key), do: nil
 
   defp upload_state_class("published"),
     do: "rounded bg-emerald-950 px-2 py-1 text-xs font-medium text-emerald-300"

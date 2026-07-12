@@ -192,6 +192,7 @@ defmodule WeGoNext.Documents do
 
     %{
       source_encounter_key: field!(document, :source_encounter_key),
+      raid_night: field(document, :raid_night),
       boss: field(encounter, :name),
       wow_encounter_id: field(encounter, :wow_encounter_id),
       difficulty_id: field(encounter, :difficulty_id),

@@ -286,7 +286,7 @@ defmodule WeGoNext.Accounts do
       filename: filename,
       full_path: full_path,
       size: stat.size,
-      filename_datetime: filename_datetime(filename),
+      filename_datetime: CombatLogFile.filename_datetime(filename),
       modified: modified_ndt,
       source: source
     }
@@ -296,30 +296,6 @@ defmodule WeGoNext.Accounts do
     do: filename_datetime
 
   defp log_sort_datetime(%{modified: %NaiveDateTime{} = modified}), do: modified
-
-  defp filename_datetime(filename) do
-    case Regex.run(
-           ~r/^(?:Archive-)?WoWCombatLog-(\d{2})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.txt$/,
-           filename
-         ) do
-      [_, month, day, year, hour, minute, second] ->
-        with {month, ""} <- Integer.parse(month),
-             {day, ""} <- Integer.parse(day),
-             {year, ""} <- Integer.parse(year),
-             {hour, ""} <- Integer.parse(hour),
-             {minute, ""} <- Integer.parse(minute),
-             {second, ""} <- Integer.parse(second),
-             {:ok, datetime} <-
-               NaiveDateTime.new(2000 + year, month, day, hour, minute, second) do
-          datetime
-        else
-          _ -> nil
-        end
-
-      _ ->
-        nil
-    end
-  end
 
   defp maybe_backfill_head_sha256(_full_path, nil), do: :ok
 

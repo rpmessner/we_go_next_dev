@@ -10,6 +10,8 @@ defmodule WeGoNext.Mirror.Outbox do
   alias WeGoNext.Mirror.MirrorUpload
   alias WeGoNext.Repo
 
+  def upload_topic(source_encounter_key), do: "mirror_upload:#{source_encounter_key}"
+
   @doc """
   Enqueues publish intent for a gold encounter after a successful rebuild.
   """
@@ -124,8 +126,17 @@ defmodule WeGoNext.Mirror.Outbox do
         last_attempted_at: DateTime.utc_now()
       })
 
-    upload
-    |> MirrorUpload.changeset(attrs)
-    |> Repo.update!()
+    updated_upload =
+      upload
+      |> MirrorUpload.changeset(attrs)
+      |> Repo.update!()
+
+    Phoenix.PubSub.broadcast(
+      WeGoNext.PubSub,
+      upload_topic(updated_upload.source_encounter_key),
+      {:mirror_upload_updated, updated_upload.source_encounter_key}
+    )
+
+    updated_upload
   end
 end

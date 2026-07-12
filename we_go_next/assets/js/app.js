@@ -23,6 +23,21 @@ Hooks.WowheadTooltips = {
   }
 }
 
+Hooks.SessionPreferences = {
+  mounted() {
+    const key = "encounter_sort_direction"
+    const value = sessionStorage.getItem(key)
+
+    if (value) {
+      this.pushEvent("restore_session_preferences", {[key]: value})
+    }
+
+    this.handleEvent("store_session_preference", ({key, value}) => {
+      sessionStorage.setItem(key, value)
+    })
+  }
+}
+
 let liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},

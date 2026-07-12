@@ -6,6 +6,7 @@ defmodule WeGoNext.Documents.EncounterDocument do
   alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Gold.{DimEncounter, EncounterDetail, ObservedMechanics}
   alias WeGoNext.Mechanics.Taxonomy
+  alias WeGoNext.RaidNights
 
   @schema_version 1
 
@@ -23,6 +24,7 @@ defmodule WeGoNext.Documents.EncounterDocument do
          generated_at: Keyword.get(opts, :generated_at, DateTime.utc_now()),
          derivation_version: Derivation.current_version(),
          source_encounter_key: source_encounter_key,
+         raid_night: RaidNights.for_encounter(detail.encounter),
          encounter: encode_encounter(detail.encounter),
          counts: encode_counts(detail.counts),
          roster: Enum.map(detail.roster, &encode_roster_player/1),

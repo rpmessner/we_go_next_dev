@@ -36,6 +36,7 @@ defmodule WeGoNext.Mirror.OutboxTest do
     insert_upload!("already-uploaded", "published")
     Outbox.enqueue("pending-key")
     Outbox.enqueue("not-uploaded")
+    Phoenix.PubSub.subscribe(WeGoNext.PubSub, Outbox.upload_topic("pending-key"))
 
     result =
       Outbox.process_pending(
@@ -46,6 +47,7 @@ defmodule WeGoNext.Mirror.OutboxTest do
       )
 
     assert result == %{published: 1, error: 0}
+    assert_receive {:mirror_upload_updated, "pending-key"}
 
     assert %MirrorUpload{state: "published", published_at: %DateTime{}, attempt_count: 1} =
              Repo.get_by!(MirrorUpload, source_encounter_key: "pending-key")

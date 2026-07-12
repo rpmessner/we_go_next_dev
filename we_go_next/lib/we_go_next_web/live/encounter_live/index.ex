@@ -12,6 +12,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     Accounts,
     CombatLogFile,
     Documents,
+    FileWatcher,
     Importer,
     ImportWorker,
     Repo
@@ -27,7 +28,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   # ============================================================================
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(_params, _session, socket) do
     user = Accounts.get_or_create_default_user()
 
     if connected?(socket) do
@@ -69,11 +70,12 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:user, user)
      |> assign(:documents_state, documents_state)
      |> assign(:show_resets, false)
-     |> assign(:sort_direction, sort_direction(params))
+     |> assign(:sort_direction, :asc)
      |> assign(:open_menu_id, nil)
      |> assign(:log_files, log_files)
      |> assign(:selector_logs, selector_logs)
      |> assign(:imported_logs, imported_logs)
+     |> assign(:watch_log, newest_watchable_log(imported_logs))
      |> assign(:filter_log_id, filter_log_id)
      |> assign(
        :encounter_records,
@@ -89,11 +91,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   # ============================================================================
   # Event Handlers
   # ============================================================================
-
-  @impl true
-  def handle_params(params, _uri, socket) do
-    {:noreply, assign(socket, :sort_direction, sort_direction(params))}
-  end
 
   @impl true
   def handle_event("select_log", params, socket) do
@@ -162,7 +159,40 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     {:noreply,
      socket
      |> assign(:sort_direction, direction)
-     |> push_patch(to: sort_path(direction))}
+     |> push_event("store_session_preference", %{
+       key: "encounter_sort_direction",
+       value: Atom.to_string(direction)
+     })}
+  end
+
+  @impl true
+  def handle_event(
+        "restore_session_preferences",
+        %{"encounter_sort_direction" => direction},
+        socket
+      )
+      when direction in ["asc", "desc"] do
+    {:noreply, assign(socket, :sort_direction, String.to_existing_atom(direction))}
+  end
+
+  def handle_event("restore_session_preferences", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("toggle_watch_enabled", %{"file_id" => file_id}, socket) do
+    with {file_id, ""} <- Integer.parse(file_id),
+         %CombatLogFile{source: :live} = combat_log_file <-
+           Repo.get_by(CombatLogFile, id: file_id, user_id: socket.assigns.user.id),
+         :ok <- toggle_watching(combat_log_file) do
+      imported_logs = list_imported_logs(socket.assigns.user.id)
+
+      {:noreply,
+       socket
+       |> assign(:imported_logs, imported_logs)
+       |> assign(:watch_log, newest_watchable_log(imported_logs))
+       |> assign_selector_logs()}
+    else
+      _reason -> {:noreply, put_flash(socket, :error, "Failed to update watch setting")}
+    end
   end
 
   # ============================================================================
@@ -180,6 +210,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
          |> assign(:loading, false)
          |> assign(:import_progress, nil)
          |> assign(:imported_logs, imported_logs)
+         |> assign(:watch_log, newest_watchable_log(imported_logs))
          |> assign_filter_for_path(socket.assigns.selected_log)
          |> assign_document_records()
          |> assign_selector_logs()
@@ -220,9 +251,12 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
     socket =
       if found > prev_found do
+        imported_logs = list_imported_logs(socket.assigns.user.id)
+
         socket
         |> assign_document_records()
-        |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+        |> assign(:imported_logs, imported_logs)
+        |> assign(:watch_log, newest_watchable_log(imported_logs))
         |> assign_selector_logs()
       else
         socket
@@ -238,11 +272,14 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
   @impl true
   def handle_info({:log_rotated, new_clf, count}, socket) do
+    imported_logs = list_imported_logs(socket.assigns.user.id)
+
     {:noreply,
      socket
      |> assign_document_records()
      |> assign(:log_files, reload_log_files(socket.assigns.user))
-     |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+     |> assign(:imported_logs, imported_logs)
+     |> assign(:watch_log, newest_watchable_log(imported_logs))
      |> assign_selector_logs()
      |> put_flash(
        :info,
@@ -257,7 +294,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="space-y-6">
+    <div id="encounter-index" phx-hook="SessionPreferences" class="space-y-6">
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-wow-gold">WoW Raid Diagnostic Tool</h1>
         <div class="flex items-center gap-4">
@@ -281,6 +318,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         loading={@loading}
         import_progress={@import_progress}
         error={@error}
+        watch_log={@watch_log}
       />
 
       <EncounterList.render
@@ -353,6 +391,24 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     end
   end
 
+  defp toggle_watching(%CombatLogFile{watch_enabled: true} = combat_log_file) do
+    with {:ok, _combat_log_file} <-
+           combat_log_file
+           |> CombatLogFile.changeset(%{watch_enabled: false})
+           |> Repo.update() do
+      case FileWatcher.current_file() do
+        %CombatLogFile{id: id} when id == combat_log_file.id -> FileWatcher.stop_watching()
+        _other -> :ok
+      end
+
+      :ok
+    end
+  end
+
+  defp toggle_watching(%CombatLogFile{watch_enabled: false} = combat_log_file) do
+    FileWatcher.watch(combat_log_file)
+  end
+
   defp assign_selector_logs(socket) do
     assign(
       socket,
@@ -370,6 +426,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
           full_path: log.file_path,
           filename: Path.basename(log.file_path),
           imported: true,
+          filename_datetime: CombatLogFile.filename_datetime(log.file_path),
           encounter_count: log.encounter_count,
           first_encounter_start_at: log.first_encounter_start_at
         }
@@ -380,7 +437,13 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       |> Enum.reject(&MapSet.member?(imported_paths, &1.full_path))
       |> Enum.map(&Map.put(&1, :imported, false))
 
-    imported_options ++ discovered_options
+    (imported_options ++ discovered_options)
+    |> Enum.sort_by(&selector_log_order_key/1, :desc)
+  end
+
+  defp selector_log_order_key(log) do
+    datetime = log.filename_datetime
+    {if(datetime, do: NaiveDateTime.to_erl(datetime), else: {{0, 1, 1}, {0, 0, 0}}), log.filename}
   end
 
   defp assign_document_records(socket) do
@@ -396,12 +459,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
   defp default_filter_log_id([%{id: id} | _rest]), do: id
   defp default_filter_log_id([]), do: :all
-
-  defp sort_direction(%{"sort" => "desc"}), do: :desc
-  defp sort_direction(_params), do: :asc
-
-  defp sort_path(:desc), do: ~p"/?sort=desc"
-  defp sort_path(:asc), do: ~p"/"
 
   defp filter_id_for_path("all", _imported_logs), do: :all
 
@@ -499,9 +556,24 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       file_path: clf.file_path,
       last_parsed_at: clf.last_parsed_at,
       encounter_count: count(e.id),
-      first_encounter_start_at: min(e.start_time)
+      first_encounter_start_at: min(e.start_time),
+      source: clf.source,
+      file_mtime: clf.file_mtime,
+      watch_enabled: clf.watch_enabled
     })
     |> order_by([clf, e], desc_nulls_last: min(e.start_time), desc: clf.last_parsed_at)
     |> Repo.all()
+  end
+
+  defp newest_watchable_log(imported_logs) do
+    imported_logs
+    |> Enum.filter(&(&1.source == :live))
+    |> Enum.max_by(
+      fn log ->
+        datetime = CombatLogFile.filename_datetime(log.file_path)
+        {if(datetime, do: NaiveDateTime.to_erl(datetime), else: {{0, 1, 1}, {0, 0, 0}}), log.id}
+      end,
+      fn -> nil end
+    )
   end
 end

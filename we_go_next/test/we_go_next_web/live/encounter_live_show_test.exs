@@ -417,6 +417,41 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     assert html =~ "Published"
     assert html =~ "Re-upload"
     assert html =~ "Attempts 1"
+
+    assert html =~
+             ~s(href="https://we-go-next.gigalixirapp.com/r/raid-night/encounters/published-source-key")
+
+    assert html =~ "View public report"
+  end
+
+  test "live-updates the upload panel when publishing completes", %{conn: conn} do
+    source_encounter_key = "live-upload-source-key"
+    write_fixture_document!(source_encounter_key)
+    upload = insert_upload!(source_encounter_key, %{state: "pending"})
+
+    {:ok, view, html} =
+      Phoenix.LiveViewTest.live(conn, ~p"/encounters/#{source_encounter_key}")
+
+    assert html =~ "Pending"
+    refute html =~ "View public report"
+
+    upload
+    |> MirrorUpload.changeset(%{
+      state: "published",
+      attempt_count: 1,
+      published_at: ~U[2026-07-12 20:20:00Z]
+    })
+    |> Repo.update!()
+
+    Phoenix.PubSub.broadcast(
+      WeGoNext.PubSub,
+      "mirror_upload:#{source_encounter_key}",
+      {:mirror_upload_updated, source_encounter_key}
+    )
+
+    html = Phoenix.LiveViewTest.render(view)
+    assert html =~ "Published"
+    assert html =~ "View public report"
   end
 
   test "shows upload error diagnostics", %{conn: conn} do

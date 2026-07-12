@@ -12,8 +12,10 @@ defmodule WeGoNextWeb.LogLive.Index do
     Accounts,
     CombatLogFile,
     EncounterStore,
+    FileWatcher,
     ImportWorker,
     Repo,
+    RaidNights,
     WarcraftLogs
   }
 
@@ -95,6 +97,41 @@ defmodule WeGoNextWeb.LogLive.Index do
     else
       _reason ->
         {:noreply, put_flash(socket, :error, "Failed to update publish setting")}
+    end
+  end
+
+  @impl true
+  def handle_event("toggle_watch_enabled", %{"file_id" => file_id}, socket) do
+    with {:ok, file_id} <- parse_id(file_id),
+         %CombatLogFile{source: :live} = combat_log_file <-
+           get_user_combat_log(socket.assigns.user.id, file_id),
+         :ok <- toggle_watching(combat_log_file) do
+      {:noreply,
+       socket
+       |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+       |> maybe_refresh_current_combat_log(file_id)}
+    else
+      _reason ->
+        {:noreply, put_flash(socket, :error, "Failed to update watch setting")}
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "save_raid_night_name",
+        %{"file_id" => file_id, "raid_night" => %{"name" => name}},
+        socket
+      ) do
+    with {:ok, file_id} <- parse_id(file_id),
+         %CombatLogFile{} = combat_log_file <-
+           get_user_combat_log(socket.assigns.user.id, file_id),
+         {:ok, _combat_log_file} <- RaidNights.rename(combat_log_file, name) do
+      {:noreply,
+       socket
+       |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+       |> put_flash(:info, "Raid night name saved")}
+    else
+      _reason -> {:noreply, put_flash(socket, :error, "Failed to save raid night name")}
     end
   end
 
@@ -323,16 +360,20 @@ defmodule WeGoNextWeb.LogLive.Index do
     |> select([clf, e], %{
       id: clf.id,
       file_path: clf.file_path,
+      file_mtime: clf.file_mtime,
       last_parsed_at: clf.last_parsed_at,
       last_parsed_byte: clf.last_parsed_byte,
       encounter_count: count(e.id),
       first_encounter_start_at: min(e.start_time),
       is_complete: clf.is_complete,
+      source: clf.source,
+      watch_enabled: clf.watch_enabled,
       warcraft_logs_report_url: clf.warcraft_logs_report_url,
       warcraft_logs_report_code: clf.warcraft_logs_report_code,
       warcraft_logs_fight_id: clf.warcraft_logs_fight_id,
       warcraft_logs_linked_at: clf.warcraft_logs_linked_at,
-      publish_enabled: clf.publish_enabled
+      publish_enabled: clf.publish_enabled,
+      raid_night_name: clf.raid_night_name
     })
     |> order_by([clf, e], desc_nulls_last: min(e.start_time), desc: clf.last_parsed_at)
     |> Repo.all()
@@ -342,6 +383,20 @@ defmodule WeGoNextWeb.LogLive.Index do
     Repo.get_by(CombatLogFile, id: file_id, user_id: user_id)
   end
 
+  defp toggle_watching(%CombatLogFile{watch_enabled: true} = combat_log_file) do
+    with {:ok, _combat_log_file} <-
+           combat_log_file
+           |> CombatLogFile.changeset(%{watch_enabled: false})
+           |> Repo.update() do
+      stop_if_watching(combat_log_file.id)
+      :ok
+    end
+  end
+
+  defp toggle_watching(%CombatLogFile{watch_enabled: false} = combat_log_file) do
+    FileWatcher.watch(combat_log_file)
+  end
+
   defp maybe_refresh_current_combat_log(socket, file_id) do
     case socket.assigns.combat_log_file do
       %CombatLogFile{id: ^file_id} ->
@@ -349,6 +404,13 @@ defmodule WeGoNextWeb.LogLive.Index do
 
       _combat_log_file ->
         socket
+    end
+  end
+
+  defp stop_if_watching(file_id) do
+    case FileWatcher.current_file() do
+      %CombatLogFile{id: ^file_id} -> FileWatcher.stop_watching()
+      _other -> :ok
     end
   end
 

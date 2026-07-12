@@ -19,6 +19,9 @@
 # Local bronze/source artifacts fetched from external services.
 /var/
 
+# Operator-local environment loaded from credentials in ~/.ssh.
+/.env.local
+
 # If the VM crashes, it generates a dump, let's ignore it too.
 erl_crash.dump
 

@@ -9,6 +9,7 @@ defmodule WeGoNext.FileWatcher do
   changes mid-pull.
   """
   use GenServer
+  import Ecto.Query
   require Logger
 
   alias WeGoNext.{CombatLogFile, Importer, Repo}
@@ -27,9 +28,39 @@ defmodule WeGoNext.FileWatcher do
   """
   def watch(file_or_path)
 
-  def watch(%CombatLogFile{} = clf) do
-    GenServer.cast(__MODULE__, {:watch, clf})
+  def watch(%CombatLogFile{source: :live} = clf) do
+    Repo.transaction(fn ->
+      fresh_clf = Repo.get!(CombatLogFile, clf.id)
+
+      newest_live_log_id =
+        CombatLogFile
+        |> where([row], row.user_id == ^fresh_clf.user_id and row.source == :live)
+        |> Repo.all()
+        |> Enum.max_by(&log_order_key/1, fn -> nil end)
+        |> case do
+          %CombatLogFile{id: id} -> id
+          nil -> nil
+        end
+
+      if newest_live_log_id != fresh_clf.id do
+        Repo.rollback(:not_newest_live_log)
+      end
+
+      CombatLogFile
+      |> where([row], row.user_id == ^fresh_clf.user_id and row.source == :live)
+      |> Repo.update_all(set: [watch_enabled: false])
+
+      fresh_clf
+      |> CombatLogFile.changeset(%{watch_enabled: true})
+      |> Repo.update!()
+    end)
+    |> case do
+      {:ok, updated_clf} -> GenServer.cast(__MODULE__, {:watch, updated_clf})
+      {:error, reason} -> {:error, reason}
+    end
   end
+
+  def watch(%CombatLogFile{}), do: {:error, :watch_disabled}
 
   def watch(file_path) when is_binary(file_path) do
     case Repo.get_by(CombatLogFile, file_path: file_path) do
@@ -38,11 +69,18 @@ defmodule WeGoNext.FileWatcher do
     end
   end
 
+  defp log_order_key(combat_log_file) do
+    datetime = CombatLogFile.filename_datetime(combat_log_file.file_path)
+
+    {if(datetime, do: NaiveDateTime.to_erl(datetime), else: {{0, 1, 1}, {0, 0, 0}}),
+     combat_log_file.id}
+  end
+
   @doc """
   Clears the current file reference.
   """
   def stop_watching do
-    GenServer.cast(__MODULE__, :stop_watching)
+    GenServer.call(__MODULE__, :stop_watching)
   end
 
   @doc """
@@ -125,11 +163,10 @@ defmodule WeGoNext.FileWatcher do
   end
 
   @impl true
-  def handle_cast(:stop_watching, state) do
+  def handle_call(:stop_watching, _from, state) do
     Logger.info("FileWatcher: Stopped tracking")
 
-    {:noreply,
-     state |> cancel_timer() |> then(fn state -> initial_state(state.poll_interval_ms) end)}
+    {:reply, :ok, stop_watching_state(state)}
   end
 
   @impl true
@@ -170,6 +207,9 @@ defmodule WeGoNext.FileWatcher do
       is_nil(state.clf) ->
         {:reply, {:ok, 0}, state}
 
+      not watch_enabled?(state.clf) ->
+        {:reply, {:error, :watch_disabled}, stop_watching_state(state)}
+
       is_nil(state.sync_ref) ->
         {reply, state} = sync_current_file(state)
         {:reply, reply, schedule_poll(state)}
@@ -187,10 +227,15 @@ defmodule WeGoNext.FileWatcher do
   def handle_info(:poll, %{sync_ref: nil} = state) do
     state = %{state | timer_ref: nil}
 
-    if watched_file_has_new_content?(state.clf) do
-      {:noreply, start_async_sync(state)}
-    else
-      {:noreply, schedule_poll(state)}
+    cond do
+      not watch_enabled?(state.clf) ->
+        {:noreply, stop_watching_state(state)}
+
+      watched_file_has_new_content?(state.clf) ->
+        {:noreply, start_async_sync(state)}
+
+      true ->
+        {:noreply, schedule_poll(state)}
     end
   end
 
@@ -271,6 +316,16 @@ defmodule WeGoNext.FileWatcher do
         (fresh_clf.last_parsed_byte || 0) < (fresh_clf.file_size || 0) or
           CombatLogFile.has_new_content?(fresh_clf)
     end
+  end
+
+  defp watch_enabled?(%CombatLogFile{id: id}) do
+    match?(%CombatLogFile{source: :live, watch_enabled: true}, Repo.get(CombatLogFile, id))
+  end
+
+  defp stop_watching_state(state) do
+    state
+    |> cancel_timer()
+    |> then(fn state -> initial_state(state.poll_interval_ms) end)
   end
 
   defp refresh_tracked_file(%{clf: nil} = state), do: state
