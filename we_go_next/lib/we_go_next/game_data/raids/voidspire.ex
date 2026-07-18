@@ -399,7 +399,6 @@ defmodule WeGoNext.GameData.Raids.Voidspire do
         :avoidable,
         :damage_taken,
         [:dbm, :local_logs],
-        track: true,
         rule: %{max_hits: 0},
         notes:
           "DBM marks this as a melee movement warning; observed as player damage in current logs."
@@ -421,7 +420,6 @@ defmodule WeGoNext.GameData.Raids.Voidspire do
         :avoidable,
         :damage_taken,
         [:dbm, :local_logs],
-        track: true,
         rule: %{max_hits: 0},
         notes: "DBM DodgeCount warning with DODGES label and observed damage in current logs."
       ),
@@ -547,7 +545,6 @@ defmodule WeGoNext.GameData.Raids.Voidspire do
         :avoidable,
         :damage_taken,
         [:dbm, :wowanalyzer, :local_logs],
-        track: true,
         rule: %{max_hits: 0},
         notes: "DBM DodgeCount warning; WowAnalyzer identifies the cast as Ravenous Abyss."
       ),
@@ -672,13 +669,15 @@ defmodule WeGoNext.GameData.Raids.Voidspire do
     CatalogHelpers.mechanic(
       @raid_name,
       @raid_slug,
-      boss_name,
-      encounter_id,
-      spell_id,
-      name,
-      type,
-      event,
-      sources,
+      %{
+        boss_name: boss_name,
+        boss_encounter_id: encounter_id,
+        spell_id: spell_id,
+        name: name,
+        mechanic_type: type || :unknown,
+        evidence_family: event,
+        source_annotations: sources
+      },
       opts
     )
   end

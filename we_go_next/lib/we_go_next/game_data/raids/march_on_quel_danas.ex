@@ -203,13 +203,15 @@ defmodule WeGoNext.GameData.Raids.MarchOnQuelDanas do
     CatalogHelpers.mechanic(
       @raid_name,
       @raid_slug,
-      boss_name,
-      encounter_id,
-      spell_id,
-      name,
-      type,
-      event,
-      sources,
+      %{
+        boss_name: boss_name,
+        boss_encounter_id: encounter_id,
+        spell_id: spell_id,
+        name: name,
+        mechanic_type: type || :unknown,
+        evidence_family: event,
+        source_annotations: sources
+      },
       opts
     )
   end
