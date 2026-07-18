@@ -1,6 +1,9 @@
 defmodule WeGoNext.Mirror.OutboxTest do
   use ExUnit.Case, async: false
 
+  alias WeGoNext.Accounts.User
+  alias WeGoNext.CombatLogFile
+  alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Mirror.{MirrorUpload, Outbox}
   alias WeGoNext.Repo
 
@@ -132,6 +135,55 @@ defmodule WeGoNext.Mirror.OutboxTest do
     assert last_error =~ "index_failed"
     assert {:ok, _body} = StubDestinationDocumentStore.fetch("encounters/error-key.json")
     assert {:error, :enoent} = StubDestinationDocumentStore.fetch("index.json")
+  end
+
+  test "enqueue_missing_for_combat_log_file backfills only this log's unqueued encounters" do
+    user = Repo.insert!(%User{name: "outbox-user-#{System.unique_integer([:positive])}"})
+
+    clf =
+      Repo.insert!(%CombatLogFile{
+        user_id: user.id,
+        file_path: "/tmp/wgn-outbox-backfill.txt",
+        source: :live,
+        head_sha256: String.duplicate("b", 64)
+      })
+
+    insert_dim_encounter!("backfill-by-sha", source_head_sha256: clf.head_sha256)
+    insert_dim_encounter!("backfill-by-path", source_file_path: clf.file_path)
+    insert_dim_encounter!("already-published", source_head_sha256: clf.head_sha256)
+    insert_dim_encounter!("other-log", source_head_sha256: String.duplicate("c", 64))
+
+    insert_upload!("already-published", "published")
+
+    assert {:ok, 2} = Outbox.enqueue_missing_for_combat_log_file(clf)
+
+    assert %MirrorUpload{state: "pending"} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: "backfill-by-sha")
+
+    assert %MirrorUpload{state: "pending"} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: "backfill-by-path")
+
+    assert %MirrorUpload{state: "published", attempt_count: 0} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: "already-published")
+
+    assert Repo.get_by(MirrorUpload, source_encounter_key: "other-log") == nil
+
+    assert {:ok, 0} = Outbox.enqueue_missing_for_combat_log_file(clf)
+  end
+
+  defp insert_dim_encounter!(source_encounter_key, attrs) do
+    %DimEncounter{}
+    |> DimEncounter.changeset(
+      Map.merge(
+        %{
+          source_encounter_key: source_encounter_key,
+          wow_encounter_id: "fixture-boss",
+          name: "Fixture Boss #{source_encounter_key}"
+        },
+        Map.new(attrs)
+      )
+    )
+    |> Repo.insert!()
   end
 
   defp put_source_document!(source_encounter_key, start_time) do

@@ -3,9 +3,12 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
 
   alias WeGoNext.{Accounts, CombatLogFile, FileWatcher, WarcraftLogs}
   alias WeGoNext.Encounters.Encounter
+  alias WeGoNext.Gold.DimEncounter
+  alias WeGoNext.Mirror.MirrorUpload
   alias WeGoNext.Repo
 
   setup do
+    Repo.delete_all(MirrorUpload)
     Repo.delete_all(Encounter)
     Repo.delete_all(CombatLogFile)
     FileWatcher.stop_watching()
@@ -46,6 +49,15 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
     log = insert_combat_log!(user, "/tmp/wgn-publish-toggle.log")
     insert_encounter!(log, %{start_time: ~U[2026-04-12 20:00:00Z]})
 
+    %DimEncounter{}
+    |> DimEncounter.changeset(%{
+      source_encounter_key: "publish-toggle-backfill",
+      source_head_sha256: log.head_sha256,
+      wow_encounter_id: "toggle-boss",
+      name: "Toggle Boss"
+    })
+    |> Repo.insert!()
+
     html =
       conn
       |> get(~p"/logs")
@@ -68,6 +80,10 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
 
     assert Repo.get!(CombatLogFile, log.id).publish_enabled
 
+    # Enabling publish backfills the outbox with the log's existing encounters.
+    assert %MirrorUpload{state: "pending"} =
+             Repo.get_by!(MirrorUpload, source_encounter_key: "publish-toggle-backfill")
+
     assert {:noreply, _socket} =
              WeGoNextWeb.LogLive.Index.handle_event(
                "toggle_publish_enabled",
@@ -76,6 +92,7 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
              )
 
     refute Repo.get!(CombatLogFile, log.id).publish_enabled
+    assert Repo.aggregate(MirrorUpload, :count) == 1
   end
 
   test "names a raid night locally and shows an appropriate default", %{conn: conn} do
