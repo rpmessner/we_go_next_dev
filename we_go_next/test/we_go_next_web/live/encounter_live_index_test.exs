@@ -332,6 +332,73 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     assert remounted_html =~ "Newest first"
   end
 
+  test "log rotation broadcast adds the new log to the dropdown and selects it", %{conn: conn} do
+    user = Accounts.get_or_create_default_user()
+    insert_combat_log!(user, "/tmp/wgn-rotation-old.log")
+
+    {:ok, view, html} = Phoenix.LiveViewTest.live(conn, ~p"/")
+    refute html =~ "WoWCombatLog-071826_190000.txt"
+
+    new_log = insert_combat_log!(user, "/tmp/WoWCombatLog-071826_190000.txt")
+    send(view.pid, {:log_rotated, new_log, 0})
+
+    html = Phoenix.LiveViewTest.render(view)
+    assert html =~ "WoWCombatLog-071826_190000.txt"
+
+    assert Phoenix.LiveViewTest.has_element?(
+             view,
+             ~s(#log-selector option[selected][value="#{new_log.file_path}"])
+           )
+  end
+
+  test "dropdown lists logs newest first across imported and discovered", %{conn: conn} do
+    dir = Path.join(System.tmp_dir!(), "wgn-log-order-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    user = Accounts.get_or_create_default_user()
+    {:ok, user} = Accounts.set_wow_logs_path(user, dir)
+
+    imported = insert_combat_log!(user, Path.join(dir, "WoWCombatLog-071226_105733.txt"))
+    insert_encounter!(imported, %{start_time: ~U[2026-07-12 20:00:00Z]})
+
+    File.write!(Path.join(dir, "WoWCombatLog-071826_103635.txt"), "newer unimported\n")
+    File.write!(Path.join(dir, "WoWCombatLog-062026_104700.txt"), "older unimported\n")
+
+    {:ok, view, _html} = Phoenix.LiveViewTest.live(conn, ~p"/")
+
+    select_html =
+      view
+      |> Phoenix.LiveViewTest.element("#log-selector")
+      |> Phoenix.LiveViewTest.render()
+
+    names =
+      ~r/WoWCombatLog-\d{6}_\d{6}\.txt/
+      |> Regex.scan(select_html)
+      |> List.flatten()
+      |> Enum.uniq()
+
+    assert names == [
+             "WoWCombatLog-071826_103635.txt",
+             "WoWCombatLog-071226_105733.txt",
+             "WoWCombatLog-062026_104700.txt"
+           ]
+  end
+
+  test "mount arms directory watching for new logs when nothing is tracked", %{conn: conn} do
+    dir = Path.join(System.tmp_dir!(), "wgn-arm-watch-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    user = Accounts.get_or_create_default_user()
+    {:ok, _user} = Accounts.set_wow_logs_path(user, dir)
+
+    assert FileWatcher.current_file() == nil
+    {:ok, _view, _html} = Phoenix.LiveViewTest.live(conn, ~p"/")
+
+    assert FileWatcher.watched_directory() == dir
+  end
+
   defp insert_combat_log!(user, path) do
     %CombatLogFile{}
     |> CombatLogFile.changeset(%{

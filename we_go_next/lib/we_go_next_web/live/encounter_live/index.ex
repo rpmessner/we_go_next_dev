@@ -34,6 +34,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     if connected?(socket) do
       Phoenix.PubSub.subscribe(WeGoNext.PubSub, "encounters")
       Phoenix.PubSub.subscribe(WeGoNext.PubSub, ImportWorker.progress_topic(user.id))
+      maybe_watch_logs_directory(user)
     end
 
     {encounter_records, documents_state} = document_records()
@@ -276,11 +277,14 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
     {:noreply,
      socket
-     |> assign_document_records()
      |> assign(:log_files, reload_log_files(socket.assigns.user))
      |> assign(:imported_logs, imported_logs)
      |> assign(:watch_log, newest_watchable_log(imported_logs))
      |> assign_selector_logs()
+     |> assign(:selected_log, new_clf.file_path)
+     |> assign(:filter_log_id, filter_id_for_path(new_clf.file_path, imported_logs))
+     |> assign(:import_enabled, import_enabled?(new_clf.file_path, imported_logs))
+     |> assign_document_records()
      |> put_flash(
        :info,
        "Log rotation detected! Switched to #{Path.basename(new_clf.file_path)} (#{count} encounters)"
@@ -382,6 +386,18 @@ defmodule WeGoNextWeb.EncounterLive.Index do
          socket
          |> assign(:error, "Already importing #{Path.basename(existing_path)}")}
     end
+  end
+
+  # Rotation detection needs a directory to scan before any log is tracked
+  # this session (dashboard opened before the raid's log exists).
+  defp maybe_watch_logs_directory(%{wow_logs_path: nil}), do: :ok
+
+  defp maybe_watch_logs_directory(user) do
+    if is_nil(FileWatcher.current_file()) do
+      FileWatcher.watch_directory(user.wow_logs_path, user.id)
+    end
+
+    :ok
   end
 
   defp reload_log_files(user) do

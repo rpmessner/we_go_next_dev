@@ -32,6 +32,12 @@ is tied to the selected current log. WoW appends only to the newest active log.
 Older logs and archive logs are useful for review and force-reimport, not live
 append tracking.
 
+Log rotation is automatic while the app is open: the file watcher's poll also
+scans the logs directory, and when WoW creates a newer `WoWCombatLog-*.txt`
+(new session) it is imported, tracking switches to it, and open pages refresh
+their log dropdowns via a `{:log_rotated, file, count}` broadcast. Opening `/`
+arms this detection even before any log is imported for the session.
+
 ### Planned Durable Import Orchestration
 
 Task `#98` defines the target import contract for the Reactor/Oban refactor.

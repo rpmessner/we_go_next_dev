@@ -8,7 +8,9 @@ defmodule WeGoNext.FileWatcherTest do
 
   setup do
     :ok = Sandbox.checkout(Repo)
-    Sandbox.allow(Repo, self(), Process.whereis(FileWatcher))
+    # Shared mode so the FileWatcher process and its rotation-import tasks
+    # (Task.Supervisor children) can all reach the sandboxed connection.
+    Sandbox.mode(Repo, {:shared, self()})
 
     FileWatcher.stop_watching()
     FileWatcher.set_poll_interval_ms(false)
@@ -57,6 +59,87 @@ defmodule WeGoNext.FileWatcherTest do
     assert Repo.aggregate(EncounterRecord, :count) == 2
     assert %CombatLogFile{last_parsed_byte: parsed_byte} = FileWatcher.current_file()
     assert parsed_byte == byte_size(live_content <> continuation_content)
+  end
+
+  test "rotates to a newer combat log created while tracking", %{dir: dir, user: user} do
+    log_path = Path.join(dir, "WoWCombatLog-112725_120000.txt")
+    File.write!(log_path, File.read!(fixture_path("combat_log_base.txt")))
+
+    assert {:ok, %{file: %CombatLogFile{} = live_file, new_encounters: 1}} =
+             Importer.import_log(log_path, user.id)
+
+    Phoenix.PubSub.subscribe(WeGoNext.PubSub, "encounters")
+    FileWatcher.watch(live_file)
+    assert %CombatLogFile{} = FileWatcher.current_file()
+
+    new_log_path = Path.join(dir, "WoWCombatLog-112825_190000.txt")
+    File.write!(new_log_path, rotated_log_content())
+
+    send(Process.whereis(FileWatcher), :poll)
+
+    assert_receive {:log_rotated, %CombatLogFile{} = new_clf, 1}, 5_000
+    assert new_clf.file_path == new_log_path
+    assert %CombatLogFile{file_path: ^new_log_path} = FileWatcher.current_file()
+    assert Repo.aggregate(EncounterRecord, :count) == 2
+  end
+
+  test "rotates to a new log even before it has completed encounters", %{
+    dir: dir,
+    user: user
+  } do
+    log_path = Path.join(dir, "WoWCombatLog-112725_120000.txt")
+    File.write!(log_path, File.read!(fixture_path("combat_log_base.txt")))
+
+    assert {:ok, %{file: %CombatLogFile{} = live_file, new_encounters: 1}} =
+             Importer.import_log(log_path, user.id)
+
+    Phoenix.PubSub.subscribe(WeGoNext.PubSub, "encounters")
+    FileWatcher.watch(live_file)
+
+    new_log_path = Path.join(dir, "WoWCombatLog-112825_190000.txt")
+
+    File.write!(
+      new_log_path,
+      "11/28/2025 19:00:00.000-5  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,11.0.7,PROJECT_ID,1\n"
+    )
+
+    send(Process.whereis(FileWatcher), :poll)
+
+    assert_receive {:log_rotated, %CombatLogFile{} = new_clf, 0}, 5_000
+    assert new_clf.file_path == new_log_path
+    assert %CombatLogFile{file_path: ^new_log_path} = FileWatcher.current_file()
+  end
+
+  test "watch_directory imports logs created after watching starts", %{dir: dir, user: user} do
+    preexisting_path = Path.join(dir, "WoWCombatLog-110125_120000.txt")
+    File.write!(preexisting_path, File.read!(fixture_path("combat_log_base.txt")))
+
+    Phoenix.PubSub.subscribe(WeGoNext.PubSub, "encounters")
+
+    FileWatcher.watch_directory(dir, user.id)
+    assert FileWatcher.watched_directory() == dir
+
+    # Pre-existing files are snapshot as known: polling must not import them.
+    send(Process.whereis(FileWatcher), :poll)
+    refute_receive {:log_rotated, _clf, _count}, 500
+    assert FileWatcher.current_file() == nil
+
+    new_log_path = Path.join(dir, "WoWCombatLog-112825_190000.txt")
+    File.write!(new_log_path, rotated_log_content())
+
+    send(Process.whereis(FileWatcher), :poll)
+
+    assert_receive {:log_rotated, %CombatLogFile{} = new_clf, 1}, 5_000
+    assert new_clf.file_path == new_log_path
+    assert %CombatLogFile{file_path: ^new_log_path} = FileWatcher.current_file()
+    assert Repo.get_by(CombatLogFile, file_path: preexisting_path) == nil
+  end
+
+  defp rotated_log_content do
+    "combat_log_base.txt"
+    |> fixture_path()
+    |> File.read!()
+    |> String.replace("11/27/2025", "11/28/2025")
   end
 
   test "sync_now clears a watched log disabled in the database", %{dir: dir, user: user} do
