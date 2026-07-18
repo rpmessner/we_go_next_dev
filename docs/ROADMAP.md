@@ -21,6 +21,7 @@ Observed spells in current logs
 
 Active, in suggested order:
 
+7. [Defensives & Consumables (Raid-Lead Questions)](initiatives/07-defensives-and-consumables.md) — **current top priority** (first raid-lead-requested question set for the deployed mirror): per-player defensive/healthstone/potion usage, talent availability, and death-window "died through / available-but-unused" analysis.
 2. [Mechanic Classification System](initiatives/02-mechanic-classification-system.md) — standardized buckets + bespoke detectors + seed data, with the avoidable real-data loop retained only as a smoke test.
 3. [User Mechanic Classification UI](initiatives/03-user-classification-ui.md) — operator authoring/overrides + `unavoidable` suppression.
 4. [Fact Semantics Expansion](initiatives/04-fact-semantics-expansion.md) — real facts for non-avoidable buckets.

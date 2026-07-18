@@ -16,6 +16,7 @@ all converging on editable `rules.mechanic_criterion` rows → gold rebuild → 
 
 | # | Initiative | Status | Linear |
 |---|---|---|---|
+| 7 | [Defensives & Consumables (Raid-Lead Questions)](07-defensives-and-consumables.md) | **active — current top priority** | [WE-37…41](https://linear.app/we-go-next/project/7-defensives-and-consumables-273d5203b8d4) |
 | — | [Real-Data Failure Loop (Avoidable)](01-real-data-failure-loop.md) | absorbed into mechanic classification/user UI | [WE-13…16](https://linear.app/we-go-next/project/1-real-data-failure-loop-avoidable-ab93ba29c143) |
 | 2 | [Mechanic Classification System](02-mechanic-classification-system.md) | next | [WE-17…19](https://linear.app/we-go-next/project/2-mechanic-classification-system-8c43be579b03) |
 | 3 | [User Mechanic Classification UI](03-user-classification-ui.md) | planned | [WE-20…22](https://linear.app/we-go-next/project/3-user-mechanic-classification-ui-df49eebbd196) |
