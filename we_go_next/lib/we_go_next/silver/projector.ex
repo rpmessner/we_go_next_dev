@@ -8,7 +8,7 @@ defmodule WeGoNext.Silver.Projector do
 
   import Bitwise
 
-  alias WeGoNext.GameData.{DefensiveBuffs, Interrupts}
+  alias WeGoNext.GameData.{Interrupts, SurvivalActions}
   alias WeGoNext.Silver.Projection
   alias WeGoNext.WowClass
 
@@ -427,12 +427,15 @@ defmodule WeGoNext.Silver.Projector do
     event_type(event) == type and
       player_guid?(event_value(event, :target_guid)) and
       extra_value(event, :aura_type) == "BUFF" and
-      MapSet.member?(DefensiveBuffs.ids(), normalize_spell_id(event_value(event, :spell_id)))
+      MapSet.member?(
+        SurvivalActions.aura_ids(),
+        normalize_spell_id(event_value(event, :spell_id))
+      )
   end
 
   defp defensive_buff_window_row(encounter_dim_id, event) do
     spell_id = normalize_spell_id(event_value(event, :spell_id))
-    metadata = DefensiveBuffs.get(spell_id)
+    metadata = SurvivalActions.get_by_aura_id(spell_id)
 
     %{
       encounter_dim_id: encounter_dim_id,
@@ -440,7 +443,7 @@ defmodule WeGoNext.Silver.Projector do
       source_guid: normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
       spell_id: spell_id,
       spell_name: event_value(event, :spell_name) || metadata.name,
-      category: metadata.category,
+      category: Atom.to_string(metadata.category),
       started_at_ms_into_fight: time_ms(event),
       ended_at_ms_into_fight: nil,
       duration_ms: nil
