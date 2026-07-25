@@ -1,6 +1,6 @@
 # Initiative 2 — Mechanic Classification System
 
-Status: **Next.** Linear: [WE / 2. Mechanic Classification System](https://linear.app/we-go-next/project/2-mechanic-classification-system-8c43be579b03) (WE-17…19).
+Status: **Next.** Beads: `we-i2` (we-17…19).
 
 ## Goal
 

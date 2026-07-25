@@ -202,7 +202,7 @@ gh secret set GIGALIXIR_EMAIL --env production --body '<account email>'
 
 ## Implemented Plumbing Phases
 
-Tracked on Linear: project [Public Gold Mirror](https://linear.app/we-go-next/project/public-gold-mirror-55ce8feabbb8) (workspace `we-go-next`, team `WE`), issues **WE-5 … WE-12**.
+Tracked in beads: epic `we-i0` (Public Gold Mirror), issues **we-5 … we-12** (migrated from Linear WE-5…WE-12; Linear team WE is a frozen archive).
 
 These phases built the current deploy/ingest/upload plumbing and provisional
 failure-fact preview. They are not the active product plan for full encounter

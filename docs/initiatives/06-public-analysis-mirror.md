@@ -1,6 +1,6 @@
 # Initiative 6 — Public Analysis Mirror (Documents on R2)
 
-Linear project: [6. Public Analysis Mirror](https://linear.app/we-go-next/project/c8d8c68a7bbe) (WE-31…WE-34, WE-36). Design: [`../ENCOUNTER_DOCUMENTS_DESIGN.md`](../ENCOUNTER_DOCUMENTS_DESIGN.md). Depends on initiative 5.
+Beads epic: `we-i6` (we-31…we-34, we-36). Design: [`../ENCOUNTER_DOCUMENTS_DESIGN.md`](../ENCOUNTER_DOCUMENTS_DESIGN.md). Depends on initiative 5.
 
 Status: implemented on `rpmessner/public-gold`; local quality gate green. Real R2 upload and deployed-page verification remain the closeout gate for WE-34 and the carried-forward WE-11/WE-12 deployment work.
 

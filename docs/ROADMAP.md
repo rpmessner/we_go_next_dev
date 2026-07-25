@@ -1,6 +1,6 @@
 # Roadmap
 
-The durable, high-level index. Each workstream is an **initiative** with its own doc in [`initiatives/`](initiatives/README.md) and a Linear **project** on the **WE** board (workspace `we-go-next`). The board is the source of truth for exact status; the initiative docs hold scope/rationale.
+The durable, high-level index. Each workstream is an **initiative** with its own doc in [`initiatives/`](initiatives/README.md) and an **epic bead** in the in-repo tracker (`bd`, epics `we-i1`…`we-i7`). Beads is the source of truth for exact status; the initiative docs hold scope/rationale. (Linear team WE is a frozen archive since 2026-07-19.)
 
 ## Direction
 
@@ -28,8 +28,8 @@ Active, in suggested order:
 5. [Encounter Document Read Models](initiatives/05-encounter-documents.md) — per-encounter JSON documents as the medallion's read-model product; frontend renders from documents.
 6. [Public Analysis Mirror](initiatives/06-public-analysis-mirror.md) — opted-in documents uploaded to a private R2 bucket; same frontend hosted publicly behind the `/r/:slug` gate.
 
-(Numbers match the initiative file and Linear project numbers; initiative 1 was
-absorbed, see below.)
+(Numbers match the initiative file and `we-iN` epic-bead numbers; initiative 1
+was absorbed, see below.)
 
 Absorbed: [Real-Data Failure Loop (Avoidable)](initiatives/01-real-data-failure-loop.md).
 Its useful pieces are now acceptance constraints inside the mechanic

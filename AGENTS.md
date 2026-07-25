@@ -329,16 +329,14 @@ mix phx.server              # Start web UI at http://localhost:4000
 mix run test_parse.exs      # CLI: Analyzes most recent combat log
 ```
 
-## Project Tracking (Linear)
+## Project Tracking (beads / `bd`)
 
-This project's Linear board lives in the **`we-go-next` workspace, team `WE`** (We-go-next).
+Issue tracking lives **in-repo via [beads](https://github.com/steveyegge/beads) (`bd`)** since 2026-07-19 — first step toward Gas Town (`gt`, town at `~/gt`), same setup as `ui-o-matic`. The database is `.beads/` (Dolt-backed, `sync.remote` = this repo's GitHub remote, auto-export to `.beads/issues.jsonl`).
 
-**Critical gotcha (has bitten repeatedly):** the `mcp__linear__*` MCP tools are authed to a *different* workspace — `wow-ui-o-matic` (the ui-o-matic addon suite, team `WOW`) — and **cannot see or write this project's board.** Creating issues through them silently lands everything on the wrong team.
-
-- **Always** drive Linear from this repo via the `LINEAR_API_KEY` env var against the GraphQL API (`https://api.linear.app/graphql`) — use `scripts/linear.sh`. **Never** the `mcp__linear__*` tools here.
-- `LINEAR_API_KEY` is a per-session `lin_…` personal key the operator exports to select the right workspace.
-- Team `WE` id: `afac6458-4753-4e43-8cdc-05b5a0ed5052`.
-- A `.claude/settings.json` PreToolUse hook to block the `mcp__linear__*` tools in this repo is recommended as a backstop (not yet installed — needs operator approval; auto-mode blocks agents from self-adding hooks).
+- Everyday commands: `bd ready` (unblocked work), `bd list`, `bd show <id>`, `bd create`, `bd close`, `bd dep` / `bd link`, `bd children <epic>`.
+- **Initiatives are epic beads `we-i1`…`we-i7`** (plus `we-i0`, the superseded Public Gold Mirror); issues are linked to their initiative with parent-child deps. The initiative docs in `docs/initiatives/` still hold scope/rationale; beads holds exact status.
+- **Linear team `WE` is a frozen archive** (hard cutover 2026-07-19). `WE-###` ids were preserved as `we-###`; each migrated bead carries its Linear URL as `external_ref` and migration provenance in notes. For archive reads only, `scripts/linear.sh` + `LINEAR_API_KEY` still work (team `WE` id: `afac6458-4753-4e43-8cdc-05b5a0ed5052`). Never write to Linear here, and never use the `mcp__linear__*` MCP tools — they auth to a different workspace (`wow-ui-o-matic`) on top of the board being frozen.
+- **Gas City factory:** this repo is a rig of the city at `~/gc` (shared with the ui-o-matic rig); the repo-tailored pack lives in **`.gascity/`** (quality-loop formula: implement → `mix quality` exec check → evidence → adversarial review → human gate bead; the factory never merges). Roles: `wgn.triager` (labels `factory-ok`/`needs-spec` — the throughput valve), `wgn.backlog-polecat` (dispatches ONE factory-ok bead per wake), `wgn.proposer` (files `proposal` beads; humans promote), plus the stock reviewer running the adversarial pass. Provider split: reasoning roles → Claude Fable 5, implementation lane → Codex gpt-5.6-sol (presets in `~/gc/city.toml`). Orders in `.gascity/orders/` are manual-trigger until first supervised runs. The interactive shell aliases `gc` to `git commit` — always call **`command gc`**, and pass `--city ~/gc` when running from this repo. **Cockpit:** start with `scripts/cockpit.sh` (not bare `mux start`) — it pins the cockpit to the same tmux server gc agents use (`[session] socket = "default"` in `~/gc/city.toml`) so `scripts/cockpit-relinker.sh` (cockpit window 1) can link agent windows natively into slots 6+ (mayor at 6); never `gc session attach` from inside tmux — it nests clients. Airmux owns windows 1–5; the relinker is a port of ui-o-matic's — keep fixes in sync. Gotchas and go-live steps: `docs/sessions/2026-07-19_gascity-factory-setup.md` and `2026-07-19_factory-roles-and-model-split.md`.
 
 ## Technical Details
 

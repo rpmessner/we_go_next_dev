@@ -90,7 +90,7 @@ The frontend reads through a mode-selected store: parser → FileSystem, public 
 
 **Kept:** `Mirror.Keys`, `mirror_uploads` (as the document-upload ledger), `Plugs.PublicViewer`, `public_reports`, the run-mode split, the Dockerfile/Gigalixir/CI pipeline (WE-11/WE-12).
 
-## Phasing (Linear: projects 5 & 6, team WE)
+## Phasing (beads: epics `we-i5` & `we-i6`)
 
 Project **5. Encounter Document Read Models** (reworked from "Gold Encounter Detail Read Models"):
 
