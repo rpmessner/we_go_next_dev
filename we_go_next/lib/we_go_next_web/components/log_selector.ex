@@ -15,6 +15,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
   attr(:log_files, :list, required: true)
   attr(:selected_log, :string, default: nil)
   attr(:import_enabled, :boolean, default: false)
+  attr(:reimport, :boolean, default: false)
   attr(:loading, :boolean, required: true)
   attr(:import_progress, :map, default: nil)
   attr(:error, :string, default: nil)
@@ -47,7 +48,11 @@ defmodule WeGoNextWeb.Components.LogSelector do
               disabled={@loading || !@import_enabled}
               class="px-4 py-2 bg-wow-gold text-zinc-900 font-semibold rounded hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {if @loading, do: "Importing...", else: "Import"}
+              {cond do
+                @loading -> "Importing..."
+                @reimport -> "Re-import"
+                true -> "Import"
+              end}
             </button>
           </form>
 

@@ -84,6 +84,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      )
      |> assign(:selected_log, selected_log)
      |> assign(:import_enabled, import_enabled?(selected_log, imported_logs))
+     |> assign(:reimport?, imported_path?(selected_log, imported_logs))
      |> assign(:loading, loading)
      |> assign(:error, nil)
      |> assign(:import_progress, import_progress)}
@@ -104,6 +105,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:selected_log, path)
      |> assign(:filter_log_id, filter_log_id)
      |> assign(:import_enabled, import_enabled?(path, socket.assigns.imported_logs))
+     |> assign(:reimport?, imported_path?(path, socket.assigns.imported_logs))
      |> assign_document_records()}
   end
 
@@ -216,6 +218,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
          |> assign_document_records()
          |> assign_selector_logs()
          |> assign(:import_enabled, true)
+         |> assign(:reimport?, imported_path?(socket.assigns.selected_log, imported_logs))
          |> put_flash(:info, "Imported #{count} encounters")}
 
       {:error, reason} ->
@@ -284,6 +287,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:selected_log, new_clf.file_path)
      |> assign(:filter_log_id, filter_id_for_path(new_clf.file_path, imported_logs))
      |> assign(:import_enabled, import_enabled?(new_clf.file_path, imported_logs))
+     |> assign(:reimport?, imported_path?(new_clf.file_path, imported_logs))
      |> assign_document_records()
      |> put_flash(
        :info,
@@ -319,6 +323,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         log_files={@selector_logs}
         selected_log={@selected_log}
         import_enabled={@import_enabled}
+        reimport={@reimport?}
         loading={@loading}
         import_progress={@import_progress}
         error={@error}
@@ -372,7 +377,9 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     Accounts.set_last_loaded_log(socket.assigns.user, path)
     user_id = socket.assigns.user.id
 
-    case ImportWorker.start_import(user_id, path, force_reimport: false) do
+    force_reimport = imported_path?(path, socket.assigns.imported_logs)
+
+    case ImportWorker.start_import(user_id, path, force_reimport: force_reimport) do
       :ok ->
         {:noreply,
          socket
@@ -489,6 +496,12 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   defp import_enabled?(nil, _imported_logs), do: false
 
   defp import_enabled?(_path, _imported_logs), do: true
+
+  defp imported_path?(path, imported_logs) when is_binary(path) do
+    Enum.any?(imported_logs, &(&1.file_path == path))
+  end
+
+  defp imported_path?(_path, _imported_logs), do: false
 
   defp assign_filter_for_path(socket, path) do
     case Enum.find(socket.assigns.imported_logs, &(&1.file_path == path)) do
