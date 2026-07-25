@@ -9,9 +9,12 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
 
   import WeGoNextWeb.EncounterComponents,
     only: [
+      death_window_table: 1,
       format_duration: 1,
       format_killing_blow: 1,
+      format_ms: 1,
       format_number: 1,
+      survival_strip: 1,
       tab_button: 1,
       wowhead_link: 1
     ]
@@ -37,6 +40,7 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
          |> assign(:counts, document.counts)
          |> assign(:roster, document.roster)
          |> assign(:deaths, document.deaths)
+         |> assign(:death_heal_keys, MapSet.new())
          |> assign(:pull_review, document.pull_review)
          |> assign(:failure_preview, normalize_failure_preview(document.failure_preview))
          |> assign(:interrupt_coverage, document.interrupt_coverage)
@@ -56,6 +60,17 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
   end
 
   @impl true
+  def handle_event("toggle_death_heals", %{"key" => key}, socket) do
+    keys = socket.assigns.death_heal_keys
+
+    keys =
+      if MapSet.member?(keys, key),
+        do: MapSet.delete(keys, key),
+        else: MapSet.put(keys, key)
+
+    {:noreply, assign(socket, :death_heal_keys, keys)}
+  end
+
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
     {:noreply, assign(socket, :active_tab, parse_tab(tab))}
   end
@@ -276,7 +291,10 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
           <article :for={death <- @deaths} class="p-4">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <span class="font-semibold" style={player_class_style(death.class_id)}>
+                <span class="font-mono text-sm font-semibold text-wow-death">
+                  {format_ms(death.died_at_ms_into_fight)}
+                </span>
+                <span class="ml-2 font-semibold" style={player_class_style(death.class_id)}>
                   {death.player_name || death.target_guid}
                 </span>
                 <span class="ml-2 text-xs uppercase tracking-wide text-zinc-500">
@@ -287,6 +305,10 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
                 {format_killing_blow(death)}
               </div>
             </div>
+
+            <.survival_strip death={death} />
+
+            <.death_window_table death={death} heal_keys={@death_heal_keys} />
           </article>
         </div>
       </section>
