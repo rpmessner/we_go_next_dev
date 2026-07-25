@@ -162,6 +162,13 @@ defmodule WeGoNext.GameData.SurvivalActionsTest do
     end
   end
 
+  test "every action declares a valid effect kind" do
+    for action <- SurvivalActions.all() do
+      assert action.effect_kind in [:instant_heal, :hot, :damage_reduction, :absorb, :immunity],
+             "#{action.key} has effect_kind #{inspect(Map.get(action, :effect_kind))}"
+    end
+  end
+
   test "every talent-gated action carries verified trait entry ids" do
     for action <- SurvivalActions.all() do
       case action.availability do

@@ -52,6 +52,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Death Knight
                %{
                  key: :anti_magic_shell,
+                 effect_kind: :absorb,
                  name: "Anti-Magic Shell",
                  cast_spell_ids: [48_707, 410_358, 444_740],
                  aura_spell_ids: [48_707, 410_358, 444_741],
@@ -62,6 +63,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :icebound_fortitude,
+                 effect_kind: :damage_reduction,
                  name: "Icebound Fortitude",
                  cast_spell_ids: [48_792],
                  aura_spell_ids: [48_792],
@@ -75,6 +77,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :death_pact,
+                 effect_kind: :instant_heal,
                  name: "Death Pact",
                  cast_spell_ids: [48_743],
                  aura_spell_ids: [48_743],
@@ -88,6 +91,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :lichborne,
+                 effect_kind: :damage_reduction,
                  name: "Lichborne",
                  cast_spell_ids: [49_039],
                  aura_spell_ids: [49_039],
@@ -98,6 +102,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :vampiric_blood,
+                 effect_kind: :damage_reduction,
                  name: "Vampiric Blood",
                  cast_spell_ids: [55_233],
                  aura_spell_ids: [55_233],
@@ -111,6 +116,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :dancing_rune_weapon,
+                 effect_kind: :damage_reduction,
                  name: "Dancing Rune Weapon",
                  cast_spell_ids: [49_028],
                  aura_spell_ids: [81_256],
@@ -124,6 +130,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :anti_magic_zone,
+                 effect_kind: :damage_reduction,
                  name: "Anti-Magic Zone",
                  cast_spell_ids: [51_052],
                  aura_spell_ids: [145_629],
@@ -139,6 +146,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Demon Hunter
                %{
                  key: :blur,
+                 effect_kind: :damage_reduction,
                  name: "Blur",
                  cast_spell_ids: [198_589],
                  aura_spell_ids: [212_800],
@@ -149,6 +157,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :demon_spikes,
+                 effect_kind: :damage_reduction,
                  name: "Demon Spikes",
                  cast_spell_ids: [203_720],
                  aura_spell_ids: [203_819],
@@ -159,6 +168,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :darkness,
+                 effect_kind: :damage_reduction,
                  name: "Darkness",
                  cast_spell_ids: [196_718],
                  aura_spell_ids: [],
@@ -174,6 +184,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Druid
                %{
                  key: :barkskin,
+                 effect_kind: :damage_reduction,
                  name: "Barkskin",
                  cast_spell_ids: [22_812],
                  aura_spell_ids: [22_812],
@@ -184,6 +195,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :survival_instincts,
+                 effect_kind: :damage_reduction,
                  name: "Survival Instincts",
                  cast_spell_ids: [61_336],
                  aura_spell_ids: [61_336],
@@ -197,6 +209,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :frenzied_regeneration,
+                 effect_kind: :hot,
                  name: "Frenzied Regeneration",
                  cast_spell_ids: [22_842],
                  aura_spell_ids: [22_842],
@@ -210,6 +223,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :ironbark,
+                 effect_kind: :damage_reduction,
                  name: "Ironbark",
                  cast_spell_ids: [102_342],
                  aura_spell_ids: [102_342],
@@ -225,6 +239,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Evoker
                %{
                  key: :obsidian_scales,
+                 effect_kind: :damage_reduction,
                  name: "Obsidian Scales",
                  cast_spell_ids: [363_916],
                  aura_spell_ids: [363_916],
@@ -238,6 +253,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :zephyr,
+                 effect_kind: :damage_reduction,
                  name: "Zephyr",
                  cast_spell_ids: [374_227],
                  aura_spell_ids: [374_227],
@@ -251,6 +267,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :time_dilation,
+                 effect_kind: :damage_reduction,
                  name: "Time Dilation",
                  cast_spell_ids: [357_170],
                  aura_spell_ids: [357_170],
@@ -266,6 +283,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Hunter
                %{
                  key: :aspect_of_the_turtle,
+                 effect_kind: :immunity,
                  name: "Aspect of the Turtle",
                  cast_spell_ids: [186_265],
                  aura_spell_ids: [186_265],
@@ -276,6 +294,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :survival_of_the_fittest,
+                 effect_kind: :damage_reduction,
                  name: "Survival of the Fittest",
                  cast_spell_ids: [264_735],
                  aura_spell_ids: [264_735],
@@ -289,6 +308,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :exhilaration,
+                 effect_kind: :instant_heal,
                  name: "Exhilaration",
                  cast_spell_ids: [109_304],
                  aura_spell_ids: [],
@@ -301,6 +321,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Mage
                %{
                  key: :ice_block,
+                 effect_kind: :immunity,
                  name: "Ice Block",
                  cast_spell_ids: [45_438],
                  aura_spell_ids: [45_438],
@@ -314,6 +335,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :greater_invisibility,
+                 effect_kind: :damage_reduction,
                  name: "Greater Invisibility",
                  cast_spell_ids: [110_959],
                  aura_spell_ids: [110_960],
@@ -327,6 +349,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :prismatic_barrier,
+                 effect_kind: :absorb,
                  name: "Prismatic Barrier",
                  cast_spell_ids: [235_450],
                  aura_spell_ids: [235_450],
@@ -340,6 +363,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :ice_barrier,
+                 effect_kind: :absorb,
                  name: "Ice Barrier",
                  cast_spell_ids: [11_426],
                  aura_spell_ids: [11_426],
@@ -353,6 +377,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :alter_time,
+                 effect_kind: :instant_heal,
                  name: "Alter Time",
                  cast_spell_ids: [342_245],
                  aura_spell_ids: [342_246],
@@ -368,6 +393,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Monk
                %{
                  key: :fortifying_brew,
+                 effect_kind: :damage_reduction,
                  name: "Fortifying Brew",
                  cast_spell_ids: [115_203],
                  aura_spell_ids: [120_954],
@@ -381,6 +407,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :touch_of_karma,
+                 effect_kind: :absorb,
                  name: "Touch of Karma",
                  cast_spell_ids: [122_470],
                  aura_spell_ids: [122_470, 124_280, 125_174],
@@ -393,6 +420,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Paladin
                %{
                  key: :divine_shield,
+                 effect_kind: :immunity,
                  name: "Divine Shield",
                  cast_spell_ids: [642],
                  aura_spell_ids: [642, 1_246_384],
@@ -403,6 +431,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :divine_protection,
+                 effect_kind: :damage_reduction,
                  name: "Divine Protection",
                  cast_spell_ids: [498, 403_876],
                  aura_spell_ids: [498, 403_876],
@@ -413,6 +442,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :ardent_defender,
+                 effect_kind: :damage_reduction,
                  name: "Ardent Defender",
                  cast_spell_ids: [31_850],
                  aura_spell_ids: [31_850],
@@ -426,6 +456,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :guardian_of_ancient_kings,
+                 effect_kind: :damage_reduction,
                  name: "Guardian of Ancient Kings",
                  cast_spell_ids: [86_659],
                  aura_spell_ids: [86_659, 393_108],
@@ -439,6 +470,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :blessing_of_protection,
+                 effect_kind: :immunity,
                  name: "Blessing of Protection",
                  cast_spell_ids: [1022],
                  aura_spell_ids: [1022],
@@ -452,6 +484,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :blessing_of_spellwarding,
+                 effect_kind: :immunity,
                  name: "Blessing of Spellwarding",
                  cast_spell_ids: [204_018],
                  aura_spell_ids: [204_018],
@@ -465,6 +498,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :blessing_of_sacrifice,
+                 effect_kind: :damage_reduction,
                  name: "Blessing of Sacrifice",
                  cast_spell_ids: [6940],
                  aura_spell_ids: [6940],
@@ -480,6 +514,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Priest
                %{
                  key: :desperate_prayer,
+                 effect_kind: :instant_heal,
                  name: "Desperate Prayer",
                  cast_spell_ids: [19_236],
                  aura_spell_ids: [19_236],
@@ -493,6 +528,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :dispersion,
+                 effect_kind: :damage_reduction,
                  name: "Dispersion",
                  cast_spell_ids: [47_585],
                  aura_spell_ids: [47_585],
@@ -503,6 +539,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :pain_suppression,
+                 effect_kind: :damage_reduction,
                  name: "Pain Suppression",
                  cast_spell_ids: [33_206],
                  aura_spell_ids: [33_206],
@@ -516,6 +553,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :guardian_spirit,
+                 effect_kind: :damage_reduction,
                  name: "Guardian Spirit",
                  cast_spell_ids: [47_788],
                  aura_spell_ids: [47_788],
@@ -531,6 +569,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Rogue
                %{
                  key: :feint,
+                 effect_kind: :damage_reduction,
                  name: "Feint",
                  cast_spell_ids: [1966],
                  aura_spell_ids: [1966],
@@ -541,6 +580,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :cloak_of_shadows,
+                 effect_kind: :immunity,
                  name: "Cloak of Shadows",
                  cast_spell_ids: [31_224],
                  aura_spell_ids: [31_224],
@@ -554,6 +594,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :evasion,
+                 effect_kind: :damage_reduction,
                  name: "Evasion",
                  cast_spell_ids: [5277],
                  aura_spell_ids: [5277],
@@ -567,6 +608,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :crimson_vial,
+                 effect_kind: :hot,
                  name: "Crimson Vial",
                  cast_spell_ids: [185_311],
                  aura_spell_ids: [185_311],
@@ -579,6 +621,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Shaman
                %{
                  key: :astral_shift,
+                 effect_kind: :damage_reduction,
                  name: "Astral Shift",
                  cast_spell_ids: [108_271],
                  aura_spell_ids: [108_271],
@@ -592,6 +635,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :earth_elemental,
+                 effect_kind: :damage_reduction,
                  name: "Earth Elemental",
                  cast_spell_ids: [198_103],
                  aura_spell_ids: [198_103],
@@ -607,6 +651,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Warlock
                %{
                  key: :unending_resolve,
+                 effect_kind: :damage_reduction,
                  name: "Unending Resolve",
                  cast_spell_ids: [104_773],
                  aura_spell_ids: [104_773],
@@ -617,6 +662,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :dark_pact,
+                 effect_kind: :absorb,
                  name: "Dark Pact",
                  cast_spell_ids: [108_416],
                  aura_spell_ids: [108_416],
@@ -632,6 +678,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Warrior
                %{
                  key: :spell_reflection,
+                 effect_kind: :damage_reduction,
                  name: "Spell Reflection",
                  cast_spell_ids: [23_920],
                  aura_spell_ids: [23_920, 385_391],
@@ -645,6 +692,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :die_by_the_sword,
+                 effect_kind: :damage_reduction,
                  name: "Die by the Sword",
                  cast_spell_ids: [118_038],
                  aura_spell_ids: [118_038],
@@ -658,6 +706,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :enraged_regeneration,
+                 effect_kind: :hot,
                  name: "Enraged Regeneration",
                  cast_spell_ids: [184_364],
                  aura_spell_ids: [184_364],
@@ -671,6 +720,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :shield_wall,
+                 effect_kind: :damage_reduction,
                  name: "Shield Wall",
                  cast_spell_ids: [871],
                  aura_spell_ids: [871],
@@ -684,6 +734,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :ignore_pain,
+                 effect_kind: :absorb,
                  name: "Ignore Pain",
                  cast_spell_ids: [190_456],
                  aura_spell_ids: [190_456],
@@ -697,6 +748,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :impending_victory,
+                 effect_kind: :instant_heal,
                  name: "Impending Victory",
                  cast_spell_ids: [202_168],
                  aura_spell_ids: [],
@@ -710,6 +762,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :rallying_cry,
+                 effect_kind: :damage_reduction,
                  name: "Rallying Cry",
                  cast_spell_ids: [97_462],
                  aura_spell_ids: [97_463],
@@ -725,6 +778,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                # Consumables are universal; an empty spec list means every spec.
                %{
                  key: :healthstone,
+                 effect_kind: :instant_heal,
                  name: "Healthstone",
                  kind: :healthstone,
                  cast_spell_ids: [6262, 452_930],
@@ -738,6 +792,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :potent_healing_potion,
+                 effect_kind: :instant_heal,
                  name: "Potent Healing Potion",
                  kind: :health_potion,
                  cast_spell_ids: [1_262_857],
@@ -751,6 +806,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
                },
                %{
                  key: :silvermoon_health_potion,
+                 effect_kind: :instant_heal,
                  name: "Silvermoon Health Potion",
                  kind: :health_potion,
                  cast_spell_ids: [1_234_768],
@@ -809,7 +865,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
     entry_set = talent_entry_set(talents)
 
     spec_id
-    |> actions_for_availability()
+    |> kit_for()
     |> Enum.map(fn action ->
       %{
         key: action.key,
@@ -821,8 +877,12 @@ defmodule WeGoNext.GameData.SurvivalActions do
     end)
   end
 
-  defp actions_for_availability(spec_id) when is_integer(spec_id), do: for_spec(spec_id)
-  defp actions_for_availability(_spec_id), do: Enum.filter(@actions, &(&1.spec_ids == []))
+  @doc """
+  The catalog actions applicable to a spec: class/spec abilities plus the
+  universal consumables. A non-integer spec resolves only the consumables.
+  """
+  def kit_for(spec_id) when is_integer(spec_id), do: for_spec(spec_id)
+  def kit_for(_spec_id), do: Enum.filter(@actions, &(&1.spec_ids == []))
 
   defp talent_entry_set(talents) when is_list(talents) do
     MapSet.new(for %{"entry_id" => entry_id} <- talents, is_integer(entry_id), do: entry_id)

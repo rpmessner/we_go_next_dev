@@ -3,6 +3,7 @@ defmodule WeGoNext.Silver.SurvivalActionRealLogTest do
 
   alias WeGoNext.CombatLogParser
   alias WeGoNext.GameData.SurvivalActions
+  alias WeGoNext.Gold.DeathSurvival
   alias WeGoNext.Silver.Projector
 
   @moduledoc """
@@ -170,6 +171,50 @@ defmodule WeGoNext.Silver.SurvivalActionRealLogTest do
              "amount" => 3_710,
              "overheal" => 0
            } = Enum.find(death.window_events, &(&1["kind"] == "heal"))
+  end
+
+  test "resolves the real death's survival kit: rock on cooldown, defensives available" do
+    projection = projected_fixture()
+
+    assert [death] = projection.death
+    players = Map.new(projection.player_info, &{&1.player_guid, &1})
+
+    analysis =
+      DeathSurvival.analyze(
+        death,
+        players[death.target_guid],
+        projection.survival_action,
+        projection.defensive_buff_window
+      )
+
+    assert analysis.target_guid == "Player-1171-09045C8D"
+    assert analysis.window_ms == 10_000
+
+    kit = Map.new(analysis.kit, &{&1.key, &1})
+
+    # Healthstone pressed 54s before death: inside its 60s cooldown, and the
+    # one per-combat charge is spent — on cooldown at death, labeled inferred.
+    assert %{
+             state: :on_cooldown,
+             basis: :inferred,
+             used_at_ms_into_fight: nil,
+             last_used_at_ms_into_fight: 93_035
+           } = kit.healthstone
+
+    # The marquee coaching answer: this frost mage died with Ice Block,
+    # Ice Barrier, and Alter Time talented and likely available, and both
+    # health potions unspent.
+    assert %{state: :available_unused, basis: :inferred, availability: :talented} = kit.ice_block
+    assert %{state: :available_unused, availability: :talented} = kit.ice_barrier
+    assert %{state: :available_unused, availability: :talented} = kit.alter_time
+    assert %{state: :available_unused} = kit.silvermoon_health_potion
+    assert %{state: :available_unused} = kit.potent_healing_potion
+
+    # Arcane-only defensives stay out of a frost kit entirely.
+    refute Map.has_key?(kit, :prismatic_barrier)
+    refute Map.has_key?(kit, :greater_invisibility)
+
+    assert analysis.externals_received == []
   end
 
   defp projected_fixture do
