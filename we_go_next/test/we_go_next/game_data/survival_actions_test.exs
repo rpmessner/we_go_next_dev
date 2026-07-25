@@ -161,4 +161,64 @@ defmodule WeGoNext.GameData.SurvivalActionsTest do
       assert %{charges: 1} = Enum.find(SurvivalActions.all(), &(&1.key == key))
     end
   end
+
+  test "every talent-gated action carries verified trait entry ids" do
+    for action <- SurvivalActions.all() do
+      case action.availability do
+        :talent ->
+          assert is_list(action.talent_entry_ids) and action.talent_entry_ids != [],
+                 "#{action.key} is talent-gated but has no talent_entry_ids"
+
+          assert Enum.all?(action.talent_entry_ids, &is_integer/1)
+
+        :baseline ->
+          assert action.talent_entry_ids == nil
+      end
+    end
+  end
+
+  describe "availability_for/2" do
+    # Entry ids below come from real 2026-07-19 COMBATANT_INFO payloads.
+    test "resolves baseline, talented, and not-talented states for a warlock" do
+      talents = [%{"node_id" => 71_936, "entry_id" => 91_444, "rank" => 1}]
+
+      kit = SurvivalActions.availability_for(266, talents)
+
+      assert %{state: :baseline, category: :personal} = kit_entry(kit, :unending_resolve)
+      assert %{state: :talented} = kit_entry(kit, :dark_pact)
+      assert %{state: :baseline, kind: :healthstone} = kit_entry(kit, :healthstone)
+      assert %{state: :baseline, kind: :health_potion} = kit_entry(kit, :silvermoon_health_potion)
+
+      assert %{state: :not_talented} =
+               kit_entry(SurvivalActions.availability_for(266, []), :dark_pact)
+    end
+
+    test "any granting entry of a choice node counts as talented" do
+      for entry_id <- [103_180, 103_193] do
+        kit =
+          SurvivalActions.availability_for(104, [
+            %{"node_id" => 82_129, "entry_id" => entry_id, "rank" => 1}
+          ])
+
+        assert %{state: :talented} = kit_entry(kit, :survival_instincts)
+      end
+    end
+
+    test "missing talent data degrades to unknown, never to not-talented" do
+      kit = SurvivalActions.availability_for(266, nil)
+
+      assert %{state: :unknown} = kit_entry(kit, :dark_pact)
+      assert %{state: :baseline} = kit_entry(kit, :unending_resolve)
+      refute Enum.any?(kit, &(&1.state == :not_talented))
+    end
+
+    test "unknown spec resolves only the universal consumables" do
+      kit = SurvivalActions.availability_for(nil, nil)
+
+      assert Enum.all?(kit, &(&1.category == :consumable and &1.state == :baseline))
+      assert Enum.any?(kit, &(&1.key == :healthstone))
+    end
+  end
+
+  defp kit_entry(kit, key), do: Enum.find(kit, &(&1.key == key))
 end

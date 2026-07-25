@@ -575,7 +575,8 @@ defmodule WeGoNext.Silver.Projector do
         class_id: class_id,
         spec_id: spec_id,
         item_level: Map.get(data, :item_level),
-        detected_role: detected_role(spec_id, tank_guids, guid)
+        detected_role: detected_role(spec_id, tank_guids, guid),
+        talents: Map.get(data, :talents)
       }
     end)
     |> Enum.sort_by(& &1.player_guid)
@@ -597,16 +598,18 @@ defmodule WeGoNext.Silver.Projector do
             WowClass.class_from_spec(spec_id)
 
         item_level = normalize_optional_integer(extra_value(event, :item_level))
+        talents = normalize_talent_payload(extra_value(event, :talents))
 
         Map.update(
           acc,
           guid,
-          %{spec_id: spec_id, class_id: class_id, item_level: item_level},
+          %{spec_id: spec_id, class_id: class_id, item_level: item_level, talents: talents},
           fn existing ->
             existing
             |> maybe_put(:spec_id, spec_id)
             |> maybe_put(:class_id, class_id)
             |> maybe_put(:item_level, item_level)
+            |> maybe_put(:talents, talents)
           end
         )
       else
@@ -614,6 +617,18 @@ defmodule WeGoNext.Silver.Projector do
       end
     end)
   end
+
+  # The native parser emits class-talent triples as [node_id, entry_id, rank];
+  # persist them as self-describing maps so fresh projections match the
+  # jsonb rows read back from silver. A missing payload stays nil (unknown).
+  defp normalize_talent_payload(triples) when is_list(triples) do
+    for [node_id, entry_id, rank] <- triples,
+        is_integer(node_id) and is_integer(entry_id) and is_integer(rank) do
+      %{"node_id" => node_id, "entry_id" => entry_id, "rank" => rank}
+    end
+  end
+
+  defp normalize_talent_payload(_payload), do: nil
 
   defp collect_player_names(event, acc) do
     acc

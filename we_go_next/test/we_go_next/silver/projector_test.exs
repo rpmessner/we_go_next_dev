@@ -497,6 +497,34 @@ defmodule WeGoNext.Silver.ProjectorTest do
            ] = projection.survival_action
   end
 
+  test "captures combatant info talent payload on player info rows" do
+    projection =
+      Projector.project(@encounter_dim_id, [
+        CombatLogEventFixtures.combatant_info_event(
+          source_guid: "Player-Guardian",
+          time_into_fight: 0.1,
+          extra: %{spec_id: 104, talents: [[82_129, 103_193, 1], [82_130, 103_298, 2]]}
+        ),
+        CombatLogEventFixtures.combatant_info_event(
+          source_guid: "Player-NoTalents",
+          time_into_fight: 0.2,
+          extra: %{spec_id: 266}
+        )
+      ])
+
+    assert [
+             %{
+               player_guid: "Player-Guardian",
+               spec_id: 104,
+               talents: [
+                 %{"node_id" => 82_129, "entry_id" => 103_193, "rank" => 1},
+                 %{"node_id" => 82_130, "entry_id" => 103_298, "rank" => 2}
+               ]
+             },
+             %{player_guid: "Player-NoTalents", spec_id: 266, talents: nil}
+           ] = projection.player_info
+  end
+
   test "normalizes nil-like natural-key values for required silver fields" do
     projection =
       Projector.project(@encounter_dim_id, [

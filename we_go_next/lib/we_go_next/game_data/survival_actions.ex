@@ -6,9 +6,16 @@ defmodule WeGoNext.GameData.SurvivalActions do
   different IDs for the button press and the resulting buff.
 
   `base_cooldown_ms` and `charges` deliberately exclude talent modifiers.
-  Talent-gated rows carry the ability's `talent_spell_id`; resolving that spell
-  to the selected trait-node/entry tuples in `COMBATANT_INFO` belongs to the
-  talent-loadout projection. An empty `spec_ids` list means the action is a
+  Talent-gated rows carry the ability's `talent_spell_id` plus
+  `talent_entry_ids` — the trait entry IDs that appear in `COMBATANT_INFO`
+  `(node, entry, rank)` tuples when the talent is selected (choice nodes list
+  every granting entry). Entry IDs come from the local WoWAnalyzer checkout's
+  generated trait data and were cross-verified against real casters in local
+  12.0.7 raid logs (every observed caster of a talent-gated defensive carries
+  a mapped entry; note Fortifying Brew's entry belongs to granting talent
+  388917, not cast spell 115203). `availability_for/2` resolves a player's
+  kit; actions without a verified mapping degrade to `:unknown`, never to a
+  false "didn't have it". An empty `spec_ids` list means the action is a
   universal consumable rather than a class ability.
   """
 
@@ -31,6 +38,7 @@ defmodule WeGoNext.GameData.SurvivalActions do
     verified_retail: %{project_id: 1, build_major: 12},
     availability: :baseline,
     talent_spell_id: nil,
+    talent_entry_ids: nil,
     shared_cooldown_group: nil,
     max_uses_per_combat: nil
   }
@@ -62,7 +70,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 6,
                  spec_ids: @death_knight_specs,
                  availability: :talent,
-                 talent_spell_id: 48_792
+                 talent_spell_id: 48_792,
+                 talent_entry_ids: [96_210]
                },
                %{
                  key: :death_pact,
@@ -74,7 +83,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 6,
                  spec_ids: @death_knight_specs,
                  availability: :talent,
-                 talent_spell_id: 48_743
+                 talent_spell_id: 48_743,
+                 talent_entry_ids: [96_204]
                },
                %{
                  key: :lichborne,
@@ -96,7 +106,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 6,
                  spec_ids: [250],
                  availability: :talent,
-                 talent_spell_id: 55_233
+                 talent_spell_id: 55_233,
+                 talent_entry_ids: [96_308]
                },
                %{
                  key: :dancing_rune_weapon,
@@ -108,7 +119,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 6,
                  spec_ids: [250],
                  availability: :talent,
-                 talent_spell_id: 49_028
+                 talent_spell_id: 49_028,
+                 talent_entry_ids: [96_269]
                },
                %{
                  key: :anti_magic_zone,
@@ -120,7 +132,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 6,
                  spec_ids: @death_knight_specs,
                  availability: :talent,
-                 talent_spell_id: 51_052
+                 talent_spell_id: 51_052,
+                 talent_entry_ids: [96_194]
                },
 
                # Demon Hunter
@@ -154,7 +167,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 12,
                  spec_ids: [577],
                  availability: :talent,
-                 talent_spell_id: 196_718
+                 talent_spell_id: 196_718,
+                 talent_entry_ids: [112_921]
                },
 
                # Druid
@@ -178,7 +192,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 11,
                  spec_ids: [104],
                  availability: :talent,
-                 talent_spell_id: 61_336
+                 talent_spell_id: 61_336,
+                 talent_entry_ids: [103_180, 103_193]
                },
                %{
                  key: :frenzied_regeneration,
@@ -190,7 +205,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 11,
                  spec_ids: [104],
                  availability: :talent,
-                 talent_spell_id: 22_842
+                 talent_spell_id: 22_842,
+                 talent_entry_ids: [103_298]
                },
                %{
                  key: :ironbark,
@@ -202,7 +218,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 11,
                  spec_ids: [105],
                  availability: :talent,
-                 talent_spell_id: 102_342
+                 talent_spell_id: 102_342,
+                 talent_entry_ids: [103_141]
                },
 
                # Evoker
@@ -216,7 +233,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 13,
                  spec_ids: @evoker_specs,
                  availability: :talent,
-                 talent_spell_id: 363_916
+                 talent_spell_id: 363_916,
+                 talent_entry_ids: [115_613]
                },
                %{
                  key: :zephyr,
@@ -228,7 +246,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 13,
                  spec_ids: @evoker_specs,
                  availability: :talent,
-                 talent_spell_id: 374_227
+                 talent_spell_id: 374_227,
+                 talent_entry_ids: [115_661]
                },
                %{
                  key: :time_dilation,
@@ -240,7 +259,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 13,
                  spec_ids: [1468],
                  availability: :talent,
-                 talent_spell_id: 357_170
+                 talent_spell_id: 357_170,
+                 talent_entry_ids: [115_650]
                },
 
                # Hunter
@@ -264,7 +284,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 3,
                  spec_ids: @hunter_specs,
                  availability: :talent,
-                 talent_spell_id: 264_735
+                 talent_spell_id: 264_735,
+                 talent_entry_ids: [126_488]
                },
                %{
                  key: :exhilaration,
@@ -288,7 +309,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 8,
                  spec_ids: @mage_specs,
                  availability: :talent,
-                 talent_spell_id: 45_438
+                 talent_spell_id: 45_438,
+                 talent_entry_ids: [80_181]
                },
                %{
                  key: :greater_invisibility,
@@ -300,7 +322,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 8,
                  spec_ids: [62],
                  availability: :talent,
-                 talent_spell_id: 110_959
+                 talent_spell_id: 110_959,
+                 talent_entry_ids: [115_877]
                },
                %{
                  key: :prismatic_barrier,
@@ -312,7 +335,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 8,
                  spec_ids: [62],
                  availability: :talent,
-                 talent_spell_id: 235_450
+                 talent_spell_id: 235_450,
+                 talent_entry_ids: [80_180]
                },
                %{
                  key: :ice_barrier,
@@ -324,7 +348,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 8,
                  spec_ids: [64],
                  availability: :talent,
-                 talent_spell_id: 11_426
+                 talent_spell_id: 11_426,
+                 talent_entry_ids: [80_176]
                },
                %{
                  key: :alter_time,
@@ -336,7 +361,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 8,
                  spec_ids: @mage_specs,
                  availability: :talent,
-                 talent_spell_id: 342_245
+                 talent_spell_id: 342_245,
+                 talent_entry_ids: [80_174]
                },
 
                # Monk
@@ -350,7 +376,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 10,
                  spec_ids: @monk_specs,
                  availability: :talent,
-                 talent_spell_id: 115_203
+                 talent_spell_id: 115_203,
+                 talent_entry_ids: [124_968]
                },
                %{
                  key: :touch_of_karma,
@@ -394,7 +421,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 2,
                  spec_ids: [66],
                  availability: :talent,
-                 talent_spell_id: 31_850
+                 talent_spell_id: 31_850,
+                 talent_entry_ids: [102_445]
                },
                %{
                  key: :guardian_of_ancient_kings,
@@ -406,7 +434,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 2,
                  spec_ids: [66],
                  availability: :talent,
-                 talent_spell_id: 86_659
+                 talent_spell_id: 86_659,
+                 talent_entry_ids: [102_456]
                },
                %{
                  key: :blessing_of_protection,
@@ -418,7 +447,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 2,
                  spec_ids: @paladin_specs,
                  availability: :talent,
-                 talent_spell_id: 1022
+                 talent_spell_id: 1022,
+                 talent_entry_ids: [102_604]
                },
                %{
                  key: :blessing_of_spellwarding,
@@ -430,7 +460,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 2,
                  spec_ids: [66],
                  availability: :talent,
-                 talent_spell_id: 204_018
+                 talent_spell_id: 204_018,
+                 talent_entry_ids: [111_886]
                },
                %{
                  key: :blessing_of_sacrifice,
@@ -442,7 +473,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 2,
                  spec_ids: @paladin_specs,
                  availability: :talent,
-                 talent_spell_id: 6940
+                 talent_spell_id: 6940,
+                 talent_entry_ids: [102_602]
                },
 
                # Priest
@@ -456,7 +488,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 5,
                  spec_ids: @priest_specs,
                  availability: :talent,
-                 talent_spell_id: 19_236
+                 talent_spell_id: 19_236,
+                 talent_entry_ids: [134_846]
                },
                %{
                  key: :dispersion,
@@ -478,7 +511,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 5,
                  spec_ids: [256],
                  availability: :talent,
-                 talent_spell_id: 33_206
+                 talent_spell_id: 33_206,
+                 talent_entry_ids: [103_713]
                },
                %{
                  key: :guardian_spirit,
@@ -490,7 +524,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 5,
                  spec_ids: [257],
                  availability: :talent,
-                 talent_spell_id: 47_788
+                 talent_spell_id: 47_788,
+                 talent_entry_ids: [103_774]
                },
 
                # Rogue
@@ -514,7 +549,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 4,
                  spec_ids: @rogue_specs,
                  availability: :talent,
-                 talent_spell_id: 31_224
+                 talent_spell_id: 31_224,
+                 talent_entry_ids: [112_585]
                },
                %{
                  key: :evasion,
@@ -526,7 +562,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 4,
                  spec_ids: @rogue_specs,
                  availability: :talent,
-                 talent_spell_id: 5277
+                 talent_spell_id: 5277,
+                 talent_entry_ids: [112_654]
                },
                %{
                  key: :crimson_vial,
@@ -550,7 +587,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 7,
                  spec_ids: @shaman_specs,
                  availability: :talent,
-                 talent_spell_id: 108_271
+                 talent_spell_id: 108_271,
+                 talent_entry_ids: [127_893]
                },
                %{
                  key: :earth_elemental,
@@ -562,7 +600,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 7,
                  spec_ids: @shaman_specs,
                  availability: :talent,
-                 talent_spell_id: 198_103
+                 talent_spell_id: 198_103,
+                 talent_entry_ids: [127_858]
                },
 
                # Warlock
@@ -586,7 +625,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 9,
                  spec_ids: @warlock_specs,
                  availability: :talent,
-                 talent_spell_id: 108_416
+                 talent_spell_id: 108_416,
+                 talent_entry_ids: [91_444]
                },
 
                # Warrior
@@ -600,7 +640,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 1,
                  spec_ids: @warrior_specs,
                  availability: :talent,
-                 talent_spell_id: 23_920
+                 talent_spell_id: 23_920,
+                 talent_entry_ids: [112_253]
                },
                %{
                  key: :die_by_the_sword,
@@ -612,7 +653,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 1,
                  spec_ids: [71],
                  availability: :talent,
-                 talent_spell_id: 118_038
+                 talent_spell_id: 118_038,
+                 talent_entry_ids: [112_121]
                },
                %{
                  key: :enraged_regeneration,
@@ -624,7 +666,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 1,
                  spec_ids: [72],
                  availability: :talent,
-                 talent_spell_id: 184_364
+                 talent_spell_id: 184_364,
+                 talent_entry_ids: [112_264]
                },
                %{
                  key: :shield_wall,
@@ -636,7 +679,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 1,
                  spec_ids: [73],
                  availability: :talent,
-                 talent_spell_id: 871
+                 talent_spell_id: 871,
+                 talent_entry_ids: [112_156]
                },
                %{
                  key: :ignore_pain,
@@ -648,7 +692,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 1,
                  spec_ids: [73],
                  availability: :talent,
-                 talent_spell_id: 190_456
+                 talent_spell_id: 190_456,
+                 talent_entry_ids: [112_149]
                },
                %{
                  key: :impending_victory,
@@ -660,7 +705,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 1,
                  spec_ids: @warrior_specs,
                  availability: :talent,
-                 talent_spell_id: 202_168
+                 talent_spell_id: 202_168,
+                 talent_entry_ids: [112_183]
                },
                %{
                  key: :rallying_cry,
@@ -672,7 +718,8 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  class_id: 1,
                  spec_ids: @warrior_specs,
                  availability: :talent,
-                 talent_spell_id: 97_462
+                 talent_spell_id: 97_462,
+                 talent_entry_ids: [112_188]
                },
 
                # Consumables are universal; an empty spec list means every spec.
@@ -747,4 +794,49 @@ defmodule WeGoNext.GameData.SurvivalActions do
 
   def get_by_aura_id(spell_id) when is_integer(spell_id), do: Map.get(@by_aura_id, spell_id)
   def get_by_aura_id(_spell_id), do: nil
+
+  @doc """
+  Resolves a player's survival kit into per-action availability states.
+
+  `talents` is the silver `player_info.talents` payload (list of
+  `%{"entry_id" => ...}` maps) or nil when no `COMBATANT_INFO` talent data
+  was captured. States: `:baseline` (not talent-gated), `:talented`,
+  `:not_talented`, and `:unknown` (talent data or entry mapping missing —
+  never a false "didn't have it"). A non-integer `spec_id` resolves only the
+  universal consumables.
+  """
+  def availability_for(spec_id, talents) do
+    entry_set = talent_entry_set(talents)
+
+    spec_id
+    |> actions_for_availability()
+    |> Enum.map(fn action ->
+      %{
+        key: action.key,
+        name: action.name,
+        kind: action.kind,
+        category: action.category,
+        state: availability_state(action, entry_set)
+      }
+    end)
+  end
+
+  defp actions_for_availability(spec_id) when is_integer(spec_id), do: for_spec(spec_id)
+  defp actions_for_availability(_spec_id), do: Enum.filter(@actions, &(&1.spec_ids == []))
+
+  defp talent_entry_set(talents) when is_list(talents) do
+    MapSet.new(for %{"entry_id" => entry_id} <- talents, is_integer(entry_id), do: entry_id)
+  end
+
+  defp talent_entry_set(_talents), do: nil
+
+  defp availability_state(%{availability: :baseline}, _entry_set), do: :baseline
+  defp availability_state(%{talent_entry_ids: nil}, _entry_set), do: :unknown
+  defp availability_state(_action, nil), do: :unknown
+
+  defp availability_state(%{talent_entry_ids: entry_ids}, entry_set) do
+    if Enum.any?(entry_ids, &MapSet.member?(entry_set, &1)),
+      do: :talented,
+      else: :not_talented
+  end
 end

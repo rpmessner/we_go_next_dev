@@ -152,7 +152,7 @@ defmodule WeGoNext.Silver do
             projection.player_info,
             now,
             [:encounter_dim_id, :player_guid],
-            [:player_name, :class_id, :spec_id, :item_level, :detected_role]
+            [:player_name, :class_id, :spec_id, :item_level, :detected_role, :talents]
           )
       }
     end)

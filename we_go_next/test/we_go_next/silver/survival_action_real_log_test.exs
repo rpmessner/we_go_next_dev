@@ -2,6 +2,7 @@ defmodule WeGoNext.Silver.SurvivalActionRealLogTest do
   use ExUnit.Case, async: true
 
   alias WeGoNext.CombatLogParser
+  alias WeGoNext.GameData.SurvivalActions
   alias WeGoNext.Silver.Projector
 
   @moduledoc """
@@ -20,15 +21,7 @@ defmodule WeGoNext.Silver.SurvivalActionRealLogTest do
   @encounter_dim_id 1
 
   test "projects defensives, an external, and joined rock/pot heals from real log lines" do
-    assert {:ok, events} =
-             CombatLogParser.parse_events(
-               @fixture_path,
-               0,
-               File.stat!(@fixture_path).size,
-               @encounter_start_timestamp
-             )
-
-    projection = Projector.project(@encounter_dim_id, events)
+    projection = projected_fixture()
 
     assert [barkskin, guardian_spirit, potion, healthstone, second_healthstone] =
              projection.survival_action
@@ -92,4 +85,48 @@ defmodule WeGoNext.Silver.SurvivalActionRealLogTest do
              overheal_amount: 218_799
            } = second_healthstone
   end
+
+  test "captures real talent payloads and resolves survival kit availability" do
+    projection = projected_fixture()
+    players = Map.new(projection.player_info, &{&1.player_guid, &1})
+
+    # Demonology warlock with 76 talent triples in the real payload.
+    pixen = players["Player-1175-0FF05A1A"]
+    assert pixen.spec_id == 266
+    assert length(pixen.talents) == 76
+    assert %{"node_id" => 71_918, "entry_id" => 91_425, "rank" => 1} = hd(pixen.talents)
+
+    pixen_kit = SurvivalActions.availability_for(pixen.spec_id, pixen.talents)
+    assert %{state: :talented} = kit_entry(pixen_kit, :dark_pact)
+    assert %{state: :baseline} = kit_entry(pixen_kit, :unending_resolve)
+    assert %{state: :baseline} = kit_entry(pixen_kit, :healthstone)
+
+    # Guardian druid whose Survival Instincts comes from choice entry 103193.
+    grdengnome = players["Player-1171-0A8A2DA9"]
+    assert grdengnome.spec_id == 104
+
+    guardian_kit = SurvivalActions.availability_for(grdengnome.spec_id, grdengnome.talents)
+    assert %{state: :talented} = kit_entry(guardian_kit, :survival_instincts)
+    assert %{state: :talented} = kit_entry(guardian_kit, :frenzied_regeneration)
+    assert %{state: :baseline} = kit_entry(guardian_kit, :barkskin)
+
+    # No COMBATANT_INFO in the slice for this caster: unknown, not untalented.
+    sparfox = players["Player-76-0BE7FABE"]
+    assert sparfox.talents == nil
+    assert sparfox.spec_id == nil
+  end
+
+  defp projected_fixture do
+    assert {:ok, events} =
+             CombatLogParser.parse_events(
+               @fixture_path,
+               0,
+               File.stat!(@fixture_path).size,
+               @encounter_start_timestamp
+             )
+
+    Projector.project(@encounter_dim_id, events)
+  end
+
+  defp kit_entry(kit, key), do: Enum.find(kit, &(&1.key == key))
 end

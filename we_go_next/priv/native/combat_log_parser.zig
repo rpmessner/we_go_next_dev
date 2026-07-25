@@ -596,11 +596,68 @@ fn parse_combatant_info(env: *e.ErlNifEnv, rest: []const u8, type_term: beam.ter
         spec_id = parse_i64_field(next_csv_field(rest, &pos));
     }
 
-    // Build extra map with spec_id
-    var extra_keys = [_]e.ErlNifTerm{e.enif_make_atom(env, "spec_id")};
-    var extra_vals = [_]e.ErlNifTerm{beam.make(spec_id, .{}).v};
+    // Class talents follow spec_id as [(traitNodeID,traitEntryID,rank),...]
+    // (verified against 12.0.7 lines; the PvP tuple after it uses spell IDs
+    // and is intentionally not captured here). Missing/unparseable payload
+    // emits no :talents key so downstream reads degrade to unknown.
+    var talents_term: e.ErlNifTerm = undefined;
+    var have_talents = false;
+    if (pos < rest.len and rest[pos] == '[') {
+        const open = pos;
+        var close: usize = open + 1;
+        while (close < rest.len and rest[close] != ']') : (close += 1) {}
+        if (close < rest.len) {
+            const inner = rest[open + 1 .. close];
+            var triple_terms: [256]e.ErlNifTerm = undefined;
+            var triple_count: u32 = 0;
+            var tpos: usize = 0;
+            while (tpos < inner.len and triple_count < 256) {
+                while (tpos < inner.len and inner[tpos] != '(') : (tpos += 1) {}
+                if (tpos >= inner.len) break;
+                tpos += 1;
+                var tend: usize = tpos;
+                while (tend < inner.len and inner[tend] != ')') : (tend += 1) {}
+                if (tend == inner.len) break;
+                const tuple_body = inner[tpos..tend];
+                var nums = [3]i64{ 0, 0, 0 };
+                var ni: u32 = 0;
+                var npos: usize = 0;
+                while (ni < 3 and npos < tuple_body.len) {
+                    var nend = npos;
+                    while (nend < tuple_body.len and tuple_body[nend] != ',') : (nend += 1) {}
+                    nums[ni] = parse_i64_field(tuple_body[npos..nend]);
+                    ni += 1;
+                    npos = nend + 1;
+                }
+                if (ni == 3) {
+                    var elems = [3]e.ErlNifTerm{
+                        beam.make(nums[0], .{}).v,
+                        beam.make(nums[1], .{}).v,
+                        beam.make(nums[2], .{}).v,
+                    };
+                    triple_terms[triple_count] = e.enif_make_list_from_array(env, &elems, 3);
+                    triple_count += 1;
+                }
+                tpos = tend + 1;
+            }
+            talents_term = e.enif_make_list_from_array(env, &triple_terms, triple_count);
+            have_talents = true;
+        }
+    }
+
+    // Build extra map with spec_id (+ talents when present)
+    var extra_keys: [2]e.ErlNifTerm = undefined;
+    var extra_vals: [2]e.ErlNifTerm = undefined;
+    var extra_count: u32 = 1;
+    extra_keys[0] = e.enif_make_atom(env, "spec_id");
+    extra_vals[0] = beam.make(spec_id, .{}).v;
+    if (have_talents) {
+        extra_keys[1] = e.enif_make_atom(env, "talents");
+        extra_vals[1] = talents_term;
+        extra_count = 2;
+    }
     var extra_map: e.ErlNifTerm = undefined;
-    _ = e.enif_make_map_from_arrays(env, &extra_keys, &extra_vals, 1, &extra_map);
+    _ = e.enif_make_map_from_arrays(env, &extra_keys, &extra_vals, extra_count, &extra_map);
 
     var keys: [5]e.ErlNifTerm = undefined;
     var vals: [5]e.ErlNifTerm = undefined;

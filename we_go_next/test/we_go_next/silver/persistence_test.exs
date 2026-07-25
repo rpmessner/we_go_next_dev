@@ -108,6 +108,11 @@ defmodule WeGoNext.Silver.PersistenceTest do
 
   test "project_and_persist upserts survival action usage rows", %{encounter: encounter} do
     events = [
+      CombatLogEventFixtures.combatant_info_event(
+        source_guid: "Player-Mage",
+        time_into_fight: 0.1,
+        extra: %{spec_id: 63, talents: [[80_175, 80_176, 1]]}
+      ),
       CombatLogEventFixtures.spell_cast_success_event(
         time_into_fight: 3.0,
         source_guid: "Player-Mage",
@@ -150,6 +155,15 @@ defmodule WeGoNext.Silver.PersistenceTest do
                encounter_dim_id: encounter.id,
                spell_id: 1_234_768,
                used_at_ms_into_fight: 3_000
+             )
+
+    assert %PlayerInfo{
+             spec_id: 63,
+             talents: [%{"node_id" => 80_175, "entry_id" => 80_176, "rank" => 1}]
+           } =
+             Repo.get_by!(PlayerInfo,
+               encounter_dim_id: encounter.id,
+               player_guid: "Player-Mage"
              )
   end
 

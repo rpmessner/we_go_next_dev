@@ -19,6 +19,8 @@ defmodule WeGoNext.Silver.PlayerInfo do
     field(:spec_id, :integer)
     field(:item_level, :integer)
     field(:detected_role, :string, default: "unknown")
+    # nil means no COMBATANT_INFO talent payload (unknown), not "no talents".
+    field(:talents, {:array, :map})
 
     belongs_to(:encounter, DimEncounter, foreign_key: :encounter_dim_id)
 
@@ -35,7 +37,8 @@ defmodule WeGoNext.Silver.PlayerInfo do
       :class_id,
       :spec_id,
       :item_level,
-      :detected_role
+      :detected_role,
+      :talents
     ])
     |> validate_required([:encounter_dim_id, :player_guid, :player_name, :detected_role])
     |> validate_inclusion(:detected_role, @detected_roles)
