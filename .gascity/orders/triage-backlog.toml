@@ -1,0 +1,10 @@
+# Wake the triager to label untriaged beads factory-ok / needs-spec.
+# Manual until first supervised runs look right; then switch to the
+# commented cooldown so triage happens without babysitting.
+[order]
+description = "Triage untriaged backlog beads for factory eligibility"
+trigger = "manual"
+# trigger = "cooldown"
+# interval = "2h"
+exec = "gc sling we_go_next/wgn.triager 'Triage untriaged open beads for factory eligibility, then go idle.'"
+timeout = "30m"

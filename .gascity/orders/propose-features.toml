@@ -1,0 +1,11 @@
+# Wake the proposer to file up to 3 proposal beads from docs + backlog gaps.
+# Proposals are never factory-eligible until the operator promotes them.
+# Manual until first outputs look right; then switch to the commented weekly
+# cron (Mondays 09:00).
+[order]
+description = "Survey docs and backlog; file proposal beads"
+trigger = "manual"
+# trigger = "cron"
+# schedule = "0 9 * * 1"
+exec = "gc sling we_go_next/wgn.proposer 'Survey docs and backlog, file up to 3 proposal beads, then go idle.'"
+timeout = "45m"

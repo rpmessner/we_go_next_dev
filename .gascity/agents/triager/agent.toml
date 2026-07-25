@@ -1,0 +1,6 @@
+description = "Spec gate: checks backlog beads for a measurable done-condition; labels factory-ok or needs-spec"
+scope = "rig"
+provider = "claude-fable"
+idle_timeout = "10m"
+max_active_sessions = 1
+nudge = "Triage untriaged open beads for factory eligibility, then go idle."

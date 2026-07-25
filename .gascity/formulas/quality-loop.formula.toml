@@ -1,0 +1,74 @@
+description = """
+The repo's quality loop as a formula: implement one bead against a concrete
+objective, prove it with the repo's real mix quality gate, post the evidence,
+then stop at a human gate — the operator reviews the diff plus evidence and
+closes the gate bead to approve. Nothing merges itself.
+"""
+formula = "quality-loop"
+version = 1
+contract = "graph.v2"
+target_required = true
+
+[catalog]
+name = "quality-loop"
+description = "Implement -> mix quality ratchet -> evidence -> human approval gate."
+
+[[steps]]
+id = "implement"
+title = "Implement the target bead"
+metadata = { "gc.run_target" = "gc.implementation-worker" }
+description = """
+Implement the target bead on a feature branch (never main; never commit
+unrelated files). Read AGENTS.md first and follow it exactly: medallion layer
+boundaries (bronze/silver/gold/rules), no legacy analyzer-cache or
+public.mechanic_criteria surfaces, tests at the lowest faithful layer, page
+objects for Wallaby features, zero compile warnings. Frame the work against the
+bead's concrete acceptance criteria — if the bead lacks a measurable
+done-condition, stop and say so on the bead instead of guessing scope.
+"""
+
+[steps.check]
+max_attempts = 2
+
+[steps.check.check]
+mode = "exec"
+path = ".gascity/checks/quality.sh"
+timeout = "30m"
+
+[[steps]]
+id = "evidence"
+title = "Post verification evidence"
+needs = ["implement"]
+metadata = { "gc.run_target" = "gc.implementation-worker" }
+description = """
+Comment on the target bead with the evidence, not assertions: the exact
+commands run and their observed results (test counts, credo output, fact-row
+or read-model deltas for medallion work), the branch name and commit, and
+anything skipped or still open. A "done" without referenced evidence is not
+verified.
+"""
+
+[[steps]]
+id = "adversarial-review"
+title = "Adversarial review (advisory)"
+needs = ["evidence"]
+metadata = { "gc.run_target" = "gc.implementation-reviewer" }
+description_file = "../assets/workflows/quality-loop/adversarial-review.md"
+
+[[steps]]
+id = "approve"
+title = "Human review gate"
+needs = ["adversarial-review"]
+metadata = { "gc.run_target" = "gc.run-operator" }
+description = """
+Blocked on a human gate bead. Operator: review the diff, the evidence
+comment, and the adversarial-review verdict on the target bead, then close
+the gate bead to approve. The reviewer's verdict is advisory — a SHIP does
+not auto-approve and a REFUTE does not auto-reject; this gate is the
+decision. Merging is the operator's action, on purpose, after this gate —
+the factory never merges. If the work is not acceptable, comment why on the
+target bead and reopen it instead of closing the gate.
+"""
+
+[steps.gate]
+type = "human"
