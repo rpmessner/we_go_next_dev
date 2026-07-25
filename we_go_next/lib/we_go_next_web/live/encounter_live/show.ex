@@ -15,7 +15,13 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   alias WeGoNext.WowClass
 
   import WeGoNextWeb.EncounterComponents,
-    only: [format_duration: 1, format_number: 1, wowhead_link: 1]
+    only: [
+      format_duration: 1,
+      format_killing_blow: 1,
+      format_number: 1,
+      recap_value: 2,
+      wowhead_link: 1
+    ]
 
   @impl true
   def mount(%{"source_encounter_key" => source_encounter_key} = params, _session, socket) do
@@ -1817,32 +1823,6 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   defp format_number_delta(0), do: "0"
   defp format_number_delta(value) when value > 0, do: "+#{format_number(value)}"
   defp format_number_delta(value), do: "-#{format_number(abs(value))}"
-
-  defp format_killing_blow(%{killing_blow: %{} = killing_blow}) do
-    spell_name = recap_value(killing_blow, "spell_name") || "Unknown"
-    amount = recap_value(killing_blow, "amount") || 0
-    overkill = recap_value(killing_blow, "overkill") || 0
-
-    overkill_text =
-      if overkill > 0 do
-        " with #{format_number(overkill)} overkill"
-      else
-        ""
-      end
-
-    "#{spell_name} for #{format_number(amount)}#{overkill_text}"
-  end
-
-  defp format_killing_blow(%{killing_blow_spell_id: spell_id}) when not is_nil(spell_id) do
-    "Spell #{spell_id}"
-  end
-
-  defp format_killing_blow(_death), do: "Unknown killing blow"
-
-  defp recap_value(%{} = event, key),
-    do: Map.get(event, key) || Map.get(event, String.to_atom(key))
-
-  defp recap_value(_event, _key), do: nil
 
   defp format_spell_counts([]), do: "None"
 

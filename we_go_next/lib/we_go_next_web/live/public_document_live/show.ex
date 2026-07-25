@@ -8,7 +8,13 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
   alias WeGoNext.Documents
 
   import WeGoNextWeb.EncounterComponents,
-    only: [format_duration: 1, format_number: 1, tab_button: 1, wowhead_link: 1]
+    only: [
+      format_duration: 1,
+      format_killing_blow: 1,
+      format_number: 1,
+      tab_button: 1,
+      wowhead_link: 1
+    ]
 
   @impl true
   def mount(
@@ -278,7 +284,7 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
                 </span>
               </div>
               <div class="text-sm text-zinc-300 sm:text-right">
-                {death.killing_blow_spell_name || "Unknown killing blow"}
+                {format_killing_blow(death)}
               </div>
             </div>
           </article>

@@ -162,6 +162,34 @@ defmodule WeGoNextWeb.EncounterComponents do
   def format_number(num) when is_number(num), do: to_string(trunc(num))
   def format_number(_), do: "0"
 
+  @doc "Format a death's killing blow from its damage recap"
+  def format_killing_blow(%{killing_blow: %{} = killing_blow}) do
+    spell_name = recap_value(killing_blow, "spell_name") || "Unknown"
+    amount = recap_value(killing_blow, "amount") || 0
+    overkill = recap_value(killing_blow, "overkill") || 0
+
+    overkill_text =
+      if overkill > 0 do
+        " with #{format_number(overkill)} overkill"
+      else
+        ""
+      end
+
+    "#{spell_name} for #{format_number(amount)}#{overkill_text}"
+  end
+
+  def format_killing_blow(%{killing_blow_spell_id: spell_id}) when not is_nil(spell_id) do
+    "Spell #{spell_id}"
+  end
+
+  def format_killing_blow(_death), do: "Unknown killing blow"
+
+  @doc "Read a damage-recap event value by string or atom key"
+  def recap_value(%{} = event, key),
+    do: Map.get(event, key) || Map.get(event, String.to_atom(key))
+
+  def recap_value(_event, _key), do: nil
+
   @doc "Format DPS with k/M suffixes"
   def format_dps(dps) when is_float(dps) do
     cond do

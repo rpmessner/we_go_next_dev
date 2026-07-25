@@ -146,6 +146,40 @@ defmodule WeGoNextWeb.PublicLiveTest do
     refute html =~ "Source Key"
   end
 
+  test "public death recap tab renders document death rows", %{conn: conn} do
+    write_fixture_document!("encounter-one", %{
+      encounter: %{name: "Boss One"},
+      counts: %{players: 1, deaths: 1},
+      deaths: [
+        %{
+          target_guid: "Player-1234-0000ABCD",
+          player_name: "Deadguy",
+          class_id: 11,
+          spec_id: 105,
+          detected_role: "healer",
+          died_at_ms_into_fight: 123_456,
+          killing_blow_spell_id: 442_432,
+          killing_blow_source_guid: "Creature-0-1234",
+          encounter_name: "Boss One",
+          killing_blow: %{spell_id: 442_432, spell_name: "Obliteration Beam", amount: 3_500_000},
+          damage_recap: [
+            %{spell_id: 442_432, spell_name: "Obliteration Beam", amount: 3_500_000}
+          ],
+          operator: %{id: 1}
+        }
+      ]
+    })
+
+    html =
+      conn
+      |> get(~p"/r/raid-night/encounters/encounter-one?tab=deaths")
+      |> html_response(200)
+
+    assert html =~ "Death Recap"
+    assert html =~ "Deadguy"
+    assert html =~ "Obliteration Beam for 3.5M"
+  end
+
   test "public encounter failure page handles unknown encounter key", %{conn: conn} do
     html =
       conn
