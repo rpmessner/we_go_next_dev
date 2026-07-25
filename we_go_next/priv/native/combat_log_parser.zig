@@ -709,6 +709,8 @@ fn parse_swing_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
         _ = next_csv_field(rest, pos);
     }
 
+    // Suffix observed in v22 advanced logs: amount, baseAmount, overkill,
+    // school, resisted, blocked, absorbed, critical, glancing, crushing.
     // amount
     const amount_str = next_csv_field(rest, pos);
     const amount = parse_i64_field(amount_str);
@@ -716,7 +718,10 @@ fn parse_swing_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
     vals[field_count.*] = beam.make(amount, .{}).v;
     field_count.* += 1;
 
-    // overkill
+    // skip baseAmount
+    _ = next_csv_field(rest, pos);
+
+    // overkill (-1 when the hit did not kill)
     const overkill_str = next_csv_field(rest, pos);
     var overkill = parse_i64_field(overkill_str);
     if (overkill < 0) overkill = 0;
@@ -747,6 +752,8 @@ fn parse_spell_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
         _ = next_csv_field(rest, pos);
     }
 
+    // Suffix observed in v22 advanced logs: amount, baseAmount, overkill,
+    // school, resisted, blocked, absorbed, critical, glancing, crushing.
     // amount
     const amount_str = next_csv_field(rest, pos);
     const amount = parse_i64_field(amount_str);
@@ -754,7 +761,10 @@ fn parse_spell_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
     vals[field_count.*] = beam.make(amount, .{}).v;
     field_count.* += 1;
 
-    // overkill
+    // skip baseAmount
+    _ = next_csv_field(rest, pos);
+
+    // overkill (-1 when the hit did not kill)
     const overkill_str = next_csv_field(rest, pos);
     var overkill = parse_i64_field(overkill_str);
     if (overkill < 0) overkill = 0;
@@ -823,6 +833,9 @@ fn parse_env_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, key
     keys[field_count.*] = e.enif_make_atom(env, "amount");
     vals[field_count.*] = beam.make(amount, .{}).v;
     field_count.* += 1;
+
+    // skip baseAmount
+    _ = next_csv_field(rest, pos);
 
     const overkill_str = next_csv_field(rest, pos);
     var overkill = parse_i64_field(overkill_str);

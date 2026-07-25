@@ -116,6 +116,62 @@ defmodule WeGoNext.Silver.SurvivalActionRealLogTest do
     assert sparfox.spec_id == nil
   end
 
+  test "captures a time-bounded death window with interleaved real damage and heals" do
+    projection = projected_fixture()
+
+    assert [death] = projection.death
+    assert death.target_guid == "Player-1171-09045C8D"
+    assert death.died_at_ms_into_fight == 147_028
+    assert death.window_ms == 10_000
+    assert death.window_truncated == false
+
+    assert Enum.frequencies_by(death.window_events, & &1["kind"]) ==
+             %{"damage" => 5, "heal" => 13}
+
+    # The healthstone this player used 54s earlier stays outside the window.
+    refute Enum.any?(death.window_events, &(&1["kind"] == "survival_action"))
+
+    assert death.window_events ==
+             Enum.sort_by(death.window_events, & &1["ms_into_fight"])
+
+    assert %{
+             "kind" => "damage",
+             "ms_into_fight" => 143_992,
+             "spell_id" => 1_258_661,
+             "spell_name" => "Light Infusion",
+             "amount" => 25_097,
+             "overkill" => 0
+           } = hd(death.window_events)
+
+    # The killing blow: an Avenger's Shield tick 2ms before UNIT_DIED, with
+    # real overkill parsed from the corrected v22 damage suffix.
+    assert %{
+             "kind" => "damage",
+             "ms_into_fight" => 147_026,
+             "spell_id" => 1_246_502,
+             "amount" => 68_688,
+             "overkill" => 16_930
+           } = List.last(death.window_events)
+
+    assert death.killing_blow_spell_id == 1_246_502
+
+    assert death.killing_blow_source_guid ==
+             "Creature-0-3882-2912-132932-240431-00005CEE72"
+
+    assert Enum.map(death.damage_recap, & &1["amount"]) ==
+             [68_688, 117_750, 25_098, 281_880, 25_097]
+
+    assert %{
+             "kind" => "heal",
+             "ms_into_fight" => 144_033,
+             "spell_id" => 139,
+             "spell_name" => "Renew",
+             "source_guid" => "Player-76-0BE7FABE",
+             "amount" => 3_710,
+             "overheal" => 0
+           } = Enum.find(death.window_events, &(&1["kind"] == "heal"))
+  end
+
   defp projected_fixture do
     assert {:ok, events} =
              CombatLogParser.parse_events(

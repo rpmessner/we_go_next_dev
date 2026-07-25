@@ -14,7 +14,9 @@ defmodule WeGoNext.Silver.Projector do
 
   @damage_taken_types ~w(SPELL_DAMAGE SPELL_PERIODIC_DAMAGE SWING_DAMAGE RANGE_DAMAGE ENVIRONMENTAL_DAMAGE)
   @damage_done_types ~w(SPELL_DAMAGE SPELL_PERIODIC_DAMAGE SWING_DAMAGE RANGE_DAMAGE)
-  @death_recap_window_size 10
+  @heal_taken_types ~w(SPELL_HEAL SPELL_PERIODIC_HEAL)
+  @default_death_window_ms 10_000
+  @death_window_event_cap 100
   @consumable_heal_join_window_ms 2_000
 
   @unknown_source_guid "__UNKNOWN_SOURCE_GUID__"
@@ -27,8 +29,12 @@ defmodule WeGoNext.Silver.Projector do
 
   @doc """
   Returns table-shaped row lists for the silver tables.
+
+  Options: `:death_window_ms` — the fixed-seconds death window bounding both
+  the recap and window event capture (default #{@default_death_window_ms}).
   """
-  def project(encounter_dim_id, events) when is_integer(encounter_dim_id) and is_list(events) do
+  def project(encounter_dim_id, events, opts \\ [])
+      when is_integer(encounter_dim_id) and is_list(events) do
     indexed_events =
       events
       |> Enum.with_index()
@@ -36,16 +42,18 @@ defmodule WeGoNext.Silver.Projector do
 
     events = Enum.map(indexed_events, &elem(&1, 0))
     tank_guids = detect_tank_guids(events)
+    survival_action = project_survival_actions(encounter_dim_id, events)
+    death_window_ms = Keyword.get(opts, :death_window_ms, @default_death_window_ms)
 
     %Projection{
       damage_taken: project_damage_taken(encounter_dim_id, events),
       damage_taken_event: project_damage_taken_events(encounter_dim_id, indexed_events),
       damage_done: project_damage_done(encounter_dim_id, events),
-      death: project_deaths(encounter_dim_id, events),
+      death: project_deaths(encounter_dim_id, events, survival_action, death_window_ms),
       interrupt_opportunity: project_interrupt_opportunities(encounter_dim_id, events),
       debuff_application: project_debuff_applications(encounter_dim_id, events),
       defensive_buff_window: project_defensive_buff_windows(encounter_dim_id, events),
-      survival_action: project_survival_actions(encounter_dim_id, events),
+      survival_action: survival_action,
       player_info: project_player_info(encounter_dim_id, events, tank_guids)
     }
   end
@@ -181,40 +189,45 @@ defmodule WeGoNext.Silver.Projector do
     }
   end
 
-  defp project_deaths(encounter_dim_id, events) do
-    {deaths, _damage_windows} =
-      Enum.reduce(events, {[], %{}}, fn event, {deaths, damage_windows} ->
+  # Deaths carry one fixed-seconds window (display and analysis share it):
+  # every damage-taken, incoming-heal, and survival-action usage row within
+  # `window_ms` before the death, interleaved in time order. The buffers hold
+  # {seq, row} so same-millisecond combat events keep their log order; usage
+  # rows (joined from the survival grain, which has no event seq) sort after
+  # combat events on the same millisecond via a large tiebreak.
+  defp project_deaths(encounter_dim_id, events, survival_rows, window_ms) do
+    usage_by_target = Enum.group_by(survival_rows, & &1.target_guid)
+
+    {deaths, _windows} =
+      events
+      |> Enum.with_index()
+      |> Enum.reduce({[], %{}}, fn {event, seq}, {deaths, windows} ->
+        window_kind = death_window_kind(event)
+
         cond do
           event_type(event) == "UNIT_DIED" and player_guid?(event_value(event, :target_guid)) ->
             target_guid = normalize_guid(event_value(event, :target_guid), @unknown_target_guid)
-            recap = Map.get(damage_windows, target_guid, [])
-            killing_blow = List.first(recap)
 
-            death = %{
-              encounter_dim_id: encounter_dim_id,
-              target_guid: target_guid,
-              died_at_ms_into_fight: time_ms(event),
-              killing_blow_spell_id: killing_blow && killing_blow["spell_id"],
-              killing_blow_source_guid: killing_blow && killing_blow["source_guid"],
-              damage_recap: recap
-            }
+            death =
+              build_death(
+                encounter_dim_id,
+                target_guid,
+                time_ms(event),
+                Map.get(windows, target_guid, []),
+                Map.get(usage_by_target, target_guid, []),
+                window_ms
+              )
 
-            {[death | deaths], Map.delete(damage_windows, target_guid)}
+            {[death | deaths], Map.delete(windows, target_guid)}
 
-          event_type(event) in @damage_taken_types and
-              player_guid?(event_value(event, :target_guid)) ->
+          window_kind != nil and player_guid?(event_value(event, :target_guid)) ->
             target_guid = normalize_guid(event_value(event, :target_guid), @unknown_target_guid)
-            recap_event = death_recap_event(event)
+            entry = {seq, death_window_event(event, window_kind)}
 
-            updated_windows =
-              Map.update(damage_windows, target_guid, [recap_event], fn existing ->
-                [recap_event | existing] |> Enum.take(@death_recap_window_size)
-              end)
-
-            {deaths, updated_windows}
+            {deaths, Map.update(windows, target_guid, [entry], &[entry | &1])}
 
           true ->
-            {deaths, damage_windows}
+            {deaths, windows}
         end
       end)
 
@@ -223,8 +236,60 @@ defmodule WeGoNext.Silver.Projector do
     |> Enum.sort_by(& &1.died_at_ms_into_fight)
   end
 
-  defp death_recap_event(event) do
+  defp build_death(encounter_dim_id, target_guid, died_at_ms, buffered, usage_rows, window_ms) do
+    window_start_ms = died_at_ms - window_ms
+
+    combat_entries =
+      for {seq, row} <- buffered, row["ms_into_fight"] >= window_start_ms, do: {row, seq}
+
+    usage_entries =
+      usage_rows
+      |> Enum.filter(&(&1.used_at_ms_into_fight in window_start_ms..died_at_ms))
+      |> Enum.with_index(1_000_000_000)
+      |> Enum.map(fn {row, tiebreak} -> {death_window_usage(row), tiebreak} end)
+
+    sorted =
+      (combat_entries ++ usage_entries)
+      |> Enum.sort_by(fn {row, tiebreak} -> {row["ms_into_fight"], tiebreak} end)
+      |> Enum.map(&elem(&1, 0))
+
+    truncated = length(sorted) > @death_window_event_cap
+    window_events = if truncated, do: Enum.take(sorted, -@death_window_event_cap), else: sorted
+
+    recap =
+      window_events
+      |> Enum.filter(&(&1["kind"] == "damage"))
+      |> Enum.reverse()
+      |> Enum.map(&Map.delete(&1, "kind"))
+
+    killing_blow = List.first(recap)
+
     %{
+      encounter_dim_id: encounter_dim_id,
+      target_guid: target_guid,
+      died_at_ms_into_fight: died_at_ms,
+      killing_blow_spell_id: killing_blow && killing_blow["spell_id"],
+      killing_blow_source_guid: killing_blow && killing_blow["source_guid"],
+      damage_recap: recap,
+      window_ms: window_ms,
+      window_truncated: truncated,
+      window_events: window_events
+    }
+  end
+
+  defp death_window_kind(event) do
+    type = event_type(event)
+
+    cond do
+      type in @damage_taken_types -> "damage"
+      type in @heal_taken_types -> "heal"
+      true -> nil
+    end
+  end
+
+  defp death_window_event(event, "damage") do
+    %{
+      "kind" => "damage",
       "timestamp" => event_value(event, :timestamp),
       "ms_into_fight" => time_ms(event),
       "spell_id" => normalize_spell_id(event_value(event, :spell_id)),
@@ -234,6 +299,34 @@ defmodule WeGoNext.Silver.Projector do
       "amount" => non_negative_integer(event_value(event, :amount)),
       "overkill" => non_negative_integer(event_value(event, :overkill)),
       "school" => event_value(event, :spell_school) || 1
+    }
+  end
+
+  defp death_window_event(event, "heal") do
+    %{
+      "kind" => "heal",
+      "timestamp" => event_value(event, :timestamp),
+      "ms_into_fight" => time_ms(event),
+      "spell_id" => normalize_spell_id(event_value(event, :spell_id)),
+      "spell_name" => event_value(event, :spell_name),
+      "source_guid" => normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
+      "source_name" => event_value(event, :source_name),
+      "amount" => non_negative_integer(event_value(event, :amount)),
+      "overheal" => non_negative_integer(event_value(event, :overhealing))
+    }
+  end
+
+  defp death_window_usage(row) do
+    %{
+      "kind" => "survival_action",
+      "ms_into_fight" => row.used_at_ms_into_fight,
+      "spell_id" => row.spell_id,
+      "spell_name" => row.spell_name,
+      "caster_guid" => row.caster_guid,
+      "action_kind" => row.kind,
+      "category" => row.category,
+      "heal_amount" => row.heal_amount,
+      "overheal_amount" => row.overheal_amount
     }
   end
 
