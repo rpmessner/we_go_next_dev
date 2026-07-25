@@ -191,6 +191,8 @@ defmodule WeGoNext.Silver.ProjectorTest do
              }
            ] = projection.defensive_buff_window
 
+    assert projection.survival_action == []
+
     assert [
              %{
                encounter_dim_id: @encounter_dim_id,
@@ -289,6 +291,210 @@ defmodule WeGoNext.Silver.ProjectorTest do
       ])
 
     assert projection.interrupt_opportunity == []
+  end
+
+  test "projects catalog survival casts target-aware with consumable heal joins" do
+    projection =
+      Projector.project(@encounter_dim_id, [
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 1.0,
+          source_guid: "Player-Warlock",
+          source_name: "Warlock-Realm",
+          target_guid: "0000000000000000",
+          target_name: nil,
+          spell_id: 104_773,
+          spell_name: "Unending Resolve"
+        ),
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 2.0,
+          source_guid: "Player-Priest",
+          source_name: "Priest-Realm",
+          target_guid: "Player-Warlock",
+          target_name: "Warlock-Realm",
+          spell_id: 33_206,
+          spell_name: "Pain Suppression"
+        ),
+        # Real 12.0 logs can stamp the consumable heal 1ms before its cast.
+        CombatLogEventFixtures.spell_heal_event(
+          time_into_fight: 5.0,
+          source_guid: "Player-Warlock",
+          source_name: "Warlock-Realm",
+          target_guid: "Player-Warlock",
+          spell_id: 6262,
+          spell_name: "Healthstone",
+          amount: 118_155,
+          overhealing: 0
+        ),
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 5.001,
+          source_guid: "Player-Warlock",
+          source_name: "Warlock-Realm",
+          target_guid: "0000000000000000",
+          target_name: nil,
+          spell_id: 6262,
+          spell_name: "Healthstone"
+        ),
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 8.0,
+          source_guid: "Player-Mage",
+          source_name: "Mage-Realm",
+          target_guid: "0000000000000000",
+          target_name: nil,
+          spell_id: 1_234_768,
+          spell_name: "Silvermoon Health Potion"
+        ),
+        CombatLogEventFixtures.spell_heal_event(
+          time_into_fight: 8.2,
+          source_guid: "Player-Mage",
+          source_name: "Mage-Realm",
+          target_guid: "Player-Mage",
+          spell_id: 1_234_768,
+          spell_name: "Silvermoon Health Potion",
+          amount: 316_404,
+          overhealing: 242_443
+        )
+      ])
+
+    assert [
+             %{
+               encounter_dim_id: @encounter_dim_id,
+               caster_guid: "Player-Warlock",
+               target_guid: "Player-Warlock",
+               spell_id: 104_773,
+               spell_name: "Unending Resolve",
+               kind: "defensive",
+               category: "personal",
+               used_at_ms_into_fight: 1_000,
+               heal_amount: nil,
+               overheal_amount: nil
+             },
+             %{
+               caster_guid: "Player-Priest",
+               target_guid: "Player-Warlock",
+               spell_id: 33_206,
+               spell_name: "Pain Suppression",
+               kind: "defensive",
+               category: "external",
+               used_at_ms_into_fight: 2_000,
+               heal_amount: nil
+             },
+             %{
+               caster_guid: "Player-Warlock",
+               target_guid: "Player-Warlock",
+               spell_id: 6262,
+               kind: "healthstone",
+               category: "consumable",
+               used_at_ms_into_fight: 5_001,
+               heal_amount: 118_155,
+               overheal_amount: 0
+             },
+             %{
+               caster_guid: "Player-Mage",
+               target_guid: "Player-Mage",
+               spell_id: 1_234_768,
+               kind: "health_potion",
+               category: "consumable",
+               used_at_ms_into_fight: 8_000,
+               heal_amount: 316_404,
+               overheal_amount: 242_443
+             }
+           ] = projection.survival_action
+  end
+
+  test "survival actions stay catalog-gated and heal joins stay bounded" do
+    projection =
+      Projector.project(@encounter_dim_id, [
+        # Non-catalog player cast is not a survival action.
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 1.0,
+          source_guid: "Player-Mage",
+          source_name: "Mage-Realm",
+          target_guid: "Creature-Boss",
+          target_name: "Boss",
+          spell_id: 30_455,
+          spell_name: "Ice Lance"
+        ),
+        # Catalog spell id cast by an NPC is not a player survival action.
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 2.0,
+          source_guid: "Creature-Boss",
+          source_name: "Boss",
+          target_guid: "Creature-Boss",
+          target_name: "Boss",
+          spell_id: 6262,
+          spell_name: "Healthstone"
+        ),
+        # Consumable heal with no matching cast emits no usage row.
+        CombatLogEventFixtures.spell_heal_event(
+          time_into_fight: 3.0,
+          source_guid: "Player-Orphan",
+          source_name: "Orphan-Realm",
+          target_guid: "Player-Orphan",
+          spell_id: 1_234_768,
+          spell_name: "Silvermoon Health Potion",
+          amount: 100_000,
+          overhealing: 0
+        ),
+        # Heal outside the join window stays detached from the cast row.
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 10.0,
+          source_guid: "Player-Rogue",
+          source_name: "Rogue-Realm",
+          target_guid: "0000000000000000",
+          target_name: nil,
+          spell_id: 6262,
+          spell_name: "Healthstone"
+        ),
+        CombatLogEventFixtures.spell_heal_event(
+          time_into_fight: 13.0,
+          source_guid: "Player-Rogue",
+          source_name: "Rogue-Realm",
+          target_guid: "Player-Rogue",
+          spell_id: 6262,
+          spell_name: "Healthstone",
+          amount: 90_000,
+          overhealing: 0
+        ),
+        # Non-consumable catalog heals never join usage rows.
+        CombatLogEventFixtures.spell_cast_success_event(
+          time_into_fight: 20.0,
+          source_guid: "Player-Rogue",
+          source_name: "Rogue-Realm",
+          target_guid: "0000000000000000",
+          target_name: nil,
+          spell_id: 185_311,
+          spell_name: "Crimson Vial"
+        ),
+        CombatLogEventFixtures.spell_heal_event(
+          time_into_fight: 20.1,
+          source_guid: "Player-Rogue",
+          source_name: "Rogue-Realm",
+          target_guid: "Player-Rogue",
+          spell_id: 185_311,
+          spell_name: "Crimson Vial",
+          amount: 50_000,
+          overhealing: 0
+        )
+      ])
+
+    assert [
+             %{
+               spell_id: 6262,
+               kind: "healthstone",
+               used_at_ms_into_fight: 10_000,
+               heal_amount: nil,
+               overheal_amount: nil
+             },
+             %{
+               spell_id: 185_311,
+               spell_name: "Crimson Vial",
+               kind: "defensive",
+               category: "personal",
+               used_at_ms_into_fight: 20_000,
+               heal_amount: nil,
+               overheal_amount: nil
+             }
+           ] = projection.survival_action
   end
 
   test "normalizes nil-like natural-key values for required silver fields" do

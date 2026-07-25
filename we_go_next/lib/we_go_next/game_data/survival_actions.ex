@@ -701,6 +701,19 @@ defmodule WeGoNext.GameData.SurvivalActions do
                  spec_ids: [],
                  shared_cooldown_group: :combat_potion,
                  max_uses_per_combat: 1
+               },
+               %{
+                 key: :silvermoon_health_potion,
+                 name: "Silvermoon Health Potion",
+                 kind: :health_potion,
+                 cast_spell_ids: [1_234_768],
+                 aura_spell_ids: [],
+                 base_cooldown_ms: 300_000,
+                 category: :consumable,
+                 class_id: nil,
+                 spec_ids: [],
+                 shared_cooldown_group: :combat_potion,
+                 max_uses_per_combat: 1
                }
              ],
              &Map.merge(@defaults, &1)

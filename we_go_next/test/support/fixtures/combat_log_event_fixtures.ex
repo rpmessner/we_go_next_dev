@@ -263,6 +263,27 @@ defmodule WeGoNext.Fixtures.CombatLogEventFixtures do
     )
   end
 
+  def spell_heal_event(attrs \\ []) do
+    build_event(
+      %{
+        type: "SPELL_HEAL",
+        timestamp: timestamp(attrs[:time_into_fight] || 0.0),
+        time_into_fight: 0.0,
+        source_guid: "Player-1",
+        source_name: "Player-Realm",
+        target_guid: "Player-1",
+        target_name: "Player-Realm",
+        spell_id: 6262,
+        spell_name: "Healthstone",
+        spell_school: 1,
+        amount: 0,
+        overhealing: 0,
+        absorbed: 0
+      },
+      attrs
+    )
+  end
+
   def debuff_applied_event(attrs \\ []) do
     build_event(
       %{

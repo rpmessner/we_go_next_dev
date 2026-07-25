@@ -16,7 +16,8 @@ defmodule WeGoNext.Silver do
     InterruptOpportunity,
     PlayerInfo,
     Projection,
-    Projector
+    Projector,
+    SurvivalAction
   }
 
   @insert_all_parameter_limit 60_000
@@ -130,6 +131,20 @@ defmodule WeGoNext.Silver do
               :started_at_ms_into_fight
             ],
             [:spell_name, :category, :ended_at_ms_into_fight, :duration_ms]
+          ),
+        survival_action:
+          insert_rows(
+            SurvivalAction,
+            projection.survival_action,
+            now,
+            [
+              :encounter_dim_id,
+              :caster_guid,
+              :target_guid,
+              :spell_id,
+              :used_at_ms_into_fight
+            ],
+            [:spell_name, :kind, :category, :heal_amount, :overheal_amount]
           ),
         player_info:
           insert_rows(

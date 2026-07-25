@@ -66,6 +66,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
              interrupt_opportunity: 2,
              debuff_application: 2,
              defensive_buff_window: 1,
+             survival_action: 0,
              player_info: 3
            }
 

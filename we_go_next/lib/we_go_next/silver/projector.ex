@@ -15,6 +15,7 @@ defmodule WeGoNext.Silver.Projector do
   @damage_taken_types ~w(SPELL_DAMAGE SPELL_PERIODIC_DAMAGE SWING_DAMAGE RANGE_DAMAGE ENVIRONMENTAL_DAMAGE)
   @damage_done_types ~w(SPELL_DAMAGE SPELL_PERIODIC_DAMAGE SWING_DAMAGE RANGE_DAMAGE)
   @death_recap_window_size 10
+  @consumable_heal_join_window_ms 2_000
 
   @unknown_source_guid "__UNKNOWN_SOURCE_GUID__"
   @unknown_target_guid "__UNKNOWN_TARGET_GUID__"
@@ -44,6 +45,7 @@ defmodule WeGoNext.Silver.Projector do
       interrupt_opportunity: project_interrupt_opportunities(encounter_dim_id, events),
       debuff_application: project_debuff_applications(encounter_dim_id, events),
       defensive_buff_window: project_defensive_buff_windows(encounter_dim_id, events),
+      survival_action: project_survival_actions(encounter_dim_id, events),
       player_info: project_player_info(encounter_dim_id, events, tank_guids)
     }
   end
@@ -449,6 +451,112 @@ defmodule WeGoNext.Silver.Projector do
       duration_ms: nil
     }
   end
+
+  defp project_survival_actions(encounter_dim_id, events) do
+    {cast_entries, consumable_heals} =
+      Enum.reduce(events, {[], []}, fn event, {casts, heals} = acc ->
+        case classify_survival_event(event) do
+          {:cast, action} ->
+            {[{survival_cast_row(encounter_dim_id, event, action), action} | casts], heals}
+
+          {:heal, action} ->
+            {casts, [consumable_heal(event, action) | heals]}
+
+          :ignore ->
+            acc
+        end
+      end)
+
+    cast_entries
+    |> Enum.reverse()
+    |> attach_consumable_heals(Enum.reverse(consumable_heals))
+    |> Enum.sort_by(&{&1.used_at_ms_into_fight, &1.caster_guid, &1.spell_id})
+  end
+
+  defp classify_survival_event(event) do
+    type = event_type(event)
+
+    if type in ["SPELL_CAST_SUCCESS", "SPELL_HEAL"] and
+         player_guid?(event_value(event, :source_guid)) do
+      event
+      |> event_value(:spell_id)
+      |> normalize_spell_id()
+      |> SurvivalActions.get_by_cast_id()
+      |> case do
+        nil -> :ignore
+        action when type == "SPELL_CAST_SUCCESS" -> {:cast, action}
+        %{category: :consumable} = action -> {:heal, action}
+        _action -> :ignore
+      end
+    else
+      :ignore
+    end
+  end
+
+  defp survival_cast_row(encounter_dim_id, event, action) do
+    caster_guid = normalize_guid(event_value(event, :source_guid), @unknown_source_guid)
+
+    %{
+      encounter_dim_id: encounter_dim_id,
+      caster_guid: caster_guid,
+      target_guid: survival_target_guid(event, caster_guid),
+      spell_id: normalize_spell_id(event_value(event, :spell_id)),
+      spell_name: event_value(event, :spell_name) || action.name,
+      kind: Atom.to_string(action.kind),
+      category: Atom.to_string(action.category),
+      used_at_ms_into_fight: time_ms(event),
+      heal_amount: nil,
+      overheal_amount: nil
+    }
+  end
+
+  # Externals are cast on other players; self-casts log a nil or non-player
+  # target, so the receiver falls back to the caster.
+  defp survival_target_guid(event, caster_guid) do
+    target_guid = event_value(event, :target_guid)
+
+    if player_guid?(target_guid), do: target_guid, else: caster_guid
+  end
+
+  defp consumable_heal(event, action) do
+    %{
+      caster_guid: normalize_guid(event_value(event, :source_guid), @unknown_source_guid),
+      action_key: action.key,
+      ms: time_ms(event),
+      amount: non_negative_integer(event_value(event, :amount)),
+      overheal: non_negative_integer(event_value(event, :overhealing))
+    }
+  end
+
+  # Joins each consumable cast to the nearest unclaimed resulting SPELL_HEAL.
+  # The window is symmetric: real 12.0 logs can stamp the heal a moment
+  # before its own SPELL_CAST_SUCCESS line.
+  defp attach_consumable_heals(cast_entries, consumable_heals) do
+    {rows, _remaining_heals} =
+      Enum.map_reduce(cast_entries, consumable_heals, fn {row, action}, heals ->
+        case claim_consumable_heal(heals, row, action) do
+          nil ->
+            {row, heals}
+
+          heal ->
+            {%{row | heal_amount: heal.amount, overheal_amount: heal.overheal},
+             List.delete(heals, heal)}
+        end
+      end)
+
+    rows
+  end
+
+  defp claim_consumable_heal(heals, row, %{category: :consumable} = action) do
+    heals
+    |> Enum.filter(fn heal ->
+      heal.caster_guid == row.caster_guid and heal.action_key == action.key and
+        abs(heal.ms - row.used_at_ms_into_fight) <= @consumable_heal_join_window_ms
+    end)
+    |> Enum.min_by(&abs(&1.ms - row.used_at_ms_into_fight), fn -> nil end)
+  end
+
+  defp claim_consumable_heal(_heals, _row, _action), do: nil
 
   defp project_player_info(encounter_dim_id, events, tank_guids) do
     class_info = collect_class_info(events)

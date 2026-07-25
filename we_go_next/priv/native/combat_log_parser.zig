@@ -721,9 +721,10 @@ fn parse_spell_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
 }
 
 fn parse_heal_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, keys: *[20]e.ErlNifTerm, vals: *[20]e.ErlNifTerm, field_count: *u32) void {
-    // After spell prefix, skip advanced info (13 fields)
+    // Skip 19 advanced info fields (TWW/12.0 format, same block as damage)
+    // Heal suffix observed in 12.0.7 logs: amount, baseAmount, overhealing, absorbed, critical
     var skip: u32 = 0;
-    while (skip < 13 and pos.* < rest.len) : (skip += 1) {
+    while (skip < 19 and pos.* < rest.len) : (skip += 1) {
         _ = next_csv_field(rest, pos);
     }
 
@@ -734,10 +735,13 @@ fn parse_heal_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, keys: *[2
     vals[field_count.*] = beam.make(amount, .{}).v;
     field_count.* += 1;
 
+    // skip baseAmount
+    _ = next_csv_field(rest, pos);
+
     // overhealing
     const overheal_str = next_csv_field(rest, pos);
     const overheal = parse_i64_field(overheal_str);
-    keys[field_count.*] = e.enif_make_atom(env, "overkill");
+    keys[field_count.*] = e.enif_make_atom(env, "overhealing");
     vals[field_count.*] = beam.make(overheal, .{}).v;
     field_count.* += 1;
 

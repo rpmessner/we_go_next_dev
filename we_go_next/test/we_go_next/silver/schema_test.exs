@@ -9,7 +9,8 @@ defmodule WeGoNext.Silver.SchemaTest do
     DebuffApplication,
     DefensiveBuffWindow,
     InterruptOpportunity,
-    PlayerInfo
+    PlayerInfo,
+    SurvivalAction
   }
 
   test "silver schemas use dedicated schema prefix and clean table names" do
@@ -20,6 +21,7 @@ defmodule WeGoNext.Silver.SchemaTest do
     assert InterruptOpportunity.__schema__(:source) == "interrupt_opportunity"
     assert DebuffApplication.__schema__(:source) == "debuff_application"
     assert DefensiveBuffWindow.__schema__(:source) == "defensive_buff_window"
+    assert SurvivalAction.__schema__(:source) == "survival_action"
     assert PlayerInfo.__schema__(:source) == "player_info"
 
     assert Enum.all?(
@@ -31,6 +33,7 @@ defmodule WeGoNext.Silver.SchemaTest do
                InterruptOpportunity,
                DebuffApplication,
                DefensiveBuffWindow,
+               SurvivalAction,
                PlayerInfo
              ],
              &(&1.__schema__(:prefix) == "silver")
@@ -118,6 +121,19 @@ defmodule WeGoNext.Silver.SchemaTest do
         spell_name: "Unending Resolve",
         category: "personal",
         started_at_ms_into_fight: 12_345
+      })
+    )
+
+    assert_changeset_valid(
+      SurvivalAction.changeset(%SurvivalAction{}, %{
+        encounter_dim_id: 1,
+        caster_guid: "Player-1",
+        target_guid: "Player-2",
+        spell_id: 47_788,
+        spell_name: "Guardian Spirit",
+        kind: "defensive",
+        category: "external",
+        used_at_ms_into_fight: 12_345
       })
     )
 

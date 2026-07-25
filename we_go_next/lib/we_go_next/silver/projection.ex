@@ -11,6 +11,7 @@ defmodule WeGoNext.Silver.Projection do
     :interrupt_opportunity,
     :debuff_application,
     :defensive_buff_window,
+    :survival_action,
     :player_info
   ]
 
@@ -22,6 +23,7 @@ defmodule WeGoNext.Silver.Projection do
     :interrupt_opportunity,
     :debuff_application,
     :defensive_buff_window,
+    :survival_action,
     :player_info
   ]
 
@@ -33,6 +35,7 @@ defmodule WeGoNext.Silver.Projection do
           interrupt_opportunity: [map()],
           debuff_application: [map()],
           defensive_buff_window: [map()],
+          survival_action: [map()],
           player_info: [map()]
         }
 end
