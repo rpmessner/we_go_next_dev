@@ -18,6 +18,12 @@ id = "implement"
 title = "Implement the target bead"
 metadata = { "gc.run_target" = "gc.implementation-worker" }
 description = """
+Your target: the input convoy for this run is {{convoy_id}}. Run
+`bd show {{convoy_id}}` — the bead that convoy depends on (its tracked
+member) is the target bead. That bead's description and acceptance criteria
+define the scope; work that bead and comment progress on it. Do not infer
+scope from the branch name, the workflow root, or this step's prose.
+
 Implement the target bead on a feature branch (never main; never commit
 unrelated files). Read AGENTS.md first and follow it exactly: medallion layer
 boundaries (bronze/silver/gold/rules), no legacy analyzer-cache or
@@ -41,6 +47,9 @@ title = "Post verification evidence"
 needs = ["implement"]
 metadata = { "gc.run_target" = "gc.implementation-worker" }
 description = """
+The target bead is the tracked dependency of convoy {{convoy_id}}
+(`bd show {{convoy_id}}` lists it).
+
 Comment on the target bead with the evidence, not assertions: the exact
 commands run and their observed results (test counts, credo output, fact-row
 or read-model deltas for medallion work), the branch name and commit, and
@@ -61,6 +70,9 @@ title = "Human review gate"
 needs = ["adversarial-review"]
 metadata = { "gc.run_target" = "gc.run-operator" }
 description = """
+The target bead is the tracked dependency of convoy {{convoy_id}}
+(`bd show {{convoy_id}}` lists it).
+
 Blocked on a human gate bead. Operator: review the diff, the evidence
 comment, and the adversarial-review verdict on the target bead, then close
 the gate bead to approve. The reviewer's verdict is advisory — a SHIP does

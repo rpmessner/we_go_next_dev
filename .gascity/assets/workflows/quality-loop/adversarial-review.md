@@ -3,6 +3,13 @@ Adversarially review the implementation for the target bead. Your job is to
 failure scenario — specific inputs or state leading to a wrong output, crash,
 or violated contract. A vague "consider improving X" is not a finding.
 
+Find the target bead first, deterministically: this step bead's metadata
+carries `gc.root_bead_id` — `bd show` that root, read its
+`gc.input_convoy_id` metadata, then `bd show` that convoy; the bead the
+convoy depends on (its tracked member) is the target bead. Its comments
+carry the evidence and branch name. Do not guess the target from branch
+names or step prose.
+
 Read the repo root `AGENTS.md` first. Then review the feature branch diff for
 the target bead (branch name is in the bead comments/evidence) against these
 lenses, in order of severity:
