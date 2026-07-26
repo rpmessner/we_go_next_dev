@@ -133,6 +133,25 @@ defmodule WeGoNext.Gold.DeathSurvivalTest do
     assert %{state: :on_cooldown, basis: :inferred} = kit_entry(analysis, :potent_healing_potion)
   end
 
+  test "the per-combat allowance spends the sibling potion beyond the cooldown window" do
+    analysis =
+      DeathSurvival.analyze(
+        death(died_at_ms_into_fight: 500_000),
+        warlock_info(),
+        [
+          usage(
+            spell_id: 1_234_768,
+            spell_name: "Silvermoon Health Potion",
+            kind: "health_potion",
+            used_at_ms_into_fight: 100_000
+          )
+        ],
+        []
+      )
+
+    assert %{state: :on_cooldown, basis: :inferred} = kit_entry(analysis, :potent_healing_potion)
+  end
+
   test "the per-combat allowance keeps an expended healthstone on cooldown" do
     analysis =
       DeathSurvival.analyze(

@@ -40,3 +40,10 @@ erl_crash.dump
 .beads/*
 !.beads/identity.toml
 .agents/
+
+# Local agent/session tooling state
+.codex/
+.gc/
+
+# Local planning scratch (promote keepers into docs/)
+plans/
