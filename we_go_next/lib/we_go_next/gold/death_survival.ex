@@ -179,7 +179,8 @@ defmodule WeGoNext.Gold.DeathSurvival do
       )
 
     exhausted_per_combat =
-      action.max_uses_per_combat != nil and length(uses) >= action.max_uses_per_combat
+      action.max_uses_per_combat != nil and
+        length(cooldown_relevant_uses) >= action.max_uses_per_combat
 
     uses_within_cooldown >= action.charges or exhausted_per_combat
   end

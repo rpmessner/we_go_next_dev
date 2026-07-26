@@ -194,7 +194,9 @@ defmodule WeGoNext.Silver.Projector do
   # `window_ms` before the death, interleaved in time order. The buffers hold
   # {seq, row} so same-millisecond combat events keep their log order; usage
   # rows (joined from the survival grain, which has no event seq) sort after
-  # combat events on the same millisecond via a large tiebreak.
+  # combat events on the same millisecond via a large tiebreak. Buffers are
+  # time-trimmed on insert to the same window build_death applies, so
+  # never-dying targets don't grow their buffer for the whole encounter.
   defp project_deaths(encounter_dim_id, events, survival_rows, window_ms) do
     usage_by_target = Enum.group_by(survival_rows, & &1.target_guid)
 
@@ -223,8 +225,17 @@ defmodule WeGoNext.Silver.Projector do
           window_kind != nil and player_guid?(event_value(event, :target_guid)) ->
             target_guid = normalize_guid(event_value(event, :target_guid), @unknown_target_guid)
             entry = {seq, death_window_event(event, window_kind)}
+            cutoff_ms = time_ms(event) - window_ms
 
-            {deaths, Map.update(windows, target_guid, [entry], &[entry | &1])}
+            {deaths,
+             Map.update(windows, target_guid, [entry], fn entries ->
+               kept =
+                 Enum.take_while(entries, fn {_seq, row} ->
+                   row["ms_into_fight"] >= cutoff_ms
+                 end)
+
+               [entry | kept]
+             end)}
 
           true ->
             {deaths, windows}
