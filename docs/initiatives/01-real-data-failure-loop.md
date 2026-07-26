@@ -1,6 +1,6 @@
 # Initiative 1 — Real-Data Failure Loop (Avoidable)
 
-Status: **Absorbed into Initiative 2/3.** Linear: [WE / 1. Real-Data Failure Loop (Avoidable)](https://linear.app/we-go-next/project/1-real-data-failure-loop-avoidable-ab93ba29c143) (WE-13…16).
+Status: **Absorbed into Initiative 2/3.** Beads: `we-i1` (we-13…16).
 
 ## Decision
 

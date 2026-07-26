@@ -8,7 +8,10 @@ defmodule WeGoNext.Documents.EncounterDocument do
   alias WeGoNext.Mechanics.Taxonomy
   alias WeGoNext.RaidNights
 
-  @schema_version 1
+  # 2: deaths carry survival context (window_events, window_ms/truncated,
+  #    survival kit states + externals) and the survival_usage section exists.
+  #    Renderers must degrade gracefully for version-1 documents.
+  @schema_version 2
 
   @doc """
   Encodes one encounter's current detail read models into the WE-25 contract.
@@ -30,6 +33,7 @@ defmodule WeGoNext.Documents.EncounterDocument do
          roster: Enum.map(detail.roster, &encode_roster_player/1),
          deaths: Enum.map(detail.deaths, &encode_death/1),
          pull_review: encode_pull_review(detail.pull_review),
+         survival_usage: encode_survival_usage(detail.survival_usage),
          failure_preview: encode_failure_preview(detail.failure_preview),
          interrupt_coverage: encode_interrupt_coverage(detail.interrupt_coverage),
          personal_pull_summary: encode_personal_pull_summary(detail.personal_pull_summary),
@@ -105,6 +109,14 @@ defmodule WeGoNext.Documents.EncounterDocument do
     |> Map.drop([:id])
     |> Map.put(:operator, %{id: Map.get(death, :id)})
   end
+
+  # Public-safe by construction: usage timelines/counts and the pull rollup
+  # carry only catalog metadata, guids, timings, and heal amounts.
+  defp encode_survival_usage(%{players: players, rollup: rollup}) do
+    %{players: players, rollup: rollup}
+  end
+
+  defp encode_survival_usage(_survival_usage), do: %{players: [], rollup: %{}}
 
   defp encode_pull_review(pull_review) do
     %{

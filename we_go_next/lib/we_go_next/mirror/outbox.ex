@@ -5,6 +5,7 @@ defmodule WeGoNext.Mirror.Outbox do
 
   import Ecto.Query
 
+  alias WeGoNext.CombatLogFile
   alias WeGoNext.Documents.Upload
   alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Mirror.MirrorUpload
@@ -30,6 +31,62 @@ defmodule WeGoNext.Mirror.Outbox do
       nil ->
         {:error, :encounter_not_found}
     end
+  end
+
+  @doc """
+  Ensures every gold encounter sourced from the given combat log file has an
+  outbox row, leaving existing rows (queued or already published) untouched.
+
+  Used when publishing is enabled on an already-imported log: per-encounter
+  enqueueing only happens at rebuild time, so encounters imported while
+  publishing was off need this backfill. Returns the number of rows added.
+  """
+  @spec enqueue_missing_for_combat_log_file(CombatLogFile.t()) :: {:ok, non_neg_integer()}
+  def enqueue_missing_for_combat_log_file(%CombatLogFile{} = combat_log_file) do
+    now = DateTime.utc_now()
+
+    rows =
+      combat_log_file
+      |> source_encounter_keys_query()
+      |> Repo.all()
+      |> Enum.map(fn source_encounter_key ->
+        %{
+          source_encounter_key: source_encounter_key,
+          state: "pending",
+          last_error: nil,
+          published_at: nil,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    {inserted, _returning} =
+      Repo.insert_all(MirrorUpload, rows,
+        on_conflict: :nothing,
+        conflict_target: [:source_encounter_key]
+      )
+
+    {:ok, inserted}
+  end
+
+  defp source_encounter_keys_query(%CombatLogFile{
+         head_sha256: head_sha256,
+         file_path: file_path
+       })
+       when is_binary(head_sha256) do
+    from(d in DimEncounter,
+      where: d.source_head_sha256 == ^head_sha256 or d.source_file_path == ^file_path,
+      where: not is_nil(d.source_encounter_key),
+      select: d.source_encounter_key
+    )
+  end
+
+  defp source_encounter_keys_query(%CombatLogFile{file_path: file_path}) do
+    from(d in DimEncounter,
+      where: d.source_file_path == ^file_path,
+      where: not is_nil(d.source_encounter_key),
+      select: d.source_encounter_key
+    )
   end
 
   @doc """

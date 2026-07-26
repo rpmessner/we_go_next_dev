@@ -41,13 +41,22 @@ Code-defined mechanics should include:
 
 - encounter id/name and raid context,
 - spell id/name,
-- mechanic type,
-- supporting event family such as `:damage_taken` or `:interrupt_opportunity`,
-- source annotations such as `:dbm`, `:wowanalyzer`, `:journal`, or
+- standardized `mechanic_type`,
+- `evidence_family` such as `:damage_taken` or `:interrupt_opportunity`,
+- `definition_origin: :authored_catalog` to distinguish the committed product
+  decision from its evidence,
+- `source_annotations` such as `:dbm`, `:wowanalyzer`, `:journal`, or
   `:local_logs`,
+- taxonomy-derived default actionability and fact eligibility,
 - rule threshold where supported,
-- `track: false` for known mechanics that are useful context but should not yet
-  become failure rules.
+- a derived `rule_seed_eligible?` result that is true only when the exact
+  mechanic/evidence pairing has implemented fact semantics.
+
+The config shape is enforced by `WeGoNext.GameData.Raids.Mechanic`. A source
+annotation explains why an authored row exists; it never changes
+`definition_origin` or makes an imported source row active. Observation-only
+configs such as Void Fall remain visible context without seeding rules until
+their evidence and fact semantics are defensible.
 
 `WeGoNext.Rules.sync_raid_mechanics/2` mirrors syncable code-defined mechanics
 into editable `rules.mechanic_criterion` rows. Use the database rules as the

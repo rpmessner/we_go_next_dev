@@ -146,6 +146,189 @@ defmodule WeGoNextWeb.PublicLiveTest do
     refute html =~ "Source Key"
   end
 
+  test "public death recap tab renders document death rows", %{conn: conn} do
+    write_fixture_document!("encounter-one", %{
+      encounter: %{name: "Boss One"},
+      counts: %{players: 1, deaths: 1},
+      deaths: [
+        %{
+          target_guid: "Player-1234-0000ABCD",
+          player_name: "Deadguy",
+          class_id: 11,
+          spec_id: 105,
+          detected_role: "healer",
+          died_at_ms_into_fight: 123_456,
+          killing_blow_spell_id: 442_432,
+          killing_blow_source_guid: "Creature-0-1234",
+          encounter_name: "Boss One",
+          killing_blow: %{spell_id: 442_432, spell_name: "Obliteration Beam", amount: 3_500_000},
+          damage_recap: [
+            %{spell_id: 442_432, spell_name: "Obliteration Beam", amount: 3_500_000}
+          ],
+          operator: %{id: 1}
+        }
+      ]
+    })
+
+    html =
+      conn
+      |> get(~p"/r/raid-night/encounters/encounter-one?tab=deaths")
+      |> html_response(200)
+
+    assert html =~ "Death Recap"
+    assert html =~ "Deadguy"
+    assert html =~ "Obliteration Beam for 3.5M"
+  end
+
+  test "public death recap renders the survival strip and toggles heal rows", %{conn: conn} do
+    write_fixture_document!("encounter-two", %{
+      encounter: %{name: "Boss Two"},
+      counts: %{players: 1, deaths: 1},
+      deaths: [
+        %{
+          target_guid: "Player-1234-0000ABCD",
+          player_name: "Deadmage",
+          class_id: 8,
+          spec_id: 64,
+          detected_role: "dps",
+          died_at_ms_into_fight: 125_000,
+          killing_blow_spell_id: 442_432,
+          killing_blow_source_guid: "Creature-0-1234",
+          encounter_name: "Boss Two",
+          killing_blow: %{spell_id: 442_432, spell_name: "Obliteration Beam", amount: 900_000},
+          damage_recap: [
+            %{spell_id: 442_432, spell_name: "Obliteration Beam", amount: 900_000}
+          ],
+          window_ms: 10_000,
+          window_truncated: false,
+          window_events: [
+            %{
+              kind: "survival_action",
+              ms_into_fight: 120_000,
+              spell_id: 11_426,
+              spell_name: "Ice Barrier",
+              caster_guid: "Player-1234-0000ABCD",
+              action_kind: "defensive",
+              category: "personal",
+              heal_amount: nil,
+              overheal_amount: nil
+            },
+            %{
+              kind: "heal",
+              ms_into_fight: 122_000,
+              spell_id: 139,
+              spell_name: "Renew",
+              source_guid: "Player-Healer",
+              source_name: "Healer",
+              amount: 12_000,
+              overheal: 2_000
+            },
+            %{
+              kind: "damage",
+              ms_into_fight: 124_900,
+              spell_id: 442_432,
+              spell_name: "Obliteration Beam",
+              source_guid: "Creature-0-1234",
+              source_name: "Big Boss",
+              amount: 900_000,
+              overkill: 350_000
+            }
+          ],
+          survival: %{
+            target_guid: "Player-1234-0000ABCD",
+            died_at_ms_into_fight: 125_000,
+            window_ms: 10_000,
+            kit: [
+              %{
+                key: "ice_barrier",
+                name: "Ice Barrier",
+                kind: "defensive",
+                category: "personal",
+                effect_kind: "absorb",
+                availability: "talented",
+                state: "died_through",
+                basis: "observed",
+                used_at_ms_into_fight: 120_000,
+                last_used_at_ms_into_fight: 120_000
+              },
+              %{
+                key: "ice_block",
+                name: "Ice Block",
+                kind: "defensive",
+                category: "immunity",
+                effect_kind: "immunity",
+                availability: "talented",
+                state: "available_unused",
+                basis: "inferred",
+                used_at_ms_into_fight: nil,
+                last_used_at_ms_into_fight: nil
+              },
+              %{
+                key: "alter_time",
+                name: "Alter Time",
+                kind: "defensive",
+                category: "personal",
+                effect_kind: "instant_heal",
+                availability: "not_talented",
+                state: "not_talented",
+                basis: "observed",
+                used_at_ms_into_fight: nil,
+                last_used_at_ms_into_fight: nil
+              },
+              %{
+                key: "healthstone",
+                name: "Healthstone",
+                kind: "healthstone",
+                category: "consumable",
+                effect_kind: "instant_heal",
+                availability: "baseline",
+                state: "on_cooldown",
+                basis: "inferred",
+                used_at_ms_into_fight: nil,
+                last_used_at_ms_into_fight: 60_000
+              }
+            ],
+            externals_received: [
+              %{
+                spell_id: 47_788,
+                spell_name: "Guardian Spirit",
+                caster_guid: "Player-Priest",
+                category: "external",
+                used_at_ms_into_fight: 121_000
+              }
+            ]
+          },
+          operator: %{id: 1}
+        }
+      ]
+    })
+
+    {:ok, view, _html} =
+      live(conn, ~p"/r/raid-night/encounters/encounter-two?tab=deaths")
+
+    html = render(view)
+
+    assert html =~ "Deadmage"
+    assert html =~ "died through"
+    assert html =~ "Ice Barrier"
+    assert html =~ "available, unused"
+    assert html =~ "on cooldown (inferred)"
+    assert html =~ "Untalented"
+    assert html =~ "Alter Time"
+    assert html =~ "Externals received"
+    assert html =~ "Guardian Spirit"
+    assert html =~ "Cooldown and availability are inferred"
+    assert html =~ "Events in the final 10s before death."
+    assert html =~ "Obliteration Beam"
+
+    refute html =~ "Renew"
+    assert html =~ "Show 1 heal row"
+
+    html = view |> element("input[phx-click=toggle_death_heals]") |> render_click()
+    assert html =~ "Renew"
+    assert html =~ "Heals received in window"
+  end
+
   test "public encounter failure page handles unknown encounter key", %{conn: conn} do
     html =
       conn

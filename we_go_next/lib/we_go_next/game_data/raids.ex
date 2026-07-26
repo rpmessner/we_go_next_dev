@@ -47,6 +47,6 @@ defmodule WeGoNext.GameData.Raids do
 
   def interruptible_spells do
     MidnightSeason1.mechanics()
-    |> Enum.filter(&(&1.type == :interrupt))
+    |> Enum.filter(&(&1.mechanic_type == :interrupt))
   end
 end

@@ -14,10 +14,12 @@ defmodule WeGoNextWeb.LogLive.Index do
     EncounterStore,
     FileWatcher,
     ImportWorker,
-    Repo,
     RaidNights,
+    Repo,
     WarcraftLogs
   }
+
+  alias WeGoNext.Mirror.Outbox
 
   alias WeGoNextWeb.Components.ImportedLogsSwitcher
   import Ecto.Query
@@ -86,12 +88,13 @@ defmodule WeGoNextWeb.LogLive.Index do
     with {:ok, file_id} <- parse_id(file_id),
          %CombatLogFile{} = combat_log_file <-
            get_user_combat_log(socket.assigns.user.id, file_id),
-         {:ok, _combat_log_file} <-
+         {:ok, updated_combat_log_file} <-
            combat_log_file
            |> CombatLogFile.changeset(%{publish_enabled: !combat_log_file.publish_enabled})
            |> Repo.update() do
       {:noreply,
        socket
+       |> maybe_backfill_publish_outbox(updated_combat_log_file)
        |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
        |> maybe_refresh_current_combat_log(file_id)}
     else
@@ -382,6 +385,24 @@ defmodule WeGoNextWeb.LogLive.Index do
   defp get_user_combat_log(user_id, file_id) do
     Repo.get_by(CombatLogFile, id: file_id, user_id: user_id)
   end
+
+  # Rebuilds only enqueue uploads for logs already marked publishable, so
+  # enabling publish must backfill the log's existing encounters.
+  defp maybe_backfill_publish_outbox(socket, %CombatLogFile{publish_enabled: true} = clf) do
+    {:ok, queued} = Outbox.enqueue_missing_for_combat_log_file(clf)
+
+    if queued > 0 do
+      put_flash(
+        socket,
+        :info,
+        "Publishing enabled — queued #{queued} existing encounter#{if queued == 1, do: "", else: "s"} for upload"
+      )
+    else
+      socket
+    end
+  end
+
+  defp maybe_backfill_publish_outbox(socket, %CombatLogFile{}), do: socket
 
   defp toggle_watching(%CombatLogFile{watch_enabled: true} = combat_log_file) do
     with {:ok, _combat_log_file} <-

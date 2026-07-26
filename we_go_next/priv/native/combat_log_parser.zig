@@ -596,11 +596,68 @@ fn parse_combatant_info(env: *e.ErlNifEnv, rest: []const u8, type_term: beam.ter
         spec_id = parse_i64_field(next_csv_field(rest, &pos));
     }
 
-    // Build extra map with spec_id
-    var extra_keys = [_]e.ErlNifTerm{e.enif_make_atom(env, "spec_id")};
-    var extra_vals = [_]e.ErlNifTerm{beam.make(spec_id, .{}).v};
+    // Class talents follow spec_id as [(traitNodeID,traitEntryID,rank),...]
+    // (verified against 12.0.7 lines; the PvP tuple after it uses spell IDs
+    // and is intentionally not captured here). Missing/unparseable payload
+    // emits no :talents key so downstream reads degrade to unknown.
+    var talents_term: e.ErlNifTerm = undefined;
+    var have_talents = false;
+    if (pos < rest.len and rest[pos] == '[') {
+        const open = pos;
+        var close: usize = open + 1;
+        while (close < rest.len and rest[close] != ']') : (close += 1) {}
+        if (close < rest.len) {
+            const inner = rest[open + 1 .. close];
+            var triple_terms: [256]e.ErlNifTerm = undefined;
+            var triple_count: u32 = 0;
+            var tpos: usize = 0;
+            while (tpos < inner.len and triple_count < 256) {
+                while (tpos < inner.len and inner[tpos] != '(') : (tpos += 1) {}
+                if (tpos >= inner.len) break;
+                tpos += 1;
+                var tend: usize = tpos;
+                while (tend < inner.len and inner[tend] != ')') : (tend += 1) {}
+                if (tend == inner.len) break;
+                const tuple_body = inner[tpos..tend];
+                var nums = [3]i64{ 0, 0, 0 };
+                var ni: u32 = 0;
+                var npos: usize = 0;
+                while (ni < 3 and npos < tuple_body.len) {
+                    var nend = npos;
+                    while (nend < tuple_body.len and tuple_body[nend] != ',') : (nend += 1) {}
+                    nums[ni] = parse_i64_field(tuple_body[npos..nend]);
+                    ni += 1;
+                    npos = nend + 1;
+                }
+                if (ni == 3) {
+                    var elems = [3]e.ErlNifTerm{
+                        beam.make(nums[0], .{}).v,
+                        beam.make(nums[1], .{}).v,
+                        beam.make(nums[2], .{}).v,
+                    };
+                    triple_terms[triple_count] = e.enif_make_list_from_array(env, &elems, 3);
+                    triple_count += 1;
+                }
+                tpos = tend + 1;
+            }
+            talents_term = e.enif_make_list_from_array(env, &triple_terms, triple_count);
+            have_talents = true;
+        }
+    }
+
+    // Build extra map with spec_id (+ talents when present)
+    var extra_keys: [2]e.ErlNifTerm = undefined;
+    var extra_vals: [2]e.ErlNifTerm = undefined;
+    var extra_count: u32 = 1;
+    extra_keys[0] = e.enif_make_atom(env, "spec_id");
+    extra_vals[0] = beam.make(spec_id, .{}).v;
+    if (have_talents) {
+        extra_keys[1] = e.enif_make_atom(env, "talents");
+        extra_vals[1] = talents_term;
+        extra_count = 2;
+    }
     var extra_map: e.ErlNifTerm = undefined;
-    _ = e.enif_make_map_from_arrays(env, &extra_keys, &extra_vals, 1, &extra_map);
+    _ = e.enif_make_map_from_arrays(env, &extra_keys, &extra_vals, extra_count, &extra_map);
 
     var keys: [5]e.ErlNifTerm = undefined;
     var vals: [5]e.ErlNifTerm = undefined;
@@ -652,6 +709,8 @@ fn parse_swing_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
         _ = next_csv_field(rest, pos);
     }
 
+    // Suffix observed in v22 advanced logs: amount, baseAmount, overkill,
+    // school, resisted, blocked, absorbed, critical, glancing, crushing.
     // amount
     const amount_str = next_csv_field(rest, pos);
     const amount = parse_i64_field(amount_str);
@@ -659,7 +718,10 @@ fn parse_swing_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
     vals[field_count.*] = beam.make(amount, .{}).v;
     field_count.* += 1;
 
-    // overkill
+    // skip baseAmount
+    _ = next_csv_field(rest, pos);
+
+    // overkill (-1 when the hit did not kill)
     const overkill_str = next_csv_field(rest, pos);
     var overkill = parse_i64_field(overkill_str);
     if (overkill < 0) overkill = 0;
@@ -690,6 +752,8 @@ fn parse_spell_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
         _ = next_csv_field(rest, pos);
     }
 
+    // Suffix observed in v22 advanced logs: amount, baseAmount, overkill,
+    // school, resisted, blocked, absorbed, critical, glancing, crushing.
     // amount
     const amount_str = next_csv_field(rest, pos);
     const amount = parse_i64_field(amount_str);
@@ -697,7 +761,10 @@ fn parse_spell_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
     vals[field_count.*] = beam.make(amount, .{}).v;
     field_count.* += 1;
 
-    // overkill
+    // skip baseAmount
+    _ = next_csv_field(rest, pos);
+
+    // overkill (-1 when the hit did not kill)
     const overkill_str = next_csv_field(rest, pos);
     var overkill = parse_i64_field(overkill_str);
     if (overkill < 0) overkill = 0;
@@ -721,9 +788,10 @@ fn parse_spell_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
 }
 
 fn parse_heal_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, keys: *[20]e.ErlNifTerm, vals: *[20]e.ErlNifTerm, field_count: *u32) void {
-    // After spell prefix, skip advanced info (13 fields)
+    // Skip 19 advanced info fields (TWW/12.0 format, same block as damage)
+    // Heal suffix observed in 12.0.7 logs: amount, baseAmount, overhealing, absorbed, critical
     var skip: u32 = 0;
-    while (skip < 13 and pos.* < rest.len) : (skip += 1) {
+    while (skip < 19 and pos.* < rest.len) : (skip += 1) {
         _ = next_csv_field(rest, pos);
     }
 
@@ -734,10 +802,13 @@ fn parse_heal_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, keys: *[2
     vals[field_count.*] = beam.make(amount, .{}).v;
     field_count.* += 1;
 
+    // skip baseAmount
+    _ = next_csv_field(rest, pos);
+
     // overhealing
     const overheal_str = next_csv_field(rest, pos);
     const overheal = parse_i64_field(overheal_str);
-    keys[field_count.*] = e.enif_make_atom(env, "overkill");
+    keys[field_count.*] = e.enif_make_atom(env, "overhealing");
     vals[field_count.*] = beam.make(overheal, .{}).v;
     field_count.* += 1;
 
@@ -762,6 +833,9 @@ fn parse_env_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, key
     keys[field_count.*] = e.enif_make_atom(env, "amount");
     vals[field_count.*] = beam.make(amount, .{}).v;
     field_count.* += 1;
+
+    // skip baseAmount
+    _ = next_csv_field(rest, pos);
 
     const overkill_str = next_csv_field(rest, pos);
     var overkill = parse_i64_field(overkill_str);

@@ -1,0 +1,31 @@
+# we_go_next factory cockpit (airmux 0.2.x schema). Start with
+# scripts/cockpit.sh — the tmux socket selected there is load-bearing: the
+# cockpit must share the server Gas City agents run on (~/gc city.toml sets
+# [session] socket = "default") so agent windows link in natively instead of
+# nesting tmux clients. Airmux owns windows 1-5; scripts/cockpit-relinker.sh
+# reserves 6+ for agent windows (mayor, workers).
+#
+# NOTE: `gc` is shadowed by a `git commit` alias in interactive zsh — direct
+# gc calls use `command gc`; watch panes are immune (watch execs via sh).
+name: wgn-factory
+root: /home/rpmessner/dev/games/wow-addons/we_go_next_dev
+
+windows:
+  - relinker:
+      panes:
+        - ./scripts/cockpit-relinker.sh
+  - worker:
+      panes:
+        - claude
+  - radar:
+      layout: even-horizontal
+      panes:
+        - watch -c -n 30 bd ready
+        - watch -n 30 -t "gc --city /home/rpmessner/gc status"
+        - until command gc --city /home/rpmessner/gc events --follow; do sleep 15; done
+  - code:
+      panes:
+        - nvim
+  - shell:
+      panes:
+        - ~

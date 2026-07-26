@@ -16,7 +16,8 @@ defmodule WeGoNext.Silver do
     InterruptOpportunity,
     PlayerInfo,
     Projection,
-    Projector
+    Projector,
+    SurvivalAction
   }
 
   @insert_all_parameter_limit 60_000
@@ -37,7 +38,8 @@ defmodule WeGoNext.Silver do
   def project_and_persist(%DimEncounter{} = dim_encounter, opts) do
     with {:ok, events} <- Keyword.fetch(opts, :events),
          true <- is_list(events),
-         projection <- Projector.project(dim_encounter.id, events) do
+         projection <-
+           Projector.project(dim_encounter.id, events, Keyword.take(opts, [:death_window_ms])) do
       persist_projection(projection)
     else
       :error -> {:error, :events_required}
@@ -94,7 +96,14 @@ defmodule WeGoNext.Silver do
             projection.death,
             now,
             [:encounter_dim_id, :target_guid, :died_at_ms_into_fight],
-            [:killing_blow_spell_id, :killing_blow_source_guid, :damage_recap]
+            [
+              :killing_blow_spell_id,
+              :killing_blow_source_guid,
+              :damage_recap,
+              :window_ms,
+              :window_truncated,
+              :window_events
+            ]
           ),
         interrupt_opportunity:
           insert_rows(
@@ -131,13 +140,27 @@ defmodule WeGoNext.Silver do
             ],
             [:spell_name, :category, :ended_at_ms_into_fight, :duration_ms]
           ),
+        survival_action:
+          insert_rows(
+            SurvivalAction,
+            projection.survival_action,
+            now,
+            [
+              :encounter_dim_id,
+              :caster_guid,
+              :target_guid,
+              :spell_id,
+              :used_at_ms_into_fight
+            ],
+            [:spell_name, :kind, :category, :heal_amount, :overheal_amount]
+          ),
         player_info:
           insert_rows(
             PlayerInfo,
             projection.player_info,
             now,
             [:encounter_dim_id, :player_guid],
-            [:player_name, :class_id, :spec_id, :item_level, :detected_role]
+            [:player_name, :class_id, :spec_id, :item_level, :detected_role, :talents]
           )
       }
     end)

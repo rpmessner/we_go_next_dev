@@ -37,7 +37,6 @@ defmodule WeGoNext.GameData.Raids.Dreamrift do
         :avoidable,
         :damage_taken,
         [:wowanalyzer, :local_logs],
-        track: true,
         rule: %{max_hits: 0},
         notes:
           "WowAnalyzer labels the cast as Ravenous Dive; observed damage is sparse and should be validated."
@@ -59,7 +58,6 @@ defmodule WeGoNext.GameData.Raids.Dreamrift do
         :avoidable,
         :damage_taken,
         [:dbm, :local_logs],
-        track: true,
         rule: %{max_hits: 0},
         notes: "DBM DodgeCount warning with FRONTAL label and observed damage in current logs."
       ),
@@ -187,13 +185,15 @@ defmodule WeGoNext.GameData.Raids.Dreamrift do
     CatalogHelpers.mechanic(
       @raid_name,
       @raid_slug,
-      boss_name,
-      encounter_id,
-      spell_id,
-      name,
-      type,
-      event,
-      sources,
+      %{
+        boss_name: boss_name,
+        boss_encounter_id: encounter_id,
+        spell_id: spell_id,
+        name: name,
+        mechanic_type: type || :unknown,
+        evidence_family: event,
+        source_annotations: sources
+      },
       opts
     )
   end

@@ -1,6 +1,6 @@
 # Initiative 3 — User Mechanic Classification UI
 
-Status: **Planned.** Linear: [WE / 3. User Mechanic Classification UI](https://linear.app/we-go-next/project/3-user-mechanic-classification-ui-df49eebbd196) (WE-20…22).
+Status: **Planned.** Beads: `we-i3` (we-20…22).
 
 ## Goal
 

@@ -1,0 +1,12 @@
+# Wake the backlog polecat to dispatch ONE factory-ok bead through
+# quality-loop. Throughput scales by firing this more often — never by
+# dispatching more per wake. Manual until the first supervised end-to-end
+# run (dispatch -> implement -> evidence -> adversarial review -> human
+# gate) has been reviewed; then switch to the commented cooldown.
+[order]
+description = "Dispatch the next factory-ok ready bead through quality-loop"
+trigger = "manual"
+# trigger = "cooldown"
+# interval = "45m"
+exec = "gc sling we_go_next/wgn.backlog-polecat 'Dispatch the next factory-ok bead through quality-loop, then go idle.'"
+timeout = "30m"

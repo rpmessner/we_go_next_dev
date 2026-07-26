@@ -12,7 +12,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
 
   alias WeGoNext.Encounter
   alias WeGoNext.Fixtures.CombatLogEventFixtures
-  alias WeGoNext.GameData.DefensiveBuffs
+  alias WeGoNext.GameData.SurvivalActions
   alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Repo
   alias WeGoNext.Silver
@@ -66,6 +66,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
              interrupt_opportunity: 2,
              debuff_application: 2,
              defensive_buff_window: 1,
+             survival_action: 0,
              player_info: 3
            }
 
@@ -220,7 +221,7 @@ defmodule WeGoNext.Silver.RoundTripTest do
 
   defp legacy_debuff_applications(%{applications: applications}) do
     applications
-    |> Enum.reject(&(DefensiveBuffs.get(&1.spell_id) != nil))
+    |> Enum.reject(&(SurvivalActions.get_by_aura_id(&1.spell_id) != nil))
     |> Enum.map(fn app ->
       %{
         target_guid: app.player_guid,

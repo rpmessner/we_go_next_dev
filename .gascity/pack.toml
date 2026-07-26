@@ -1,0 +1,18 @@
+# we_go_next Gas City pack — repo-tailored factory configuration.
+#
+# Imported by the city's rig entry (see ~/gc/city.toml [rigs.imports.wgn]).
+# Composes with the default gascity roles pack; this pack only adds what is
+# specific to this repo: the quality-loop formula whose verify step is the
+# repo's real `mix quality` gate and whose approval step is a human gate bead.
+
+[pack]
+name = "wgn"
+version = "0.1.0"
+schema = 2
+
+# Provider/model split (operator preference): reasoning roles run Claude
+# Fable 5 (this pack's agents set provider = "claude-fable" directly);
+# build-out lanes run Codex (operator default model, gpt-5.6-sol). The
+# stock gc.implementation-worker/-reviewer agents come from the gc-roles
+# pack, so their provider patches live at the rig level in the city's
+# city.toml ([[rigs.patches]]) — pack patches cannot reach imported agents.

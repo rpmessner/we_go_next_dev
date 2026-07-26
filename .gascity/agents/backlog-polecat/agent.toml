@@ -1,0 +1,6 @@
+description = "Backlog dispatcher: slings the top factory-ok ready bead through quality-loop (one per wake)"
+scope = "rig"
+provider = "claude-fable"
+idle_timeout = "10m"
+max_active_sessions = 1
+nudge = "Dispatch the next factory-ok bead through quality-loop, then go idle."

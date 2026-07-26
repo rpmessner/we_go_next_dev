@@ -9,7 +9,7 @@ defmodule WeGoNext.Gold.EncounterDetail do
   import Ecto.Query
 
   alias WeGoNext.GameData.{Interrupts, Spells}
-  alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
+  alias WeGoNext.Gold.{DeathSurvival, DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Repo
 
   alias WeGoNext.Silver.{
@@ -20,7 +20,8 @@ defmodule WeGoNext.Gold.EncounterDetail do
     DebuffApplication,
     DefensiveBuffWindow,
     InterruptOpportunity,
-    PlayerInfo
+    PlayerInfo,
+    SurvivalAction
   }
 
   @low_damage_warning_median_ratio 0.7
@@ -49,7 +50,8 @@ defmodule WeGoNext.Gold.EncounterDetail do
           personal_pull_summary: %{
             selected_player_guid: String.t() | nil,
             players: [map()]
-          }
+          },
+          survival_usage: %{players: [map()], rollup: map()}
         }
 
   @doc """
@@ -60,18 +62,21 @@ defmodule WeGoNext.Gold.EncounterDetail do
     with {:ok, id} <- parse_id(id),
          %DimEncounter{} = encounter <- Repo.get(DimEncounter, id) do
       roster = roster(id)
+      survival_rows = survival_actions(id)
+      buff_windows = defensive_buff_windows(id)
 
       {:ok,
        %{
          encounter: encounter,
          counts: counts(id),
          roster: roster,
-         deaths: deaths(id),
+         deaths: deaths(id, roster, survival_rows, buff_windows),
          pull_review: pull_review(encounter, roster),
          failure_preview: failure_preview(id),
          interrupt_coverage: interrupt_coverage(id),
          personal_pull_summary:
-           personal_pull_summary(encounter, roster, Keyword.get(opts, :character_name))
+           personal_pull_summary(encounter, roster, Keyword.get(opts, :character_name)),
+         survival_usage: survival_usage(roster, survival_rows)
        }}
     else
       nil -> {:error, :not_found}
@@ -124,7 +129,9 @@ defmodule WeGoNext.Gold.EncounterDetail do
   defp role_rank("dps"), do: 2
   defp role_rank(_role), do: 3
 
-  defp deaths(encounter_dim_id) do
+  defp deaths(encounter_dim_id, roster, survival_rows, buff_windows) do
+    players_by_guid = Map.new(roster, &{&1.player_guid, &1})
+
     Death
     |> join(:inner, [death], encounter in DimEncounter,
       on: encounter.id == death.encounter_dim_id
@@ -150,14 +157,83 @@ defmodule WeGoNext.Gold.EncounterDetail do
       killing_blow_spell_id: death.killing_blow_spell_id,
       killing_blow_source_guid: death.killing_blow_source_guid,
       damage_recap: death.damage_recap,
+      window_ms: death.window_ms,
+      window_truncated: death.window_truncated,
+      window_events: death.window_events,
       encounter_name: encounter.name
     })
     |> Repo.all()
-    |> Enum.map(&Map.put(&1, :killing_blow, killing_blow(&1)))
+    |> Enum.map(fn death ->
+      death
+      |> Map.put(:killing_blow, killing_blow(death))
+      |> Map.put(
+        :survival,
+        DeathSurvival.analyze(
+          death,
+          Map.get(players_by_guid, death.target_guid),
+          survival_rows,
+          buff_windows
+        )
+      )
+    end)
   end
 
   defp killing_blow(%{damage_recap: [first | _rest]}), do: first
   defp killing_blow(_death), do: nil
+
+  defp survival_actions(encounter_dim_id) do
+    SurvivalAction
+    |> where([row], row.encounter_dim_id == ^encounter_dim_id)
+    |> order_by([row], asc: row.used_at_ms_into_fight, asc: row.caster_guid, asc: row.spell_id)
+    |> Repo.all()
+  end
+
+  defp defensive_buff_windows(encounter_dim_id) do
+    DefensiveBuffWindow
+    |> where([row], row.encounter_dim_id == ^encounter_dim_id)
+    |> Repo.all()
+  end
+
+  # Per-player usage timeline/counts plus the pull-level rollup the raid lead
+  # asked for: who used nothing, who never rocked or potted.
+  defp survival_usage(roster, survival_rows) do
+    usages_by_caster = Enum.group_by(survival_rows, & &1.caster_guid)
+
+    players =
+      Enum.map(roster, fn player ->
+        usages = Map.get(usages_by_caster, player.player_guid, [])
+
+        %{
+          player_guid: player.player_guid,
+          usages:
+            Enum.map(
+              usages,
+              &Map.take(&1, [
+                :spell_id,
+                :spell_name,
+                :kind,
+                :category,
+                :target_guid,
+                :used_at_ms_into_fight,
+                :heal_amount,
+                :overheal_amount
+              ])
+            ),
+          defensive_uses: Enum.count(usages, &(&1.kind == "defensive")),
+          healthstone_uses: Enum.count(usages, &(&1.kind == "healthstone")),
+          potion_uses: Enum.count(usages, &(&1.kind == "health_potion"))
+        }
+      end)
+
+    %{
+      players: players,
+      rollup: %{
+        players_with_no_usage: for(p <- players, p.usages == [], do: p.player_guid),
+        players_with_no_rock_or_pot:
+          for(p <- players, p.healthstone_uses + p.potion_uses == 0, do: p.player_guid)
+      }
+    }
+  end
 
   defp failure_preview(encounter_dim_id) do
     rows =

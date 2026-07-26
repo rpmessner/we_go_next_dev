@@ -2,7 +2,16 @@ defmodule WeGoNext.GameData.RaidsTest do
   use ExUnit.Case, async: true
 
   alias WeGoNext.GameData.Raids
-  alias WeGoNext.GameData.Raids.{Dreamrift, MarchOnQuelDanas, MidnightSeason1, Voidspire}
+
+  alias WeGoNext.GameData.Raids.{
+    Dreamrift,
+    MarchOnQuelDanas,
+    Mechanic,
+    MidnightSeason1,
+    Voidspire
+  }
+
+  alias WeGoNext.Mechanics.Taxonomy
 
   test "indexes code-defined raid catalogs" do
     assert Enum.map(Raids.all(), & &1.slug) == [
@@ -60,7 +69,7 @@ defmodule WeGoNext.GameData.RaidsTest do
              1_255_979
            ]
 
-    assert Enum.all?(dread_breath, &(&1.type == :targeted_cone))
+    assert Enum.all?(dread_breath, &(&1.mechanic_type == :targeted_cone))
 
     assert Enum.any?(criteria, fn criterion ->
              criterion["spell_id"] == 1_272_726 and
@@ -68,27 +77,65 @@ defmodule WeGoNext.GameData.RaidsTest do
            end)
   end
 
-  test "track metadata no longer gates supported avoidable damage mechanics" do
+  test "current-tier mechanics are authored configs with taxonomy-derived defaults" do
     mechanics = MidnightSeason1.mechanics()
 
-    assert length(Enum.filter(mechanics, & &1.track)) == 5
-    assert length(MarchOnQuelDanas.mechanics()) == 48
+    assert Enum.all?(mechanics, &match?(%Mechanic{}, &1))
 
-    assert Enum.all?(MarchOnQuelDanas.mechanics(), &(&1.track == false))
-    assert MarchOnQuelDanas.rule_criteria() != []
+    assert Enum.all?(mechanics, fn mechanic ->
+             classification = Taxonomy.fetch!(mechanic.mechanic_type)
 
-    assert Enum.any?(mechanics, fn mechanic ->
-             mechanic.spell_id == 1_245_452 and
-               mechanic.name == "Corrupted Devastation" and
-               mechanic.track == false and
-               mechanic.sources == [:dbm]
+             mechanic.definition_origin == :authored_catalog and
+               mechanic.default_actionability == classification.actionability and
+               mechanic.default_fact_eligibility == classification.fact_eligibility and
+               is_list(mechanic.source_annotations)
            end)
 
-    assert Enum.any?(mechanics, fn mechanic ->
-             mechanic.spell_id == 1_251_386 and
-               mechanic.name == "Safeguard Prism" and
-               mechanic.track == false and
-               mechanic.sources == [:dbm, :wowanalyzer]
+    assert length(MarchOnQuelDanas.mechanics()) == 48
+
+    assert MarchOnQuelDanas.rule_criteria() != []
+
+    oblivions_wrath = Enum.find(mechanics, &(&1.spell_id == 1_260_718))
+
+    assert %Mechanic{
+             name: "Oblivion's Wrath",
+             boss_encounter_id: "3176",
+             mechanic_type: :avoidable,
+             evidence_family: :damage_taken,
+             definition_origin: :authored_catalog,
+             source_annotations: [:dbm, :local_logs],
+             default_actionability: :actionable,
+             default_fact_eligibility: :supported
+           } = oblivions_wrath
+
+    assert Mechanic.rule_seed_eligible?(oblivions_wrath)
+
+    assert Enum.any?(MidnightSeason1.rule_criteria(), fn criterion ->
+             criterion["spell_id"] == oblivions_wrath.spell_id and
+               criterion["mechanic_type"] == "avoidable"
+           end)
+  end
+
+  test "expected Void Fall observations remain non-fact authored configs" do
+    void_fall =
+      MidnightSeason1.mechanics()
+      |> Enum.filter(&(&1.boss_encounter_id == "3176" and &1.name == "Void Fall"))
+
+    assert Enum.map(void_fall, & &1.spell_id) |> Enum.sort() == [1_258_880, 1_266_786]
+
+    assert Enum.all?(void_fall, fn mechanic ->
+             mechanic.mechanic_type == :unknown and
+               mechanic.evidence_family == :cast and
+               mechanic.definition_origin == :authored_catalog and
+               mechanic.default_actionability == :unknown and
+               mechanic.default_fact_eligibility == :observation_only and
+               not Mechanic.rule_seed_eligible?(mechanic)
+           end)
+
+    void_fall_spell_ids = MapSet.new(void_fall, & &1.spell_id)
+
+    refute Enum.any?(MidnightSeason1.rule_criteria(), fn criterion ->
+             MapSet.member?(void_fall_spell_ids, criterion["spell_id"])
            end)
   end
 

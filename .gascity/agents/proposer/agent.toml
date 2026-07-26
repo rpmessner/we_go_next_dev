@@ -1,0 +1,6 @@
+description = "Feature proposer: files proposal beads from docs + backlog gaps; never promotes or implements"
+scope = "rig"
+provider = "claude-fable"
+idle_timeout = "15m"
+max_active_sessions = 1
+nudge = "Survey docs and backlog, file up to 3 proposal beads, then go idle."

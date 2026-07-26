@@ -16,7 +16,8 @@ defmodule WeGoNext.Silver.PersistenceTest do
     DebuffApplication,
     DefensiveBuffWindow,
     InterruptOpportunity,
-    PlayerInfo
+    PlayerInfo,
+    SurvivalAction
   }
 
   setup do
@@ -42,6 +43,7 @@ defmodule WeGoNext.Silver.PersistenceTest do
              interrupt_opportunity: 2,
              debuff_application: 2,
              defensive_buff_window: 1,
+             survival_action: 0,
              player_info: 3
            }
 
@@ -102,6 +104,67 @@ defmodule WeGoNext.Silver.PersistenceTest do
     assert Repo.aggregate(PlayerInfo, :count) == 3
 
     assert persisted_projection_snapshot() == before_second_projection
+  end
+
+  test "project_and_persist upserts survival action usage rows", %{encounter: encounter} do
+    events = [
+      CombatLogEventFixtures.combatant_info_event(
+        source_guid: "Player-Mage",
+        time_into_fight: 0.1,
+        extra: %{spec_id: 63, talents: [[80_175, 80_176, 1]]}
+      ),
+      CombatLogEventFixtures.spell_cast_success_event(
+        time_into_fight: 3.0,
+        source_guid: "Player-Mage",
+        source_name: "Mage-Realm",
+        target_guid: "0000000000000000",
+        target_name: nil,
+        spell_id: 1_234_768,
+        spell_name: "Silvermoon Health Potion"
+      ),
+      CombatLogEventFixtures.spell_heal_event(
+        time_into_fight: 3.2,
+        source_guid: "Player-Mage",
+        source_name: "Mage-Realm",
+        target_guid: "Player-Mage",
+        spell_id: 1_234_768,
+        spell_name: "Silvermoon Health Potion",
+        amount: 316_404,
+        overhealing: 242_443
+      )
+    ]
+
+    assert {:ok, %{counts: %{survival_action: 1}}} =
+             Silver.project_and_persist(encounter, events: events)
+
+    assert {:ok, %{counts: %{survival_action: 1}}} =
+             Silver.project_and_persist(encounter, events: events)
+
+    assert Repo.aggregate(SurvivalAction, :count) == 1
+
+    assert %SurvivalAction{
+             caster_guid: "Player-Mage",
+             target_guid: "Player-Mage",
+             spell_name: "Silvermoon Health Potion",
+             kind: "health_potion",
+             category: "consumable",
+             heal_amount: 316_404,
+             overheal_amount: 242_443
+           } =
+             Repo.get_by!(SurvivalAction,
+               encounter_dim_id: encounter.id,
+               spell_id: 1_234_768,
+               used_at_ms_into_fight: 3_000
+             )
+
+    assert %PlayerInfo{
+             spec_id: 63,
+             talents: [%{"node_id" => 80_175, "entry_id" => 80_176, "rank" => 1}]
+           } =
+             Repo.get_by!(PlayerInfo,
+               encounter_dim_id: encounter.id,
+               player_guid: "Player-Mage"
+             )
   end
 
   test "project_and_persist keeps normalized sentinel keys idempotent", %{encounter: encounter} do
@@ -395,6 +458,23 @@ defmodule WeGoNext.Silver.PersistenceTest do
             :started_at_ms_into_fight,
             :ended_at_ms_into_fight,
             :duration_ms
+          ])
+        )
+        |> Enum.sort(),
+      survival_action:
+        SurvivalAction
+        |> Repo.all()
+        |> Enum.map(
+          &Map.take(&1, [
+            :caster_guid,
+            :target_guid,
+            :spell_id,
+            :spell_name,
+            :kind,
+            :category,
+            :used_at_ms_into_fight,
+            :heal_amount,
+            :overheal_amount
           ])
         )
         |> Enum.sort(),

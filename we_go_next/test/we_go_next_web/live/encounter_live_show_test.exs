@@ -20,6 +20,7 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     DebuffApplication,
     DefensiveBuffWindow,
     InterruptOpportunity,
+    SurvivalAction,
     PlayerInfo
   }
 
@@ -475,6 +476,163 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     assert html =~ "Attempts 2"
   end
 
+  test "renders the death survival strip and toggles heal rows", %{conn: conn} do
+    encounter = insert_dim_encounter!()
+
+    # Frost mage: Ice Block and Ice Barrier talented, Alter Time untalented.
+    insert_player_info!(encounter, %{
+      player_guid: "Player-One",
+      player_name: "One",
+      class_id: 8,
+      spec_id: 64,
+      detected_role: "dps",
+      talents: [
+        %{"node_id" => 62_100, "entry_id" => 80_181, "rank" => 1},
+        %{"node_id" => 62_101, "entry_id" => 80_176, "rank" => 1}
+      ]
+    })
+
+    insert_player_info!(encounter, %{
+      player_guid: "Player-Two",
+      player_name: "Quiet",
+      class_id: 8,
+      spec_id: 63,
+      detected_role: "dps"
+    })
+
+    # Ice Barrier still active when the player dies -> died through.
+    %DefensiveBuffWindow{}
+    |> DefensiveBuffWindow.changeset(%{
+      encounter_dim_id: encounter.id,
+      target_guid: "Player-One",
+      source_guid: "Player-One",
+      spell_id: 11_426,
+      spell_name: "Ice Barrier",
+      category: "personal",
+      started_at_ms_into_fight: 66_000
+    })
+    |> Repo.insert!()
+
+    insert_survival_action!(encounter, %{
+      spell_id: 11_426,
+      spell_name: "Ice Barrier",
+      kind: "defensive",
+      category: "personal",
+      used_at_ms_into_fight: 66_000
+    })
+
+    # Healthstone 50s before death: inside its 60s cooldown at death.
+    insert_survival_action!(encounter, %{used_at_ms_into_fight: 20_000})
+
+    insert_death!(encounter, "Player-One", %{
+      died_at_ms_into_fight: 70_000,
+      window_ms: 10_000,
+      window_truncated: false,
+      window_events: [
+        %{
+          "kind" => "damage",
+          "ms_into_fight" => 68_000,
+          "spell_id" => 101,
+          "spell_name" => "Bad",
+          "source_guid" => "Creature-One",
+          "source_name" => "Creature One",
+          "amount" => 90_000,
+          "overkill" => 0,
+          "school" => 4,
+          "timestamp" => "fixture"
+        },
+        %{
+          "kind" => "heal",
+          "ms_into_fight" => 68_500,
+          "spell_id" => 139,
+          "spell_name" => "Renew",
+          "source_guid" => "Player-Healer",
+          "source_name" => "Healer",
+          "amount" => 12_000,
+          "overheal" => 2_000
+        },
+        %{
+          "kind" => "survival_action",
+          "ms_into_fight" => 66_000,
+          "spell_id" => 11_426,
+          "spell_name" => "Ice Barrier",
+          "caster_guid" => "Player-One",
+          "action_kind" => "defensive",
+          "category" => "personal",
+          "heal_amount" => nil,
+          "overheal_amount" => nil
+        }
+      ]
+    })
+
+    generate_document!(encounter)
+
+    {:ok, view, _html} =
+      live(conn, ~p"/encounters/#{encounter.source_encounter_key}?tab=deaths")
+
+    html = render(view)
+
+    assert html =~ "died through"
+    assert html =~ "Ice Barrier"
+    assert html =~ "available, unused"
+    assert html =~ "on cooldown (inferred)"
+    assert html =~ "Untalented"
+    assert html =~ "Alter Time"
+    assert html =~ "Never rocked or potted:"
+    assert html =~ "Quiet"
+    assert html =~ "Cooldown and availability are inferred"
+    assert html =~ "Events in the final 10s before death."
+
+    # Heal rows stay behind the default-off checkbox.
+    refute html =~ "Renew"
+    assert html =~ "Show 1 heal row"
+
+    html = view |> element("input[phx-click=toggle_death_heals]") |> render_click()
+    assert html =~ "Renew"
+    assert html =~ "Heals received in window"
+  end
+
+  test "death cards degrade when the document predates survival analysis", %{conn: conn} do
+    key = "legacy-doc-#{System.unique_integer([:positive])}"
+
+    write_fixture_document!(key, %{
+      counts: %{players: 0, deaths: 1, interrupt_opportunities: 0, operator: %{}},
+      deaths: [
+        %{
+          target_guid: "Player-One",
+          player_name: "One",
+          class_id: 8,
+          spec_id: 64,
+          detected_role: "dps",
+          died_at_ms_into_fight: 10_000,
+          killing_blow_spell_id: 101,
+          killing_blow_source_guid: "Creature-One",
+          damage_recap: [
+            %{
+              "ms_into_fight" => 10_000,
+              "spell_id" => 101,
+              "spell_name" => "Bad",
+              "source_guid" => "Creature-One",
+              "source_name" => "Creature One",
+              "amount" => 100,
+              "overkill" => 10
+            }
+          ],
+          operator: %{id: 1}
+        }
+      ]
+    })
+
+    html =
+      conn
+      |> get(~p"/encounters/#{key}?tab=deaths")
+      |> html_response(200)
+
+    assert html =~ "No survival analysis in this document"
+    assert html =~ "Bad"
+    assert html =~ "Events in the final 10s before death."
+  end
+
   defp insert_dim_encounter!(attrs \\ %{}) do
     source_start_byte = System.unique_integer([:positive])
 
@@ -580,6 +738,27 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
 
     %DamageTakenEvent{}
     |> DamageTakenEvent.changeset(attrs)
+    |> Repo.insert!()
+  end
+
+  defp insert_survival_action!(%DimEncounter{} = encounter, attrs) do
+    attrs =
+      Map.merge(
+        %{
+          encounter_dim_id: encounter.id,
+          caster_guid: "Player-One",
+          target_guid: "Player-One",
+          spell_id: 6262,
+          spell_name: "Healthstone",
+          kind: "healthstone",
+          category: "consumable",
+          used_at_ms_into_fight: 1_000
+        },
+        attrs
+      )
+
+    %SurvivalAction{}
+    |> SurvivalAction.changeset(attrs)
     |> Repo.insert!()
   end
 

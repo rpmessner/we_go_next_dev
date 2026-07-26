@@ -15,7 +15,14 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   alias WeGoNext.WowClass
 
   import WeGoNextWeb.EncounterComponents,
-    only: [format_duration: 1, format_number: 1, wowhead_link: 1]
+    only: [
+      death_window_table: 1,
+      survival_strip: 1,
+      format_duration: 1,
+      format_killing_blow: 1,
+      format_number: 1,
+      wowhead_link: 1
+    ]
 
   @impl true
   def mount(%{"source_encounter_key" => source_encounter_key} = params, _session, socket) do
@@ -39,6 +46,8 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:counts, document.counts)
          |> assign(:roster, document.roster)
          |> assign(:deaths, document.deaths)
+         |> assign(:survival_usage, Map.get(document, :survival_usage) || empty_survival_usage())
+         |> assign(:death_heal_keys, MapSet.new())
          |> assign(:pull_review, document.pull_review)
          |> assign(:failure_preview, normalize_failure_preview(document.failure_preview))
          |> assign(:interrupt_coverage, document.interrupt_coverage)
@@ -60,6 +69,8 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:counts, %{})
          |> assign(:roster, [])
          |> assign(:deaths, [])
+         |> assign(:survival_usage, empty_survival_usage())
+         |> assign(:death_heal_keys, MapSet.new())
          |> assign(:pull_review, %{
            damage_done: [],
            low_dps: [],
@@ -101,6 +112,17 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   end
 
   @impl true
+  def handle_event("toggle_death_heals", %{"key" => key}, socket) do
+    keys = socket.assigns.death_heal_keys
+
+    keys =
+      if MapSet.member?(keys, key),
+        do: MapSet.delete(keys, key),
+        else: MapSet.put(keys, key)
+
+    {:noreply, assign(socket, :death_heal_keys, keys)}
+  end
+
   def handle_event("toggle_player_debuffs", _params, socket) do
     {:noreply, update(socket, :show_player_debuffs, &(!&1))}
   end
@@ -806,6 +828,14 @@ defmodule WeGoNextWeb.EncounterLive.Show do
       <section :if={@active_tab == :deaths} class="rounded-lg border border-zinc-700 bg-zinc-800">
         <div class="border-b border-zinc-700 px-4 py-3">
           <h2 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">Death Recap</h2>
+          <p :if={survival_rollup_line(@survival_usage, :players_with_no_usage, @roster)} class="mt-1 text-xs text-zinc-400">
+            No survival actions this pull:
+            <span class="text-zinc-300">{survival_rollup_line(@survival_usage, :players_with_no_usage, @roster)}</span>
+          </p>
+          <p :if={survival_rollup_line(@survival_usage, :players_with_no_rock_or_pot, @roster)} class="mt-1 text-xs text-zinc-400">
+            Never rocked or potted:
+            <span class="text-zinc-300">{survival_rollup_line(@survival_usage, :players_with_no_rock_or_pot, @roster)}</span>
+          </p>
         </div>
 
         <div :if={@deaths == []} class="px-4 py-6 text-sm text-zinc-400">
@@ -838,53 +868,9 @@ defmodule WeGoNextWeb.EncounterLive.Show do
               </div>
             </div>
 
-            <div class="mt-4 overflow-x-auto">
-              <table class="w-full">
-                <thead>
-                  <tr class="border-b border-zinc-700 text-left text-xs uppercase tracking-wide text-zinc-500">
-                    <th class="px-3 py-2">Time</th>
-                    <th class="px-3 py-2">Damage</th>
-                    <th class="px-3 py-2">Source</th>
-                    <th class="px-3 py-2 text-right">Amount</th>
-                    <th class="px-3 py-2 text-right">Overkill</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr :if={death.damage_recap == []} class="border-b border-zinc-700/60 last:border-0">
-                    <td colspan="5" class="px-3 py-3 text-sm text-zinc-400">
-                      No damage recap details stored.
-                    </td>
-                  </tr>
-                  <tr :for={event <- death.damage_recap} class="border-b border-zinc-700/60 last:border-0">
-                    <td class="px-3 py-2 font-mono text-sm text-zinc-300">
-                      {format_ms(recap_value(event, "ms_into_fight"))}
-                    </td>
-                    <td class="px-3 py-2 text-sm text-zinc-100">
-                      <.wowhead_link
-                        :if={recap_value(event, "spell_id")}
-                        spell_id={recap_value(event, "spell_id")}
-                        name={recap_value(event, "spell_name") || "Unknown"}
-                      />
-                      <span :if={!recap_value(event, "spell_id")}>
-                        {recap_value(event, "spell_name") || "Unknown"}
-                      </span>
-                      <span :if={recap_value(event, "spell_id")} class="text-xs text-zinc-500">
-                        ({recap_value(event, "spell_id")})
-                      </span>
-                    </td>
-                    <td class="px-3 py-2 text-sm text-zinc-300">
-                      {recap_value(event, "source_name") || recap_value(event, "source_guid") || "Unknown"}
-                    </td>
-                    <td class="px-3 py-2 text-right font-mono text-sm text-zinc-300">
-                      {format_number(recap_value(event, "amount") || 0)}
-                    </td>
-                    <td class="px-3 py-2 text-right font-mono text-sm text-zinc-300">
-                      {format_number(recap_value(event, "overkill") || 0)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <.survival_strip death={death} />
+
+            <.death_window_table death={death} heal_keys={@death_heal_keys} />
           </article>
         </div>
       </section>
@@ -1073,6 +1059,14 @@ defmodule WeGoNextWeb.EncounterLive.Show do
               <h3 class="text-sm font-semibold uppercase tracking-wide text-zinc-400">
                 Defensive Coverage
               </h3>
+            </div>
+
+            <div class="border-b border-zinc-700 px-4 py-2 text-xs text-zinc-400">
+              <span class="font-medium text-zinc-300">Used this pull:</span>
+              {personal_usage_line(@survival_usage, @selected_personal_player.player_guid)}
+              <span class="ml-2 text-zinc-600">
+                Death-card availability is inferred from observed uses.
+              </span>
             </div>
 
             <div :if={@selected_personal_player.defensive_analysis.summary.dangerous_events_count == 0} class="px-4 py-6 text-sm text-zinc-400">
@@ -1703,6 +1697,39 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   defp field(_map, _key), do: nil
 
+  # Operator-only survival helpers (strip/table components live in
+  # WeGoNextWeb.EncounterComponents since we-qop).
+  defp empty_survival_usage, do: %{players: [], rollup: %{}}
+
+  defp survival_rollup_line(survival_usage, key, roster) do
+    guids = survival_usage |> field(:rollup) |> field(key)
+
+    case guids do
+      guids when is_list(guids) and guids != [] ->
+        names_by_guid = Map.new(roster, &{field(&1, :player_guid), field(&1, :player_name)})
+        Enum.map_join(guids, ", ", &(Map.get(names_by_guid, &1) || &1))
+
+      _guids ->
+        nil
+    end
+  end
+
+  defp personal_usage_line(survival_usage, player_guid) do
+    player =
+      (field(survival_usage, :players) || [])
+      |> Enum.find(&(field(&1, :player_guid) == player_guid))
+
+    case player do
+      nil ->
+        "no usage data for this pull"
+
+      player ->
+        "#{field(player, :defensive_uses) || 0} defensives · " <>
+          "#{field(player, :healthstone_uses) || 0} healthstones · " <>
+          "#{field(player, :potion_uses) || 0} potions"
+    end
+  end
+
   defp format_mechanic_type(type) when is_atom(type),
     do: type |> Atom.to_string() |> format_mechanic_type()
 
@@ -1817,32 +1844,6 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   defp format_number_delta(0), do: "0"
   defp format_number_delta(value) when value > 0, do: "+#{format_number(value)}"
   defp format_number_delta(value), do: "-#{format_number(abs(value))}"
-
-  defp format_killing_blow(%{killing_blow: %{} = killing_blow}) do
-    spell_name = recap_value(killing_blow, "spell_name") || "Unknown"
-    amount = recap_value(killing_blow, "amount") || 0
-    overkill = recap_value(killing_blow, "overkill") || 0
-
-    overkill_text =
-      if overkill > 0 do
-        " with #{format_number(overkill)} overkill"
-      else
-        ""
-      end
-
-    "#{spell_name} for #{format_number(amount)}#{overkill_text}"
-  end
-
-  defp format_killing_blow(%{killing_blow_spell_id: spell_id}) when not is_nil(spell_id) do
-    "Spell #{spell_id}"
-  end
-
-  defp format_killing_blow(_death), do: "Unknown killing blow"
-
-  defp recap_value(%{} = event, key),
-    do: Map.get(event, key) || Map.get(event, String.to_atom(key))
-
-  defp recap_value(_event, _key), do: nil
 
   defp format_spell_counts([]), do: "None"
 

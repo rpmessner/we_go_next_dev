@@ -1,6 +1,8 @@
 defmodule WeGoNext.Gold.ObservedMechanicsTest do
   use ExUnit.Case, async: false
 
+  alias Ecto.Adapters.SQL.Sandbox
+
   alias WeGoNext.Gold.{
     DimEncounter,
     DimMechanicCriterion,
@@ -18,7 +20,7 @@ defmodule WeGoNext.Gold.ObservedMechanicsTest do
   }
 
   setup do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    :ok = Sandbox.checkout(Repo)
     :ok
   end
 
@@ -69,7 +71,12 @@ defmodule WeGoNext.Gold.ObservedMechanicsTest do
     assert row.observed.last_seen_ms == 18_000
 
     assert row.catalog.mechanic_type == :avoidable
-    assert row.catalog.track == true
+    assert row.catalog.evidence_family == :damage_taken
+    assert row.catalog.definition_origin == :authored_catalog
+    assert row.catalog.source_annotations == [:dbm, :local_logs]
+    assert row.catalog.default_actionability == :actionable
+    assert row.catalog.default_fact_eligibility == :supported
+    assert row.catalog.rule_seed_eligible
     assert [%{criterion_dim_id: criterion_dim_id}] = row.criteria
     assert criterion_dim_id == criterion.id
     assert row.facts.failure_count == 2
@@ -113,7 +120,10 @@ defmodule WeGoNext.Gold.ObservedMechanicsTest do
 
     assert catalog_row.spell_name == "Fearsome Cry"
     assert catalog_row.rule_status == :catalog_context
-    assert catalog_row.catalog.track == false
+    assert catalog_row.catalog.evidence_family == :interrupt_opportunity
+    assert catalog_row.catalog.default_actionability == :actionable
+    assert catalog_row.catalog.default_fact_eligibility == :provisional
+    refute catalog_row.catalog.rule_seed_eligible
     assert catalog_row.observed.interrupt_opportunities == 1
     assert catalog_row.observed.missed_interrupts == 1
   end

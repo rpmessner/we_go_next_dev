@@ -9,8 +9,8 @@ defmodule WeGoNext.Gold.ObservedMechanics do
 
   import Ecto.Query
 
-  alias WeGoNext.GameData.Raids.MidnightSeason1
   alias WeGoNext.GameData.{Interrupts, Spells}
+  alias WeGoNext.GameData.Raids.{Mechanic, MidnightSeason1}
 
   alias WeGoNext.Gold.{
     DimEncounter,
@@ -242,15 +242,18 @@ defmodule WeGoNext.Gold.ObservedMechanics do
     %{
       spell_id: mechanic.spell_id,
       spell_name: mechanic.name,
-      mechanic_type: mechanic.type,
-      event: mechanic.event,
+      mechanic_type: mechanic.mechanic_type,
+      evidence_family: mechanic.evidence_family,
       boss_encounter_id: mechanic.boss_encounter_id,
       boss_name: mechanic.boss_name,
       raid_name: mechanic.raid_name,
       raid_slug: mechanic.raid_slug,
-      track: Map.get(mechanic, :track, true),
+      definition_origin: mechanic.definition_origin,
+      default_actionability: mechanic.default_actionability,
+      default_fact_eligibility: mechanic.default_fact_eligibility,
+      rule_seed_eligible: Mechanic.rule_seed_eligible?(mechanic),
       rule: Map.get(mechanic, :rule, %{}),
-      sources: Map.get(mechanic, :sources, []),
+      source_annotations: mechanic.source_annotations,
       notes: Map.get(mechanic, :notes)
     }
   end
@@ -369,8 +372,10 @@ defmodule WeGoNext.Gold.ObservedMechanics do
   defp rule_status(_catalog, [_criterion | _rest], _facts),
     do: :active_criterion
 
-  defp rule_status(%{track: true}, _criteria, _facts), do: :catalog_tracked
-  defp rule_status(%{track: false}, _criteria, _facts), do: :catalog_context
+  defp rule_status(%{rule_seed_eligible: true}, _criteria, _facts),
+    do: :catalog_tracked
+
+  defp rule_status(%{}, _criteria, _facts), do: :catalog_context
 
   defp rule_status(_catalog, _criteria, _facts), do: :observed_only
 

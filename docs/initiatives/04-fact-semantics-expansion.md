@@ -1,6 +1,6 @@
 # Initiative 4 — Fact Semantics Expansion
 
-Status: **Planned (ongoing).** Linear: [WE / 4. Fact Semantics Expansion](https://linear.app/we-go-next/project/4-fact-semantics-expansion-490c13fac081) (WE-23…24).
+Status: **Planned (ongoing).** Beads: `we-i4` (we-23…24).
 
 ## Goal
 

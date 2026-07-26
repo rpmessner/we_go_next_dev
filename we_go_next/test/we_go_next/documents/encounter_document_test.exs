@@ -15,7 +15,7 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
   alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Repo
   alias WeGoNext.Rules.Ruleset
-  alias WeGoNext.Silver.{DamageTaken, DamageTakenEvent, PlayerInfo}
+  alias WeGoNext.Silver.{DamageTaken, DamageTakenEvent, Death, PlayerInfo, SurvivalAction}
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
@@ -43,6 +43,54 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
     insert_damage_taken!(encounter, "Player-One", 101, 100, 1)
     insert_damage_taken_event!(encounter, "Player-One", 101, "Bad 101", 100)
 
+    %SurvivalAction{}
+    |> SurvivalAction.changeset(%{
+      encounter_dim_id: encounter.id,
+      caster_guid: "Player-One",
+      target_guid: "Player-One",
+      spell_id: 1_234_768,
+      spell_name: "Silvermoon Health Potion",
+      kind: "health_potion",
+      category: "consumable",
+      used_at_ms_into_fight: 5_000,
+      heal_amount: 316_404,
+      overheal_amount: 0
+    })
+    |> Repo.insert!()
+
+    %Death{}
+    |> Death.changeset(%{
+      encounter_dim_id: encounter.id,
+      target_guid: "Player-One",
+      died_at_ms_into_fight: 10_000,
+      killing_blow_spell_id: 101,
+      killing_blow_source_guid: "Creature-One",
+      damage_recap: [
+        %{
+          "ms_into_fight" => 10_000,
+          "spell_id" => 101,
+          "spell_name" => "Bad 101",
+          "source_guid" => "Creature-One",
+          "amount" => 100,
+          "overkill" => 10
+        }
+      ],
+      window_ms: 10_000,
+      window_truncated: false,
+      window_events: [
+        %{
+          "kind" => "damage",
+          "ms_into_fight" => 10_000,
+          "spell_id" => 101,
+          "spell_name" => "Bad 101",
+          "source_guid" => "Creature-One",
+          "amount" => 100,
+          "overkill" => 10
+        }
+      ]
+    })
+    |> Repo.insert!()
+
     assert {:ok, %{fact_failure: %{inserted: 1}}} = RebuildEncounter.rebuild(encounter)
 
     assert {:ok, document} =
@@ -58,6 +106,24 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
     assert decoded["encounter"]["source_encounter_key"] == encounter.source_encounter_key
     assert decoded["encounter"]["name"] == "Fixture Boss"
     refute Map.has_key?(decoded["encounter"], "source_file_path")
+
+    assert [usage_player] = decoded["survival_usage"]["players"]
+    assert usage_player["player_guid"] == "Player-One"
+    assert usage_player["potion_uses"] == 1
+    assert [%{"spell_id" => 1_234_768, "heal_amount" => 316_404}] = usage_player["usages"]
+    assert decoded["survival_usage"]["rollup"]["players_with_no_rock_or_pot"] == []
+    assert decoded["survival_usage"]["rollup"]["players_with_no_usage"] == []
+
+    assert [death] = decoded["deaths"]
+    assert death["window_ms"] == 10_000
+    assert death["window_truncated"] == false
+    assert [%{"kind" => "damage", "spell_id" => 101}] = death["window_events"]
+
+    kit = Map.new(death["survival"]["kit"], &{&1["key"], &1})
+    assert kit["silvermoon_health_potion"]["state"] == "used_in_window"
+    assert kit["healthstone"]["state"] == "available_unused"
+    assert kit["healthstone"]["basis"] == "inferred"
+    assert death["survival"]["externals_received"] == []
     refute Map.has_key?(decoded["encounter"], "source_head_sha256")
     refute Map.has_key?(decoded["encounter"], "start_byte")
 

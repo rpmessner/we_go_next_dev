@@ -40,6 +40,8 @@ defmodule WeGoNext.PublicMirrorSmoke do
          :ok <- verify_index(uploaded_index, [factful, zero_failure]),
          :ok <- verify_factful_document(factful_document),
          :ok <- verify_zero_failure_document(zero_failure_document),
+         :ok <- verify_survival_contract(factful_document),
+         :ok <- verify_survival_contract(zero_failure_document),
          {:ok, public_probe} <-
            maybe_probe_public(
              config,
@@ -192,6 +194,33 @@ defmodule WeGoNext.PublicMirrorSmoke do
 
       true ->
         {:error, {:expected_non_empty_detail, source_key(document)}}
+    end
+  end
+
+  # The we-qop parity gate: uploaded documents must carry the version-2
+  # survival contract so /r death cards can render the defensive strip and
+  # window table from the same sections the operator view uses.
+  defp verify_survival_contract(document) do
+    schema_version = document["schema_version"] || 0
+    usage_players = get_in(document, ["survival_usage", "players"])
+
+    deaths_missing_survival =
+      document
+      |> Map.get("deaths", [])
+      |> Enum.reject(&is_map(&1["survival"]))
+
+    cond do
+      schema_version < 2 ->
+        {:error, {:stale_schema_version, source_key(document), schema_version}}
+
+      not is_list(usage_players) ->
+        {:error, {:missing_survival_usage, source_key(document)}}
+
+      deaths_missing_survival != [] ->
+        {:error, {:missing_death_survival, source_key(document), length(deaths_missing_survival)}}
+
+      true ->
+        :ok
     end
   end
 
