@@ -6,7 +6,7 @@ defmodule WeGoNext.Gold.FactFailure.Derivation do
   to be rebuilt from silver rows.
   """
 
-  @current_version 2
+  @current_version 3
 
   def current_version, do: @current_version
 end
