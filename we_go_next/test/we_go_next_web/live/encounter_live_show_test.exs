@@ -349,9 +349,9 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     assert html =~ "No player roster data exists for this pull yet."
   end
 
-  test "explains stale fixture documents", %{conn: conn} do
+  test "reports a version 2 fixture document as stale", %{conn: conn} do
     write_fixture_document!("stale-source-key", %{
-      derivation_version: "old-derivation",
+      derivation_version: 2,
       roster: [
         %{
           player_guid: "Player-Stale",
@@ -371,8 +371,8 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
       |> html_response(200)
 
     assert html =~ "Stale Encounter Document"
-    assert html =~ "old-derivation"
-    assert html =~ to_string(Documents.current_derivation_version())
+    assert html =~ ~r/generated with derivation version\s*<span class="font-mono">2<\/span>/
+    assert html =~ ~r/app expects\s*<span class="font-mono">3<\/span>/
   end
 
   test "shows upload button and manually queues a document upload", %{conn: conn} do
