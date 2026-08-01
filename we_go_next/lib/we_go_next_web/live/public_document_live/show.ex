@@ -344,7 +344,7 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
                   {spell.successful_interrupts}
                 </td>
                 <td class="px-4 py-3 text-right font-mono text-sm text-zinc-300">
-                  {spell.missed_opportunities}
+                  {spell.missed_casts}
                 </td>
               </tr>
             </tbody>
@@ -484,7 +484,7 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
 
   defp missed_interrupt_count(interrupt_coverage) do
     interrupt_coverage.spell_coverage
-    |> Enum.map(&(&1.missed_opportunities || 0))
+    |> Enum.map(&(&1.missed_casts || 0))
     |> Enum.sum()
   end
 

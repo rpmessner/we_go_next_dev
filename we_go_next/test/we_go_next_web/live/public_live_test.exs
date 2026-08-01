@@ -146,6 +146,36 @@ defmodule WeGoNextWeb.PublicLiveTest do
     refute html =~ "Source Key"
   end
 
+  test "public interrupt coverage renders document spell coverage rows", %{conn: conn} do
+    write_fixture_document!("encounter-one", %{
+      encounter: %{name: "Boss One"},
+      counts: %{players: 1, deaths: 0, interrupt_opportunities: 4},
+      interrupt_coverage: %{
+        spell_coverage: [
+          %{
+            spell_id: 1_243_743,
+            spell_name: "Void Bolt",
+            total_opportunities: 4,
+            successful_interrupts: 0,
+            missed_casts: 4,
+            target_count: 1,
+            required_failure_count: nil,
+            operator: %{criterion_dim_ids: nil}
+          }
+        ],
+        player_contributions: []
+      }
+    })
+
+    html =
+      conn
+      |> get(~p"/r/raid-night/encounters/encounter-one?tab=interrupts")
+      |> html_response(200)
+
+    assert html =~ "Void Bolt"
+    assert html =~ "Missed Kicks"
+  end
+
   test "public death recap tab renders document death rows", %{conn: conn} do
     write_fixture_document!("encounter-one", %{
       encounter: %{name: "Boss One"},
