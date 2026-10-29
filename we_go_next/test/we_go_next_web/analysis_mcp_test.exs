@@ -24,8 +24,16 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
            } = rpc("initialize", %{"protocolVersion" => "2025-03-26"})
 
     assert %{"result" => %{"tools" => tools}} = rpc("tools/list")
-    assert Enum.map(tools, & &1["name"]) == ["session_context", "list_pulls"]
-    assert Enum.all?(tools, &(&1["inputSchema"]["required"] == ["session_id"]))
+
+    assert Enum.map(tools, & &1["name"]) == [
+             "session_context",
+             "list_pulls",
+             "damage_taken",
+             "interrupts"
+           ]
+
+    assert Enum.all?(tools, &("session_id" in &1["inputSchema"]["required"]))
+    assert Enum.find(tools, &(&1["name"] == "interrupts"))["description"] =~ "log_events"
     assert %{"result" => %{"prompts" => [%{"name" => "analysis-session"}]}} = rpc("prompts/list")
   end
 
@@ -55,6 +63,41 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
     assert Repo.one!(ToolCall).session_id == session.id
     rpc("prompts/get", %{"name" => "analysis-session"})
     assert Repo.aggregate(Session, :count) == 2
+  end
+
+  test "silver Tools execute and record through MCP", %{log: log} do
+    session =
+      Repo.insert!(%Session{
+        combat_log_file_id: log.id,
+        started_at: ~U[2026-10-29 12:00:00.000000Z]
+      })
+
+    Repo.insert!(%WeGoNext.Encounters.Encounter{
+      combat_log_file_id: log.id,
+      start_byte: 0,
+      wow_encounter_id: "3180",
+      name: "Vanguard"
+    })
+
+    dim =
+      Repo.insert!(%WeGoNext.Gold.DimEncounter{
+        source_file_path: log.file_path,
+        start_byte: 0,
+        wow_encounter_id: "3180",
+        name: "Vanguard"
+      })
+
+    for name <- ["damage_taken", "interrupts"] do
+      assert %{"result" => %{"isError" => false, "content" => [%{"text" => json}]}} =
+               rpc("tools/call", %{
+                 "name" => name,
+                 "arguments" => %{"session_id" => session.id, "pulls" => [dim.id]}
+               })
+
+      assert %{"evidence" => [], "truncated" => false} = Jason.decode!(json)
+    end
+
+    assert Repo.aggregate(ToolCall, :count) == 2
   end
 
   test "invalid Tool arguments return Tool results, not protocol errors" do

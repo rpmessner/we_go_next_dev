@@ -18,7 +18,7 @@ config :we_go_next, documents_root: Path.expand("../tmp/test_documents", __DIR__
 
 # We run a server during Wallaby tests
 config :we_go_next, WeGoNextWeb.Endpoint,
-  http: [ip: {127, 0, 0, 1}, port: 4002],
+  http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("TEST_PORT", "4002"))],
   secret_key_base:
     "test_secret_key_base_that_is_at_least_64_bytes_long_for_testing_purposes_only",
   server: true
