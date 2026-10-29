@@ -12,20 +12,15 @@ root: /home/rpmessner/dev/games/wow-addons/we_go_next_dev
 
 windows:
   - relinker:
+  - vim:
       panes:
-        - ./scripts/cockpit-relinker.sh
-  - worker:
+        - vim
+  - radar:
+      # layout: even-horizontal
+      # panes:
+      #   - watch -c -n 30 bd ready
+      #   - watch -n 30 -t "gc --city /home/rpmessner/gc status"
+      # - until command gc --city /home/rpmessner/gc events --follow; do sleep 15; done
+  - main-agent:
       panes:
         - claude
-  - radar:
-      layout: even-horizontal
-      panes:
-        - watch -c -n 30 bd ready
-        - watch -n 30 -t "gc --city /home/rpmessner/gc status"
-        - until command gc --city /home/rpmessner/gc events --follow; do sleep 15; done
-  - code:
-      panes:
-        - nvim
-  - shell:
-      panes:
-        - ~
