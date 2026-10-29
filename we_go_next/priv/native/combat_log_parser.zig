@@ -235,6 +235,153 @@ pub fn parse_events(file_path_term: beam.term, start_byte_term: beam.term, end_b
 }
 
 // =========================================================================
+// Filtered bronze read. Keep parse_events/4's import contract untouched.
+// =========================================================================
+
+const EventFilters = struct {
+    event_types: []const []const u8 = &.{},
+    source_guids: []const []const u8 = &.{},
+    target_guids: []const []const u8 = &.{},
+    spell_ids: []const i64 = &.{},
+    time_min_ms: ?i64 = null,
+    time_max_ms: ?i64 = null,
+};
+
+pub fn parse_events_filtered(file_path_term: beam.term, start_byte_term: beam.term, end_byte_term: beam.term, start_ts_term: beam.term, filters_term: beam.term) beam.term {
+    const env = beam.context.env orelse unreachable;
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    // Reject unknown keys (including JSON string keys), so a typo cannot
+    // silently turn a selective read into an unfiltered pull.
+    var map_size: usize = 0;
+    if (e.enif_get_map_size(env, filters_term.v, &map_size) == 0) return make_error_tuple(env, "invalid_filters");
+    var known_keys: usize = 0;
+    inline for (@typeInfo(EventFilters).@"struct".fields) |field| {
+        var value: e.ErlNifTerm = undefined;
+        if (e.enif_get_map_value(env, filters_term.v, beam.make_into_atom(field.name, .{}).v, &value) != 0) known_keys += 1;
+    }
+    if (known_keys != map_size) return make_error_tuple(env, "invalid_filters");
+    const filters = beam.get(EventFilters, filters_term, .{ .allocator = arena.allocator() }) catch {
+        return make_error_tuple(env, "invalid_filters");
+    };
+    if (filters.time_min_ms != null and filters.time_max_ms != null and filters.time_min_ms.? > filters.time_max_ms.?) {
+        return make_error_tuple(env, "invalid_filters");
+    }
+    const file_path = beam.get([]const u8, file_path_term, .{}) catch {
+        return make_error_tuple(env, "invalid_file_path");
+    };
+    const start_byte = beam.get(u64, start_byte_term, .{}) catch {
+        return make_error_tuple(env, "invalid_start_byte");
+    };
+    const end_byte = beam.get(u64, end_byte_term, .{}) catch {
+        return make_error_tuple(env, "invalid_end_byte");
+    };
+    const start_ts = beam.get([]const u8, start_ts_term, .{}) catch {
+        return make_error_tuple(env, "invalid_start_timestamp");
+    };
+    const start_us = filtered_timestamp_to_us(start_ts) orelse {
+        return make_error_tuple(env, "bad_start_timestamp");
+    };
+    const file = std.fs.cwd().openFile(file_path, .{}) catch {
+        return make_error_tuple(env, "file_not_found");
+    };
+    defer file.close();
+    const stat = file.stat() catch {
+        return make_error_tuple(env, "stat_failed");
+    };
+    if (end_byte < start_byte or end_byte > stat.size) {
+        return make_error_tuple(env, "invalid_byte_range");
+    }
+    file.seekTo(start_byte) catch {
+        return make_error_tuple(env, "seek_failed");
+    };
+    const data = std.heap.page_allocator.alloc(u8, end_byte - start_byte) catch {
+        return make_error_tuple(env, "alloc_failed");
+    };
+    defer std.heap.page_allocator.free(data);
+    const actual_read = file.readAll(data) catch {
+        return make_error_tuple(env, "read_failed");
+    };
+    if (actual_read != data.len) return make_error_tuple(env, "read_failed");
+
+    var events: e.ErlNifTerm = e.enif_make_list(env, 0);
+    var line_start: usize = 0;
+    while (std.mem.indexOfScalarPos(u8, data, line_start, '\n')) |line_end| {
+        const line = std.mem.trimEnd(u8, data[line_start..line_end], "\r");
+        if (line_matches(line, filters, start_us)) {
+            if (parse_event_line(env, line, start_us)) |event| {
+                var with_offset: e.ErlNifTerm = undefined;
+                _ = e.enif_make_map_put(env, event.v, e.enif_make_atom(env, "byte_offset"), beam.make(start_byte + line_start, .{}).v, &with_offset);
+                events = e.enif_make_list_cell(env, with_offset, events);
+            }
+        }
+        line_start = line_end + 1;
+    }
+    var reversed: e.ErlNifTerm = undefined;
+    _ = e.enif_make_reverse_list(env, events, &reversed);
+    return beam.make(.{ .ok, beam.term{ .v = reversed } }, .{});
+}
+
+// The shared import decoder narrows date parts to i32. Validate dates on the
+// new read boundary before calling it, rather than changing import semantics.
+fn filtered_timestamp_to_us(timestamp: []const u8) ?i128 {
+    const space = std.mem.indexOfScalar(u8, timestamp, ' ') orelse return null;
+    const date = timestamp[0..space];
+    var pos: usize = 0;
+    const month = parse_next_int(date, &pos, '/') orelse return null;
+    const day = parse_next_int(date, &pos, '/') orelse return null;
+    const year = parse_next_int(date, &pos, 0) orelse return null;
+    if (month < 1 or month > 12 or day < 1 or day > 31 or year < 0 or year > 9999) return null;
+    return parse_timestamp_to_us(timestamp);
+}
+
+fn matches_string(values: []const []const u8, value: []const u8) bool {
+    if (values.len == 0) return true;
+    for (values) |candidate| {
+        if (std.mem.eql(u8, candidate, value)) return true;
+    }
+    return false;
+}
+
+fn line_matches(line: []const u8, filters: EventFilters, start_us: i128) bool {
+    const event_start = find_double_space(line) orelse return false;
+    var pos: usize = 0;
+    const rest = line[event_start..];
+    const event_type = next_csv_field(rest, &pos);
+    if (!matches_string(filters.event_types, event_type)) return false;
+    const timestamp = filtered_timestamp_to_us(line[0 .. event_start - 2]) orelse return false;
+    const relative_us = timestamp - start_us;
+    if (filters.time_min_ms) |minimum| {
+        if (relative_us < @as(i128, minimum) * 1000) return false;
+    }
+    if (filters.time_max_ms) |maximum| {
+        if (relative_us > @as(i128, maximum) * 1000) return false;
+    }
+    const lightweight = std.mem.eql(u8, event_type, "ZONE_CHANGE") or std.mem.eql(u8, event_type, "MAP_CHANGE");
+    if (lightweight) return filters.source_guids.len == 0 and filters.target_guids.len == 0 and filters.spell_ids.len == 0;
+    const source = unquote(next_csv_field(rest, &pos));
+    if (!matches_string(filters.source_guids, source)) return false;
+    if (std.mem.eql(u8, event_type, "COMBATANT_INFO")) return filters.target_guids.len == 0 and filters.spell_ids.len == 0;
+    // Names may contain quoted commas; use the import parser's CSV tokenizer.
+    for (0..3) |_| _ = next_csv_field(rest, &pos);
+    const target = unquote(next_csv_field(rest, &pos));
+    if (!matches_string(filters.target_guids, target)) return false;
+    if (filters.spell_ids.len == 0) return true;
+    // Skip target name, flags, raid flags. Advanced-block IDs are NOT spells.
+    for (0..3) |_| _ = next_csv_field(rest, &pos);
+    const spell_id = if (has_spell_prefix(event_type))
+        parse_i64_field(next_csv_field(rest, &pos))
+    else if (std.mem.eql(u8, event_type, "SWING_DAMAGE") or std.mem.eql(u8, event_type, "ENVIRONMENTAL_DAMAGE"))
+        @as(i64, 0)
+    else
+        return false;
+    for (filters.spell_ids) |candidate| {
+        if (candidate == spell_id) return true;
+    }
+    return false;
+}
+
+// =========================================================================
 // Line classification
 // =========================================================================
 
