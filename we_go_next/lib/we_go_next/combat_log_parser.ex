@@ -16,9 +16,11 @@ if System.get_env("WE_GO_NEXT_BUILD") != "public" and
     use Zig,
       otp_app: :we_go_next,
       zig_code_path: "./priv/native/combat_log_parser.zig",
+      # Keep local imports fast without holding a normal BEAM scheduler.
+      optimize: :safe,
       nifs: [
-        scan_boundaries: [spec: false],
-        parse_events: [spec: false]
+        scan_boundaries: [spec: false, concurrency: :dirty_cpu],
+        parse_events: [spec: false, concurrency: :dirty_cpu]
       ]
 
     @spec scan_boundaries(String.t(), non_neg_integer()) ::
