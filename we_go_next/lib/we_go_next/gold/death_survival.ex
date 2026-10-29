@@ -61,10 +61,7 @@ defmodule WeGoNext.Gold.DeathSurvival do
     active_aura_spell_ids =
       defensive_buff_windows
       |> Enum.filter(fn window ->
-        window.target_guid == target_guid and
-          window.started_at_ms_into_fight <= died_at_ms and
-          (window.ended_at_ms_into_fight == nil or
-             window.ended_at_ms_into_fight >= died_at_ms)
+        active_window?(window, target_guid, died_at_ms)
       end)
       |> MapSet.new(& &1.spell_id)
 
@@ -127,14 +124,8 @@ defmodule WeGoNext.Gold.DeathSurvival do
         spent_at_death?(action, uses, uses_by_key, died_at_ms) ->
           {:on_cooldown, :inferred}
 
-        availability == :not_talented ->
-          {:not_talented, :observed}
-
-        availability == :unknown ->
-          {:unknown, :observed}
-
         true ->
-          {:available_unused, :inferred}
+          availability_state(availability)
       end
 
     %{
@@ -150,6 +141,15 @@ defmodule WeGoNext.Gold.DeathSurvival do
       last_used_at_ms_into_fight: last_use && last_use.used_at_ms_into_fight
     }
   end
+
+  defp active_window?(window, target_guid, died_at_ms) do
+    window.target_guid == target_guid and window.started_at_ms_into_fight <= died_at_ms and
+      (window.ended_at_ms_into_fight == nil or window.ended_at_ms_into_fight >= died_at_ms)
+  end
+
+  defp availability_state(:not_talented), do: {:not_talented, :observed}
+  defp availability_state(:unknown), do: {:unknown, :observed}
+  defp availability_state(_availability), do: {:available_unused, :inferred}
 
   defp died_through?(action, active_aura_spell_ids) do
     Enum.any?(action.aura_spell_ids, &MapSet.member?(active_aura_spell_ids, &1))

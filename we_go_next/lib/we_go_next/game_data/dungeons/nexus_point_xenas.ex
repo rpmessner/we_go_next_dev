@@ -16,15 +16,15 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
     [
       %{
         name: "Shadowguard Defender",
-        id: 241643,
+        id: 241_643,
         count: 5,
-        health: 1549222,
+        health: 1_549_222,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1249645, name: "Null Sunder"},
-          %{id: 1252218, name: "Leech Veil"},
-          %{id: 1282745, name: "Null Sunder"}
+          %{id: 1_249_645, name: "Null Sunder"},
+          %{id: 1_252_218, name: "Leech Veil"},
+          %{id: 1_282_745, name: "Null Sunder"}
         ],
         positions: [
           %{x: 398.11, y: -374.23, sublevel: 1, group: 3},
@@ -46,13 +46,13 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Reformed Voidling",
-        id: 248501,
+        id: 248_501,
         count: 1,
-        health: 637915,
+        health: 637_915,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1252218, name: "Leech Veil"}
+          %{id: 1_252_218, name: "Leech Veil"}
         ],
         positions: [
           %{x: 527.46, y: -372.14, sublevel: 1, group: 5},
@@ -77,19 +77,19 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Corewright Arcanist",
-        id: 241644,
+        id: 241_644,
         count: 5,
-        health: 1458091,
+        health: 1_458_091,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1249815, name: "Transference", dispellable: true},
-          %{id: 1249818, name: "Arcane Zap"},
-          %{id: 1252218, name: "Leech Veil"},
-          %{id: 1277451, name: "Arcane Zap"},
-          %{id: 1278882, name: "Arcane Zap"},
-          %{id: 1285445, name: "Arcane Explosion", interruptible: true},
-          %{id: 1285450, name: "Arcane Explosion"}
+          %{id: 1_249_815, name: "Transference", dispellable: true},
+          %{id: 1_249_818, name: "Arcane Zap"},
+          %{id: 1_252_218, name: "Leech Veil"},
+          %{id: 1_277_451, name: "Arcane Zap"},
+          %{id: 1_278_882, name: "Arcane Zap"},
+          %{id: 1_285_445, name: "Arcane Explosion", interruptible: true},
+          %{id: 1_285_450, name: "Arcane Explosion"}
         ],
         positions: [
           %{x: 417.79, y: -335.24, sublevel: 1, group: 2},
@@ -106,15 +106,15 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Hollowsoul Scrounger",
-        id: 241645,
+        id: 241_645,
         count: 3,
-        health: 1215076,
+        health: 1_215_076,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1227020, name: "Dimensional Shred"},
-          %{id: 1252204, name: "Leech Veil"},
-          %{id: 1252218, name: "Leech Veil"}
+          %{id: 1_227_020, name: "Dimensional Shred"},
+          %{id: 1_252_204, name: "Leech Veil"},
+          %{id: 1_252_218, name: "Leech Veil"}
         ],
         positions: [
           %{x: 414.20, y: -344.15, sublevel: 1, group: 2},
@@ -139,15 +139,15 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Flux Engineer",
-        id: 241647,
+        id: 241_647,
         count: 7,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1257124, name: "Mana Battery"},
-          %{id: 1269283, name: "Suppression Field"},
-          %{id: 1282950, name: "Suppression Field"}
+          %{id: 1_257_124, name: "Mana Battery"},
+          %{id: 1_269_283, name: "Suppression Field"},
+          %{id: 1_282_950, name: "Suppression Field"}
         ],
         positions: [
           %{x: 294.73, y: -396.21, sublevel: 1, group: 25},
@@ -162,13 +162,13 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Nexus Adept",
-        id: 248708,
+        id: 248_708,
         count: 7,
-        health: 759423,
+        health: 759_423,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1271094, name: "Umbra Bolt", interruptible: true}
+          %{id: 1_271_094, name: "Umbra Bolt", interruptible: true}
         ],
         positions: [
           %{x: 216.92, y: -242.79, sublevel: 1, group: 40},
@@ -179,17 +179,17 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Circuit Seer",
-        id: 248373,
+        id: 248_373,
         count: 15,
-        health: 2187135,
+        health: 2_187_135,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1249801, name: "Arcing Mana"},
-          %{id: 1249806, name: "Arcing Mana"},
-          %{id: 1257100, name: "Circuit Sense"},
-          %{id: 1257103, name: "Erratic Surge"},
-          %{id: 1257105, name: "Erratic Zap"}
+          %{id: 1_249_801, name: "Arcing Mana"},
+          %{id: 1_249_806, name: "Arcing Mana"},
+          %{id: 1_257_100, name: "Circuit Sense"},
+          %{id: 1_257_103, name: "Erratic Surge"},
+          %{id: 1_257_105, name: "Erratic Zap"}
         ],
         positions: [
           %{x: 252.50, y: -345.45, sublevel: 1, group: 29},
@@ -200,14 +200,14 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Cursed Voidcaller",
-        id: 248706,
+        id: 248_706,
         count: 3,
-        health: 607538,
+        health: 607_538,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1252218, name: "Leech Veil"},
-          %{id: 1281636, name: "Creeping Void"}
+          %{id: 1_252_218, name: "Leech Veil"},
+          %{id: 1_281_636, name: "Creeping Void"}
         ],
         positions: [
           %{x: 532.95, y: -379.08, sublevel: 1, group: 5},
@@ -220,19 +220,19 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Dreadflail",
-        id: 248506,
+        id: 248_506,
         count: 8,
-        health: 2582037,
+        health: 2_582_037,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1252218, name: "Leech Veil"},
-          %{id: 1252436, name: "Void Lash"},
-          %{id: 1252437, name: "Void Lash"},
-          %{id: 1252438, name: "Void Lash"},
-          %{id: 1252621, name: "Flailstorm"},
-          %{id: 1252622, name: "Flailstorm"},
-          %{id: 1252628, name: "Flailstorm"}
+          %{id: 1_252_218, name: "Leech Veil"},
+          %{id: 1_252_436, name: "Void Lash"},
+          %{id: 1_252_437, name: "Void Lash"},
+          %{id: 1_252_438, name: "Void Lash"},
+          %{id: 1_252_621, name: "Flailstorm"},
+          %{id: 1_252_622, name: "Flailstorm"},
+          %{id: 1_252_628, name: "Flailstorm"}
         ],
         positions: [
           %{x: 649.55, y: -255.72, sublevel: 1, group: 15}
@@ -240,17 +240,17 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Duskfright Herald",
-        id: 241660,
+        id: 241_660,
         count: 15,
-        health: 1944120,
+        health: 1_944_120,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1252062, name: "Entropic Leech"},
-          %{id: 1252076, name: "Dark Beckoning"},
-          %{id: 1252134, name: "Dark Beckoning"},
-          %{id: 1254096, name: "Forfeit Essence"},
-          %{id: 1259359, name: "Devour the Unworthy"}
+          %{id: 1_252_062, name: "Entropic Leech"},
+          %{id: 1_252_076, name: "Dark Beckoning"},
+          %{id: 1_252_134, name: "Dark Beckoning"},
+          %{id: 1_254_096, name: "Forfeit Essence"},
+          %{id: 1_259_359, name: "Devour the Unworthy"}
         ],
         positions: [
           %{x: 567.56, y: -374.62, sublevel: 1, group: 7},
@@ -261,18 +261,18 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Grand Nullifier",
-        id: 251853,
+        id: 251_853,
         count: 7,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1252218, name: "Leech Veil"},
-          %{id: 1258681, name: "Nullify", interruptible: true},
-          %{id: 1258684, name: "Void Ritual"},
-          %{id: 1264295, name: "Nullblast"},
-          %{id: 1281634, name: "Dusk Frights"},
-          %{id: 1281637, name: "Dusk Frights"}
+          %{id: 1_252_218, name: "Leech Veil"},
+          %{id: 1_258_681, name: "Nullify", interruptible: true},
+          %{id: 1_258_684, name: "Void Ritual"},
+          %{id: 1_264_295, name: "Nullblast"},
+          %{id: 1_281_634, name: "Dusk Frights"},
+          %{id: 1_281_637, name: "Dusk Frights"}
         ],
         positions: [
           %{x: 634.36, y: -278.18, sublevel: 1, group: 14},
@@ -285,17 +285,17 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Null Sentinel",
-        id: 248502,
+        id: 248_502,
         count: 15,
-        health: 2430152,
+        health: 2_430_152,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1252218, name: "Leech Veil"},
-          %{id: 1252406, name: "Dreadbellow"},
-          %{id: 1252414, name: "Nullwark Blast"},
-          %{id: 1252417, name: "Nullwark Blast"},
-          %{id: 1252429, name: "Nullwark Blast"}
+          %{id: 1_252_218, name: "Leech Veil"},
+          %{id: 1_252_406, name: "Dreadbellow"},
+          %{id: 1_252_414, name: "Nullwark Blast"},
+          %{id: 1_252_417, name: "Nullwark Blast"},
+          %{id: 1_252_429, name: "Nullwark Blast"}
         ],
         positions: [
           %{x: 583.58, y: -351.84, sublevel: 1, group: 8},
@@ -305,18 +305,18 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Lingering Image",
-        id: 241642,
+        id: 241_642,
         count: 15,
-        health: 2217514,
+        health: 2_217_514,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1257701, name: "Searing Rend"},
-          %{id: 1257736, name: "Searing Rend"},
-          %{id: 1257745, name: "Searing Rend"},
-          %{id: 1257746, name: "Radiant Scar"},
-          %{id: 1264354, name: "Luciferin Flare"},
-          %{id: 1281657, name: "Blistering Smite"}
+          %{id: 1_257_701, name: "Searing Rend"},
+          %{id: 1_257_736, name: "Searing Rend"},
+          %{id: 1_257_745, name: "Searing Rend"},
+          %{id: 1_257_746, name: "Radiant Scar"},
+          %{id: 1_264_354, name: "Luciferin Flare"},
+          %{id: 1_281_657, name: "Blistering Smite"}
         ],
         positions: [
           %{x: 405.91, y: -335.47, sublevel: 1, group: 2},
@@ -329,14 +329,14 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Radiant Swarm",
-        id: 254932,
+        id: 254_932,
         count: 2,
-        health: 531596,
+        health: 531_596,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 1263775, name: "Fixate"},
-          %{id: 1282944, name: "Cluster Weakness"}
+          %{id: 1_263_775, name: "Fixate"},
+          %{id: 1_282_944, name: "Cluster Weakness"}
         ],
         positions: [
           %{x: 409.16, y: -272.33, sublevel: 1, group: 44},
@@ -359,14 +359,14 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Lightwrought",
-        id: 254926,
+        id: 254_926,
         count: 7,
-        health: 1291018,
+        health: 1_291_018,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
-          %{id: 1263892, name: "Holy Bolt", interruptible: true},
-          %{id: 1277557, name: "Burning Radiance", dispellable: true}
+          %{id: 1_263_892, name: "Holy Bolt", interruptible: true},
+          %{id: 1_277_557, name: "Burning Radiance", dispellable: true}
         ],
         positions: [
           %{x: 415.62, y: -220.59, sublevel: 1, group: 45},
@@ -379,14 +379,14 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Flarebat",
-        id: 254928,
+        id: 254_928,
         count: 3,
-        health: 2217514,
+        health: 2_217_514,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1263783, name: "Holy Echo", dispellable: true},
-          %{id: 1263785, name: "Holy Echo"}
+          %{id: 1_263_783, name: "Holy Echo", dispellable: true},
+          %{id: 1_263_785, name: "Holy Echo"}
         ],
         positions: [
           %{x: 399.70, y: -277.31, sublevel: 1, group: 44},
@@ -398,26 +398,26 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Kasreth",
-        id: 241539,
+        id: 241_539,
         count: 0,
-        health: 9967420,
+        health: 9_967_420,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1250553, name: "Arcane Zap"},
-          %{id: 1251626, name: "Leyline Array"},
-          %{id: 1251767, name: "Reflux Charge"},
-          %{id: 1251772, name: "Reflux Charge"},
-          %{id: 1257509, name: "Corespark Detonation"},
-          %{id: 1257512, name: "Corespark Detonation"},
-          %{id: 1257524, name: "Corespark Detonation"},
-          %{id: 1264040, name: "Flux Collapse"},
-          %{id: 1264042, name: "Arcane Spill"},
-          %{id: 1264048, name: "Flux Collapse"},
-          %{id: 1265894, name: "Corespark Detonation"},
-          %{id: 1276485, name: "Sparkburn"},
-          %{id: 1282915, name: "Reflux Charge"}
+          %{id: 1_250_553, name: "Arcane Zap"},
+          %{id: 1_251_626, name: "Leyline Array"},
+          %{id: 1_251_767, name: "Reflux Charge"},
+          %{id: 1_251_772, name: "Reflux Charge"},
+          %{id: 1_257_509, name: "Corespark Detonation"},
+          %{id: 1_257_512, name: "Corespark Detonation"},
+          %{id: 1_257_524, name: "Corespark Detonation"},
+          %{id: 1_264_040, name: "Flux Collapse"},
+          %{id: 1_264_042, name: "Arcane Spill"},
+          %{id: 1_264_048, name: "Flux Collapse"},
+          %{id: 1_265_894, name: "Corespark Detonation"},
+          %{id: 1_276_485, name: "Sparkburn"},
+          %{id: 1_282_915, name: "Reflux Charge"}
         ],
         positions: [
           %{x: 177.61, y: -179.10, sublevel: 1}
@@ -425,22 +425,22 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Corewarden Nysarra",
-        id: 241542,
+        id: 241_542,
         count: 0,
-        health: 31642602,
+        health: 31_642_602,
         creature_type: "Aberration",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1247937, name: "Umbral Lash"},
-          %{id: 1248007, name: "Umbral Lash"},
-          %{id: 1249014, name: "Eclipsing Step"},
-          %{id: 1249027, name: "Eclipsing Step"},
-          %{id: 1252875, name: "Eclipsing Step"},
-          %{id: 1252883, name: "Devour the Unworthy"},
-          %{id: 1254096, name: "Forfeit Essence"},
-          %{id: 1259359, name: "Devour the Unworthy"},
-          %{id: 1271433, name: "Lightscar Flare"}
+          %{id: 1_247_937, name: "Umbral Lash"},
+          %{id: 1_248_007, name: "Umbral Lash"},
+          %{id: 1_249_014, name: "Eclipsing Step"},
+          %{id: 1_249_027, name: "Eclipsing Step"},
+          %{id: 1_252_875, name: "Eclipsing Step"},
+          %{id: 1_252_883, name: "Devour the Unworthy"},
+          %{id: 1_254_096, name: "Forfeit Essence"},
+          %{id: 1_259_359, name: "Devour the Unworthy"},
+          %{id: 1_271_433, name: "Lightscar Flare"}
         ],
         positions: [
           %{x: 744.41, y: -121.82, sublevel: 1, group: 23}
@@ -448,23 +448,23 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Lothraxion",
-        id: 241546,
+        id: 241_546,
         count: 0,
-        health: 12657041,
+        health: 12_657_041,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1253855, name: "Brilliant Dispersion"},
-          %{id: 1253950, name: "Searing Rend"},
-          %{id: 1255208, name: "Searing Rend"},
-          %{id: 1255310, name: "Radiant Scar"},
-          %{id: 1255335, name: "Searing Rend"},
-          %{id: 1255503, name: "Brilliant Dispersion"},
-          %{id: 1257595, name: "Divine Guile"},
-          %{id: 1257613, name: "Divine Guile"},
-          %{id: 1271511, name: "Core Exposure"},
-          %{id: 1282791, name: "Mirrored Rend"}
+          %{id: 1_253_855, name: "Brilliant Dispersion"},
+          %{id: 1_253_950, name: "Searing Rend"},
+          %{id: 1_255_208, name: "Searing Rend"},
+          %{id: 1_255_310, name: "Radiant Scar"},
+          %{id: 1_255_335, name: "Searing Rend"},
+          %{id: 1_255_503, name: "Brilliant Dispersion"},
+          %{id: 1_257_595, name: "Divine Guile"},
+          %{id: 1_257_613, name: "Divine Guile"},
+          %{id: 1_271_511, name: "Core Exposure"},
+          %{id: 1_282_791, name: "Mirrored Rend"}
         ],
         positions: [
           %{x: 432.53, y: -138.81, sublevel: 1, group: 50}
@@ -472,13 +472,13 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Smudge",
-        id: 248769,
+        id: 248_769,
         count: 0,
-        health: 151885,
+        health: 151_885,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
-          %{id: 1257268, name: "Forfeit Essence"}
+          %{id: 1_257_268, name: "Forfeit Essence"}
         ],
         positions: [
 
@@ -486,13 +486,13 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "[DNT] Conduit Stalker",
-        id: 250299,
+        id: 250_299,
         count: 0,
-        health: 253141,
+        health: 253_141,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 1251579, name: "Leyline Array"}
+          %{id: 1_251_579, name: "Leyline Array"}
         ],
         positions: [
 
@@ -500,17 +500,17 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Null Guardian",
-        id: 251024,
+        id: 251_024,
         count: 0,
-        health: 556910,
+        health: 556_910,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1282663, name: "Melee"},
-          %{id: 1282664, name: "Melee"},
-          %{id: 1282665, name: "Void Lash"},
-          %{id: 1282678, name: "Flailstorm"},
-          %{id: 1282679, name: "Flailstorm"}
+          %{id: 1_282_663, name: "Melee"},
+          %{id: 1_282_664, name: "Melee"},
+          %{id: 1_282_665, name: "Void Lash"},
+          %{id: 1_282_678, name: "Flailstorm"},
+          %{id: 1_282_679, name: "Flailstorm"}
         ],
         positions: [
 
@@ -518,14 +518,14 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Wretched Supplicant",
-        id: 251031,
+        id: 251_031,
         count: 0,
-        health: 326286,
+        health: 326_286,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1282722, name: "Nullify", interruptible: true},
-          %{id: 1282723, name: "Dusk Frights"}
+          %{id: 1_282_722, name: "Nullify", interruptible: true},
+          %{id: 1_282_723, name: "Dusk Frights"}
         ],
         positions: [
 
@@ -533,18 +533,18 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Fractured Image",
-        id: 251568,
+        id: 251_568,
         count: 0,
-        health: 120838,
+        health: 120_838,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1255310, name: "Radiant Scar"},
-          %{id: 1255533, name: "Flicker"},
-          %{id: 1257601, name: "Divine Guile", interruptible: true},
-          %{id: 1269220, name: "Mirrored Rend"},
-          %{id: 1269222, name: "Flicker"},
-          %{id: 1271956, name: "Mirrored Rend"}
+          %{id: 1_255_310, name: "Radiant Scar"},
+          %{id: 1_255_533, name: "Flicker"},
+          %{id: 1_257_601, name: "Divine Guile", interruptible: true},
+          %{id: 1_269_220, name: "Mirrored Rend"},
+          %{id: 1_269_222, name: "Flicker"},
+          %{id: 1_271_956, name: "Mirrored Rend"}
         ],
         positions: [
           %{x: 422.82, y: -122.91, sublevel: 1, group: 50},
@@ -553,9 +553,9 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Nullifier",
-        id: 251852,
+        id: 251_852,
         count: 0,
-        health: 552308,
+        health: 552_308,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
@@ -567,9 +567,9 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Voidcaller",
-        id: 251878,
+        id: 251_878,
         count: 0,
-        health: 1380770,
+        health: 1_380_770,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
@@ -581,13 +581,13 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Mana Battery",
-        id: 252825,
+        id: 252_825,
         count: 0,
-        health: 227827,
+        health: 227_827,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 1257126, name: "Corespark Overload"}
+          %{id: 1_257_126, name: "Corespark Overload"}
         ],
         positions: [
 
@@ -595,9 +595,9 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Corespark Conduit",
-        id: 252852,
+        id: 252_852,
         count: 0,
-        health: 729045,
+        health: 729_045,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
@@ -609,13 +609,13 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Corewarden Nysarra",
-        id: 254227,
+        id: 254_227,
         count: 0,
-        health: 72904560,
+        health: 72_904_560,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1271388, name: "Umbral Lash"}
+          %{id: 1_271_388, name: "Umbral Lash"}
         ],
         positions: [
           %{x: 759.94, y: -115.60, sublevel: 1, group: 23},
@@ -625,14 +625,14 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Broken Pipe",
-        id: 254459,
+        id: 254_459,
         count: 0,
-        health: 150698,
+        health: 150_698,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 1262088, name: "Flux Collapse"},
-          %{id: 1262630, name: "Arcane Spill"}
+          %{id: 1_262_088, name: "Flux Collapse"},
+          %{id: 1_262_630, name: "Arcane Spill"}
         ],
         positions: [
 
@@ -640,15 +640,15 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Corespark Pylon",
-        id: 254485,
+        id: 254_485,
         count: 0,
-        health: 268941,
+        health: 268_941,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 1262084, name: "Flux Collapse"},
-          %{id: 1262088, name: "Flux Collapse"},
-          %{id: 1262630, name: "Arcane Spill"}
+          %{id: 1_262_084, name: "Flux Collapse"},
+          %{id: 1_262_088, name: "Flux Collapse"},
+          %{id: 1_262_630, name: "Arcane Spill"}
         ],
         positions: [
 
@@ -656,14 +656,14 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Fractured Image",
-        id: 255179,
+        id: 255_179,
         count: 0,
-        health: 113415,
+        health: 113_415,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1264429, name: "Lightscar Flare"},
-          %{id: 1265984, name: "Lightscar Flare"}
+          %{id: 1_264_429, name: "Lightscar Flare"},
+          %{id: 1_265_984, name: "Lightscar Flare"}
         ],
         positions: [
           %{x: 449.54, y: -135.76, sublevel: 1, group: 50},
@@ -672,13 +672,13 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Mana Battery",
-        id: 259569,
+        id: 259_569,
         count: 0,
-        health: 268941,
+        health: 268_941,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 1257126, name: "Corespark Overload"}
+          %{id: 1_257_126, name: "Corespark Overload"}
         ],
         positions: [
 
@@ -686,9 +686,9 @@ defmodule WeGoNext.GameData.Dungeons.NexusPointXenas do
       },
       %{
         name: "Core Technician",
-        id: 249711,
+        id: 249_711,
         count: 0,
-        health: 534633,
+        health: 534_633,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [

@@ -164,10 +164,7 @@ defmodule WeGoNext.Rules do
         ruleset.mechanic_criteria
         |> Enum.sort_by(& &1.id)
         |> Enum.reduce_while([], fn criterion, promoted ->
-          case upsert_gold_mechanic_criterion(ruleset, criterion, opts) do
-            {:ok, snapshot} -> {:cont, [snapshot | promoted]}
-            {:error, changeset} -> {:halt, Repo.rollback(changeset)}
-          end
+          promote_criterion(ruleset, criterion, opts, promoted)
         end)
         |> Enum.reverse()
 
@@ -179,6 +176,13 @@ defmodule WeGoNext.Rules do
     ruleset_id
     |> get_ruleset!()
     |> promote_ruleset_to_gold(opts)
+  end
+
+  defp promote_criterion(ruleset, criterion, opts, promoted) do
+    case upsert_gold_mechanic_criterion(ruleset, criterion, opts) do
+      {:ok, snapshot} -> {:cont, [snapshot | promoted]}
+      {:error, changeset} -> {:halt, Repo.rollback(changeset)}
+    end
   end
 
   @doc """

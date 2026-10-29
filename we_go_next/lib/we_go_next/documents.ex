@@ -202,13 +202,17 @@ defmodule WeGoNext.Documents do
       end_time: field(encounter, :end_time),
       success: field(encounter, :success),
       fight_time_ms: field(encounter, :fight_time_ms),
-      headline_counts: %{
-        deaths: field(counts, :deaths) || 0,
-        failures: field(failure_counts, :failures) || 0,
-        failure_damage: field(failure_counts, :damage) || 0,
-        players: field(counts, :players) || 0,
-        low_damage: length(field(pull_review, :low_dps) || [])
-      }
+      headline_counts: headline_counts(counts, failure_counts, pull_review)
+    }
+  end
+
+  defp headline_counts(counts, failure_counts, pull_review) do
+    %{
+      deaths: field(counts, :deaths) || 0,
+      failures: field(failure_counts, :failures) || 0,
+      failure_damage: field(failure_counts, :damage) || 0,
+      players: field(counts, :players) || 0,
+      low_damage: length(field(pull_review, :low_dps) || [])
     }
   end
 

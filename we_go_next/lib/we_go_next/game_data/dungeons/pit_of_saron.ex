@@ -16,13 +16,13 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
     [
       %{
         name: "Deathwhisper Necrolyte",
-        id: 252551,
+        id: 252_551,
         count: 15,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258448, name: "Necromantic Infusion", dispellable: true}
+          %{id: 1_258_448, name: "Necromantic Infusion", dispellable: true}
         ],
         positions: [
           %{x: 416.28, y: -243.60, sublevel: 1, group: 47},
@@ -36,14 +36,14 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Risen Soldier",
-        id: 252602,
+        id: 252_602,
         count: 0,
-        health: 334146,
+        health: 334_146,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258450, name: "Charging Slash"},
-          %{id: 1258451, name: "Charging Slash"}
+          %{id: 1_258_450, name: "Charging Slash"},
+          %{id: 1_258_451, name: "Charging Slash"}
         ],
         positions: [
           %{x: 420.11, y: -237.23, sublevel: 1, group: 47},
@@ -69,14 +69,14 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Arcanist Cadaver",
-        id: 252603,
+        id: 252_603,
         count: 0,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258448, name: "Necromantic Infusion", dispellable: true},
-          %{id: 1271479, name: "Netherburst", interruptible: true}
+          %{id: 1_258_448, name: "Necromantic Infusion", dispellable: true},
+          %{id: 1_271_479, name: "Netherburst", interruptible: true}
         ],
         positions: [
           %{x: 411.72, y: -238.37, sublevel: 1, group: 47},
@@ -90,13 +90,13 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Gloombound Shadebringer",
-        id: 252567,
+        id: 252_567,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258431, name: "Shadow Bolt", interruptible: true}
+          %{id: 1_258_431, name: "Shadow Bolt", interruptible: true}
         ],
         positions: [
           %{x: 464.24, y: -357.96, sublevel: 1, group: 77},
@@ -118,14 +118,14 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Quarry Tormentor",
-        id: 252561,
+        id: 252_561,
         count: 5,
-        health: 1670730,
+        health: 1_670_730,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258433, name: "Tormenting Blade"},
-          %{id: 1258434, name: "Curse of Torment"}
+          %{id: 1_258_433, name: "Tormenting Blade"},
+          %{id: 1_258_434, name: "Curse of Torment"}
         ],
         positions: [
           %{x: 422.09, y: -251.14, sublevel: 1, group: 47},
@@ -158,17 +158,17 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Dreadpulse Lich",
-        id: 252563,
+        id: 252_563,
         count: 15,
-        health: 2278268,
+        health: 2_278_268,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258798, name: "Dread Pulse"},
-          %{id: 1258802, name: "Dread Pulse"},
-          %{id: 1258820, name: "Torrent of Misery"},
-          %{id: 1258826, name: "Torrent of Misery"},
-          %{id: 1271074, name: "Icy Blast", interruptible: true}
+          %{id: 1_258_798, name: "Dread Pulse"},
+          %{id: 1_258_802, name: "Dread Pulse"},
+          %{id: 1_258_820, name: "Torrent of Misery"},
+          %{id: 1_258_826, name: "Torrent of Misery"},
+          %{id: 1_271_074, name: "Icy Blast", interruptible: true}
         ],
         positions: [
           %{x: 363.63, y: -439.19, sublevel: 1, group: 35},
@@ -184,13 +184,13 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Rotting Ghoul",
-        id: 252558,
+        id: 252_558,
         count: 5,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258459, name: "Rotting Strikes"}
+          %{id: 1_258_459, name: "Rotting Strikes"}
         ],
         positions: [
           %{x: 359.46, y: -284.46, sublevel: 1, group: 49},
@@ -227,17 +227,17 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Ymirjar Graveblade",
-        id: 252610,
+        id: 252_610,
         count: 11,
-        health: 2733921,
+        health: 2_733_921,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1258439, name: "Frostbane Slash"},
-          %{id: 1258445, name: "Frostbane Slash"},
-          %{id: 1278950, name: "Melee"},
-          %{id: 1278963, name: "Dark Rupture"},
-          %{id: 1278967, name: "Dark Rupture"}
+          %{id: 1_258_439, name: "Frostbane Slash"},
+          %{id: 1_258_445, name: "Frostbane Slash"},
+          %{id: 1_278_950, name: "Melee"},
+          %{id: 1_278_963, name: "Dark Rupture"},
+          %{id: 1_278_967, name: "Dark Rupture"}
         ],
         positions: [
           %{x: 425.89, y: -270.81, sublevel: 1, group: 46},
@@ -257,13 +257,13 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Leaping Geist",
-        id: 252559,
+        id: 252_559,
         count: 2,
-        health: 759423,
+        health: 759_423,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258464, name: "Leaping Maul"}
+          %{id: 1_258_464, name: "Leaping Maul"}
         ],
         positions: [
           %{x: 396.48, y: -256.55, sublevel: 1, group: 48},
@@ -315,14 +315,14 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Plungetalon Gargoyle",
-        id: 252606,
+        id: 252_606,
         count: 6,
-        health: 1215076,
+        health: 1_215_076,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258997, name: "Plungegrip", interruptible: true},
-          %{id: 1271543, name: "Stoneskin"}
+          %{id: 1_258_997, name: "Plungegrip", interruptible: true},
+          %{id: 1_271_543, name: "Stoneskin"}
         ],
         positions: [
           %{x: 376.57, y: -267.88, sublevel: 1},
@@ -337,14 +337,14 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Lumbering Plaguehorror",
-        id: 252555,
+        id: 252_555,
         count: 6,
-        health: 1822614,
+        health: 1_822_614,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1259116, name: "Blight Splatter"},
-          %{id: 1259132, name: "Plague Frenzy"}
+          %{id: 1_259_116, name: "Blight Splatter"},
+          %{id: 1_259_132, name: "Plague Frenzy"}
         ],
         positions: [
           %{x: 204.29, y: -390.32, sublevel: 1, group: 58},
@@ -357,14 +357,14 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Iceborn Proto-Drake",
-        id: 257190,
+        id: 257_190,
         count: 9,
-        health: 1822614,
+        health: 1_822_614,
         creature_type: "Dragonkin",
         is_boss: false,
         spells: [
-          %{id: 1271009, name: "Icy Strikes"},
-          %{id: 1278986, name: "Frost Breath"}
+          %{id: 1_271_009, name: "Icy Strikes"},
+          %{id: 1_278_986, name: "Frost Breath"}
         ],
         positions: [
           %{x: 417.15, y: -276.72, sublevel: 1, group: 46},
@@ -374,13 +374,13 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Wrathbone Enforcer",
-        id: 252565,
+        id: 252_565,
         count: 5,
-        health: 1670730,
+        health: 1_670_730,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258435, name: "Sunderstrike"}
+          %{id: 1_258_435, name: "Sunderstrike"}
         ],
         positions: [
           %{x: 440.10, y: -289.20, sublevel: 1, group: 45},
@@ -408,14 +408,14 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Rimebone Coldwraith",
-        id: 252566,
+        id: 252_566,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258436, name: "Ice Bolt", interruptible: true},
-          %{id: 1258437, name: "Permeating Cold", dispellable: true}
+          %{id: 1_258_436, name: "Ice Bolt", interruptible: true},
+          %{id: 1_258_437, name: "Permeating Cold", dispellable: true}
         ],
         positions: [
           %{x: 390.66, y: -261.47, sublevel: 1, group: 48},
@@ -430,17 +430,17 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Glacieth",
-        id: 252564,
+        id: 252_564,
         count: 20,
-        health: 5467842,
+        health: 5_467_842,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
-          %{id: 1259188, name: "Cryoburst"},
-          %{id: 1259202, name: "Cryoburst"},
-          %{id: 1259205, name: "Cryopatch"},
-          %{id: 1259226, name: "Focused Guard"},
-          %{id: 1278754, name: "Focused Guard"}
+          %{id: 1_259_188, name: "Cryoburst"},
+          %{id: 1_259_202, name: "Cryoburst"},
+          %{id: 1_259_205, name: "Cryopatch"},
+          %{id: 1_259_226, name: "Focused Guard"},
+          %{id: 1_278_754, name: "Focused Guard"}
         ],
         positions: [
           %{x: 500.76, y: -145.96, sublevel: 1, group: 76}
@@ -448,19 +448,19 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Krick",
-        id: 252621,
+        id: 252_621,
         count: 0,
-        health: 13922745,
+        health: 13_922_745,
         creature_type: "Undead",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1264027, name: "Shade Shift"},
-          %{id: 1264246, name: "Shade Shift"},
-          %{id: 1264363, name: "Get 'Em, Ick!"},
-          %{id: 1278893, name: "Death Bolt", interruptible: true},
-          %{id: 1279667, name: "Shadow Lance"},
-          %{id: 1279668, name: "Shadow Lancer"}
+          %{id: 1_264_027, name: "Shade Shift"},
+          %{id: 1_264_246, name: "Shade Shift"},
+          %{id: 1_264_363, name: "Get 'Em, Ick!"},
+          %{id: 1_278_893, name: "Death Bolt", interruptible: true},
+          %{id: 1_279_667, name: "Shadow Lance"},
+          %{id: 1_279_668, name: "Shadow Lancer"}
         ],
         positions: [
           %{x: 325.37, y: -250.25, sublevel: 1, group: 75}
@@ -468,19 +468,19 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Ick",
-        id: 252625,
+        id: 252_625,
         count: 0,
-        health: 13922745,
+        health: 13_922_745,
         creature_type: "Undead",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1264287, name: "Blight Smash"},
-          %{id: 1264299, name: "Blight"},
-          %{id: 1264336, name: "Plague Expulsion"},
-          %{id: 1264349, name: "Plague Globs"},
-          %{id: 1264453, name: "Lumbering Fixation"},
-          %{id: 1264461, name: "Plague Globs"}
+          %{id: 1_264_287, name: "Blight Smash"},
+          %{id: 1_264_299, name: "Blight"},
+          %{id: 1_264_336, name: "Plague Expulsion"},
+          %{id: 1_264_349, name: "Plague Globs"},
+          %{id: 1_264_453, name: "Lumbering Fixation"},
+          %{id: 1_264_461, name: "Plague Globs"}
         ],
         positions: [
           %{x: 349.85, y: -240.30, sublevel: 1, group: 75}
@@ -488,23 +488,23 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Forgemaster Garfrost",
-        id: 252635,
+        id: 252_635,
         count: 0,
-        health: 11865977,
+        health: 11_865_977,
         creature_type: "Undead",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1261299, name: "Throw Saronite"},
-          %{id: 1261315, name: "Melee"},
-          %{id: 1261546, name: "Orebreaker"},
-          %{id: 1261799, name: "Saronite Sludge"},
-          %{id: 1261806, name: "Siphoning Chill"},
-          %{id: 1261808, name: "Siphoning Chill"},
-          %{id: 1261847, name: "Cryostomp"},
-          %{id: 1261921, name: "Cryoshards", dispellable: true},
-          %{id: 1262029, name: "Glacial Overload"},
-          %{id: 1272433, name: "Ore Chunks"}
+          %{id: 1_261_299, name: "Throw Saronite"},
+          %{id: 1_261_315, name: "Melee"},
+          %{id: 1_261_546, name: "Orebreaker"},
+          %{id: 1_261_799, name: "Saronite Sludge"},
+          %{id: 1_261_806, name: "Siphoning Chill"},
+          %{id: 1_261_808, name: "Siphoning Chill"},
+          %{id: 1_261_847, name: "Cryostomp"},
+          %{id: 1_261_921, name: "Cryoshards", dispellable: true},
+          %{id: 1_262_029, name: "Glacial Overload"},
+          %{id: 1_272_433, name: "Ore Chunks"}
         ],
         positions: [
           %{x: 546.46, y: -348.26, sublevel: 1, group: 79}
@@ -512,20 +512,20 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Scourgelord Tyrannus",
-        id: 252648,
+        id: 252_648,
         count: 0,
-        health: 11707763,
+        health: 11_707_763,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1262582, name: "Scourgelord's Brand"},
-          %{id: 1262596, name: "Scourgelord's Brand"},
-          %{id: 1263406, name: "Army of the Dead"},
-          %{id: 1263671, name: "Scourgelord's Reckoning"},
-          %{id: 1263756, name: "Death's Grasp"},
-          %{id: 1263766, name: "Death's Grasp"},
-          %{id: 1276648, name: "Bone Infusion"}
+          %{id: 1_262_582, name: "Scourgelord's Brand"},
+          %{id: 1_262_596, name: "Scourgelord's Brand"},
+          %{id: 1_263_406, name: "Army of the Dead"},
+          %{id: 1_263_671, name: "Scourgelord's Reckoning"},
+          %{id: 1_263_756, name: "Death's Grasp"},
+          %{id: 1_263_766, name: "Death's Grasp"},
+          %{id: 1_276_648, name: "Bone Infusion"}
         ],
         positions: [
           %{x: 300.80, y: -154.79, sublevel: 1, group: 74}
@@ -533,19 +533,19 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Rimefang",
-        id: 252653,
+        id: 252_653,
         count: 0,
-        health: 12657041,
+        health: 12_657_041,
         creature_type: "Undead",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1262739, name: "Frost Spit"},
-          %{id: 1262745, name: "Rime Blast"},
-          %{id: 1262750, name: "Rime Blast"},
-          %{id: 1263716, name: "Frostbite"},
-          %{id: 1276948, name: "Ice Barrage"},
-          %{id: 1276973, name: "Ice Barrage"}
+          %{id: 1_262_739, name: "Frost Spit"},
+          %{id: 1_262_745, name: "Rime Blast"},
+          %{id: 1_262_750, name: "Rime Blast"},
+          %{id: 1_263_716, name: "Frostbite"},
+          %{id: 1_276_948, name: "Ice Barrage"},
+          %{id: 1_276_973, name: "Ice Barrage"}
         ],
         positions: [
           %{x: 329.56, y: -143.28, sublevel: 1, group: 74}
@@ -553,9 +553,9 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Rotling",
-        id: 254684,
+        id: 254_684,
         count: 0,
-        health: 316426,
+        health: 316_426,
         creature_type: "Undead",
         is_boss: false,
         spells: [
@@ -568,14 +568,14 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Scourge Plaguespreader",
-        id: 254691,
+        id: 254_691,
         count: 0,
-        health: 949278,
+        health: 949_278,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1262941, name: "Plague Bolt", interruptible: true},
-          %{id: 1263000, name: "Festering Pulse"}
+          %{id: 1_262_941, name: "Plague Bolt", interruptible: true},
+          %{id: 1_263_000, name: "Festering Pulse"}
         ],
         positions: [
           %{x: 281.57, y: -164.43, sublevel: 1, group: 74},
@@ -585,15 +585,15 @@ defmodule WeGoNext.GameData.Dungeons.PitOfSaron do
       },
       %{
         name: "Shade of Krick",
-        id: 255037,
+        id: 255_037,
         count: 0,
-        health: 367054,
+        health: 367_054,
         creature_type: "Undead",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1264186, name: "Shadowbind", interruptible: true},
-          %{id: 1271678, name: "Shade Bomb"}
+          %{id: 1_264_186, name: "Shadowbind", interruptible: true},
+          %{id: 1_271_678, name: "Shade Bomb"}
         ],
         positions: [
           %{x: 327.56, y: -219.90, sublevel: 1, group: 75}

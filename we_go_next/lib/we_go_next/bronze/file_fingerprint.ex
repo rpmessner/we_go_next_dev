@@ -9,15 +9,17 @@ defmodule WeGoNext.Bronze.FileFingerprint do
   Returns the SHA-256 digest of the first 4 KB of a file as lowercase hex.
   """
   def head_sha256(file_path) when is_binary(file_path) do
-    case File.open(file_path, [:read], fn file ->
-           case IO.binread(file, @head_bytes) do
-             data when is_binary(data) -> {:ok, digest(data)}
-             :eof -> {:ok, digest("")}
-             {:error, reason} -> {:error, reason}
-           end
-         end) do
+    case File.open(file_path, [:read], &read_head_digest/1) do
       {:ok, {:ok, hash}} -> {:ok, hash}
       {:ok, {:error, reason}} -> {:error, reason}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp read_head_digest(file) do
+    case IO.binread(file, @head_bytes) do
+      data when is_binary(data) -> {:ok, digest(data)}
+      :eof -> {:ok, digest("")}
       {:error, reason} -> {:error, reason}
     end
   end

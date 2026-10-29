@@ -141,12 +141,7 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
           completed_app = %{app | duration: duration, removed_at: event.timestamp}
 
           # Update pending map
-          updated_pending =
-            if Enum.empty?(rest) do
-              Map.delete(pending, key)
-            else
-              Map.put(pending, key, rest)
-            end
+          updated_pending = update_pending(pending, key, rest)
 
           {[completed_app | applications], updated_pending}
 
@@ -186,6 +181,9 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
   end
 
   defp process_event(_event, acc), do: acc
+
+  defp update_pending(pending, key, []), do: Map.delete(pending, key)
+  defp update_pending(pending, key, rest), do: Map.put(pending, key, rest)
 
   # Build player statistics from applications
   defp build_player_stats(applications) do
@@ -299,10 +297,9 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
       lines =
         spells
         |> Enum.with_index(1)
-        |> Enum.map(fn {stats, idx} ->
+        |> Enum.map_join("\n", fn {stats, idx} ->
           "      #{idx}. #{stats.spell_name}: #{stats.total_applications} applications (#{stats.players_affected} players)"
         end)
-        |> Enum.join("\n")
 
       header <> "\n" <> lines
     end
@@ -323,20 +320,19 @@ defmodule WeGoNext.Analyzers.DebuffAnalyzer do
 
       lines =
         players
-        |> Enum.map(fn stats ->
-          top_debuffs =
-            stats.by_spell
-            |> Enum.sort_by(fn {_name, %{count: count}} -> count end, :desc)
-            |> Enum.take(3)
-            |> Enum.map(fn {name, %{count: count}} -> "#{name} (#{count})" end)
-            |> Enum.join(", ")
-
-          "      #{stats.player_name}: #{stats.total_debuffs} total - #{top_debuffs}"
+        |> Enum.map_join("\n", fn stats ->
+          "      #{stats.player_name}: #{stats.total_debuffs} total - #{format_top_debuffs(stats.by_spell)}"
         end)
-        |> Enum.join("\n")
 
       header <> "\n" <> lines
     end
+  end
+
+  defp format_top_debuffs(by_spell) do
+    by_spell
+    |> Enum.sort_by(fn {_name, %{count: count}} -> count end, :desc)
+    |> Enum.take(3)
+    |> Enum.map_join(", ", fn {name, %{count: count}} -> "#{name} (#{count})" end)
   end
 
   @doc """

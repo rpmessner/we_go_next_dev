@@ -115,18 +115,7 @@ defmodule WeGoNextWeb.SettingsLive do
     user = socket.assigns.user
     secret_access_key = String.trim(secret_access_key || "")
 
-    result =
-      if secret_access_key == "" and Accounts.document_r2_configured?(user) do
-        Accounts.update_document_r2_settings(user, endpoint, bucket, access_key_id)
-      else
-        Accounts.set_document_r2_credentials(
-          user,
-          endpoint,
-          bucket,
-          access_key_id,
-          secret_access_key
-        )
-      end
+    result = save_document_r2_settings(user, endpoint, bucket, access_key_id, secret_access_key)
 
     case result do
       {:ok, user} ->
@@ -172,21 +161,35 @@ defmodule WeGoNextWeb.SettingsLive do
   def handle_event("stop_watching", _params, socket) do
     case socket.assigns.watching_file do
       %CombatLogFile{} = combat_log_file ->
-        with {:ok, _updated_log} <-
-               combat_log_file
-               |> CombatLogFile.changeset(%{watch_enabled: false})
-               |> Repo.update() do
-          FileWatcher.stop_watching()
+        case combat_log_file
+             |> CombatLogFile.changeset(%{watch_enabled: false})
+             |> Repo.update() do
+          {:ok, _updated_log} ->
+            FileWatcher.stop_watching()
 
-          {:noreply,
-           assign(socket, :watching_file, nil) |> put_flash(:info, "Stopped watching log")}
-        else
+            {:noreply,
+             assign(socket, :watching_file, nil) |> put_flash(:info, "Stopped watching log")}
+
           {:error, _changeset} ->
             {:noreply, put_flash(socket, :error, "Failed to stop watching log")}
         end
 
       nil ->
         {:noreply, socket}
+    end
+  end
+
+  defp save_document_r2_settings(user, endpoint, bucket, access_key_id, secret_access_key) do
+    if secret_access_key == "" and Accounts.document_r2_configured?(user) do
+      Accounts.update_document_r2_settings(user, endpoint, bucket, access_key_id)
+    else
+      Accounts.set_document_r2_credentials(
+        user,
+        endpoint,
+        bucket,
+        access_key_id,
+        secret_access_key
+      )
     end
   end
 

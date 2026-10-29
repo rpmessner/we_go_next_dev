@@ -176,21 +176,7 @@ defmodule WeGoNext.MythicPlusRun do
         between =
           encounters
           |> Enum.chunk_every(2, 1, :discard)
-          |> Enum.flat_map(fn [prev, next] ->
-            if next.start_byte > prev.end_byte do
-              [
-                %{
-                  start_byte: prev.end_byte,
-                  end_byte: next.start_byte,
-                  start_timestamp: prev.end_timestamp,
-                  end_timestamp: next.start_timestamp,
-                  label: "Trash (#{prev.name} → #{next.name})"
-                }
-              ]
-            else
-              []
-            end
-          end)
+          |> Enum.flat_map(&between_encounters/1)
 
         after_last =
           if run_end_byte && last.end_byte < run_end_byte do
@@ -208,6 +194,22 @@ defmodule WeGoNext.MythicPlusRun do
           end
 
         before_first ++ between ++ after_last
+    end
+  end
+
+  defp between_encounters([prev, next]) do
+    if next.start_byte > prev.end_byte do
+      [
+        %{
+          start_byte: prev.end_byte,
+          end_byte: next.start_byte,
+          start_timestamp: prev.end_timestamp,
+          end_timestamp: next.start_timestamp,
+          label: "Trash (#{prev.name} → #{next.name})"
+        }
+      ]
+    else
+      []
     end
   end
 

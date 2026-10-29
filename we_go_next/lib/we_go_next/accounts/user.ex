@@ -1,4 +1,8 @@
 defmodule WeGoNext.Accounts.User do
+  @moduledoc """
+  Local operator settings and credentials for combat-log imports and document sharing.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 

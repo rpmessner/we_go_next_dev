@@ -398,17 +398,25 @@ defmodule WeGoNext.Gold.FailureSummary do
   end
 
   defp apply_criterion_scope(query) do
-    where(
-      query,
+    difficulty_scope = criterion_difficulty_scope()
+
+    scope =
+      dynamic(
+        [observation, encounter, criterion],
+        is_nil(criterion.boss_encounter_id) or
+          (criterion.boss_encounter_id == encounter.wow_encounter_id and ^difficulty_scope)
+      )
+
+    where(query, ^scope)
+  end
+
+  defp criterion_difficulty_scope do
+    dynamic(
       [observation, encounter, criterion],
-      is_nil(criterion.boss_encounter_id) or
-        (criterion.boss_encounter_id == encounter.wow_encounter_id and
-           (is_nil(criterion.difficulty_id) or
-              criterion.difficulty_id == encounter.difficulty_id or
-              (encounter.difficulty_id == 15 and criterion.difficulty_id in [14, 15]) or
-              (encounter.difficulty_id == 16 and criterion.difficulty_id in [14, 15, 16]) or
-              (encounter.difficulty_id not in [14, 15, 16] and
-                 criterion.difficulty_id in [14, 15, 16])))
+      is_nil(criterion.difficulty_id) or criterion.difficulty_id == encounter.difficulty_id or
+        (encounter.difficulty_id == 15 and criterion.difficulty_id in [14, 15]) or
+        (encounter.difficulty_id == 16 and criterion.difficulty_id in [14, 15, 16]) or
+        (encounter.difficulty_id not in [14, 15, 16] and criterion.difficulty_id in [14, 15, 16])
     )
   end
 

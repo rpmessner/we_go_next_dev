@@ -76,29 +76,14 @@ defmodule WeGoNext.SourceData.WowAnalyzer.Parser do
         timeline_section?(code, "debuffs") ->
           %{acc | section: "debuff", comment: empty_to_nil(comment)}
 
-        acc.section && section_end?(code) ->
+        section_end?(acc.section, code) ->
           %{acc | section: nil, comment: nil}
 
-        acc.section && comment_only?(code, comment) ->
+        section_comment?(acc.section, code, comment) ->
           %{acc | comment: empty_to_nil(comment)}
 
         acc.section ->
-          parse_entry_line(code, acc.section)
-          |> case do
-            nil ->
-              acc
-
-            entry ->
-              entry =
-                entry
-                |> Map.put(:comment, empty_to_nil(comment) || acc.comment)
-                |> Map.put(:source_file, source_file)
-                |> Map.put(:source_line, line_number)
-                |> Map.put(:source_line_text, String.trim_trailing(line))
-                |> infer_mechanic()
-
-              %{acc | entries: [entry | acc.entries]}
-          end
+          append_timeline_entry(acc, code, comment, source_file, line_number, line)
 
         true ->
           acc
@@ -107,6 +92,29 @@ defmodule WeGoNext.SourceData.WowAnalyzer.Parser do
     |> Map.fetch!(:entries)
     |> Enum.reverse()
   end
+
+  defp append_timeline_entry(acc, code, comment, source_file, line_number, line) do
+    case parse_entry_line(code, acc.section) do
+      nil ->
+        acc
+
+      entry ->
+        entry =
+          entry
+          |> Map.put(:comment, empty_to_nil(comment) || acc.comment)
+          |> Map.put(:source_file, source_file)
+          |> Map.put(:source_line, line_number)
+          |> Map.put(:source_line_text, String.trim_trailing(line))
+          |> infer_mechanic()
+
+        %{acc | entries: [entry | acc.entries]}
+    end
+  end
+
+  defp section_end?(nil, _code), do: false
+  defp section_end?(_section, code), do: section_end?(code)
+  defp section_comment?(nil, _code, _comment), do: false
+  defp section_comment?(_section, code, comment), do: comment_only?(code, comment)
 
   defp timeline_section?(code, name) do
     Regex.match?(~r/\b#{name}\s*:\s*\[/, code)
@@ -184,28 +192,33 @@ defmodule WeGoNext.SourceData.WowAnalyzer.Parser do
         contains_any?(text, ["stack", "stacks"]) ->
           inferred("stack", "medium", ["comment:stack"])
 
-        contains_any?(text, [
-          "area denial",
-          "avoid",
-          "beam",
-          "breath",
-          "cone",
-          "cones",
-          "dive",
-          "dives",
-          "dodge",
-          "frontal",
-          "puddle",
-          "puddles",
-          "spinny"
-        ]) ->
-          inferred("avoidable", "medium", ["comment:movement"])
-
         true ->
-          inferred(nil, "low", [])
+          infer_movement(text)
       end
 
     Map.merge(entry, inferred)
+  end
+
+  defp infer_movement(text) do
+    if contains_any?(text, [
+         "area denial",
+         "avoid",
+         "beam",
+         "breath",
+         "cone",
+         "cones",
+         "dive",
+         "dives",
+         "dodge",
+         "frontal",
+         "puddle",
+         "puddles",
+         "spinny"
+       ]) do
+      inferred("avoidable", "medium", ["comment:movement"])
+    else
+      inferred(nil, "low", [])
+    end
   end
 
   defp inferred(mechanic_type, confidence, tags) do

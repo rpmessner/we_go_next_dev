@@ -421,8 +421,7 @@ defmodule WeGoNextWeb.PublicLiveTest do
         "lib/we_go_next_web/live/public_document_live/index.ex",
         "lib/we_go_next_web/live/public_document_live/show.ex"
       ]
-      |> Enum.map(&File.read!(Path.expand("../../../#{&1}", __DIR__)))
-      |> Enum.join("\n")
+      |> Enum.map_join("\n", &File.read!(Path.expand("../../../#{&1}", __DIR__)))
 
     refute source =~ "Accounts"
     refute source =~ "WeGoNext.Silver"

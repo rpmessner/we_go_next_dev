@@ -471,12 +471,17 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
   defp empty_document?(document) do
     counts = document.counts || %{}
 
-    (counts.deaths || 0) == 0 and
-      (counts.players || 0) == 0 and
-      (document.roster || []) == [] and
-      (document.deaths || []) == [] and
-      (document.pull_review.damage_done || []) == [] and
-      (document.failure_preview.mechanics || []) == [] and
+    (counts.deaths || 0) == 0 and (counts.players || 0) == 0 and
+      empty_roster_and_damage?(document) and empty_mechanics?(document)
+  end
+
+  defp empty_roster_and_damage?(document) do
+    (document.roster || []) == [] and (document.deaths || []) == [] and
+      (document.pull_review.damage_done || []) == []
+  end
+
+  defp empty_mechanics?(document) do
+    (document.failure_preview.mechanics || []) == [] and
       (document.interrupt_coverage.spell_coverage || []) == []
   end
 

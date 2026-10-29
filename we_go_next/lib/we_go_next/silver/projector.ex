@@ -87,8 +87,9 @@ defmodule WeGoNext.Silver.Projector do
 
   defp project_damage_taken(encounter_dim_id, events) do
     events
-    |> Enum.filter(&(event_type(&1) in @damage_taken_types))
-    |> Enum.filter(&player_guid?(event_value(&1, :target_guid)))
+    |> Enum.filter(
+      &(event_type(&1) in @damage_taken_types and player_guid?(event_value(&1, :target_guid)))
+    )
     |> Enum.reduce(%{}, fn event, acc ->
       target_guid = normalize_guid(event_value(event, :target_guid), @unknown_target_guid)
       source_guid = normalize_guid(event_value(event, :source_guid), @unknown_source_guid)
@@ -398,8 +399,7 @@ defmodule WeGoNext.Silver.Projector do
         interrupt_key = {target_guid, interrupted_spell_id}
 
         cond do
-          event_type(event) == "SPELL_CAST_START" and hostile_npc_source?(event) and
-              MapSet.member?(interruptible_spell_ids, spell_id) ->
+          interruptible_cast?(event, "SPELL_CAST_START", interruptible_spell_ids, spell_id) ->
             pending_cast =
               %{
                 target_npc_guid: source_guid,
@@ -408,8 +408,7 @@ defmodule WeGoNext.Silver.Projector do
 
             {rows, Map.put(pending_casts, cast_key, pending_cast)}
 
-          event_type(event) == "SPELL_INTERRUPT" and
-            player_guid?(event_value(event, :source_guid)) and hostile_npc_target?(event) ->
+          player_interrupt?(event) ->
             row = %{
               encounter_dim_id: encounter_dim_id,
               target_npc_guid: target_guid,
@@ -422,26 +421,8 @@ defmodule WeGoNext.Silver.Projector do
 
             {[row | rows], Map.delete(pending_casts, interrupt_key)}
 
-          event_type(event) == "SPELL_CAST_SUCCESS" and
-            hostile_npc_source?(event) and
-              MapSet.member?(interruptible_spell_ids, spell_id) ->
-            case Map.pop(pending_casts, cast_key) do
-              {nil, pending_casts} ->
-                {rows, pending_casts}
-
-              {pending_cast, pending_casts} ->
-                row =
-                  pending_cast
-                  |> Map.merge(%{
-                    encounter_dim_id: encounter_dim_id,
-                    opportunity_ms_into_fight: time_ms(event),
-                    success: false,
-                    interrupter_guid: nil,
-                    interrupting_spell_id: nil
-                  })
-
-                {[row | rows], pending_casts}
-            end
+          interruptible_cast?(event, "SPELL_CAST_SUCCESS", interruptible_spell_ids, spell_id) ->
+            complete_pending_cast(pending_casts, cast_key, rows, encounter_dim_id, event)
 
           true ->
             {rows, pending_casts}
@@ -451,6 +432,35 @@ defmodule WeGoNext.Silver.Projector do
     rows
     |> Enum.reverse()
     |> Enum.sort_by(&{&1.opportunity_ms_into_fight, &1.target_npc_guid, &1.interrupted_spell_id})
+  end
+
+  defp interruptible_cast?(event, type, spell_ids, spell_id) do
+    event_type(event) == type and hostile_npc_source?(event) and
+      MapSet.member?(spell_ids, spell_id)
+  end
+
+  defp player_interrupt?(event) do
+    event_type(event) == "SPELL_INTERRUPT" and player_guid?(event_value(event, :source_guid)) and
+      hostile_npc_target?(event)
+  end
+
+  defp complete_pending_cast(pending_casts, key, rows, encounter_dim_id, event) do
+    case Map.pop(pending_casts, key) do
+      {nil, pending_casts} ->
+        {rows, pending_casts}
+
+      {pending_cast, pending_casts} ->
+        row =
+          Map.merge(pending_cast, %{
+            encounter_dim_id: encounter_dim_id,
+            opportunity_ms_into_fight: time_ms(event),
+            success: false,
+            interrupter_guid: nil,
+            interrupting_spell_id: nil
+          })
+
+        {[row | rows], pending_casts}
+    end
   end
 
   defp interruptible_spell_ids do
@@ -475,21 +485,7 @@ defmodule WeGoNext.Silver.Projector do
               normalize_spell_id(event_value(event, :spell_id))
             }
 
-            case Map.get(pending, key) do
-              [app | rest] ->
-                completed_app = %{
-                  app
-                  | duration_ms: max(time_ms(event) - app.applied_at_ms_into_fight, 0)
-                }
-
-                updated_pending =
-                  if rest == [], do: Map.delete(pending, key), else: Map.put(pending, key, rest)
-
-                {[completed_app | applications], updated_pending}
-
-              _ ->
-                {applications, pending}
-            end
+            complete_debuff(pending, key, applications, event)
 
           true ->
             {applications, pending}
@@ -505,6 +501,24 @@ defmodule WeGoNext.Silver.Projector do
     |> Enum.reverse()
     |> Enum.sort_by(&{&1.applied_at_ms_into_fight, &1.target_guid, &1.spell_id})
   end
+
+  defp complete_debuff(pending, key, applications, event) do
+    case Map.get(pending, key) do
+      [app | rest] ->
+        completed_app = %{
+          app
+          | duration_ms: max(time_ms(event) - app.applied_at_ms_into_fight, 0)
+        }
+
+        {[completed_app | applications], update_pending(pending, key, rest)}
+
+      _ ->
+        {applications, pending}
+    end
+  end
+
+  defp update_pending(pending, key, []), do: Map.delete(pending, key)
+  defp update_pending(pending, key, rest), do: Map.put(pending, key, rest)
 
   defp debuff_event?(event, type) do
     event_type(event) == type and
@@ -540,22 +554,7 @@ defmodule WeGoNext.Silver.Projector do
               normalize_spell_id(event_value(event, :spell_id))
             }
 
-            case Map.get(pending, key) do
-              [window | rest] ->
-                completed_window = %{
-                  window
-                  | ended_at_ms_into_fight: time_ms(event),
-                    duration_ms: max(time_ms(event) - window.started_at_ms_into_fight, 0)
-                }
-
-                updated_pending =
-                  if rest == [], do: Map.delete(pending, key), else: Map.put(pending, key, rest)
-
-                {[completed_window | windows], updated_pending}
-
-              _ ->
-                {windows, pending}
-            end
+            complete_defensive_window(pending, key, windows, event)
 
           true ->
             {windows, pending}
@@ -570,6 +569,22 @@ defmodule WeGoNext.Silver.Projector do
     (windows ++ pending_windows)
     |> Enum.reverse()
     |> Enum.sort_by(&{&1.started_at_ms_into_fight, &1.target_guid, &1.spell_id})
+  end
+
+  defp complete_defensive_window(pending, key, windows, event) do
+    case Map.get(pending, key) do
+      [window | rest] ->
+        completed_window = %{
+          window
+          | ended_at_ms_into_fight: time_ms(event),
+            duration_ms: max(time_ms(event) - window.started_at_ms_into_fight, 0)
+        }
+
+        {[completed_window | windows], update_pending(pending, key, rest)}
+
+      _ ->
+        {windows, pending}
+    end
   end
 
   defp defensive_buff_event?(event, type) do
@@ -751,18 +766,20 @@ defmodule WeGoNext.Silver.Projector do
           acc,
           guid,
           %{spec_id: spec_id, class_id: class_id, item_level: item_level, talents: talents},
-          fn existing ->
-            existing
-            |> maybe_put(:spec_id, spec_id)
-            |> maybe_put(:class_id, class_id)
-            |> maybe_put(:item_level, item_level)
-            |> maybe_put(:talents, talents)
-          end
+          &merge_class_info(&1, spec_id, class_id, item_level, talents)
         )
       else
         acc
       end
     end)
+  end
+
+  defp merge_class_info(existing, spec_id, class_id, item_level, talents) do
+    existing
+    |> maybe_put(:spec_id, spec_id)
+    |> maybe_put(:class_id, class_id)
+    |> maybe_put(:item_level, item_level)
+    |> maybe_put(:talents, talents)
   end
 
   # The native parser emits class-talent triples as [node_id, entry_id, rank];
@@ -795,9 +812,9 @@ defmodule WeGoNext.Silver.Projector do
 
   defp detect_tank_guids(events) do
     events
-    |> Enum.filter(&(event_type(&1) == "SWING_DAMAGE"))
     |> Enum.filter(
-      &(player_guid?(event_value(&1, :target_guid)) and npc_guid?(event_value(&1, :source_guid)))
+      &(event_type(&1) == "SWING_DAMAGE" and player_guid?(event_value(&1, :target_guid)) and
+          npc_guid?(event_value(&1, :source_guid)))
     )
     |> Enum.reduce(%{}, fn event, acc ->
       target_guid = event_value(event, :target_guid)

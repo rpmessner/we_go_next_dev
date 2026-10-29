@@ -59,8 +59,10 @@ defmodule WeGoNext.Bronze.CombatLogReconciler do
     |> where([clf], clf.user_id == ^user_id)
     |> where([clf], clf.source == :live)
     |> Repo.all()
-    |> Enum.filter(&(live_suffix(&1.file_path) == archive_suffix))
-    |> Enum.filter(&(archive_attrs.file_size >= recorded_size(&1)))
+    |> Enum.filter(
+      &(live_suffix(&1.file_path) == archive_suffix and
+          archive_attrs.file_size >= recorded_size(&1))
+    )
     |> Enum.find(&fingerprint_match?(&1, archive_attrs, archive_path))
   end
 

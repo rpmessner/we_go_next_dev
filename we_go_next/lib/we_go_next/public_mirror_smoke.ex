@@ -139,18 +139,16 @@ defmodule WeGoNext.PublicMirrorSmoke do
   defp require_upload_success(drain), do: {:error, {:upload_failed, drain}}
 
   defp fetch_uploaded_index(destination_store) do
-    with {:ok, body} <- destination_store.fetch("index.json"),
-         {:ok, index} <- Jason.decode(body) do
-      {:ok, index}
+    with {:ok, body} <- destination_store.fetch("index.json") do
+      Jason.decode(body)
     end
   end
 
   defp fetch_uploaded_document(destination_store, encounter) do
     key = encounter_key(encounter.source_encounter_key)
 
-    with {:ok, body} <- destination_store.fetch(key),
-         {:ok, document} <- Jason.decode(body) do
-      {:ok, document}
+    with {:ok, body} <- destination_store.fetch(key) do
+      Jason.decode(body)
     end
   end
 
@@ -267,14 +265,7 @@ defmodule WeGoNext.PublicMirrorSmoke do
         {:ok, %Req.Response{status: status, body: body}} when status in 200..299 ->
           body = to_string(body)
 
-          case verify_probe_body(body, required, rejected) do
-            :ok ->
-              {:cont,
-               {:ok, Map.put(acc, name, %{url: url, status: status, bytes: byte_size(body)})}}
-
-            {:error, reason} ->
-              {:halt, {:error, {:public_probe_failed, name, url, reason}}}
-          end
+          record_probe_result(body, required, rejected, acc, name, url, status)
 
         {:ok, %Req.Response{status: status, body: body}} ->
           {:halt,
@@ -285,6 +276,16 @@ defmodule WeGoNext.PublicMirrorSmoke do
           {:halt, {:error, {:public_probe_failed, name, url, reason}}}
       end
     end)
+  end
+
+  defp record_probe_result(body, required, rejected, acc, name, url, status) do
+    case verify_probe_body(body, required, rejected) do
+      :ok ->
+        {:cont, {:ok, Map.put(acc, name, %{url: url, status: status, bytes: byte_size(body)})}}
+
+      {:error, reason} ->
+        {:halt, {:error, {:public_probe_failed, name, url, reason}}}
+    end
   end
 
   defp verify_probe_body(body, required, rejected) do

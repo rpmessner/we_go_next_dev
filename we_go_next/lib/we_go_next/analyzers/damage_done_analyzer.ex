@@ -109,7 +109,7 @@ defmodule WeGoNext.Analyzers.DamageDoneAnalyzer do
       survivors
       |> Enum.filter(fn p -> p.dps < median_dps * threshold end)
       |> Enum.map(fn p ->
-        percent = if median_dps > 0, do: p.dps / median_dps * 100, else: 0
+        percent = percent_of_median(p.dps, median_dps)
 
         %{
           player_name: p.player_name,
@@ -133,12 +133,7 @@ defmodule WeGoNext.Analyzers.DamageDoneAnalyzer do
     death_times = Map.new(deaths, fn d -> {d.player_guid, d.time_into_fight} end)
 
     annotate_list = fn players ->
-      Enum.map(players, fn p ->
-        case Map.get(death_times, p.player_guid) do
-          nil -> Map.put(p, :death_time, nil)
-          time -> Map.put(p, :death_time, time)
-        end
-      end)
+      Enum.map(players, fn p -> Map.put(p, :death_time, Map.get(death_times, p.player_guid)) end)
     end
 
     %{
@@ -148,6 +143,9 @@ defmodule WeGoNext.Analyzers.DamageDoneAnalyzer do
         all: annotate_list.(damage_done.all)
     }
   end
+
+  defp percent_of_median(dps, median_dps) when median_dps > 0, do: dps / median_dps * 100
+  defp percent_of_median(_dps, _median_dps), do: 0
 
   # Process damage events where source is a player (now using normalized fields)
   defp process_event(%{type: type} = event, players)

@@ -198,8 +198,7 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
       else
         tank_str =
           tanks
-          |> Enum.map(&format_player(&1, show_abilities))
-          |> Enum.join("\n")
+          |> Enum.map_join("\n", &format_player(&1, show_abilities))
 
         "   TANKS (expected damage):\n#{tank_str}\n"
       end
@@ -211,8 +210,7 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
         dps_str =
           dps_healers
           |> Enum.take(top_n)
-          |> Enum.map(&format_player(&1, show_abilities))
-          |> Enum.join("\n")
+          |> Enum.map_join("\n", &format_player(&1, show_abilities))
 
         "   DPS/HEALERS (avoidable?):\n#{dps_str}"
       end
@@ -227,8 +225,7 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
 
     players
     |> Enum.take(top_n)
-    |> Enum.map(&format_player(&1, show_abilities))
-    |> Enum.join("\n")
+    |> Enum.map_join("\n", &format_player(&1, show_abilities))
   end
 
   defp format_player(%PlayerDamage{} = player, show_abilities) do
@@ -246,11 +243,10 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
     by_ability
     |> Enum.sort_by(fn {_name, %{total: total}} -> total end, :desc)
     |> Enum.take(n)
-    |> Enum.map(fn {name, %{total: total, hits: hits}} ->
+    |> Enum.map_join("\n", fn {name, %{total: total, hits: hits}} ->
       avg = div(total, max(hits, 1))
       "         #{name}: #{format_number(total)} (#{hits} hits, #{format_number(avg)} avg)"
     end)
-    |> Enum.join("\n")
   end
 
   defp format_number(num) when is_integer(num) and num >= 1_000_000 do
@@ -349,10 +345,9 @@ defmodule WeGoNext.Analyzers.DamageTakenAnalyzer do
   def format_top_abilities_summary(abilities) do
     abilities
     |> Enum.with_index(1)
-    |> Enum.map(fn {{name, %{total: total, hits: hits}}, idx} ->
+    |> Enum.map_join("\n", fn {{name, %{total: total, hits: hits}}, idx} ->
       avg = div(total, max(hits, 1))
       "  #{idx}. #{name}: #{format_number(total)} (#{hits} hits, #{format_number(avg)} avg)"
     end)
-    |> Enum.join("\n")
   end
 end

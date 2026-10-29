@@ -165,46 +165,80 @@ defmodule WeGoNext.SourceData.DBM.Parser do
     constructor = warning.warning_constructor
     labels = MapSet.new(warning.label_tokens)
     alerts = MapSet.new(warning.alert_tokens)
-    role_filter = warning.role_filter || ""
+    role_filter = normalize_role_filter(warning.role_filter)
 
     cond do
       String.contains?(constructor, "Interrupt") ->
         inferred("interrupt", "high", ["warning:interrupt"])
 
-      MapSet.member?(labels, "INTERRUPTS") or String.contains?(role_filter, "HasInterrupt") ->
+      interrupt_label?(labels, role_filter) ->
         inferred("interrupt", "medium", ["label:interrupts"])
 
       String.contains?(constructor, "Soak") ->
         inferred("soak", "high", ["warning:soak"])
 
-      MapSet.member?(labels, "GROUPSOAK") or MapSet.member?(labels, "GROUPSOAKS") or
-          intersects?(alerts, @soak_alert_tokens) ->
+      soak_label?(labels, alerts) ->
         inferred("soak", "medium", ["label:group_soak"])
 
-      String.contains?(constructor, "MoveAway") or intersects?(alerts, @spread_alert_tokens) ->
+      spread_warning?(constructor, alerts) ->
         inferred("spread", "medium", ["alert:spread"])
 
-      String.contains?(constructor, "Dodge") or String.contains?(constructor, "GTFO") or
-          String.contains?(constructor, "Move") ->
+      movement_warning?(constructor) ->
         inferred("avoidable", "high", ["warning:movement"])
 
-      MapSet.member?(labels, "DODGES") or MapSet.member?(labels, "FRONTAL") or
-          intersects?(alerts, @movement_alert_tokens) ->
+      movement_label?(labels, alerts) ->
         inferred("avoidable", "medium", ["label:movement"])
 
-      String.contains?(constructor, "Defensive") or String.contains?(constructor, "Taunt") or
-        MapSet.member?(labels, "TANKCOMBO") or role_includes?(role_filter, "Tank") ->
+      true ->
+        infer_role_mechanic(constructor, labels, alerts, role_filter)
+    end
+  end
+
+  defp normalize_role_filter(value), do: value || ""
+
+  defp interrupt_label?(labels, role_filter) do
+    MapSet.member?(labels, "INTERRUPTS") or String.contains?(role_filter, "HasInterrupt")
+  end
+
+  defp soak_label?(labels, alerts) do
+    intersects?(labels, ~w(GROUPSOAK GROUPSOAKS)) or intersects?(alerts, @soak_alert_tokens)
+  end
+
+  defp spread_warning?(constructor, alerts) do
+    String.contains?(constructor, "MoveAway") or intersects?(alerts, @spread_alert_tokens)
+  end
+
+  defp movement_label?(labels, alerts) do
+    intersects?(labels, ~w(DODGES FRONTAL)) or intersects?(alerts, @movement_alert_tokens)
+  end
+
+  defp movement_warning?(constructor) do
+    Enum.any?(["Dodge", "GTFO", "Move"], &String.contains?(constructor, &1))
+  end
+
+  defp infer_role_mechanic(constructor, labels, alerts, role_filter) do
+    cond do
+      tank_warning?(constructor, labels, role_filter) ->
         inferred("tank_mechanic", "medium", ["role:tank"])
 
-      String.contains?(constructor, "Dispel") or role_filter == "MagicDispeller" or
-        role_includes?(role_filter, "Healer") or MapSet.member?(labels, "DISPELS") or
-        MapSet.member?(labels, "HEALABSORBS") or MapSet.member?(labels, "HEALABSORB") or
-          intersects?(alerts, @healer_alert_tokens) ->
+      healer_warning?(constructor, labels, alerts, role_filter) ->
         inferred("healer_mechanic", "medium", ["role:healer"])
 
       true ->
         inferred(nil, "low", [])
     end
+  end
+
+  defp tank_warning?(constructor, labels, role_filter) do
+    String.contains?(constructor, "Defensive") or String.contains?(constructor, "Taunt") or
+      MapSet.member?(labels, "TANKCOMBO") or role_includes?(role_filter, "Tank")
+  end
+
+  defp healer_warning?(constructor, labels, alerts, role_filter) do
+    String.contains?(constructor, "Dispel") or role_filter == "MagicDispeller" or
+      role_includes?(role_filter, "Healer") or
+      intersects?(labels, ~w(DISPELS HEALABSORBS HEALABSORB)) or
+      intersects?(alerts, @healer_alert_tokens)
   end
 
   defp inferred(mechanic_type, confidence, tags) do
@@ -277,35 +311,31 @@ defmodule WeGoNext.SourceData.DBM.Parser do
 
   defp split_args(tokens) do
     tokens
-    |> Enum.reduce(%{args: [], current: [], paren: 0, brace: 0, bracket: 0}, fn token, state ->
-      cond do
-        top_level_comma?(token, state) ->
-          %{state | args: [Enum.reverse(state.current) | state.args], current: []}
-
-        token.type == :symbol and token.value == "(" ->
-          push_arg_token(token, %{state | paren: state.paren + 1})
-
-        token.type == :symbol and token.value == ")" ->
-          push_arg_token(token, %{state | paren: max(state.paren - 1, 0)})
-
-        token.type == :symbol and token.value == "{" ->
-          push_arg_token(token, %{state | brace: state.brace + 1})
-
-        token.type == :symbol and token.value == "}" ->
-          push_arg_token(token, %{state | brace: max(state.brace - 1, 0)})
-
-        token.type == :symbol and token.value == "[" ->
-          push_arg_token(token, %{state | bracket: state.bracket + 1})
-
-        token.type == :symbol and token.value == "]" ->
-          push_arg_token(token, %{state | bracket: max(state.bracket - 1, 0)})
-
-        true ->
-          push_arg_token(token, state)
-      end
-    end)
+    |> Enum.reduce(%{args: [], current: [], paren: 0, brace: 0, bracket: 0}, &append_arg_token/2)
     |> finish_args()
   end
+
+  defp append_arg_token(token, state) do
+    if top_level_comma?(token, state) do
+      %{state | args: [Enum.reverse(state.current) | state.args], current: []}
+    else
+      push_arg_token(token, update_arg_depth(token, state))
+    end
+  end
+
+  defp update_arg_depth(%{type: :symbol, value: symbol}, state) do
+    case symbol do
+      "(" -> %{state | paren: state.paren + 1}
+      ")" -> %{state | paren: max(state.paren - 1, 0)}
+      "{" -> %{state | brace: state.brace + 1}
+      "}" -> %{state | brace: max(state.brace - 1, 0)}
+      "[" -> %{state | bracket: state.bracket + 1}
+      "]" -> %{state | bracket: max(state.bracket - 1, 0)}
+      _ -> state
+    end
+  end
+
+  defp update_arg_depth(_token, state), do: state
 
   defp top_level_comma?(token, state) do
     token.type == :symbol and token.value == "," and state.paren == 0 and state.brace == 0 and
@@ -367,8 +397,7 @@ defmodule WeGoNext.SourceData.DBM.Parser do
       |> String.trim()
     else
       tokens
-      |> Enum.map(& &1.raw)
-      |> Enum.join(" ")
+      |> Enum.map_join(" ", & &1.raw)
     end
   end
 

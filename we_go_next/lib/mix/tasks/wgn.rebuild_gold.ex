@@ -62,8 +62,7 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
       {_opts, _extra, invalid} ->
         invalid_args =
           invalid
-          |> Enum.map(fn {arg, _value} -> arg end)
-          |> Enum.join(", ")
+          |> Enum.map_join(", ", fn {arg, _value} -> arg end)
 
         Mix.raise("Invalid option(s): #{invalid_args}")
     end

@@ -173,6 +173,18 @@ defmodule WeGoNext.Importer do
     end
   end
 
+  defp broadcast_import_progress(topic, _bytes_read, _total_bytes, _idx)
+       when topic in [nil, false], do: nil
+
+  defp broadcast_import_progress(topic, bytes_read, total_bytes, idx) do
+    Phoenix.PubSub.broadcast(
+      WeGoNext.PubSub,
+      topic,
+      {:import_progress,
+       %{bytes_read: bytes_read, total_bytes: total_bytes, encounters_found: idx}}
+    )
+  end
+
   defp do_import_existing_file(%CombatLogFile{} = clf, opts) do
     start_byte = clf.last_parsed_byte || 0
     progress_topic = Keyword.get(opts, :progress_topic)
@@ -188,18 +200,7 @@ defmodule WeGoNext.Importer do
             result = insert_or_fetch_encounter_from_boundary(boundary, clf)
 
             # Broadcast progress
-            if progress_topic do
-              Phoenix.PubSub.broadcast(
-                WeGoNext.PubSub,
-                progress_topic,
-                {:import_progress,
-                 %{
-                   bytes_read: boundary.end_byte,
-                   total_bytes: end_byte,
-                   encounters_found: idx
-                 }}
-              )
-            end
+            broadcast_import_progress(progress_topic, boundary.end_byte, end_byte, idx)
 
             result
           end)

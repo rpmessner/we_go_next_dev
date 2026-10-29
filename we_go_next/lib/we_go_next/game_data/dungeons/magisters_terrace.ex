@@ -16,15 +16,15 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
     [
       %{
         name: "Arcane Magister",
-        id: 232369,
+        id: 232_369,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 468962, name: "Arcane Bolt", interruptible: true},
-          %{id: 468966, name: "Polymorph", interruptible: true, dispellable: true},
-          %{id: 1245046, name: "Blink"}
+          %{id: 468_962, name: "Arcane Bolt", interruptible: true},
+          %{id: 468_966, name: "Polymorph", interruptible: true, dispellable: true},
+          %{id: 1_245_046, name: "Blink"}
         ],
         positions: [
           %{x: 392.26, y: -171.12, sublevel: 1, group: 11},
@@ -42,9 +42,9 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Animated Codex",
-        id: 234089,
+        id: 234_089,
         count: 2,
-        health: 10000,
+        health: 10_000,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
@@ -70,16 +70,16 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Blazing Pyromancer",
-        id: 251861,
+        id: 251_861,
         count: 12,
-        health: 2430152,
+        health: 2_430_152,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1254294, name: "Pyroblast", interruptible: true},
-          %{id: 1254301, name: "Flamestrike"},
-          %{id: 1254336, name: "Ignition"},
-          %{id: 1254338, name: "Ignition"}
+          %{id: 1_254_294, name: "Pyroblast", interruptible: true},
+          %{id: 1_254_301, name: "Flamestrike"},
+          %{id: 1_254_336, name: "Ignition"},
+          %{id: 1_254_338, name: "Ignition"}
         ],
         positions: [
           %{x: 216.07, y: -126.40, sublevel: 1, group: 9},
@@ -91,15 +91,15 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Runed Spellbreaker",
-        id: 240973,
+        id: 240_973,
         count: 12,
-        health: 2733921,
+        health: 2_733_921,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1244907, name: "Runic Glaive"},
-          %{id: 1283901, name: "Shield Slam"},
-          %{id: 1283905, name: "Shield Slam"}
+          %{id: 1_244_907, name: "Runic Glaive"},
+          %{id: 1_283_901, name: "Shield Slam"},
+          %{id: 1_283_905, name: "Shield Slam"}
         ],
         positions: [
           %{x: 504.22, y: -173.47, sublevel: 1, group: 24},
@@ -110,14 +110,14 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Voidling",
-        id: 234069,
+        id: 234_069,
         count: 1,
-        health: 607538,
+        health: 607_538,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1248229, name: "Void Infusion"},
-          %{id: 1255434, name: "Void Gash", dispellable: true}
+          %{id: 1_248_229, name: "Void Infusion"},
+          %{id: 1_255_434, name: "Void Gash", dispellable: true}
         ],
         positions: [
           %{x: 743.16, y: -173.58, sublevel: 1, group: 30},
@@ -186,14 +186,14 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Hollowsoul Shredder",
-        id: 234065,
+        id: 234_065,
         count: 5,
-        health: 1442903,
+        health: 1_442_903,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1227020, name: "Dimensional Shred"},
-          %{id: 1248229, name: "Void Infusion"}
+          %{id: 1_227_020, name: "Dimensional Shred"},
+          %{id: 1_248_229, name: "Void Infusion"}
         ],
         positions: [
           %{x: 752.41, y: -203.58, sublevel: 1, group: 31},
@@ -222,14 +222,14 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Dreaded Voidwalker",
-        id: 234064,
+        id: 234_064,
         count: 7,
-        health: 1670730,
+        health: 1_670_730,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1248229, name: "Void Infusion"},
-          %{id: 1248327, name: "Shadow Bolt", interruptible: true}
+          %{id: 1_248_229, name: "Void Infusion"},
+          %{id: 1_248_327, name: "Shadow Bolt", interruptible: true}
         ],
         positions: [
           %{x: 779.82, y: -230.57, sublevel: 1, group: 32},
@@ -250,15 +250,15 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Shadowrift Voidcaller",
-        id: 234068,
+        id: 234_068,
         count: 12,
-        health: 2430152,
+        health: 2_430_152,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1217087, name: "Consuming Shadows"},
-          %{id: 1255462, name: "Call of the Void"},
-          %{id: 1265977, name: "Consuming Shadows"}
+          %{id: 1_217_087, name: "Consuming Shadows"},
+          %{id: 1_255_462, name: "Call of the Void"},
+          %{id: 1_265_977, name: "Consuming Shadows"}
         ],
         positions: [
           %{x: 652.93, y: -419.42, sublevel: 1, group: 38},
@@ -269,16 +269,16 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Devouring Tyrant",
-        id: 234066,
+        id: 234_066,
         count: 12,
-        health: 2733921,
+        health: 2_733_921,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1248138, name: "Void Bomb"},
-          %{id: 1248219, name: "Void Bomb"},
-          %{id: 1248229, name: "Void Infusion"},
-          %{id: 1264687, name: "Devouring Strike"}
+          %{id: 1_248_138, name: "Void Bomb"},
+          %{id: 1_248_219, name: "Void Bomb"},
+          %{id: 1_248_229, name: "Void Infusion"},
+          %{id: 1_264_687, name: "Devouring Strike"}
         ],
         positions: [
           %{x: 545.20, y: -395.97, sublevel: 1, group: 46},
@@ -290,15 +290,15 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Void Infuser",
-        id: 249086,
+        id: 249_086,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1245068, name: "Consuming Void", dispellable: true},
-          %{id: 1248229, name: "Void Infusion"},
-          %{id: 1264693, name: "Terror Wave", interruptible: true}
+          %{id: 1_245_068, name: "Consuming Void", dispellable: true},
+          %{id: 1_248_229, name: "Void Infusion"},
+          %{id: 1_264_693, name: "Terror Wave", interruptible: true}
         ],
         positions: [
           %{x: 663.44, y: -405.03, sublevel: 1, group: 37},
@@ -322,18 +322,18 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Arcanotron Custos",
-        id: 231861,
+        id: 231_861,
         count: 0,
-        health: 12657041,
+        health: 12_657_041,
         creature_type: "Mechanical",
         is_boss: true,
         encounter_id: 2659,
         spells: [
-          %{id: 474345, name: "Refueling Protocol"},
-          %{id: 474496, name: "Repulsing Slam"},
-          %{id: 1214038, name: "Ethereal Shackles", dispellable: true},
-          %{id: 1214081, name: "Arcane Expulsion"},
-          %{id: 1243905, name: "Unstable Energy"}
+          %{id: 474_345, name: "Refueling Protocol"},
+          %{id: 474_496, name: "Repulsing Slam"},
+          %{id: 1_214_038, name: "Ethereal Shackles", dispellable: true},
+          %{id: 1_214_081, name: "Arcane Expulsion"},
+          %{id: 1_243_905, name: "Unstable Energy"}
         ],
         positions: [
           %{x: 465.50, y: -172.02, sublevel: 1}
@@ -341,24 +341,24 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Seranel Sunlash",
-        id: 231863,
+        id: 231_863,
         count: 0,
-        health: 11074911,
+        health: 11_074_911,
         creature_type: "Not specified",
         is_boss: true,
         encounter_id: 2659,
         spells: [
-          %{id: 1224903, name: "Suppression Zone"},
-          %{id: 1225015, name: "Suppression Zone"},
-          %{id: 1225135, name: "Feedback"},
-          %{id: 1225193, name: "Wave of Silence"},
-          %{id: 1225201, name: "Wave of Silence"},
-          %{id: 1225205, name: "Wave of Silence"},
-          %{id: 1225792, name: "Runic Mark"},
-          %{id: 1225796, name: "Runic Mark"},
-          %{id: 1246446, name: "Null Reaction"},
-          %{id: 1248689, name: "Hastening Ward", dispellable: true},
-          %{id: 1271317, name: "Hastening Ward"}
+          %{id: 1_224_903, name: "Suppression Zone"},
+          %{id: 1_225_015, name: "Suppression Zone"},
+          %{id: 1_225_135, name: "Feedback"},
+          %{id: 1_225_193, name: "Wave of Silence"},
+          %{id: 1_225_201, name: "Wave of Silence"},
+          %{id: 1_225_205, name: "Wave of Silence"},
+          %{id: 1_225_792, name: "Runic Mark"},
+          %{id: 1_225_796, name: "Runic Mark"},
+          %{id: 1_246_446, name: "Null Reaction"},
+          %{id: 1_248_689, name: "Hastening Ward", dispellable: true},
+          %{id: 1_271_317, name: "Hastening Ward"}
         ],
         positions: [
           %{x: 732.43, y: -141.74, sublevel: 1}
@@ -366,22 +366,22 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Gemellus",
-        id: 231864,
+        id: 231_864,
         count: 0,
-        health: 17403431,
+        health: 17_403_431,
         creature_type: "Not specified",
         is_boss: true,
         encounter_id: 2659,
         spells: [
-          %{id: 1223847, name: "Triplicate"},
-          %{id: 1223936, name: "Synaptic Nexus"},
-          %{id: 1224104, name: "Void Secretions"},
-          %{id: 1224299, name: "Astral Grasp"},
-          %{id: 1224401, name: "Cosmic Radiation"},
-          %{id: 1253707, name: "Neural Link"},
-          %{id: 1253709, name: "Neural Link"},
-          %{id: 1284954, name: "Cosmic Sting"},
-          %{id: 1284958, name: "Cosmic Sting"}
+          %{id: 1_223_847, name: "Triplicate"},
+          %{id: 1_223_936, name: "Synaptic Nexus"},
+          %{id: 1_224_104, name: "Void Secretions"},
+          %{id: 1_224_299, name: "Astral Grasp"},
+          %{id: 1_224_401, name: "Cosmic Radiation"},
+          %{id: 1_253_707, name: "Neural Link"},
+          %{id: 1_253_709, name: "Neural Link"},
+          %{id: 1_284_954, name: "Cosmic Sting"},
+          %{id: 1_284_958, name: "Cosmic Sting"}
         ],
         positions: [
           %{x: 517.03, y: -430.45, sublevel: 1, group: 60}
@@ -389,21 +389,21 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Degentrius",
-        id: 231865,
+        id: 231_865,
         count: 0,
-        health: 12657041,
+        health: 12_657_041,
         creature_type: "Aberration",
         is_boss: true,
         encounter_id: 2659,
         spells: [
-          %{id: 1215087, name: "Unstable Void Essence"},
-          %{id: 1215897, name: "Devouring Entropy"},
-          %{id: 1269631, name: "Entropy Orb"},
-          %{id: 1271066, name: "Entropy Blast"},
-          %{id: 1280113, name: "Hulking Fragment"},
-          %{id: 1280119, name: "Hulking Fragment"},
-          %{id: 1284627, name: "Umbral Splinters", dispellable: true},
-          %{id: 1284633, name: "Stygian Ichor"}
+          %{id: 1_215_087, name: "Unstable Void Essence"},
+          %{id: 1_215_897, name: "Devouring Entropy"},
+          %{id: 1_269_631, name: "Entropy Orb"},
+          %{id: 1_271_066, name: "Entropy Blast"},
+          %{id: 1_280_113, name: "Hulking Fragment"},
+          %{id: 1_280_119, name: "Hulking Fragment"},
+          %{id: 1_284_627, name: "Umbral Splinters", dispellable: true},
+          %{id: 1_284_633, name: "Stygian Ichor"}
         ],
         positions: [
           %{x: 70.87, y: -477.87, sublevel: 1}
@@ -411,14 +411,14 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Brightscale Wyrm",
-        id: 232106,
+        id: 232_106,
         count: 1,
-        health: 303769,
+        health: 303_769,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 467068, name: "Energy Infusion"},
-          %{id: 1254595, name: "Energy Release"}
+          %{id: 467_068, name: "Energy Infusion"},
+          %{id: 1_254_595, name: "Energy Release"}
         ],
         positions: [
           %{x: 395.19, y: -195.85, sublevel: 1, group: 13},
@@ -473,17 +473,17 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Arcane Sentry",
-        id: 234062,
+        id: 234_062,
         count: 16,
-        health: 3645228,
+        health: 3_645_228,
         creature_type: "Mechanical",
         is_boss: false,
         spells: [
-          %{id: 473258, name: "Crowd Dispersal"},
-          %{id: 1282050, name: "Arcane Beam"},
-          %{id: 1282051, name: "Arcane Beam"},
-          %{id: 1282053, name: "Arcane Residue"},
-          %{id: 1282055, name: "Ethereal Shackles", dispellable: true}
+          %{id: 473_258, name: "Crowd Dispersal"},
+          %{id: 1_282_050, name: "Arcane Beam"},
+          %{id: 1_282_051, name: "Arcane Beam"},
+          %{id: 1_282_053, name: "Arcane Residue"},
+          %{id: 1_282_055, name: "Ethereal Shackles", dispellable: true}
         ],
         positions: [
           %{x: 67.98, y: -153.09, sublevel: 1, group: 1},
@@ -493,9 +493,9 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Vigilant Librarian",
-        id: 234067,
+        id: 234_067,
         count: 0,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
@@ -507,15 +507,15 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Sunblade Enforcer",
-        id: 234124,
+        id: 234_124,
         count: 5,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1252910, name: "Arcane Blade"},
-          %{id: 1253224, name: "Charge"},
-          %{id: 1265561, name: "Arcane Blade", dispellable: true}
+          %{id: 1_252_910, name: "Arcane Blade"},
+          %{id: 1_253_224, name: "Charge"},
+          %{id: 1_265_561, name: "Arcane Blade", dispellable: true}
         ],
         positions: [
           %{x: 74.00, y: -143.82, sublevel: 1, group: 1},
@@ -539,14 +539,14 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Lightward Healer",
-        id: 234486,
+        id: 234_486,
         count: 5,
-        health: 1291018,
+        health: 1_291_018,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1254306, name: "Power Word: Shield", dispellable: true},
-          %{id: 1255187, name: "Holy Fire", dispellable: true}
+          %{id: 1_254_306, name: "Power Word: Shield", dispellable: true},
+          %{id: 1_255_187, name: "Holy Fire", dispellable: true}
         ],
         positions: [
           %{x: 114.56, y: -143.60, sublevel: 1, group: 2},
@@ -565,21 +565,21 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Gemellus",
-        id: 239636,
+        id: 239_636,
         count: 0,
-        health: 17403431,
+        health: 17_403_431,
         creature_type: "Not specified",
         is_boss: true,
         encounter_id: 2659,
         spells: [
-          %{id: 1223936, name: "Synaptic Nexus"},
-          %{id: 1224104, name: "Void Secretions"},
-          %{id: 1224299, name: "Astral Grasp"},
-          %{id: 1224401, name: "Cosmic Radiation"},
-          %{id: 1253707, name: "Neural Link"},
-          %{id: 1253709, name: "Neural Link"},
-          %{id: 1284954, name: "Cosmic Sting"},
-          %{id: 1284958, name: "Cosmic Sting"}
+          %{id: 1_223_936, name: "Synaptic Nexus"},
+          %{id: 1_224_104, name: "Void Secretions"},
+          %{id: 1_224_299, name: "Astral Grasp"},
+          %{id: 1_224_401, name: "Cosmic Radiation"},
+          %{id: 1_253_707, name: "Neural Link"},
+          %{id: 1_253_709, name: "Neural Link"},
+          %{id: 1_284_954, name: "Cosmic Sting"},
+          %{id: 1_284_958, name: "Cosmic Sting"}
         ],
         positions: [
           %{x: 517.79, y: -403.94, sublevel: 1, group: 60}
@@ -587,9 +587,9 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Void-Infused Brightscale",
-        id: 241354,
+        id: 241_354,
         count: 1,
-        health: 276154,
+        health: 276_154,
         creature_type: "Beast",
         is_boss: false,
         spells: [
@@ -610,14 +610,14 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Celestial Drifter",
-        id: 241397,
+        id: 241_397,
         count: 0,
-        health: 1822614,
+        health: 1_822_614,
         creature_type: "Not specified",
         is_boss: true,
         encounter_id: 2659,
         spells: [
-          %{id: 1248015, name: "Astral Scouting"}
+          %{id: 1_248_015, name: "Astral Scouting"}
         ],
         positions: [
           %{x: 495.19, y: -418.55, sublevel: 1, group: 60}
@@ -625,14 +625,14 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Unstable Voidling",
-        id: 255376,
+        id: 255_376,
         count: 0,
-        health: 227827,
+        health: 227_827,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1248229, name: "Void Infusion"},
-          %{id: 1264951, name: "Void Eruption"}
+          %{id: 1_248_229, name: "Void Infusion"},
+          %{id: 1_264_951, name: "Void Eruption"}
         ],
         positions: [
           %{x: 656.42, y: -414.69, sublevel: 1, group: 38},
@@ -645,14 +645,14 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Hollowsoul Shredder",
-        id: 257447,
+        id: 257_447,
         count: 5,
-        health: 1442903,
+        health: 1_442_903,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1227020, name: "Dimensional Shred"},
-          %{id: 1248229, name: "Void Infusion"}
+          %{id: 1_227_020, name: "Dimensional Shred"},
+          %{id: 1_248_229, name: "Void Infusion"}
         ],
         positions: [
           %{x: 369.65, y: -507.38, sublevel: 1, group: 48},
@@ -661,14 +661,14 @@ defmodule WeGoNext.GameData.Dungeons.MagistersTerrace do
       },
       %{
         name: "Spellwoven Familiar",
-        id: 259387,
+        id: 259_387,
         count: 1,
-        health: 1063192,
+        health: 1_063_192,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
-          %{id: 1279994, name: "Blink"},
-          %{id: 1279995, name: "Blink"}
+          %{id: 1_279_994, name: "Blink"},
+          %{id: 1_279_995, name: "Blink"}
         ],
         positions: [
           %{x: 385.36, y: -171.44, sublevel: 1, group: 11},

@@ -270,17 +270,16 @@ defmodule WeGoNext.SourceData.ReferenceImporter do
 
       case upsert.(attrs) do
         {:ok, _row} ->
-          if existed? do
-            %{counts | updated: counts.updated + 1}
-          else
-            %{counts | inserted: counts.inserted + 1}
-          end
+          increment_import_count(counts, existed?)
 
         {:error, changeset} ->
           Repo.rollback({:invalid_reference, changeset})
       end
     end)
   end
+
+  defp increment_import_count(counts, true), do: %{counts | updated: counts.updated + 1}
+  defp increment_import_count(counts, false), do: %{counts | inserted: counts.inserted + 1}
 
   defp spell_reference_exists?(attrs) do
     SpellReference

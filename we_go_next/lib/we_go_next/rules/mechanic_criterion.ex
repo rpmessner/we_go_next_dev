@@ -126,13 +126,8 @@ defmodule WeGoNext.Rules.MechanicCriterion do
   end
 
   defp validate_targeted_cone_threshold(changeset, threshold) when is_map(threshold) do
-    allowed_keys = @targeted_cone_required_keys ++ @targeted_cone_optional_keys
-
     cond do
-      not Enum.all?(@targeted_cone_required_keys, &Map.has_key?(threshold, &1)) ->
-        targeted_cone_error(changeset)
-
-      Enum.any?(Map.keys(threshold), &(&1 not in allowed_keys)) ->
+      not targeted_cone_keys_valid?(threshold) ->
         targeted_cone_error(changeset)
 
       not positive_integer?(threshold["target_marker_spell_id"]) ->
@@ -141,17 +136,13 @@ defmodule WeGoNext.Rules.MechanicCriterion do
       not positive_integer_list?(threshold["impact_spell_ids"]) ->
         targeted_cone_error(changeset)
 
-      Map.has_key?(threshold, "hit_debuff_spell_ids") and
-          not positive_integer_list?(threshold["hit_debuff_spell_ids"]) ->
+      not optional_hit_debuffs_valid?(threshold) ->
         targeted_cone_error(changeset)
 
       not positive_integer?(threshold["max_safe_hit_count"]) ->
         targeted_cone_error(changeset)
 
-      threshold["target_role_policy"] not in @targeted_cone_role_policies ->
-        targeted_cone_error(changeset)
-
-      not role_list?(threshold["allowed_collateral_roles"]) ->
+      not targeted_cone_roles_valid?(threshold) ->
         targeted_cone_error(changeset)
 
       threshold["position_evidence"] not in @position_evidence_modes ->
@@ -163,6 +154,23 @@ defmodule WeGoNext.Rules.MechanicCriterion do
   end
 
   defp validate_targeted_cone_threshold(changeset, _threshold), do: targeted_cone_error(changeset)
+
+  defp targeted_cone_roles_valid?(threshold) do
+    threshold["target_role_policy"] in @targeted_cone_role_policies and
+      role_list?(threshold["allowed_collateral_roles"])
+  end
+
+  defp targeted_cone_keys_valid?(threshold) do
+    allowed_keys = @targeted_cone_required_keys ++ @targeted_cone_optional_keys
+
+    Enum.all?(@targeted_cone_required_keys, &Map.has_key?(threshold, &1)) and
+      Enum.all?(Map.keys(threshold), &(&1 in allowed_keys))
+  end
+
+  defp optional_hit_debuffs_valid?(threshold) do
+    not Map.has_key?(threshold, "hit_debuff_spell_ids") or
+      positive_integer_list?(threshold["hit_debuff_spell_ids"])
+  end
 
   defp targeted_cone_error(changeset) do
     add_error(

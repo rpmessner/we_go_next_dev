@@ -16,15 +16,15 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
     [
       %{
         name: "Merciless Subjugator",
-        id: 124171,
+        id: 124_171,
         count: 10,
-        health: 1974499,
+        health: 1_974_499,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1262506, name: "Leeching Void"},
-          %{id: 1262509, name: "Chains of Subjugation"},
-          %{id: 1277343, name: "Chains of Subjugation"}
+          %{id: 1_262_506, name: "Leeching Void"},
+          %{id: 1_262_509, name: "Chains of Subjugation"},
+          %{id: 1_277_343, name: "Chains of Subjugation"}
         ],
         positions: [
           %{x: 300.43, y: -423.00, sublevel: 1, group: 19},
@@ -38,16 +38,16 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Rift Warden",
-        id: 122571,
+        id: 122_571,
         count: 20,
-        health: 2885806,
+        health: 2_885_806,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1264505, name: "Enveloping Darkness"},
-          %{id: 1264532, name: "Void Expulsion"},
-          %{id: 1264569, name: "Void Expulsion"},
-          %{id: 1280330, name: "Rift Essence", dispellable: true}
+          %{id: 1_264_505, name: "Enveloping Darkness"},
+          %{id: 1_264_532, name: "Void Expulsion"},
+          %{id: 1_264_569, name: "Void Expulsion"},
+          %{id: 1_280_330, name: "Rift Essence", dispellable: true}
         ],
         positions: [
           %{x: 166.12, y: -304.67, sublevel: 1, group: 13},
@@ -58,15 +58,15 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Ruthless Riftstalker",
-        id: 122413,
+        id: 122_413,
         count: 9,
-        health: 1594787,
+        health: 1_594_787,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1262519, name: "Backstab"},
-          %{id: 1277339, name: "Shadowmend"},
-          %{id: 1277340, name: "Shadowmend", interruptible: true}
+          %{id: 1_262_519, name: "Backstab"},
+          %{id: 1_277_339, name: "Shadowmend"},
+          %{id: 1_277_340, name: "Shadowmend", interruptible: true}
         ],
         positions: [
           %{x: 161.62, y: -324.83, sublevel: 1, group: 12},
@@ -90,14 +90,14 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Ravenous Umbralfin",
-        id: 255320,
+        id: 255_320,
         count: 8,
-        health: 1442903,
+        health: 1_442_903,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1264670, name: "Devouring Frenzy"},
-          %{id: 1264678, name: "Devouring Frenzy"}
+          %{id: 1_264_670, name: "Devouring Frenzy"},
+          %{id: 1_264_678, name: "Devouring Frenzy"}
         ],
         positions: [
           %{x: 191.01, y: -285.49, sublevel: 1, group: 23},
@@ -119,14 +119,14 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Umbral War-Adept",
-        id: 122421,
+        id: 122_421,
         count: 15,
-        health: 2733921,
+        health: 2_733_921,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1269183, name: "Void Burst"},
-          %{id: 1280326, name: "Void Bash"}
+          %{id: 1_269_183, name: "Void Burst"},
+          %{id: 1_280_326, name: "Void Bash"}
         ],
         positions: [
           %{x: 153.31, y: -331.84, sublevel: 1, group: 12},
@@ -140,14 +140,14 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Dire Voidbender",
-        id: 122404,
+        id: 122_404,
         count: 8,
-        health: 1442903,
+        health: 1_442_903,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1262526, name: "Abyssal Enhancement", interruptible: true, dispellable: true},
-          %{id: 1262527, name: "Abyssal Enhancement"}
+          %{id: 1_262_526, name: "Abyssal Enhancement", interruptible: true, dispellable: true},
+          %{id: 1_262_527, name: "Abyssal Enhancement"}
         ],
         positions: [
           %{x: 300.69, y: -148.76, sublevel: 1, group: 38},
@@ -164,15 +164,15 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Void-Infused Destroyer",
-        id: 252756,
+        id: 252_756,
         count: 15,
-        health: 2733921,
+        health: 2_733_921,
         creature_type: "Mechanical",
         is_boss: false,
         spells: [
-          %{id: 1262335, name: "Void Cleave"},
-          %{id: 1262429, name: "Eruption"},
-          %{id: 1262441, name: "Eruption"}
+          %{id: 1_262_335, name: "Void Cleave"},
+          %{id: 1_262_429, name: "Eruption"},
+          %{id: 1_262_441, name: "Eruption"}
         ],
         positions: [
           %{x: 311.70, y: -144.97, sublevel: 1, group: 38},
@@ -185,14 +185,14 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Grand Shadow-Weaver",
-        id: 122423,
+        id: 122_423,
         count: 15,
-        health: 2202325,
+        health: 2_202_325,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1262508, name: "Void Infusion"},
-          %{id: 1264286, name: "Gate of the Abyss"}
+          %{id: 1_262_508, name: "Void Infusion"},
+          %{id: 1_264_286, name: "Gate of the Abyss"}
         ],
         positions: [
           %{x: 453.93, y: -96.52, sublevel: 1, group: 47},
@@ -203,20 +203,20 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Viceroy Nezhar",
-        id: 122056,
+        id: 122_056,
         count: 0,
-        health: 11074911,
+        health: 11_074_911,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 2811,
         spells: [
-          %{id: 244750, name: "Mind Blast", interruptible: true},
-          %{id: 246913, name: "Void Phased"},
-          %{id: 1263528, name: "Repulse"},
-          %{id: 1263529, name: "Collapsing Void"},
-          %{id: 1263532, name: "Void Storm"},
-          %{id: 1263538, name: "Umbral Tentacles"},
-          %{id: 1263542, name: "Mass Void Infusion"}
+          %{id: 244_750, name: "Mind Blast", interruptible: true},
+          %{id: 246_913, name: "Void Phased"},
+          %{id: 1_263_528, name: "Repulse"},
+          %{id: 1_263_529, name: "Collapsing Void"},
+          %{id: 1_263_532, name: "Void Storm"},
+          %{id: 1_263_538, name: "Umbral Tentacles"},
+          %{id: 1_263_542, name: "Mass Void Infusion"}
         ],
         positions: [
           %{x: 427.36, y: -55.23, sublevel: 1, group: 49}
@@ -224,22 +224,22 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Zuraal the Ascended",
-        id: 122313,
+        id: 122_313,
         count: 0,
-        health: 8859929,
+        health: 8_859_929,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 2811,
         spells: [
-          %{id: 244579, name: "Decimate"},
-          %{id: 1263282, name: "Decimate"},
-          %{id: 1263297, name: "Crashing Void"},
-          %{id: 1263399, name: "Oozing Slam"},
-          %{id: 1263440, name: "Void Slash"},
-          %{id: 1263484, name: "Void Slash"},
-          %{id: 1263492, name: "Void Slash"},
-          %{id: 1263494, name: "Void Slash"},
-          %{id: 1268916, name: "Null Palm"}
+          %{id: 244_579, name: "Decimate"},
+          %{id: 1_263_282, name: "Decimate"},
+          %{id: 1_263_297, name: "Crashing Void"},
+          %{id: 1_263_399, name: "Oozing Slam"},
+          %{id: 1_263_440, name: "Void Slash"},
+          %{id: 1_263_484, name: "Void Slash"},
+          %{id: 1_263_492, name: "Void Slash"},
+          %{id: 1_263_494, name: "Void Slash"},
+          %{id: 1_268_916, name: "Null Palm"}
         ],
         positions: [
           %{x: 74.56, y: -438.75, sublevel: 1, group: 11}
@@ -247,16 +247,16 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Saprish",
-        id: 122316,
+        id: 122_316,
         count: 0,
-        health: 23731952,
+        health: 23_731_952,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 2811,
         spells: [
-          %{id: 246943, name: "Dark Bond"},
-          %{id: 1263523, name: "Overload"},
-          %{id: 1280065, name: "Phase Dash"}
+          %{id: 246_943, name: "Dark Bond"},
+          %{id: 1_263_523, name: "Overload"},
+          %{id: 1_280_065, name: "Phase Dash"}
         ],
         positions: [
           %{x: 237.62, y: -121.86, sublevel: 1, group: 31}
@@ -264,15 +264,15 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Darkfang",
-        id: 122319,
+        id: 122_319,
         count: 0,
-        health: 23731952,
+        health: 23_731_952,
         creature_type: "Beast",
         is_boss: true,
         encounter_id: 2811,
         spells: [
-          %{id: 245742, name: "Shadow Pounce"},
-          %{id: 246943, name: "Dark Bond"}
+          %{id: 245_742, name: "Shadow Pounce"},
+          %{id: 246_943, name: "Dark Bond"}
         ],
         positions: [
           %{x: 248.56, y: -152.24, sublevel: 1, group: 31}
@@ -280,15 +280,15 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Famished Broken",
-        id: 122322,
+        id: 122_322,
         count: 1,
-        health: 607538,
+        health: 607_538,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1269468, name: "Rupture"},
-          %{id: 1269469, name: "Rupture"},
-          %{id: 1269470, name: "Rupture"}
+          %{id: 1_269_468, name: "Rupture"},
+          %{id: 1_269_469, name: "Rupture"},
+          %{id: 1_269_470, name: "Rupture"}
         ],
         positions: [
           %{x: 184.87, y: -247.10, sublevel: 1, group: 30},
@@ -340,14 +340,14 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Shadowguard Champion",
-        id: 122403,
+        id: 122_403,
         count: 3,
-        health: 1670730,
+        health: 1_670_730,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1262517, name: "Relentless Pursuit"},
-          %{id: 1264036, name: "Battle Rage"}
+          %{id: 1_262_517, name: "Relentless Pursuit"},
+          %{id: 1_264_036, name: "Battle Rage"}
         ],
         positions: [
           %{x: 163.91, y: -334.44, sublevel: 1, group: 12},
@@ -385,15 +385,15 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Dark Conjurer",
-        id: 122405,
+        id: 122_405,
         count: 7,
-        health: 1291018,
+        health: 1_291_018,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1262510, name: "Umbral Bolt", interruptible: true},
-          %{id: 1262522, name: "Pulsing Void"},
-          %{id: 1262523, name: "Summon Voidcaller", interruptible: true}
+          %{id: 1_262_510, name: "Umbral Bolt", interruptible: true},
+          %{id: 1_262_522, name: "Pulsing Void"},
+          %{id: 1_262_523, name: "Summon Voidcaller", interruptible: true}
         ],
         positions: [
           %{x: 250.20, y: -335.24, sublevel: 1, group: 16},
@@ -411,9 +411,9 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Bound Voidcaller",
-        id: 122412,
+        id: 122_412,
         count: 0,
-        health: 759423,
+        health: 759_423,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
@@ -435,9 +435,9 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Coalesced Void",
-        id: 122716,
+        id: 122_716,
         count: 0,
-        health: 349334,
+        health: 349_334,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
@@ -451,14 +451,14 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Umbral Tentacle",
-        id: 122827,
+        id: 122_827,
         count: 0,
-        health: 209199,
+        health: 209_199,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 249082, name: "Unstable Entrance"},
-          %{id: 1268733, name: "Mind Flay"}
+          %{id: 249_082, name: "Unstable Entrance"},
+          %{id: 1_268_733, name: "Mind Flay"}
         ],
         positions: [
           %{x: 442.49, y: -61.39, sublevel: 1, group: 49},
@@ -467,29 +467,29 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "L'ura",
-        id: 124729,
+        id: 124_729,
         count: 0,
-        health: 22016924,
+        health: 22_016_924,
         creature_type: "Not specified",
         is_boss: true,
         encounter_id: 2811,
         spells: [
-          %{id: 1264159, name: "Disintegrate"},
-          %{id: 1264196, name: "Disintegrate"},
-          %{id: 1265419, name: "Notes of Despair"},
-          %{id: 1265420, name: "Note of Despair"},
-          %{id: 1265421, name: "Dirge of Despair"},
-          %{id: 1265426, name: "Discordant Beam"},
-          %{id: 1265463, name: "Discordant Beam"},
-          %{id: 1265689, name: "Grim Chorus"},
-          %{id: 1265999, name: "Siphon Void"},
-          %{id: 1266001, name: "Backlash"},
-          %{id: 1266003, name: "Symphony of the Eternal Night"},
-          %{id: 1267207, name: "Abyssal Lance"},
-          %{id: 1267274, name: "Void Portal"},
-          %{id: 1268598, name: "Abyssal Lance"},
-          %{id: 1268646, name: "Abyssal Lance"},
-          %{id: 1268647, name: "Abyssal Lance"}
+          %{id: 1_264_159, name: "Disintegrate"},
+          %{id: 1_264_196, name: "Disintegrate"},
+          %{id: 1_265_419, name: "Notes of Despair"},
+          %{id: 1_265_420, name: "Note of Despair"},
+          %{id: 1_265_421, name: "Dirge of Despair"},
+          %{id: 1_265_426, name: "Discordant Beam"},
+          %{id: 1_265_463, name: "Discordant Beam"},
+          %{id: 1_265_689, name: "Grim Chorus"},
+          %{id: 1_265_999, name: "Siphon Void"},
+          %{id: 1_266_001, name: "Backlash"},
+          %{id: 1_266_003, name: "Symphony of the Eternal Night"},
+          %{id: 1_267_207, name: "Abyssal Lance"},
+          %{id: 1_267_274, name: "Void Portal"},
+          %{id: 1_268_598, name: "Abyssal Lance"},
+          %{id: 1_268_646, name: "Abyssal Lance"},
+          %{id: 1_268_647, name: "Abyssal Lance"}
         ],
         positions: [
           %{x: 570.24, y: -189.15, sublevel: 1, group: 51}
@@ -497,17 +497,17 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Shadewing",
-        id: 125340,
+        id: 125_340,
         count: 0,
-        health: 23731952,
+        health: 23_731_952,
         creature_type: "Beast",
         is_boss: true,
         encounter_id: 2811,
         spells: [
-          %{id: 246943, name: "Dark Bond"},
-          %{id: 248829, name: "Swoop"},
-          %{id: 248830, name: "Swoop"},
-          %{id: 248831, name: "Dread Screech", interruptible: true}
+          %{id: 246_943, name: "Dark Bond"},
+          %{id: 248_829, name: "Swoop"},
+          %{id: 248_830, name: "Swoop"},
+          %{id: 248_831, name: "Dread Screech", interruptible: true}
         ],
         positions: [
           %{x: 222.83, y: -152.39, sublevel: 1, group: 31}
@@ -515,9 +515,9 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Depravation Wave Stalker",
-        id: 255551,
+        id: 255_551,
         count: 0,
-        health: 197939,
+        health: 197_939,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
@@ -532,13 +532,13 @@ defmodule WeGoNext.GameData.Dungeons.SeatOfTheTriumvirate do
       },
       %{
         name: "Void Tentacle",
-        id: 256424,
+        id: 256_424,
         count: 0,
-        health: 303769,
+        health: 303_769,
         creature_type: "Aberration",
         is_boss: false,
         spells: [
-          %{id: 1269081, name: "Void Slam"}
+          %{id: 1_269_081, name: "Void Slam"}
         ],
         positions: [
           %{x: 329.88, y: -310.85, sublevel: 1},

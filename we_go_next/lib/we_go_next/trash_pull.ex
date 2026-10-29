@@ -69,36 +69,25 @@ defmodule WeGoNext.TrashPull do
   # Split events into groups separated by combat gaps
   defp split_by_combat_gaps(events) do
     events
-    |> Enum.reduce({[], []}, fn event, {current_pull, pulls} ->
-      if hostile_event?(event) do
-        case current_pull do
-          [] ->
-            {[event], pulls}
-
-          [prev | _] ->
-            gap = event.time_into_fight - prev.time_into_fight
-
-            if gap > @pull_gap_seconds do
-              # New pull — save the old one and start fresh
-              {[event], [Enum.reverse(current_pull) | pulls]}
-            else
-              {[event | current_pull], pulls}
-            end
-        end
-      else
-        # Non-hostile events get attached to the current pull if one exists
-        case current_pull do
-          [] -> {[], pulls}
-          _ -> {[event | current_pull], pulls}
-        end
-      end
-    end)
+    |> Enum.reduce({[], []}, &append_pull_event/2)
     |> then(fn {current_pull, pulls} ->
       case current_pull do
         [] -> Enum.reverse(pulls)
         _ -> Enum.reverse([Enum.reverse(current_pull) | pulls])
       end
     end)
+  end
+
+  defp append_pull_event(event, {[], pulls}) do
+    if hostile_event?(event), do: {[event], pulls}, else: {[], pulls}
+  end
+
+  defp append_pull_event(event, {[prev | _] = current_pull, pulls}) do
+    if hostile_event?(event) and event.time_into_fight - prev.time_into_fight > @pull_gap_seconds do
+      {[event], [Enum.reverse(current_pull) | pulls]}
+    else
+      {[event | current_pull], pulls}
+    end
   end
 
   defp hostile_event?(%{type: type}) when type in @hostile_event_types, do: true
@@ -190,7 +179,7 @@ defmodule WeGoNext.TrashPull do
     {cast_starts, interrupt_set} =
       Enum.reduce(events, {[], MapSet.new()}, fn event, {casts, ints} ->
         cond do
-          event.type == "SPELL_CAST_START" and is_npc_source?(event) ->
+          event.type == "SPELL_CAST_START" and npc_source?(event) ->
             {[event | casts], ints}
 
           event.type == "SPELL_INTERRUPT" ->
@@ -206,7 +195,7 @@ defmodule WeGoNext.TrashPull do
     # Casts that completed (had SPELL_CAST_SUCCESS) without being interrupted
     cast_successes =
       events
-      |> Enum.filter(fn e -> e.type == "SPELL_CAST_SUCCESS" and is_npc_source?(e) end)
+      |> Enum.filter(fn e -> e.type == "SPELL_CAST_SUCCESS" and npc_source?(e) end)
       |> Enum.map(fn e -> {Map.get(e, :source_guid, ""), Map.get(e, :spell_id, 0)} end)
       |> MapSet.new()
 
@@ -227,9 +216,9 @@ defmodule WeGoNext.TrashPull do
     |> Enum.uniq_by(fn m -> {m.caster, m.spell_id, Float.round(m.time_into_fight, 0)} end)
   end
 
-  defp is_npc_source?(%{source_guid: guid}) when is_binary(guid) do
+  defp npc_source?(%{source_guid: guid}) when is_binary(guid) do
     String.starts_with?(guid, "Creature-")
   end
 
-  defp is_npc_source?(_), do: false
+  defp npc_source?(_), do: false
 end

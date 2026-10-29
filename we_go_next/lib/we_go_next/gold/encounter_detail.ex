@@ -740,22 +740,29 @@ defmodule WeGoNext.Gold.EncounterDetail do
 
   defp active_mechanic_count(%DimEncounter{} = encounter) do
     wow_encounter_id = encounter.wow_encounter_id
-    difficulty_id = encounter.difficulty_id
+    difficulty_scope = active_criterion_difficulty(encounter.difficulty_id)
+
+    scope =
+      dynamic(
+        [criterion],
+        is_nil(criterion.boss_encounter_id) or
+          (criterion.boss_encounter_id == ^wow_encounter_id and ^difficulty_scope)
+      )
 
     DimMechanicCriterion
     |> where([criterion], criterion.active == true)
-    |> where(
-      [criterion],
-      is_nil(criterion.boss_encounter_id) or
-        (criterion.boss_encounter_id == ^wow_encounter_id and
-           (is_nil(criterion.difficulty_id) or
-              criterion.difficulty_id == ^difficulty_id or
-              (^difficulty_id == 15 and criterion.difficulty_id in [14, 15]) or
-              (^difficulty_id == 16 and criterion.difficulty_id in [14, 15, 16]) or
-              (^difficulty_id not in [14, 15, 16] and
-                 criterion.difficulty_id in [14, 15, 16])))
-    )
+    |> where(^scope)
     |> Repo.aggregate(:count)
+  end
+
+  defp active_criterion_difficulty(difficulty_id) do
+    dynamic(
+      [criterion],
+      is_nil(criterion.difficulty_id) or criterion.difficulty_id == ^difficulty_id or
+        (^difficulty_id == 15 and criterion.difficulty_id in [14, 15]) or
+        (^difficulty_id == 16 and criterion.difficulty_id in [14, 15, 16]) or
+        (^difficulty_id not in [14, 15, 16] and criterion.difficulty_id in [14, 15, 16])
+    )
   end
 
   defp interrupt_coverage(encounter_dim_id) do

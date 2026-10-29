@@ -56,7 +56,7 @@ defmodule Mix.Tasks.Wgn.PublicMirrorSmoke do
 
     cond do
       invalid != [] ->
-        Mix.raise("Invalid option(s): #{invalid |> Enum.map(&elem(&1, 0)) |> Enum.join(", ")}")
+        Mix.raise("Invalid option(s): #{Enum.map_join(invalid, ", ", &elem(&1, 0))}")
 
       extra != [] ->
         Mix.raise("Unexpected argument(s): #{Enum.join(extra, " ")}")

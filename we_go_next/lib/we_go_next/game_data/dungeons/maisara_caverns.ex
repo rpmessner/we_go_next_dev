@@ -16,14 +16,14 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
     [
       %{
         name: "Frenzied Berserker",
-        id: 248684,
+        id: 248_684,
         count: 5,
-        health: 1746672,
+        health: 1_746_672,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1255765, name: "Blood Frenzy"},
-          %{id: 1255966, name: "Regeneratin'"}
+          %{id: 1_255_765, name: "Blood Frenzy"},
+          %{id: 1_255_966, name: "Regeneratin'"}
         ],
         positions: [
           %{x: 246.90, y: -165.14, sublevel: 1, group: 1},
@@ -60,15 +60,15 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Keen Headhunter",
-        id: 242964,
+        id: 242_964,
         count: 7,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1255964, name: "Throw Spear"},
-          %{id: 1255966, name: "Regeneratin'"},
-          %{id: 1266381, name: "Hooked Snare", interruptible: true}
+          %{id: 1_255_964, name: "Throw Spear"},
+          %{id: 1_255_966, name: "Regeneratin'"},
+          %{id: 1_266_381, name: "Hooked Snare", interruptible: true}
         ],
         positions: [
           %{x: 257.47, y: -193.19, sublevel: 1, group: 4},
@@ -94,15 +94,15 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Dread Souleater",
-        id: 248686,
+        id: 248_686,
         count: 15,
-        health: 2278268,
+        health: 2_278_268,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1257088, name: "Necrotic Wave"},
-          %{id: 1257155, name: "Rain of Toads"},
-          %{id: 1257160, name: "Rain of Toads"}
+          %{id: 1_257_088, name: "Necrotic Wave"},
+          %{id: 1_257_155, name: "Rain of Toads"},
+          %{id: 1_257_160, name: "Rain of Toads"}
         ],
         positions: [
           %{x: 280.86, y: -201.47, sublevel: 1, group: 5},
@@ -116,14 +116,14 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Ritual Hexxer",
-        id: 248685,
+        id: 248_685,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1256008, name: "Hex", interruptible: true, dispellable: true},
-          %{id: 1256015, name: "Shadow Bolt", interruptible: true}
+          %{id: 1_256_008, name: "Hex", interruptible: true, dispellable: true},
+          %{id: 1_256_015, name: "Shadow Bolt", interruptible: true}
         ],
         positions: [
           %{x: 333.34, y: -186.93, sublevel: 1, group: 7},
@@ -149,16 +149,16 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Hexbound Eagle",
-        id: 249020,
+        id: 249_020,
         count: 3,
-        health: 1442903,
+        health: 1_442_903,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1256586, name: "Diseased Claws"},
-          %{id: 1257780, name: "Shredding Talons"},
-          %{id: 1257781, name: "Shredding Talons"},
-          %{id: 1257782, name: "Shredding Talons"}
+          %{id: 1_256_586, name: "Diseased Claws"},
+          %{id: 1_257_780, name: "Shredding Talons"},
+          %{id: 1_257_781, name: "Shredding Talons"},
+          %{id: 1_257_782, name: "Shredding Talons"}
         ],
         positions: [
           %{x: 328.89, y: -180.75, sublevel: 1, group: 7},
@@ -175,15 +175,15 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Hex Guardian",
-        id: 253302,
+        id: 253_302,
         count: 15,
-        health: 2430152,
+        health: 2_430_152,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1258475, name: "Magma Surge"},
-          %{id: 1258482, name: "Searing Presence"},
-          %{id: 1258806, name: "Ritual Firebrand", dispellable: true}
+          %{id: 1_258_475, name: "Magma Surge"},
+          %{id: 1_258_482, name: "Searing Presence"},
+          %{id: 1_258_806, name: "Ritual Firebrand", dispellable: true}
         ],
         positions: [
           %{x: 325.41, y: -211.28, sublevel: 1, group: 9},
@@ -195,13 +195,13 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Warding Mask",
-        id: 249002,
+        id: 249_002,
         count: 2,
-        health: 455654,
+        health: 455_654,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1257328, name: "Sear"}
+          %{id: 1_257_328, name: "Sear"}
         ],
         positions: [
           %{x: 327.89, y: -217.25, sublevel: 1, group: 9},
@@ -245,13 +245,13 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Bramblemaw Bear",
-        id: 249022,
+        id: 249_022,
         count: 5,
-        health: 1594787,
+        health: 1_594_787,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1256561, name: "Crunch Armor"}
+          %{id: 1_256_561, name: "Crunch Armor"}
         ],
         positions: [
           %{x: 295.22, y: -165.89, sublevel: 1, group: 2},
@@ -278,9 +278,9 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Mire Laborer",
-        id: 248693,
+        id: 248_693,
         count: 1,
-        health: 987249,
+        health: 987_249,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
@@ -325,14 +325,14 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Hulking Juggernaut",
-        id: 248678,
+        id: 248_678,
         count: 15,
-        health: 2733921,
+        health: 2_733_921,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1256047, name: "Deafening Roar"},
-          %{id: 1256059, name: "Rending Gore"}
+          %{id: 1_256_047, name: "Deafening Roar"},
+          %{id: 1_256_059, name: "Rending Gore"}
         ],
         positions: [
           %{x: 365.92, y: -242.56, sublevel: 1, group: 19},
@@ -343,15 +343,15 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Umbral Shadowbinder",
-        id: 254740,
+        id: 254_740,
         count: 5,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1263292, name: "Shrink", interruptible: true},
-          %{id: 1263336, name: "Shadow Burst"},
-          %{id: 1265832, name: "Shadow Burst"}
+          %{id: 1_263_292, name: "Shrink", interruptible: true},
+          %{id: 1_263_336, name: "Shadow Burst"},
+          %{id: 1_265_832, name: "Shadow Burst"}
         ],
         positions: [
           %{x: 381.73, y: -228.79, sublevel: 1, group: 14},
@@ -374,16 +374,16 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Restless Gnarldin",
-        id: 249030,
+        id: 249_030,
         count: 15,
-        health: 2733921,
+        health: 2_733_921,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1257895, name: "Ancestral Crush"},
-          %{id: 1257898, name: "Ancestral Crush"},
-          %{id: 1259274, name: "Spectral Strikes"},
-          %{id: 1259631, name: "Staggering Blow"}
+          %{id: 1_257_895, name: "Ancestral Crush"},
+          %{id: 1_257_898, name: "Ancestral Crush"},
+          %{id: 1_259_274, name: "Spectral Strikes"},
+          %{id: 1_259_631, name: "Staggering Blow"}
         ],
         positions: [
           %{x: 517.16, y: -388.18, sublevel: 1, group: 60},
@@ -396,15 +396,15 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Reanimated Warrior",
-        id: 248692,
+        id: 248_692,
         count: 2,
-        health: 1594787,
+        health: 1_594_787,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1257716, name: "Reanimation", interruptible: true},
-          %{id: 1257914, name: "Undying Resolve"},
-          %{id: 1257920, name: "Dread Slash"}
+          %{id: 1_257_716, name: "Reanimation", interruptible: true},
+          %{id: 1_257_914, name: "Undying Resolve"},
+          %{id: 1_257_920, name: "Dread Slash"}
         ],
         positions: [
           %{x: 499.22, y: -370.58, sublevel: 1, group: 59},
@@ -449,14 +449,14 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Grim Skirmisher",
-        id: 248690,
+        id: 248_690,
         count: 2,
-        health: 911307,
+        health: 911_307,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1270079, name: "Grim Ward", dispellable: true},
-          %{id: 1270085, name: "Grim Ward"}
+          %{id: 1_270_079, name: "Grim Ward", dispellable: true},
+          %{id: 1_270_085, name: "Grim Ward"}
         ],
         positions: [
           %{x: 509.17, y: -369.58, sublevel: 1, group: 59},
@@ -507,13 +507,13 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Tormented Shade",
-        id: 249036,
+        id: 249_036,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1259255, name: "Spirit Rend", interruptible: true, dispellable: true}
+          %{id: 1_259_255, name: "Spirit Rend", interruptible: true, dispellable: true}
         ],
         positions: [
           %{x: 511.19, y: -405.52, sublevel: 1, group: 61},
@@ -545,14 +545,14 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Rokh'zal",
-        id: 253683,
+        id: 253_683,
         count: 10,
-        health: 3797113,
+        health: 3_797_113,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1259786, name: "Ritual Sacrifice"},
-          %{id: 1262241, name: "Invoke Shadow"}
+          %{id: 1_259_786, name: "Ritual Sacrifice"},
+          %{id: 1_262_241, name: "Invoke Shadow"}
         ],
         positions: [
           %{x: 521.78, y: -423.90, sublevel: 1, group: 62}
@@ -560,16 +560,16 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Bound Defender",
-        id: 249025,
+        id: 249_025,
         count: 15,
-        health: 2582037,
+        health: 2_582_037,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1257546, name: "Vigilant Defense"},
-          %{id: 1259274, name: "Spectral Strikes"},
-          %{id: 1259651, name: "Soulstorms"},
-          %{id: 1259664, name: "Soulstorms"}
+          %{id: 1_257_546, name: "Vigilant Defense"},
+          %{id: 1_259_274, name: "Spectral Strikes"},
+          %{id: 1_259_651, name: "Soulstorms"},
+          %{id: 1_259_664, name: "Soulstorms"}
         ],
         positions: [
           %{x: 515.52, y: -472.72, sublevel: 1, group: 66},
@@ -582,15 +582,15 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Hollow Soulrender",
-        id: 249024,
+        id: 249_024,
         count: 15,
-        health: 2278268,
+        health: 2_278_268,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1259677, name: "Rend Souls"},
-          %{id: 1264327, name: "Shadowfrost Blast", interruptible: true},
-          %{id: 1271623, name: "Frost Nova", dispellable: true}
+          %{id: 1_259_677, name: "Rend Souls"},
+          %{id: 1_264_327, name: "Shadowfrost Blast", interruptible: true},
+          %{id: 1_271_623, name: "Frost Nova", dispellable: true}
         ],
         positions: [
           %{x: 559.00, y: -499.34, sublevel: 1, group: 68},
@@ -600,22 +600,22 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Muro'jin",
-        id: 247570,
+        id: 247_570,
         count: 0,
-        health: 8543503,
+        health: 8_543_503,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1243752, name: "Icy Slick"},
-          %{id: 1249789, name: "Revive Pet"},
-          %{id: 1249989, name: "Coordinated Assault"},
-          %{id: 1260648, name: "Barrage"},
-          %{id: 1260709, name: "Vilebranch Sting", dispellable: true},
-          %{id: 1260731, name: "Freezing Trap"},
-          %{id: 1266480, name: "Flanking Spear"},
-          %{id: 1266485, name: "Flanking Spear"},
-          %{id: 1266488, name: "Open Wound"}
+          %{id: 1_243_752, name: "Icy Slick"},
+          %{id: 1_249_789, name: "Revive Pet"},
+          %{id: 1_249_989, name: "Coordinated Assault"},
+          %{id: 1_260_648, name: "Barrage"},
+          %{id: 1_260_709, name: "Vilebranch Sting", dispellable: true},
+          %{id: 1_260_731, name: "Freezing Trap"},
+          %{id: 1_266_480, name: "Flanking Spear"},
+          %{id: 1_266_485, name: "Flanking Spear"},
+          %{id: 1_266_488, name: "Open Wound"}
         ],
         positions: [
           %{x: 392.20, y: -371.15, sublevel: 1, group: 58}
@@ -623,22 +623,22 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Nekraxx",
-        id: 247572,
+        id: 247_572,
         count: 0,
-        health: 8543503,
+        health: 8_543_503,
         creature_type: "Beast",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1243900, name: "Fetid Quillstorm"},
-          %{id: 1246666, name: "Infected Pinions"},
-          %{id: 1249478, name: "Carrion Swoop"},
-          %{id: 1249479, name: "Carrion Swoop"},
-          %{id: 1249638, name: "Carrion Swoop"},
-          %{id: 1249947, name: "Bestial Wrath"},
-          %{id: 1249948, name: "Bestial Wrath"},
-          %{id: 1256247, name: "Fetid Quillstorm"},
-          %{id: 1256387, name: "Carrion Swoop"}
+          %{id: 1_243_900, name: "Fetid Quillstorm"},
+          %{id: 1_246_666, name: "Infected Pinions"},
+          %{id: 1_249_478, name: "Carrion Swoop"},
+          %{id: 1_249_479, name: "Carrion Swoop"},
+          %{id: 1_249_638, name: "Carrion Swoop"},
+          %{id: 1_249_947, name: "Bestial Wrath"},
+          %{id: 1_249_948, name: "Bestial Wrath"},
+          %{id: 1_256_247, name: "Fetid Quillstorm"},
+          %{id: 1_256_387, name: "Carrion Swoop"}
         ],
         positions: [
           %{x: 410.21, y: -358.21, sublevel: 1, group: 58}
@@ -646,29 +646,29 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Vordaza",
-        id: 248595,
+        id: 248_595,
         count: 0,
-        health: 9113070,
+        health: 9_113_070,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1250708, name: "Necrotic Convergence", interruptible: true},
-          %{id: 1251204, name: "Wrest Phantoms"},
-          %{id: 1251554, name: "Drain Soul"},
-          %{id: 1251567, name: "Drain Soul"},
-          %{id: 1251598, name: "Deathshroud"},
-          %{id: 1251811, name: "Final Pursuit"},
-          %{id: 1251813, name: "Lingering Dread"},
-          %{id: 1251833, name: "Soulrot"},
-          %{id: 1252054, name: "Unmake"},
-          %{id: 1252130, name: "Unmake"},
-          %{id: 1252611, name: "Coalesced Death"},
-          %{id: 1263735, name: "Necrotic Convergence"},
-          %{id: 1264987, name: "Withering Miasma"},
-          %{id: 1264989, name: "Withering Miasma"},
-          %{id: 1266706, name: "Haunting Remains"},
-          %{id: 1277556, name: "Necrotic Convergence"}
+          %{id: 1_250_708, name: "Necrotic Convergence", interruptible: true},
+          %{id: 1_251_204, name: "Wrest Phantoms"},
+          %{id: 1_251_554, name: "Drain Soul"},
+          %{id: 1_251_567, name: "Drain Soul"},
+          %{id: 1_251_598, name: "Deathshroud"},
+          %{id: 1_251_811, name: "Final Pursuit"},
+          %{id: 1_251_813, name: "Lingering Dread"},
+          %{id: 1_251_833, name: "Soulrot"},
+          %{id: 1_252_054, name: "Unmake"},
+          %{id: 1_252_130, name: "Unmake"},
+          %{id: 1_252_611, name: "Coalesced Death"},
+          %{id: 1_263_735, name: "Necrotic Convergence"},
+          %{id: 1_264_987, name: "Withering Miasma"},
+          %{id: 1_264_989, name: "Withering Miasma"},
+          %{id: 1_266_706, name: "Haunting Remains"},
+          %{id: 1_277_556, name: "Necrotic Convergence"}
         ],
         positions: [
           %{x: 675.16, y: -308.15, sublevel: 1, group: 84}
@@ -676,28 +676,28 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Rak'tul",
-        id: 248605,
+        id: 248_605,
         count: 0,
-        health: 13448107,
+        health: 13_448_107,
         creature_type: "Undead",
         is_boss: true,
         encounter_id: 2658,
         spells: [
-          %{id: 1248879, name: "Deathgorged Vessel"},
-          %{id: 1248980, name: "Volatile Essence"},
-          %{id: 1251023, name: "Spiritbreaker"},
-          %{id: 1251024, name: "Spiritbreaker"},
-          %{id: 1252675, name: "Crush Souls"},
-          %{id: 1252676, name: "Crush Souls"},
-          %{id: 1252704, name: "Crush Souls"},
-          %{id: 1253765, name: "Spiritbreaker"},
-          %{id: 1253779, name: "Spectral Decay"},
-          %{id: 1253788, name: "Soulrending Roar"},
-          %{id: 1253844, name: "Withering Soul"},
-          %{id: 1253909, name: "Soul Expulsion"},
-          %{id: 1259810, name: "Shattered Totem"},
-          %{id: 1266188, name: "Shadow Realm"},
-          %{id: 1279517, name: "Soul Expulsion"}
+          %{id: 1_248_879, name: "Deathgorged Vessel"},
+          %{id: 1_248_980, name: "Volatile Essence"},
+          %{id: 1_251_023, name: "Spiritbreaker"},
+          %{id: 1_251_024, name: "Spiritbreaker"},
+          %{id: 1_252_675, name: "Crush Souls"},
+          %{id: 1_252_676, name: "Crush Souls"},
+          %{id: 1_252_704, name: "Crush Souls"},
+          %{id: 1_253_765, name: "Spiritbreaker"},
+          %{id: 1_253_779, name: "Spectral Decay"},
+          %{id: 1_253_788, name: "Soulrending Roar"},
+          %{id: 1_253_844, name: "Withering Soul"},
+          %{id: 1_253_909, name: "Soul Expulsion"},
+          %{id: 1_259_810, name: "Shattered Totem"},
+          %{id: 1_266_188, name: "Shadow Realm"},
+          %{id: 1_279_517, name: "Soul Expulsion"}
         ],
         positions: [
           %{x: 676.57, y: -7.81, sublevel: 1, group: 102}
@@ -705,13 +705,13 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Unstable Phantom",
-        id: 250443,
+        id: 250_443,
         count: 0,
-        health: 1265704,
+        health: 1_265_704,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1251775, name: "Final Pursuit"}
+          %{id: 1_251_775, name: "Final Pursuit"}
         ],
         positions: [
           %{x: 685.31, y: -295.21, sublevel: 1, group: 84}
@@ -719,14 +719,14 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Soulbind Totem",
-        id: 251047,
+        id: 251_047,
         count: 0,
-        health: 253141,
+        health: 253_141,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 1252777, name: "Soulbind"},
-          %{id: 1252816, name: "Chill of Death"}
+          %{id: 1_252_777, name: "Soulbind"},
+          %{id: 1_252_816, name: "Chill of Death"}
         ],
         positions: [
           %{x: 689.21, y: -14.27, sublevel: 1, group: 102}
@@ -734,15 +734,15 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Zil'jan",
-        id: 253458,
+        id: 253_458,
         count: 7,
-        health: 607538,
+        health: 607_538,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1259882, name: "Ritual Drums"},
-          %{id: 1259887, name: "Ritual Drums"},
-          %{id: 1262900, name: "Ritual Drums"}
+          %{id: 1_259_882, name: "Ritual Drums"},
+          %{id: 1_259_887, name: "Ritual Drums"},
+          %{id: 1_262_900, name: "Ritual Drums"}
         ],
         positions: [
           %{x: 671.93, y: -34.87, sublevel: 1, group: 103}
@@ -750,14 +750,14 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Gloomwing Bat",
-        id: 253473,
+        id: 253_473,
         count: 5,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1259182, name: "Piercing Screech", interruptible: true},
-          %{id: 1259183, name: "Piercing Screech"}
+          %{id: 1_259_182, name: "Piercing Screech", interruptible: true},
+          %{id: 1_259_183, name: "Piercing Screech"}
         ],
         positions: [
           %{x: 716.59, y: -437.47, sublevel: 1, group: 79},
@@ -782,13 +782,13 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Death's Grasp",
-        id: 253701,
+        id: 253_701,
         count: 0,
-        health: 227827,
+        health: 227_827,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 1259794, name: "Ritual Sacrifice"}
+          %{id: 1_259_794, name: "Ritual Sacrifice"}
         ],
         positions: [
           %{x: 516.44, y: -433.43, sublevel: 1, group: 62}
@@ -796,14 +796,14 @@ defmodule WeGoNext.GameData.Dungeons.MaisaraCaverns do
       },
       %{
         name: "Rokh'zal",
-        id: 254233,
+        id: 254_233,
         count: 0,
-        health: 3948997,
+        health: 3_948_997,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1259772, name: "Umbral Vortex"},
-          %{id: 1259777, name: "Umbral Vortex"}
+          %{id: 1_259_772, name: "Umbral Vortex"},
+          %{id: 1_259_777, name: "Umbral Vortex"}
         ],
         positions: [
           %{x: 524.00, y: -435.42, sublevel: 1, group: 62}

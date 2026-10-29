@@ -79,8 +79,7 @@ defmodule WeGoNext.Mirror.Keys do
 
   defp hash_values(values) do
     values
-    |> Enum.map(&normalize_value/1)
-    |> Enum.join(@separator)
+    |> Enum.map_join(@separator, &normalize_value/1)
     |> then(&:crypto.hash(:sha256, &1))
     |> Base.encode16(case: :lower)
   end

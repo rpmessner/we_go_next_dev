@@ -332,16 +332,10 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
 
       player_lines =
         players
-        |> Enum.map(fn stats ->
-          spells_str =
-            stats.by_spell
-            |> Enum.sort_by(fn {_name, count} -> count end, :desc)
-            |> Enum.map(fn {name, count} -> "#{name} (#{count})" end)
-            |> Enum.join(", ")
-
+        |> Enum.map_join("\n", fn stats ->
+          spells_str = format_spell_counts(stats.by_spell)
           "      #{stats.player_name}: #{stats.total_interrupts} - #{spells_str}"
         end)
-        |> Enum.join("\n")
 
       header <> "\n" <> player_lines
     end
@@ -362,24 +356,7 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
 
       spell_lines =
         interruptible
-        |> Enum.map(fn stats ->
-          rate =
-            if stats.total_casts > 0 do
-              Float.round(stats.interrupted_count / stats.total_casts * 100, 0) |> trunc()
-            else
-              0
-            end
-
-          status =
-            cond do
-              stats.completed_count == 0 -> "[ALL KICKED]"
-              stats.interrupted_count == 0 -> "[NONE KICKED]"
-              true -> "[#{stats.completed_count} MISSED]"
-            end
-
-          "      #{stats.spell_name}: #{stats.interrupted_count}/#{stats.total_casts} interrupted (#{rate}%) #{status}"
-        end)
-        |> Enum.join("\n")
+        |> Enum.map_join("\n", &format_spell_stat/1)
 
       header <> "\n" <> spell_lines
     end
@@ -400,20 +377,40 @@ defmodule WeGoNext.Analyzers.InterruptAnalyzer do
 
       lines =
         by_spell
-        |> Enum.map(fn {spell_name, casts} ->
-          times =
-            casts
-            |> Enum.take(3)
-            |> Enum.map(&format_time(&1.time_into_fight))
-            |> Enum.join(", ")
-
-          more = if length(casts) > 3, do: " +#{length(casts) - 3} more", else: ""
-          "      #{spell_name}: #{length(casts)} casts went off (at #{times}#{more})"
-        end)
-        |> Enum.join("\n")
+        |> Enum.map_join("\n", &format_missed_spell/1)
 
       header <> "\n" <> lines
     end
+  end
+
+  defp format_spell_counts(by_spell) do
+    by_spell
+    |> Enum.sort_by(fn {_name, count} -> count end, :desc)
+    |> Enum.map_join(", ", fn {name, count} -> "#{name} (#{count})" end)
+  end
+
+  defp format_spell_stat(stats) do
+    rate =
+      if stats.total_casts > 0 do
+        Float.round(stats.interrupted_count / stats.total_casts * 100, 0) |> trunc()
+      else
+        0
+      end
+
+    status =
+      cond do
+        stats.completed_count == 0 -> "[ALL KICKED]"
+        stats.interrupted_count == 0 -> "[NONE KICKED]"
+        true -> "[#{stats.completed_count} MISSED]"
+      end
+
+    "      #{stats.spell_name}: #{stats.interrupted_count}/#{stats.total_casts} interrupted (#{rate}%) #{status}"
+  end
+
+  defp format_missed_spell({spell_name, casts}) do
+    times = casts |> Enum.take(3) |> Enum.map_join(", ", &format_time(&1.time_into_fight))
+    more = if length(casts) > 3, do: " +#{length(casts) - 3} more", else: ""
+    "      #{spell_name}: #{length(casts)} casts went off (at #{times}#{more})"
   end
 
   defp format_time(seconds) do

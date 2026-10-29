@@ -16,15 +16,15 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
     [
       %{
         name: "Restless Steward",
-        id: 232070,
+        id: 232_070,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1216135, name: "Spirit Bolt", interruptible: true},
-          %{id: 1216298, name: "Soul Torment", dispellable: true},
-          %{id: 1253700, name: "Soul Torment"}
+          %{id: 1_216_135, name: "Spirit Bolt", interruptible: true},
+          %{id: 1_216_298, name: "Soul Torment", dispellable: true},
+          %{id: 1_253_700, name: "Soul Torment"}
         ],
         positions: [
           %{x: 86.93, y: -154.12, sublevel: 1, group: 2},
@@ -37,9 +37,9 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Dutiful Groundskeeper",
-        id: 232071,
+        id: 232_071,
         count: 4,
-        health: 1670730,
+        health: 1_670_730,
         creature_type: "Undead",
         is_boss: false,
         spells: [
@@ -75,16 +75,16 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Spellguard Magus",
-        id: 232113,
+        id: 232_113,
         count: 15,
-        health: 2126383,
+        health: 2_126_383,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1216250, name: "Arcane Salvo"},
-          %{id: 1216253, name: "Arcane Salvo"},
-          %{id: 1253683, name: "Spellguard's Protection"},
-          %{id: 1253686, name: "Spellguard's Protection"}
+          %{id: 1_216_250, name: "Arcane Salvo"},
+          %{id: 1_216_253, name: "Arcane Salvo"},
+          %{id: 1_253_683, name: "Spellguard's Protection"},
+          %{id: 1_253_686, name: "Spellguard's Protection"}
         ],
         positions: [
           %{x: 70.24, y: -181.39, sublevel: 1, group: 4},
@@ -93,13 +93,13 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Windrunner Soldier",
-        id: 232116,
+        id: 232_116,
         count: 5,
-        health: 1670730,
+        health: 1_670_730,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1216462, name: "Precise Cut"}
+          %{id: 1_216_462, name: "Precise Cut"}
         ],
         positions: [
           %{x: 114.76, y: -471.87, sublevel: 1, group: 31},
@@ -120,15 +120,15 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Fervent Apothecary",
-        id: 232173,
+        id: 232_173,
         count: 5,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 473644, name: "Phial Toss"},
-          %{id: 473647, name: "Phial Toss"},
-          %{id: 473649, name: "Shattered Phial"}
+          %{id: 473_644, name: "Phial Toss"},
+          %{id: 473_647, name: "Phial Toss"},
+          %{id: 473_649, name: "Shattered Phial"}
         ],
         positions: [
           %{x: 109.68, y: -463.74, sublevel: 1, group: 31},
@@ -141,16 +141,16 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Ardent Cutthroat",
-        id: 232171,
+        id: 232_171,
         count: 6,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 473794, name: "Poison Blades", interruptible: true},
-          %{id: 473795, name: "Poison Blades"},
-          %{id: 473864, name: "Shadowrive"},
-          %{id: 473868, name: "Shadowrive"}
+          %{id: 473_794, name: "Poison Blades", interruptible: true},
+          %{id: 473_795, name: "Poison Blades"},
+          %{id: 473_864, name: "Shadowrive"},
+          %{id: 473_868, name: "Shadowrive"}
         ],
         positions: [
           %{x: 119.96, y: -462.93, sublevel: 1, group: 31},
@@ -167,13 +167,13 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Zealous Reaver",
-        id: 232232,
+        id: 232_232,
         count: 4,
-        health: 1670730,
+        health: 1_670_730,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 473640, name: "Fierce Slash"}
+          %{id: 473_640, name: "Fierce Slash"}
         ],
         positions: [
           %{x: 127.03, y: -337.25, sublevel: 1, group: 36},
@@ -186,16 +186,16 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Devoted Woebringer",
-        id: 232175,
+        id: 232_175,
         count: 15,
-        health: 2126383,
+        health: 2_126_383,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 473657, name: "Shadow Bolt", interruptible: true},
-          %{id: 473663, name: "Pulsing Shriek", interruptible: true},
-          %{id: 473668, name: "Pulsing Shriek"},
-          %{id: 473672, name: "Pulsing Shriek"}
+          %{id: 473_657, name: "Shadow Bolt", interruptible: true},
+          %{id: 473_663, name: "Pulsing Shriek", interruptible: true},
+          %{id: 473_668, name: "Pulsing Shriek"},
+          %{id: 473_672, name: "Pulsing Shriek"}
         ],
         positions: [
           %{x: 136.40, y: -430.14, sublevel: 1, group: 35},
@@ -204,16 +204,16 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Flesh Behemoth",
-        id: 232176,
+        id: 232_176,
         count: 20,
-        health: 3948997,
+        health: 3_948_997,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 473776, name: "Fetid Spew"},
-          %{id: 473786, name: "Fetid Spew"},
-          %{id: 473789, name: "Fetid Bile"},
-          %{id: 1277799, name: "Brutal Chop"}
+          %{id: 473_776, name: "Fetid Spew"},
+          %{id: 473_786, name: "Fetid Spew"},
+          %{id: 473_789, name: "Fetid Bile"},
+          %{id: 1_277_799, name: "Brutal Chop"}
         ],
         positions: [
           %{x: 286.30, y: -369.95, sublevel: 1, group: 37}
@@ -221,15 +221,15 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Territorial Dragonhawk",
-        id: 232056,
+        id: 232_056,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1216848, name: "Fire Spit"},
-          %{id: 1216860, name: "Bolstering Flames", dispellable: true},
-          %{id: 1266745, name: "Fire Spit"}
+          %{id: 1_216_848, name: "Fire Spit"},
+          %{id: 1_216_860, name: "Bolstering Flames", dispellable: true},
+          %{id: 1_266_745, name: "Fire Spit"}
         ],
         positions: [
           %{x: 279.99, y: -109.02, sublevel: 1, group: 8},
@@ -241,13 +241,13 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Spindleweb Hatchling",
-        id: 234673,
+        id: 234_673,
         count: 1,
-        health: 303769,
+        health: 303_769,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1216834, name: "Acidic Demise"}
+          %{id: 1_216_834, name: "Acidic Demise"}
         ],
         positions: [
           %{x: 324.20, y: -151.43, sublevel: 1, group: 11},
@@ -295,15 +295,15 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Creeping Spindleweb",
-        id: 232067,
+        id: 232_067,
         count: 7,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1216822, name: "Poison Spray"},
-          %{id: 1216825, name: "Poison Spray"},
-          %{id: 1216834, name: "Acidic Demise"}
+          %{id: 1_216_822, name: "Poison Spray"},
+          %{id: 1_216_825, name: "Poison Spray"},
+          %{id: 1_216_834, name: "Acidic Demise"}
         ],
         positions: [
           %{x: 319.61, y: -187.63, sublevel: 1, group: 12},
@@ -313,15 +313,15 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Apex Lynx",
-        id: 232063,
+        id: 232_063,
         count: 15,
-        health: 2582037,
+        health: 2_582_037,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1216985, name: "Puncturing Bite"},
-          %{id: 1217010, name: "Ferocious Pounce"},
-          %{id: 1217021, name: "Ferocious Pounce"}
+          %{id: 1_216_985, name: "Puncturing Bite"},
+          %{id: 1_217_010, name: "Ferocious Pounce"},
+          %{id: 1_217_021, name: "Ferocious Pounce"}
         ],
         positions: [
           %{x: 484.75, y: -159.82, sublevel: 1, group: 17}
@@ -329,13 +329,13 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Pesty Lashling",
-        id: 238099,
+        id: 238_099,
         count: 1,
-        health: 303769,
+        health: 303_769,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
-          %{id: 1277761, name: "Sporecharged"}
+          %{id: 1_277_761, name: "Sporecharged"}
         ],
         positions: [
           %{x: 425.12, y: -145.73, sublevel: 1, group: 19},
@@ -382,14 +382,14 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Bloated Lasher",
-        id: 236894,
+        id: 236_894,
         count: 17,
-        health: 3341459,
+        health: 3_341_459,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
-          %{id: 1216819, name: "Fungal Bolt", interruptible: true},
-          %{id: 1216963, name: "Spore Dispersal"}
+          %{id: 1_216_819, name: "Fungal Bolt", interruptible: true},
+          %{id: 1_216_963, name: "Spore Dispersal"}
         ],
         positions: [
           %{x: 504.82, y: -92.00, sublevel: 1}
@@ -397,9 +397,9 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Scouting Trapper",
-        id: 238049,
+        id: 238_049,
         count: 5,
-        health: 1380770,
+        health: 1_380_770,
         creature_type: "Undead",
         is_boss: false,
         spells: [
@@ -413,15 +413,15 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Swiftshot Archer",
-        id: 232119,
+        id: 232_119,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1216419, name: "Shoot"},
-          %{id: 1216449, name: "Arrow Rain"},
-          %{id: 1216454, name: "Arrow Rain"}
+          %{id: 1_216_419, name: "Shoot"},
+          %{id: 1_216_449, name: "Arrow Rain"},
+          %{id: 1_216_454, name: "Arrow Rain"}
         ],
         positions: [
           %{x: 582.17, y: -506.92, sublevel: 1, group: 43},
@@ -434,15 +434,15 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Phalanx Breaker",
-        id: 232122,
+        id: 232_122,
         count: 15,
-        health: 2430152,
+        health: 2_430_152,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 471643, name: "Interrupting Screech"},
-          %{id: 471648, name: "Break Ranks"},
-          %{id: 471650, name: "Break Ranks"}
+          %{id: 471_643, name: "Interrupting Screech"},
+          %{id: 471_648, name: "Break Ranks"},
+          %{id: 471_650, name: "Break Ranks"}
         ],
         positions: [
           %{x: 566.50, y: -486.00, sublevel: 1, group: 44},
@@ -453,13 +453,13 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Loyal Worg",
-        id: 232283,
+        id: 232_283,
         count: 5,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1253739, name: "Shred Flesh"}
+          %{id: 1_253_739, name: "Shred Flesh"}
         ],
         positions: [
           %{x: 470.65, y: -425.98, sublevel: 1, group: 54},
@@ -471,14 +471,14 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Lingering Marauder",
-        id: 232147,
+        id: 232_147,
         count: 6,
-        health: 1670730,
+        health: 1_670_730,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1216637, name: "Gore Whirl"},
-          %{id: 1216643, name: "Gore Whirl"}
+          %{id: 1_216_637, name: "Gore Whirl"},
+          %{id: 1_216_643, name: "Gore Whirl"}
         ],
         positions: [
           %{x: 486.90, y: -468.92, sublevel: 1, group: 56},
@@ -489,13 +489,13 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Spectral Axethrower",
-        id: 232148,
+        id: 232_148,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 468659, name: "Throw Axe"}
+          %{id: 468_659, name: "Throw Axe"}
         ],
         positions: [
           %{x: 408.98, y: -446.85, sublevel: 1, group: 47},
@@ -507,15 +507,15 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Phantasmal Mystic",
-        id: 232146,
+        id: 232_146,
         count: 15,
-        health: 2430152,
+        health: 2_430_152,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1216459, name: "Ephemeral Bloodlust"},
-          %{id: 1216592, name: "Chain Lightning", interruptible: true},
-          %{id: 1270618, name: "Flame Nova"}
+          %{id: 1_216_459, name: "Ephemeral Bloodlust"},
+          %{id: 1_216_592, name: "Chain Lightning", interruptible: true},
+          %{id: 1_270_618, name: "Flame Nova"}
         ],
         positions: [
           %{x: 503.84, y: -442.56, sublevel: 1, group: 58},
@@ -524,22 +524,22 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Emberdawn",
-        id: 231606,
+        id: 231_606,
         count: 0,
-        health: 11650806,
+        health: 11_650_806,
         creature_type: "Beast",
         is_boss: true,
         encounter_id: 2656,
         spells: [
-          %{id: 465904, name: "Burning Gale"},
-          %{id: 466064, name: "Searing Beak"},
-          %{id: 466091, name: "Searing Beak"},
-          %{id: 466556, name: "Flaming Updraft"},
-          %{id: 466559, name: "Flaming Updraft"},
-          %{id: 467040, name: "Burning Gale"},
-          %{id: 1217763, name: "Fire Breath"},
-          %{id: 1217795, name: "Burning Gale"},
-          %{id: 1252548, name: "Fiery Landing"}
+          %{id: 465_904, name: "Burning Gale"},
+          %{id: 466_064, name: "Searing Beak"},
+          %{id: 466_091, name: "Searing Beak"},
+          %{id: 466_556, name: "Flaming Updraft"},
+          %{id: 466_559, name: "Flaming Updraft"},
+          %{id: 467_040, name: "Burning Gale"},
+          %{id: 1_217_763, name: "Fire Breath"},
+          %{id: 1_217_795, name: "Burning Gale"},
+          %{id: 1_252_548, name: "Fiery Landing"}
         ],
         positions: [
           %{x: 651.17, y: -146.65, sublevel: 1, group: 29}
@@ -547,18 +547,18 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Kalis",
-        id: 231626,
+        id: 231_626,
         count: 0,
-        health: 7910651,
+        health: 7_910_651,
         creature_type: "Undead",
         is_boss: true,
         encounter_id: 2656,
         spells: [
-          %{id: 472724, name: "Shadow Bolt", interruptible: true},
-          %{id: 472736, name: "Debilitating Shriek"},
-          %{id: 474105, name: "Curse of Darkness"},
-          %{id: 1219491, name: "Debilitating Shriek"},
-          %{id: 1219551, name: "Broken Bond"}
+          %{id: 472_724, name: "Shadow Bolt", interruptible: true},
+          %{id: 472_736, name: "Debilitating Shriek"},
+          %{id: 474_105, name: "Curse of Darkness"},
+          %{id: 1_219_491, name: "Debilitating Shriek"},
+          %{id: 1_219_551, name: "Broken Bond"}
         ],
         positions: [
           %{x: 285.66, y: -507.04, sublevel: 1, group: 42}
@@ -566,22 +566,22 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Latch",
-        id: 231629,
+        id: 231_629,
         count: 0,
-        health: 9176355,
+        health: 9_176_355,
         creature_type: "Undead",
         is_boss: true,
         encounter_id: 2656,
         spells: [
-          %{id: 472745, name: "Splattering Spew"},
-          %{id: 472758, name: "Splattering Spew"},
-          %{id: 472777, name: "Gunk Splatter"},
-          %{id: 472795, name: "Heaving Yank"},
-          %{id: 472888, name: "Bone Hack"},
-          %{id: 474065, name: "Bone Hack"},
-          %{id: 474075, name: "Heaving Chop"},
-          %{id: 1219551, name: "Broken Bond"},
-          %{id: 1282272, name: "Splattered"}
+          %{id: 472_745, name: "Splattering Spew"},
+          %{id: 472_758, name: "Splattering Spew"},
+          %{id: 472_777, name: "Gunk Splatter"},
+          %{id: 472_795, name: "Heaving Yank"},
+          %{id: 472_888, name: "Bone Hack"},
+          %{id: 474_065, name: "Bone Hack"},
+          %{id: 474_075, name: "Heaving Chop"},
+          %{id: 1_219_551, name: "Broken Bond"},
+          %{id: 1_282_272, name: "Splattered"}
         ],
         positions: [
           %{x: 321.04, y: -506.54, sublevel: 1, group: 42}
@@ -589,31 +589,31 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Commander Kroluk",
-        id: 231631,
+        id: 231_631,
         count: 0,
-        health: 9492781,
+        health: 9_492_781,
         creature_type: "Undead",
         is_boss: true,
         encounter_id: 2656,
         spells: [
-          %{id: 467620, name: "Rampage"},
-          %{id: 467621, name: "Rampage"},
-          %{id: 468221, name: "Rallying Bellow"},
-          %{id: 468924, name: "Bladestorm"},
-          %{id: 470963, name: "Bladestorm"},
-          %{id: 471038, name: "Bladestorm"},
-          %{id: 472043, name: "Rallying Bellow"},
-          %{id: 472053, name: "Reckless Leap"},
-          %{id: 472054, name: "Reckless Leap"},
-          %{id: 472081, name: "Reckless Leap"},
-          %{id: 1214874, name: "Violent Manifestation"},
-          %{id: 1250851, name: "Shield Wall"},
-          %{id: 1253026, name: "Intimidating Shout"},
-          %{id: 1253270, name: "Reckless Leap"},
-          %{id: 1253272, name: "Intimidating Shout"},
-          %{id: 1271676, name: "Bladestorm"},
-          %{id: 1283335, name: "Rampage"},
-          %{id: 1283357, name: "Falling Rubble"}
+          %{id: 467_620, name: "Rampage"},
+          %{id: 467_621, name: "Rampage"},
+          %{id: 468_221, name: "Rallying Bellow"},
+          %{id: 468_924, name: "Bladestorm"},
+          %{id: 470_963, name: "Bladestorm"},
+          %{id: 471_038, name: "Bladestorm"},
+          %{id: 472_043, name: "Rallying Bellow"},
+          %{id: 472_053, name: "Reckless Leap"},
+          %{id: 472_054, name: "Reckless Leap"},
+          %{id: 472_081, name: "Reckless Leap"},
+          %{id: 1_214_874, name: "Violent Manifestation"},
+          %{id: 1_250_851, name: "Shield Wall"},
+          %{id: 1_253_026, name: "Intimidating Shout"},
+          %{id: 1_253_270, name: "Reckless Leap"},
+          %{id: 1_253_272, name: "Intimidating Shout"},
+          %{id: 1_271_676, name: "Bladestorm"},
+          %{id: 1_283_335, name: "Rampage"},
+          %{id: 1_283_357, name: "Falling Rubble"}
         ],
         positions: [
           %{x: 624.42, y: -448.38, sublevel: 1}
@@ -621,24 +621,24 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Restless Heart",
-        id: 231636,
+        id: 231_636,
         count: 0,
-        health: 12657041,
+        health: 12_657_041,
         creature_type: "Aberration",
         is_boss: true,
         encounter_id: 2656,
         spells: [
-          %{id: 468429, name: "Bullseye Windblast"},
-          %{id: 468442, name: "Billowing Wind"},
-          %{id: 472556, name: "Arrow Rain"},
-          %{id: 472662, name: "Tempest Slash"},
-          %{id: 472672, name: "Bolt Gale"},
-          %{id: 474528, name: "Bolt Gale"},
-          %{id: 1216042, name: "Squall Leap"},
-          %{id: 1253977, name: "Turbulent Arrows"},
-          %{id: 1253978, name: "Gust Shot"},
-          %{id: 1253986, name: "Gust Shot"},
-          %{id: 1283371, name: "Squall Leap"}
+          %{id: 468_429, name: "Bullseye Windblast"},
+          %{id: 468_442, name: "Billowing Wind"},
+          %{id: 472_556, name: "Arrow Rain"},
+          %{id: 472_662, name: "Tempest Slash"},
+          %{id: 472_672, name: "Bolt Gale"},
+          %{id: 474_528, name: "Bolt Gale"},
+          %{id: 1_216_042, name: "Squall Leap"},
+          %{id: 1_253_977, name: "Turbulent Arrows"},
+          %{id: 1_253_978, name: "Gust Shot"},
+          %{id: 1_253_986, name: "Gust Shot"},
+          %{id: 1_283_371, name: "Squall Leap"}
         ],
         positions: [
           %{x: 680.89, y: -304.66, sublevel: 1}
@@ -646,16 +646,16 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Flaming Updraft",
-        id: 232118,
+        id: 232_118,
         count: 0,
-        health: 253141,
+        health: 253_141,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 465957, name: "Ignited Embers"},
-          %{id: 467120, name: "Ignited Embers"},
-          %{id: 470212, name: "Flaming Twisters"},
-          %{id: 472118, name: "Ignited Embers"}
+          %{id: 465_957, name: "Ignited Embers"},
+          %{id: 467_120, name: "Ignited Embers"},
+          %{id: 470_212, name: "Flaming Twisters"},
+          %{id: 472_118, name: "Ignited Embers"}
         ],
         positions: [
           %{x: 665.86, y: -160.99, sublevel: 1, group: 29},
@@ -665,13 +665,13 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Phalanx Breaker",
-        id: 232121,
+        id: 232_121,
         count: 0,
-        health: 157503,
+        health: 157_503,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1282478, name: "Melee"}
+          %{id: 1_282_478, name: "Melee"}
         ],
         positions: [
           %{x: 562.67, y: -497.86, sublevel: 1, group: 44},
@@ -682,13 +682,13 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Haunting Grunt",
-        id: 258868,
+        id: 258_868,
         count: 4,
-        health: 131251,
+        health: 131_251,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 467815, name: "Intercepting Charge"}
+          %{id: 467_815, name: "Intercepting Charge"}
         ],
         positions: [
           %{x: 446.25, y: -441.06, sublevel: 1, group: 49},
@@ -701,14 +701,14 @@ defmodule WeGoNext.GameData.Dungeons.WindrunnerSpire do
       },
       %{
         name: "Scouting Trapper",
-        id: 250883,
+        id: 250_883,
         count: 2,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Undead",
         is_boss: false,
         spells: [
-          %{id: 1219224, name: "Freezing Trap"},
-          %{id: 1219266, name: "Freezing Trap"}
+          %{id: 1_219_224, name: "Freezing Trap"},
+          %{id: 1_219_266, name: "Freezing Trap"}
         ],
         positions: [
 

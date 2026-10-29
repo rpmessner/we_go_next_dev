@@ -120,17 +120,18 @@ defmodule WeGoNext.SourceData do
       [] ->
         roots
         |> Enum.reduce_while({:ok, empty_dbm_import_summary(roots)}, fn root, {:ok, summary} ->
-          case import_dbm_directory(root, opts) do
-            {:ok, imports} ->
-              {:cont, {:ok, merge_dbm_import_summary(summary, root, imports)}}
-
-            {:error, reason} ->
-              {:halt, {:error, reason}}
-          end
+          merge_dbm_directory(root, opts, summary)
         end)
 
       missing_roots ->
         {:error, {:missing_roots, missing_roots}}
+    end
+  end
+
+  defp merge_dbm_directory(root, opts, summary) do
+    case import_dbm_directory(root, opts) do
+      {:ok, imports} -> {:cont, {:ok, merge_dbm_import_summary(summary, root, imports)}}
+      {:error, reason} -> {:halt, {:error, reason}}
     end
   end
 
@@ -271,17 +272,18 @@ defmodule WeGoNext.SourceData do
         |> Enum.reduce_while({:ok, empty_wowanalyzer_import_summary(roots, opts)}, fn root,
                                                                                       {:ok,
                                                                                        summary} ->
-          case import_wowanalyzer_directory(root, opts) do
-            {:ok, imports} ->
-              {:cont, {:ok, merge_wowanalyzer_import_summary(summary, root, imports)}}
-
-            {:error, reason} ->
-              {:halt, {:error, reason}}
-          end
+          merge_wowanalyzer_directory(root, opts, summary)
         end)
 
       missing_roots ->
         {:error, {:missing_roots, missing_roots}}
+    end
+  end
+
+  defp merge_wowanalyzer_directory(root, opts, summary) do
+    case import_wowanalyzer_directory(root, opts) do
+      {:ok, imports} -> {:cont, {:ok, merge_wowanalyzer_import_summary(summary, root, imports)}}
+      {:error, reason} -> {:halt, {:error, reason}}
     end
   end
 
@@ -303,16 +305,12 @@ defmodule WeGoNext.SourceData do
       end
 
     query =
-      case Keyword.get(opts, :timeline_type) do
-        nil -> query
-        timeline_type -> where(query, [c], c.timeline_type == ^timeline_type)
-      end
-
-    query =
-      case Keyword.get(opts, :event_type) do
-        nil -> query
-        event_type -> where(query, [c], c.event_type == ^event_type)
-      end
+      Enum.reduce([:timeline_type, :event_type], query, fn field_name, query ->
+        case Keyword.get(opts, field_name) do
+          nil -> query
+          value -> where(query, [c], field(c, ^field_name) == ^value)
+        end
+      end)
 
     query =
       case Keyword.get(opts, :inferred_mechanic_type) do
@@ -377,10 +375,7 @@ defmodule WeGoNext.SourceData do
           query
 
         fight_id ->
-          case normalize_integer(fight_id) do
-            {:ok, fight_id} -> where(query, [fetch], fetch.fight_id == ^fight_id)
-            :error -> query
-          end
+          filter_fetch_fight(query, fight_id)
       end
 
     query =
@@ -396,6 +391,13 @@ defmodule WeGoNext.SourceData do
       end
 
     Repo.all(query)
+  end
+
+  defp filter_fetch_fight(query, fight_id) do
+    case normalize_integer(fight_id) do
+      {:ok, fight_id} -> where(query, [fetch], fetch.fight_id == ^fight_id)
+      :error -> query
+    end
   end
 
   @doc """
@@ -1399,19 +1401,21 @@ defmodule WeGoNext.SourceData do
   should pass `:build_key` when resolving names for rules or facts.
   """
   def get_spell_reference(spell_id, opts \\ []) do
-    with {:ok, spell_id} <- normalize_integer(spell_id) do
-      SpellReference
-      |> where([reference], reference.spell_id == ^spell_id)
-      |> apply_reference_scope(opts)
-      |> order_by([reference],
-        asc: reference.source_priority,
-        desc: reference.updated_at,
-        desc: reference.id
-      )
-      |> limit(1)
-      |> Repo.one()
-    else
-      :error -> nil
+    case normalize_integer(spell_id) do
+      {:ok, spell_id} ->
+        SpellReference
+        |> where([reference], reference.spell_id == ^spell_id)
+        |> apply_reference_scope(opts)
+        |> order_by([reference],
+          asc: reference.source_priority,
+          desc: reference.updated_at,
+          desc: reference.id
+        )
+        |> limit(1)
+        |> Repo.one()
+
+      :error ->
+        nil
     end
   end
 
@@ -1419,24 +1423,26 @@ defmodule WeGoNext.SourceData do
   Returns the preferred encounter reference for an encounter id and build scope.
   """
   def get_encounter_reference(encounter_id, opts \\ []) do
-    with {:ok, encounter_id} <- normalize_integer(encounter_id) do
-      difficulty_id = normalize_optional_integer(reference_opt(opts, :difficulty_id))
+    case normalize_integer(encounter_id) do
+      {:ok, encounter_id} ->
+        difficulty_id = normalize_optional_integer(reference_opt(opts, :difficulty_id))
 
-      EncounterReference
-      |> where([reference], reference.encounter_id == ^encounter_id)
-      |> apply_reference_scope(opts)
-      |> apply_difficulty_scope(difficulty_id)
-      |> order_by([reference],
-        asc:
-          fragment("CASE WHEN ? = ? THEN 0 ELSE 1 END", reference.difficulty_id, ^difficulty_id),
-        asc: reference.source_priority,
-        desc: reference.updated_at,
-        desc: reference.id
-      )
-      |> limit(1)
-      |> Repo.one()
-    else
-      :error -> nil
+        EncounterReference
+        |> where([reference], reference.encounter_id == ^encounter_id)
+        |> apply_reference_scope(opts)
+        |> apply_difficulty_scope(difficulty_id)
+        |> order_by([reference],
+          asc:
+            fragment("CASE WHEN ? = ? THEN 0 ELSE 1 END", reference.difficulty_id, ^difficulty_id),
+          asc: reference.source_priority,
+          desc: reference.updated_at,
+          desc: reference.id
+        )
+        |> limit(1)
+        |> Repo.one()
+
+      :error ->
+        nil
     end
   end
 
@@ -1615,9 +1621,8 @@ defmodule WeGoNext.SourceData do
         query
 
       value ->
-        with {:ok, integer} <- normalize_integer(value) do
-          where(query, [reference], field(reference, ^field_name) == ^integer)
-        else
+        case normalize_integer(value) do
+          {:ok, integer} -> where(query, [reference], field(reference, ^field_name) == ^integer)
           :error -> query
         end
     end

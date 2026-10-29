@@ -18,8 +18,7 @@ defmodule WeGoNext.LegacyAnalyzerBoundaryTest do
   test "legacy analyzer references stay behind documented compatibility boundaries" do
     unexpected_references =
       source_files()
-      |> Enum.reject(&legacy_analyzer_file?/1)
-      |> Enum.reject(&current_test_file?/1)
+      |> Enum.reject(&(legacy_analyzer_file?(&1) or current_test_file?(&1)))
       |> Enum.filter(&references_legacy_analyzer?/1)
       |> Enum.reject(&MapSet.member?(@allowed_reference_files, &1))
 

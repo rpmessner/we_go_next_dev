@@ -169,8 +169,7 @@ defmodule WeGoNext.Analyzers.DeathAnalyzer do
       "  No deaths"
     else
       deaths
-      |> Enum.map(&format_death/1)
-      |> Enum.join("\n")
+      |> Enum.map_join("\n", &format_death/1)
     end
   end
 

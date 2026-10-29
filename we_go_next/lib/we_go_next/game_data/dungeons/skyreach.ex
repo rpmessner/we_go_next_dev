@@ -16,13 +16,13 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
     [
       %{
         name: "Soaring Chakram Master",
-        id: 76132,
+        id: 76_132,
         count: 5,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1254666, name: "Ricocheting Chakram"}
+          %{id: 1_254_666, name: "Ricocheting Chakram"}
         ],
         positions: [
           %{x: 297.11, y: -93.16, sublevel: 1, group: 1},
@@ -36,13 +36,13 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Driving Gale-Caller",
-        id: 78932,
+        id: 78_932,
         count: 7,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1255377, name: "Repel", interruptible: true}
+          %{id: 1_255_377, name: "Repel", interruptible: true}
         ],
         positions: [
           %{x: 327.26, y: -57.02, sublevel: 1, group: 4},
@@ -56,17 +56,17 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Raging Squall",
-        id: 250992,
+        id: 250_992,
         count: 1,
-        health: 911307,
+        health: 911_307,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
-          %{id: 1254676, name: "Wind Claws"},
-          %{id: 1254677, name: "Wind Claws"},
-          %{id: 1254678, name: "Wrathful Wind"},
-          %{id: 1254679, name: "Wrathful Wind"},
-          %{id: 1255922, name: "Wind Blast"}
+          %{id: 1_254_676, name: "Wind Claws"},
+          %{id: 1_254_677, name: "Wind Claws"},
+          %{id: 1_254_678, name: "Wrathful Wind"},
+          %{id: 1_254_679, name: "Wrathful Wind"},
+          %{id: 1_255_922, name: "Wind Blast"}
         ],
         positions: [
           %{x: 331.22, y: -70.23, sublevel: 1, group: 4},
@@ -82,9 +82,9 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Outcast Servant",
-        id: 75976,
+        id: 75_976,
         count: 1,
-        health: 911307,
+        health: 911_307,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
@@ -105,14 +105,14 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Blinding Sun Priestess",
-        id: 79462,
+        id: 79_462,
         count: 5,
-        health: 1366961,
+        health: 1_366_961,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 152953, name: "Blinding Light", interruptible: true},
-          %{id: 1273356, name: "Solar Barrier", dispellable: true}
+          %{id: 152_953, name: "Blinding Light", interruptible: true},
+          %{id: 1_273_356, name: "Solar Barrier", dispellable: true}
         ],
         positions: [
           %{x: 299.89, y: -256.97, sublevel: 1, group: 14},
@@ -124,13 +124,13 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Initiate of the Rising Sun",
-        id: 79466,
+        id: 79_466,
         count: 7,
-        health: 1215076,
+        health: 1_215_076,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1254669, name: "Solar Bolt", interruptible: true}
+          %{id: 1_254_669, name: "Solar Bolt", interruptible: true}
         ],
         positions: [
           %{x: 287.50, y: -314.43, sublevel: 1, group: 16},
@@ -140,14 +140,14 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Adept of the Dawn",
-        id: 79467,
+        id: 79_467,
         count: 7,
-        health: 1518845,
+        health: 1_518_845,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1254671, name: "Fiery Talon"},
-          %{id: 1254672, name: "Fiery Talon"}
+          %{id: 1_254_671, name: "Fiery Talon"},
+          %{id: 1_254_672, name: "Fiery Talon"}
         ],
         positions: [
           %{x: 297.13, y: -273.64, sublevel: 1, group: 14},
@@ -162,15 +162,15 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Herald of Sunrise",
-        id: 78933,
+        id: 78_933,
         count: 15,
-        health: 2354210,
+        health: 2_354_210,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
-          %{id: 1254355, name: "Solar Orb"},
-          %{id: 1258217, name: "Solar Fire"},
-          %{id: 1258220, name: "Solar Fire"}
+          %{id: 1_254_355, name: "Solar Orb"},
+          %{id: 1_258_217, name: "Solar Fire"},
+          %{id: 1_258_220, name: "Solar Fire"}
         ],
         positions: [
           %{x: 250.38, y: -263.89, sublevel: 1, group: 15},
@@ -182,14 +182,14 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Solar Construct",
-        id: 76087,
+        id: 76_087,
         count: 12,
-        health: 2278268,
+        health: 2_278_268,
         creature_type: "Mechanical",
         is_boss: false,
         spells: [
-          %{id: 1253446, name: "Solar Flame"},
-          %{id: 1253448, name: "Solar Nova"}
+          %{id: 1_253_446, name: "Solar Flame"},
+          %{id: 1_253_448, name: "Solar Nova"}
         ],
         positions: [
           %{x: 651.87, y: -209.85, sublevel: 1, group: 31},
@@ -200,14 +200,14 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Skyreach Sun Talon",
-        id: 79093,
+        id: 79_093,
         count: 2,
-        health: 607538,
+        health: 607_538,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1254689, name: "Bloodcrazed"},
-          %{id: 1254690, name: "Bloodcrazed"}
+          %{id: 1_254_689, name: "Bloodcrazed"},
+          %{id: 1_254_690, name: "Bloodcrazed"}
         ],
         positions: [
           %{x: 161.35, y: -506.88, sublevel: 1, group: 21},
@@ -226,14 +226,14 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Sun Talon Tamer",
-        id: 76154,
+        id: 76_154,
         count: 5,
-        health: 1564410,
+        health: 1_564_410,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1254686, name: "Mark of Death"},
-          %{id: 1254687, name: "Mark of Death"}
+          %{id: 1_254_686, name: "Mark of Death"},
+          %{id: 1_254_687, name: "Mark of Death"}
         ],
         positions: [
           %{x: 149.99, y: -512.66, sublevel: 1, group: 21},
@@ -242,23 +242,23 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Ranjit",
-        id: 75964,
+        id: 75_964,
         count: 0,
-        health: 11074911,
+        health: 11_074_911,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 966,
         spells: [
-          %{id: 153757, name: "Fan of Blades"},
-          %{id: 156793, name: "Chakram Vortex"},
-          %{id: 1252690, name: "Gale Surge"},
-          %{id: 1252691, name: "Gale Surge"},
-          %{id: 1252733, name: "Gale Surge"},
-          %{id: 1255472, name: "Dive"},
-          %{id: 1258140, name: "Coalesced Wind"},
-          %{id: 1258152, name: "Wind Chakram"},
-          %{id: 1258160, name: "Wind Chakram"},
-          %{id: 1281396, name: "Chakram Vortex"}
+          %{id: 153_757, name: "Fan of Blades"},
+          %{id: 156_793, name: "Chakram Vortex"},
+          %{id: 1_252_690, name: "Gale Surge"},
+          %{id: 1_252_691, name: "Gale Surge"},
+          %{id: 1_252_733, name: "Gale Surge"},
+          %{id: 1_255_472, name: "Dive"},
+          %{id: 1_258_140, name: "Coalesced Wind"},
+          %{id: 1_258_152, name: "Wind Chakram"},
+          %{id: 1_258_160, name: "Wind Chakram"},
+          %{id: 1_281_396, name: "Chakram Vortex"}
         ],
         positions: [
           %{x: 373.49, y: -250.78, sublevel: 1}
@@ -266,21 +266,21 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Araknath",
-        id: 76141,
+        id: 76_141,
         count: 0,
-        health: 11074911,
+        health: 11_074_911,
         creature_type: "Mechanical",
         is_boss: true,
         encounter_id: 966,
         spells: [
-          %{id: 154110, name: "Fiery Smash"},
-          %{id: 154113, name: "Fiery Smash"},
-          %{id: 154132, name: "Fiery Smash"},
-          %{id: 154135, name: "Supernova"},
-          %{id: 154149, name: "Energize"},
-          %{id: 1252877, name: "Solar Infusion"},
-          %{id: 1258205, name: "Solar Infusion"},
-          %{id: 1283770, name: "Defensive Protocol"}
+          %{id: 154_110, name: "Fiery Smash"},
+          %{id: 154_113, name: "Fiery Smash"},
+          %{id: 154_132, name: "Fiery Smash"},
+          %{id: 154_135, name: "Supernova"},
+          %{id: 154_149, name: "Energize"},
+          %{id: 1_252_877, name: "Solar Infusion"},
+          %{id: 1_258_205, name: "Solar Infusion"},
+          %{id: 1_283_770, name: "Defensive Protocol"}
         ],
         positions: [
           %{x: 186.52, y: -417.44, sublevel: 1, group: 20}
@@ -288,15 +288,15 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Skyreach Sun Construct Prototype",
-        id: 76142,
+        id: 76_142,
         count: 0,
-        health: 11074911,
+        health: 11_074_911,
         creature_type: "Mechanical",
         is_boss: false,
         spells: [
-          %{id: 154159, name: "Energize"},
-          %{id: 1281874, name: "Heat Exhaustion"},
-          %{id: 1287905, name: "Light Ray"}
+          %{id: 154_159, name: "Energize"},
+          %{id: 1_281_874, name: "Heat Exhaustion"},
+          %{id: 1_287_905, name: "Light Ray"}
         ],
         positions: [
           %{x: 208.04, y: -411.16, sublevel: 1, group: 20},
@@ -306,18 +306,18 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Rukhran",
-        id: 76143,
+        id: 76_143,
         count: 0,
-        health: 8543503,
+        health: 8_543_503,
         creature_type: "Beast",
         is_boss: true,
         encounter_id: 966,
         spells: [
-          %{id: 159381, name: "Searing Quills"},
-          %{id: 159382, name: "Searing Quills"},
-          %{id: 1253510, name: "Sunbreak"},
-          %{id: 1253519, name: "Burning Claws"},
-          %{id: 1253520, name: "Burning Claws"}
+          %{id: 159_381, name: "Searing Quills"},
+          %{id: 159_382, name: "Searing Quills"},
+          %{id: 1_253_510, name: "Sunbreak"},
+          %{id: 1_253_519, name: "Burning Claws"},
+          %{id: 1_253_520, name: "Burning Claws"}
         ],
         positions: [
           %{x: 188.79, y: -486.95, sublevel: 1, group: 23}
@@ -325,15 +325,15 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Dread Raven",
-        id: 76149,
+        id: 76_149,
         count: 15,
-        health: 2733921,
+        health: 2_733_921,
         creature_type: "Beast",
         is_boss: false,
         spells: [
-          %{id: 1254566, name: "Dire Screech"},
-          %{id: 1254569, name: "Dire Screech"},
-          %{id: 1258174, name: "Dread Wind"}
+          %{id: 1_254_566, name: "Dire Screech"},
+          %{id: 1_254_569, name: "Dire Screech"},
+          %{id: 1_258_174, name: "Dread Wind"}
         ],
         positions: [
           %{x: 257.22, y: -76.64, sublevel: 1, group: 2},
@@ -344,13 +344,13 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Blooded Bladefeather",
-        id: 76205,
+        id: 76_205,
         count: 5,
-        health: 1670730,
+        health: 1_670_730,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1254670, name: "Rushing Winds", dispellable: true}
+          %{id: 1_254_670, name: "Rushing Winds", dispellable: true}
         ],
         positions: [
           %{x: 281.41, y: -91.78, sublevel: 1, group: 1},
@@ -364,16 +364,16 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Sunwings",
-        id: 76227,
+        id: 76_227,
         count: 0,
-        health: 1012563,
+        health: 1_012_563,
         creature_type: "Elemental",
         is_boss: false,
         spells: [
-          %{id: 1253367, name: "Solar Flare"},
-          %{id: 1253368, name: "Burning Pursuit"},
-          %{id: 1253416, name: "Blaze of Glory"},
-          %{id: 1253511, name: "Burning Pursuit"}
+          %{id: 1_253_367, name: "Solar Flare"},
+          %{id: 1_253_368, name: "Burning Pursuit"},
+          %{id: 1_253_416, name: "Blaze of Glory"},
+          %{id: 1_253_511, name: "Burning Pursuit"}
         ],
         positions: [
           %{x: 207.13, y: -504.62, sublevel: 1, group: 23},
@@ -383,17 +383,17 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "High Sage Viryx",
-        id: 76266,
+        id: 76_266,
         count: 0,
-        health: 10283846,
+        health: 10_283_846,
         creature_type: "Humanoid",
         is_boss: true,
         encounter_id: 966,
         spells: [
-          %{id: 153954, name: "Cast Down"},
-          %{id: 154396, name: "Solar Blast", interruptible: true},
-          %{id: 1253538, name: "Scorching Ray"},
-          %{id: 1253840, name: "Lens Flare"}
+          %{id: 153_954, name: "Cast Down"},
+          %{id: 154_396, name: "Solar Blast", interruptible: true},
+          %{id: 1_253_538, name: "Scorching Ray"},
+          %{id: 1_253_840, name: "Lens Flare"}
         ],
         positions: [
           %{x: 700.67, y: -152.76, sublevel: 1, group: 34}
@@ -401,14 +401,14 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Arakkoa Magnifying Glass",
-        id: 76285,
+        id: 76_285,
         count: 0,
-        health: 303769,
+        health: 303_769,
         creature_type: "Mechanical",
         is_boss: false,
         spells: [
-          %{id: 154043, name: "Blazing Ground"},
-          %{id: 1253543, name: "Scorching Ray"}
+          %{id: 154_043, name: "Blazing Ground"},
+          %{id: 1_253_543, name: "Scorching Ray"}
         ],
         positions: [
           %{x: 722.37, y: -144.51, sublevel: 1, group: 34}
@@ -416,15 +416,15 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Adorned Bladetalon",
-        id: 79303,
+        id: 79_303,
         count: 12,
-        health: 2582037,
+        health: 2_582_037,
         creature_type: "Humanoid",
         is_boss: false,
         spells: [
-          %{id: 1254380, name: "Shear"},
-          %{id: 1254460, name: "Blade Rush"},
-          %{id: 1254475, name: "Blade Rush"}
+          %{id: 1_254_380, name: "Shear"},
+          %{id: 1_254_460, name: "Blade Rush"},
+          %{id: 1_254_475, name: "Blade Rush"}
         ],
         positions: [
           %{x: 291.54, y: -59.52, sublevel: 1, group: 3},
@@ -436,14 +436,14 @@ defmodule WeGoNext.GameData.Dungeons.Skyreach do
       },
       %{
         name: "Solar Orb",
-        id: 251880,
+        id: 251_880,
         count: 0,
-        health: 10283846,
+        health: 10_283_846,
         creature_type: "Not specified",
         is_boss: false,
         spells: [
-          %{id: 1254329, name: "Solar Flare"},
-          %{id: 1254332, name: "Solar Flare"}
+          %{id: 1_254_329, name: "Solar Flare"},
+          %{id: 1_254_332, name: "Solar Flare"}
         ],
         positions: [
           %{x: 504.58, y: -426.98, sublevel: 1, group: 24},
