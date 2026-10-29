@@ -28,6 +28,9 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
     assert Enum.map(tools, & &1["name"]) == [
              "session_context",
              "list_pulls",
+             "pull_summary",
+             "deaths",
+             "failures",
              "damage_taken",
              "interrupts"
            ]

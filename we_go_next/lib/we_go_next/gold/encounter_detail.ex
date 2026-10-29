@@ -129,6 +129,16 @@ defmodule WeGoNext.Gold.EncounterDetail do
   defp role_rank("dps"), do: 2
   defp role_rank(_role), do: 3
 
+  @doc "Reads silver death recaps for one gold encounter without building the full detail page."
+  def deaths(encounter_dim_id) do
+    deaths(
+      encounter_dim_id,
+      roster(encounter_dim_id),
+      survival_actions(encounter_dim_id),
+      defensive_buff_windows(encounter_dim_id)
+    )
+  end
+
   defp deaths(encounter_dim_id, roster, survival_rows, buff_windows) do
     players_by_guid = Map.new(roster, &{&1.player_guid, &1})
 
@@ -235,7 +245,8 @@ defmodule WeGoNext.Gold.EncounterDetail do
     }
   end
 
-  defp failure_preview(encounter_dim_id) do
+  @doc "Reads gold failure facts grouped by mechanic for one encounter."
+  def failure_preview(encounter_dim_id) do
     rows =
       FactFailure
       |> join(:inner, [failure], criterion in assoc(failure, :criterion))

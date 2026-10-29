@@ -1,7 +1,16 @@
 defmodule WeGoNext.Analysis.Registry do
   @moduledoc "Enabled Tools as data. Later phase-one Tools register here."
-  alias WeGoNext.Analysis.Tools.{DamageTaken, Interrupts, ListPulls, SessionContext}
-  @tools [SessionContext, ListPulls, DamageTaken, Interrupts]
+  alias WeGoNext.Analysis.Tools.{
+    DamageTaken,
+    Deaths,
+    Failures,
+    Interrupts,
+    ListPulls,
+    PullSummary,
+    SessionContext
+  }
+
+  @tools [SessionContext, ListPulls, PullSummary, Deaths, Failures, DamageTaken, Interrupts]
   def tools, do: @tools
   def fetch(name), do: Enum.find(@tools, &(&1.name() == name))
 
