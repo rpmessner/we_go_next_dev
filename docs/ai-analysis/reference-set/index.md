@@ -17,7 +17,7 @@ Log `30`, `Archive-WoWCombatLog-090626_103607.txt`. Evidence uses the existing i
 | q09 | [Is there a spell that keeps hurting people that we haven't marked as a mechanic yet?](q09.md) | All 18 encounter pulls in log 30, gold pulls 435 through 452. Rank repeated unruled damage by total logged amount. |
 | q10 | [What is the one thing each player should fix for next week, as a private note per player?](q10.md) | All players in log 30 across gold pulls 435 through 452. Use a repeated killing blow as an investigation priority, not an automatic avoidable failure. |
 | q11 | [Which players improved on their worst mechanic over the night?](q11.md) | All log 30 pulls. Separate authored mechanic improvement from observed hit and killing-blow trends. Exclude sub-minute resets from hit comparisons. |
-| q12 | [As Mittwoch, what did I lose on pull N: deaths, downtime, wasted cooldowns?](q12.md) | Sszorak pull 5, gold pull 440. Search for Mittwoch by exact character identity; do not guess an alias. |
+| q12 | [As Wispless, what did I lose on pull N: deaths, downtime, wasted cooldowns?](q12.md) | Sszorak pull 5, gold pull 440. Search for Wispless by exact character identity. |
 
 ## Pull catalogue
 
@@ -44,7 +44,7 @@ Log `30`, `Archive-WoWCombatLog-090626_103607.txt`. Evidence uses the existing i
 
 ## Known limits
 
-No failure facts exist for this night in the queried snapshot. Missing rules are not clean execution. Cooldown availability and interrupt assignments are not established by raw events. Mittwoch is absent from the imported names. These limits are part of the reference answers, not permission to invent details.
+No failure facts exist for this night in the queried snapshot. Missing rules are not clean execution. Cooldown availability and interrupt assignments are not established by raw events. Q12 targets Wispless, the operator's character on this log. These limits are part of the reference answers, not permission to invent details.
 
 The JSON under [evidence/](evidence/) contains exact rows, times, GUIDs, spell IDs, and bronze byte offsets. [questions.json](questions.json) freezes prompts and selections. [survival-catalog.json](survival-catalog.json) freezes the existing `SurvivalActions.all()` metadata; it is not a new coverage claim.
 
@@ -52,8 +52,8 @@ See [README.md](README.md) for recomputation, operator verification, reruns, gra
 
 ## Operator verification record
 
-- Reviewer and date: pending.
-- Reference corrections and scope changes: pending.
+- Reviewer and date: operator, 2026-10-29 (foreman decision on we-xf4.8: Q1-Q11 accepted as drafted).
+- Reference corrections and scope changes: none to Q1-Q11. Q12 retargeted from Mittwoch (absent from the Sept 6 roster) to Wispless, the operator's character that night (foreman decision on we-xf4.8); its evidence was recomputed and its answer redrafted, pending operator check.
 - Baseline run directory and model: pending.
 - Baseline grade counts and human overrides: pending.
-- Live Q1, persisted verdict, and joined export evidence: pending.
+- Live Q1, persisted verdict, and joined export evidence: Analysis session `3e11529b-7679-446c-9cec-721125402dd2` (Claude Code, Opus 5.5) answered Q1 on Sszorak pull 5 (gold 440). It made 15 Tool calls with 0 errors; `log_events` took 345-462 ms per call. The answer cited Tool evidence for every claim, labelled its inference, and named the same first death as the reference: Mädz at 0:20.5. Export matched all 15 transcript calls to their server rows (0 unmatched either way; 1 unscoped ToolSearch call). Verdict: pending, because the operator has not judged the answer in that session yet.

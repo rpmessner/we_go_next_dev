@@ -1,8 +1,204 @@
 {
-  "cast_counts": {},
+  "cast_counts": {
+    "6262": 1,
+    "42650": 4,
+    "47541": 78,
+    "48707": 5,
+    "48743": 1,
+    "48792": 1,
+    "49576": 2,
+    "55090": 148,
+    "85948": 17,
+    "343294": 12,
+    "444347": 7,
+    "458128": 17,
+    "1233448": 8,
+    "1236994": 1,
+    "1242174": 45,
+    "1247378": 16,
+    "1293316": 3
+  },
   "cast_gaps_at_least_5s": [],
-  "deaths": [],
-  "guids": [],
+  "deaths": [
+    {
+      "guid": "Player-1171-0B0ACDBC",
+      "ms": 392704,
+      "name": "Wispless",
+      "pull": 440,
+      "recap": [
+        {
+          "amount": 73476,
+          "ms_into_fight": 392685,
+          "overkill": 2200,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:53.624-4"
+        },
+        {
+          "amount": 40820,
+          "ms_into_fight": 392013,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:39:52.952-4"
+        },
+        {
+          "amount": 49738,
+          "ms_into_fight": 391671,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:52.610-4"
+        },
+        {
+          "amount": 47252,
+          "ms_into_fight": 390658,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:51.597-4"
+        },
+        {
+          "amount": 26252,
+          "ms_into_fight": 390008,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:39:50.947-4"
+        },
+        {
+          "amount": 47252,
+          "ms_into_fight": 389668,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:50.607-4"
+        },
+        {
+          "amount": 41895,
+          "ms_into_fight": 388658,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:49.597-4"
+        },
+        {
+          "amount": 247088,
+          "ms_into_fight": 388089,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:49.028-4"
+        },
+        {
+          "amount": 50927,
+          "ms_into_fight": 388013,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:39:48.952-4"
+        },
+        {
+          "amount": 50414,
+          "ms_into_fight": 387657,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:48.596-4"
+        },
+        {
+          "amount": 266089,
+          "ms_into_fight": 386856,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:47.795-4"
+        },
+        {
+          "amount": 29029,
+          "ms_into_fight": 386663,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:47.602-4"
+        },
+        {
+          "amount": 37216,
+          "ms_into_fight": 386010,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:39:46.949-4"
+        },
+        {
+          "amount": 232595,
+          "ms_into_fight": 385665,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287205,
+          "spell_name": "Viscous Cyst",
+          "timestamp": "9/6/2026 11:39:46.604-4"
+        },
+        {
+          "amount": 42291,
+          "ms_into_fight": 384001,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:39:44.940-4"
+        }
+      ],
+      "role": "dps",
+      "spell": 1287205
+    }
+  ],
+  "guids": [
+    "Player-1171-0B0ACDBC"
+  ],
   "pull": {
     "boss": "Sszorak",
     "death_events": 27,
@@ -47,5 +243,51 @@
     "Zuthere",
     "__UNKNOWN_PLAYER__"
   ],
-  "survival": []
+  "survival": [
+    {
+      "active": [],
+      "active_at_last_damage": [],
+      "availability": "unknown",
+      "consumables": [
+        {
+          "byte": 213329598,
+          "key": "healthstone",
+          "ms": 237020,
+          "spell": 6262,
+          "timestamp": "9/6/2026 11:37:17.959-4"
+        }
+      ],
+      "death_ms": 392704,
+      "guid": "Player-1171-0B0ACDBC",
+      "killing_spell": 1287205,
+      "last_damage_ms": 392685,
+      "last_defensive_casts": [
+        {
+          "byte": 227849446,
+          "key": "anti_magic_shell",
+          "ms": 347443,
+          "spell": 48707,
+          "timestamp": "9/6/2026 11:39:08.382-4"
+        },
+        {
+          "byte": 213128510,
+          "key": "death_pact",
+          "ms": 235539,
+          "spell": 48743,
+          "timestamp": "9/6/2026 11:37:16.478-4"
+        },
+        {
+          "byte": 224496635,
+          "key": "icebound_fortitude",
+          "ms": 319064,
+          "spell": 48792,
+          "timestamp": "9/6/2026 11:38:40.003-4"
+        }
+      ],
+      "name": "Wispless",
+      "pull": 440,
+      "recap_damage_last_10s": 1282334,
+      "recent_10s_casts": []
+    }
+  ]
 }
