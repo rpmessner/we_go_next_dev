@@ -227,6 +227,23 @@ defmodule WeGoNext.Fixtures.CombatLogEventFixtures do
     )
   end
 
+  def spell_summon_event(attrs \\ []) do
+    build_event(
+      %{
+        type: "SPELL_SUMMON",
+        timestamp: timestamp(attrs[:time_into_fight] || 0.0),
+        time_into_fight: 0.0,
+        source_guid: "Player-1",
+        source_name: "Player-Realm",
+        target_guid: "Creature-Summon",
+        target_name: "Summon",
+        spell_id: 1,
+        spell_name: "Summon Spell"
+      },
+      attrs
+    )
+  end
+
   def spell_interrupt_event(attrs \\ []) do
     build_event(
       %{

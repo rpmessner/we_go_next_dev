@@ -492,7 +492,7 @@ fn parse_event_line(env: *e.ErlNifEnv, line: []const u8, encounter_start_us: i12
         // Skip to the advanced combat log params
         // After prefix (8 fields), the next fields are the advanced info block
         // For SWING_DAMAGE, damage amount is at specific positions in advanced params
-        parse_swing_damage_fields(env, rest, &pos, &keys, &vals, &field_count);
+        parse_swing_damage_fields(env, rest, &pos, source_guid, &keys, &vals, &field_count);
     } else if (has_spell_prefix(event_type_field)) {
         // Events with spell prefix: spell_id, spell_name, spell_school
         const spell_id_str = next_csv_field(rest, &pos);
@@ -516,7 +516,7 @@ fn parse_event_line(env: *e.ErlNifEnv, line: []const u8, encounter_start_us: i12
             std.mem.eql(u8, event_type_field, "SPELL_PERIODIC_DAMAGE") or
             std.mem.eql(u8, event_type_field, "RANGE_DAMAGE"))
         {
-            parse_spell_damage_fields(env, rest, &pos, &keys, &vals, &field_count);
+            parse_spell_damage_fields(env, rest, &pos, source_guid, &keys, &vals, &field_count);
         } else if (std.mem.eql(u8, event_type_field, "SPELL_HEAL") or
             std.mem.eql(u8, event_type_field, "SPELL_PERIODIC_HEAL"))
         {
@@ -683,12 +683,10 @@ fn has_spell_prefix(event_type: []const u8) bool {
         std.mem.startsWith(u8, event_type, "RANGE_");
 }
 
-fn parse_swing_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, keys: *[20]e.ErlNifTerm, vals: *[20]e.ErlNifTerm, field_count: *u32) void {
+fn parse_swing_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, source_guid: []const u8, keys: *[20]e.ErlNifTerm, vals: *[20]e.ErlNifTerm, field_count: *u32) void {
     // SWING_DAMAGE with advanced combat logging:
-    // After the 8-field common prefix, there's the advanced info block
-    // (informational GUID, owner GUID, current HP, max HP, ... 13 fields)
-    // Then: amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand
-    // Skip advanced info (about 13 fields: info_guid, owner_guid, hp, maxhp, attackpower, spellpower, armor, absorb, ...)
+    // After the 8-field common prefix, there's the advanced info block,
+    // then: amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand
 
     // Set spell_name to "Melee" for swing damage
     keys[field_count.*] = e.enif_make_atom(env, "spell_name");
@@ -703,11 +701,7 @@ fn parse_swing_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
     vals[field_count.*] = beam.make(@as(i64, 1), .{}).v; // physical
     field_count.* += 1;
 
-    // Skip 19 advanced info fields (TWW/12.0 format)
-    var skip: u32 = 0;
-    while (skip < 19 and pos.* < rest.len) : (skip += 1) {
-        _ = next_csv_field(rest, pos);
-    }
+    parse_advanced_fields(env, rest, pos, source_guid, keys, vals, field_count);
 
     // Suffix observed in v22 advanced logs: amount, baseAmount, overkill,
     // school, resisted, blocked, absorbed, critical, glancing, crushing.
@@ -744,13 +738,33 @@ fn parse_swing_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, k
     field_count.* += 1;
 }
 
-fn parse_spell_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, keys: *[20]e.ErlNifTerm, vals: *[20]e.ErlNifTerm, field_count: *u32) void {
-    // After spell prefix (spell_id, spell_name, spell_school), same advanced info block
-    // Skip 19 advanced info fields (TWW/12.0 format)
+// Advanced info block (19 fields on 12.0): infoGUID, ownerGUID, then unit
+// stats/position. The advanced unit is the SOURCE for SWING_DAMAGE but the
+// TARGET for SPELL_/RANGE_ damage (verified against live 12.x logs), so
+// owner_guid is only emitted when infoGUID matches the event source — the
+// pet-melee case that names the owning player.
+fn parse_advanced_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, source_guid: []const u8, keys: *[20]e.ErlNifTerm, vals: *[20]e.ErlNifTerm, field_count: *u32) void {
+    const info_guid = next_csv_field(rest, pos);
+    const owner_guid = next_csv_field(rest, pos);
+
+    // Skip the remaining 17 advanced fields
     var skip: u32 = 0;
-    while (skip < 19 and pos.* < rest.len) : (skip += 1) {
+    while (skip < 17 and pos.* < rest.len) : (skip += 1) {
         _ = next_csv_field(rest, pos);
     }
+
+    if (std.mem.eql(u8, info_guid, source_guid) and
+        std.mem.startsWith(u8, owner_guid, "Player-"))
+    {
+        keys[field_count.*] = e.enif_make_atom(env, "owner_guid");
+        vals[field_count.*] = make_binary_term(env, owner_guid).v;
+        field_count.* += 1;
+    }
+}
+
+fn parse_spell_damage_fields(env: *e.ErlNifEnv, rest: []const u8, pos: *usize, source_guid: []const u8, keys: *[20]e.ErlNifTerm, vals: *[20]e.ErlNifTerm, field_count: *u32) void {
+    // After spell prefix (spell_id, spell_name, spell_school), same advanced info block
+    parse_advanced_fields(env, rest, pos, source_guid, keys, vals, field_count);
 
     // Suffix observed in v22 advanced logs: amount, baseAmount, overkill,
     // school, resisted, blocked, absorbed, critical, glancing, crushing.

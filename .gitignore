@@ -37,8 +37,6 @@ erl_crash.dump
 .beads/proxieddb/
 
 # Gas City
-.beads/*
-!.beads/identity.toml
 .agents/
 
 # Local agent/session tooling state
