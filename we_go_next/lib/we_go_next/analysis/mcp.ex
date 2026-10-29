@@ -1,18 +1,18 @@
 defmodule WeGoNext.Analysis.MCP do
-  @moduledoc "Stateless MCP JSON-RPC dispatcher; Analysis sessions are minted only by the prompt."
+  @moduledoc "Stateless MCP JSON-RPC dispatcher with shared prompt and Tool session startup."
   alias WeGoNext.Analysis
-  alias WeGoNext.Analysis.Registry
+  alias WeGoNext.Analysis.{Registry, Startup}
   @protocol "2025-03-26"
   @prompt %{
     name: "analysis-session",
     description: "Start a log-scoped Analysis session",
     arguments: [
+      %{name: "boss", description: "Optional boss name or encounter id", required: false},
       %{
         name: "log",
-        description: "combat_log_files id; defaults to most recently imported log",
+        description: "Imported log id or filename fragment; blank defaults to latest import",
         required: false
-      },
-      %{name: "boss", description: "Optional boss name or encounter id", required: false}
+      }
     ]
   }
 
@@ -68,11 +68,7 @@ defmodule WeGoNext.Analysis.MCP do
   defp handle("prompts/get", %{"name" => "analysis-session"} = params) do
     args = Map.get(params, "arguments", %{})
 
-    if valid_prompt_args?(args) do
-      start_prompt(args)
-    else
-      {:error, -32_602, "Prompt arguments must be strings: log (optional id), boss (optional)"}
-    end
+    start_prompt(args)
   end
 
   defp handle(method, _) when method in ["tools/call", "prompts/get"],
@@ -80,30 +76,18 @@ defmodule WeGoNext.Analysis.MCP do
 
   defp handle(_, _), do: {:error, -32_601, "Method not found"}
 
-  defp valid_prompt_args?(args) when is_map(args),
-    do: Enum.all?(args, fn {k, v} -> k in ["log", "boss"] and is_binary(v) end)
-
-  defp valid_prompt_args?(_), do: false
-
   defp start_prompt(args) do
-    instructions =
-      :we_go_next |> :code.priv_dir() |> Path.join("analysis/analyst.md") |> File.read!()
+    response = Startup.response(args)
 
-    case Analysis.start_session(args) do
-      {:ok, session} ->
-        text =
-          instructions <>
-            "\nAnalysis session id: #{session.id}\nLog id: #{session.combat_log_file_id}\nTarget boss: #{session.boss || "all"}\n"
-
-        {:ok,
-         %{
-           description: "Analysis session #{session.id}",
-           messages: [%{role: "user", content: %{type: "text", text: text}}]
-         }}
-
-      {:error, reason} ->
-        {:error, -32_602, reason}
-    end
+    {:ok,
+     %{
+       description:
+         if(response.session_id,
+           do: "Analysis session #{response.session_id}",
+           else: "Choose an imported log"
+         ),
+       messages: [%{role: "user", content: %{type: "text", text: response.instructions}}]
+     }}
   end
 
   defp tool_result({:ok, result}),

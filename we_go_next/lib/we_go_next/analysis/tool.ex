@@ -4,6 +4,8 @@ defmodule WeGoNext.Analysis.Tool do
   a persisted Analysis.Session. Return `{:ok, envelope}` or `{:error, short_reason}`.
   Use Result.page/5 for bounded, deterministic pagination. Never write files or
   mutate data; the executor enforces DB read-only and a five-second deadline.
+  The operator-approved StartSession Tool alone receives nil and may create its
+  Analysis session; all evidence Tools still receive a persisted Session.
   """
   @callback name() :: String.t()
   @callback description() :: String.t()

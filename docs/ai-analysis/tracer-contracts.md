@@ -8,8 +8,9 @@ and `run(args, session)`. JSON args have string keys. The session is a persisted
 `Registry.tools/0` is the enabled module list. `Registry.definitions/0` produces
 MCP definitions. The tracer enables only `session_context` and `list_pulls`.
 
-Every Tool input includes `session_id`, the UUID returned by the
-`analysis-session` prompt. `list_pulls` accepts optional `boss`, `night`, and
+Every evidence Tool input includes `session_id`, the UUID returned by the
+`analysis-session` prompt or the `start_session` Tool. `start_session` takes only
+optional `boss` and `log` strings and requires no prior session. `list_pulls` accepts optional `boss`, `night`, and
 `cursor` strings. Boss matches an exact name or WoW encounter id. Night is a UTC
 `YYYY-MM-DD` date, always within the session log. The session's optional boss
 argument records intent; it does not hide other bosses in that log.
@@ -39,7 +40,10 @@ unknown. Missing failure facts do not establish that a pull is fresh or clean.
 and calls `Executor.run/3`. `Arguments` supports the JSON Schema subset listed
 in its module documentation, including nested objects and arrays. A Tool needing
 other schema keywords must extend that validator with tests. Each execution uses a supervised, unlinked task with
-a five-second deadline and a read-only Postgres transaction. Statement timeout
+a five-second deadline and a read-only Postgres transaction. The operator-approved
+`start_session` Tool is the sole session-creation exception: it runs under the same
+task deadline without the read-only transaction, and its call is recorded against
+the newly created session. All evidence Tools retain read-only enforcement. Statement timeout
 is also five seconds. Tool code must not write files. The two tracer Tools read
 only existing database rows; neither reparses logs nor rebuilds medallion data.
 
@@ -55,6 +59,25 @@ The original args retain the supplied id. Existing sessions and calls have
 restricting foreign keys and no automatic expiration. Verdicts, Playbooks, and
 messages are not part of this migration.
 
+## Playbooks
+
+`priv/analysis/playbooks/*.md` holds reviewed Markdown with front matter. The
+supported front matter is five scalar/array fields: `title`, `scope` (`global`
+or `boss`), `encounter_ids` (JSON array of positive game encounter ids),
+`question_families` (JSON array drawn from `wipes`, `deaths`, `mechanics`,
+`coaching`, `own-play`), and `status` (`active` or `retired`). Duplicate, missing
+or invalid fields fail closed. Use the shipped global file as the authoring
+example. Boss Playbooks must name at least one encounter id.
+
+Startup loads active global and matching boss Playbooks. `list_playbooks` filters
+active metadata by `question_family`; `get_playbook` fetches active Markdown by
+catalogue id, with ordered body parts and standard cursor pagination. Retired
+Playbooks are never returned. `analysis.sessions.loaded_playbooks` stores unique
+`{id, git_commit}` pairs for startup and subsequent successful fetches; the commit
+is repository HEAD, or null when git is unavailable. The provenance update runs
+outside the read-only Tool transaction and locks the session row to preserve
+concurrent loads. Old sessions default to an empty list; they are not backfilled.
+
 ## MCP transport
 
 `POST /analysis/mcp` uses stateless Streamable HTTP with JSON responses and MCP
@@ -63,8 +86,22 @@ Notifications return HTTP 202; GET returns 405 because there is no SSE stream.
 The negotiated March revision supports request batches, except initialization.
 There is no MCP transport session id. Invoking `prompts/get` for
 `analysis-session` always inserts a new Analysis session, even after reconnects.
-The optional `log` argument is a `combat_log_files.id` string. Without it, the
-prompt selects the latest non-null `last_parsed_at`, breaking ties by log id.
+Prompt arguments are positional: optional `boss` first, optional `log` second.
+Blank or whitespace-only values are absent. `log` accepts an imported
+`combat_log_files.id` string or a case-insensitive filename fragment (including
+numeric fragments such as `090626`). An exact imported id wins over filename
+matching. Without `log`, startup selects the latest non-null `last_parsed_at`,
+breaking ties by log id. Unknown or ambiguous logs return ordinary prompt text,
+not protocol errors: no session is created, and the five most recent imports
+are listed with id, filename, last-import UTC date and encounter count. Unknown
+bosses start with boss unset and a warning. Boss names and game encounter ids
+resolve against pulls in the selected log.
+
+Prompt-less clients (including `claude -p`) call `start_session(boss?, log?)`.
+It uses exactly the same startup path, returns `{session_id, instructions}` in
+the standard bounded result envelope, and records the call. Instructions include
+the loaded Playbooks. A log-selection response has a null session id and an audit
+row with no session foreign key. Unusable log selection never mints a session.
 
 Only dev enables the endpoint; tests enable it explicitly for protocol checks.
 The plug checks the socket peer, Host, and optional Origin before reading JSON.

@@ -1,24 +1,27 @@
 defmodule WeGoNext.Analysis do
   @moduledoc "Analysis sessions and recorded, bounded Tool calls, separate from the medallion."
   import Ecto.Query
-  alias WeGoNext.{CombatLogFile, Repo}
-  alias WeGoNext.Analysis.{Arguments, Executor, Registry, Result, Session, ToolCall}
+  alias WeGoNext.Repo
 
-  def start_session(args \\ %{}) do
-    with {:ok, log} <- resolve_log(args["log"]) do
-      Repo.insert(%Session{
-        started_at: DateTime.utc_now(),
-        combat_log_file_id: log.id,
-        boss: args["boss"]
-      })
-    end
-  end
+  alias WeGoNext.Analysis.{
+    Arguments,
+    Executor,
+    Startup,
+    Registry,
+    Result,
+    Session,
+    ToolCall
+  }
+
+  def start_session(args \\ %{}), do: Startup.start(args)
 
   def call_tool(name, args) when is_binary(name) and is_map(args) do
     start = System.monotonic_time(:millisecond)
     session = find_session(args["session_id"])
     outcome = invoke(Registry.fetch(name), args, session)
+    session = started_session(name, session, outcome)
     {result, error} = recorded_result(outcome)
+    record_playbook_load(name, session, outcome)
 
     Repo.insert!(%ToolCall{
       session_id: session && session.id,
@@ -37,10 +40,35 @@ defmodule WeGoNext.Analysis do
     _ -> {:error, "Tool call could not be recorded"}
   end
 
+  defp record_playbook_load("get_playbook", session, {:ok, result}) do
+    Repo.transaction(fn ->
+      current = Repo.one!(from(s in Session, where: s.id == ^session.id, lock: "FOR UPDATE"))
+
+      loaded =
+        Enum.map(result.evidence, &%{"id" => &1.playbook_id, "git_commit" => &1.git_commit})
+
+      books = Enum.uniq(current.loaded_playbooks ++ loaded)
+      current |> Ecto.Changeset.change(loaded_playbooks: books) |> Repo.update!()
+    end)
+  end
+
+  defp record_playbook_load(_, _, _), do: :ok
+
+  defp started_session("start_session", _, {:ok, %{data: %{session_id: id}}}),
+    do: find_session(id)
+
+  defp started_session(_, session, _), do: session
+
   defp invoke(nil, _, _), do: {:error, "Unknown Tool"}
+
+  defp invoke(WeGoNext.Analysis.Tools.StartSession = tool, args, _),
+    do: execute_tool(tool, args, nil)
+
   defp invoke(_, _, nil), do: {:error, "Unknown Analysis session; invoke analysis-session first"}
 
-  defp invoke(tool, args, session) do
+  defp invoke(tool, args, session), do: execute_tool(tool, args, session)
+
+  defp execute_tool(tool, args, session) do
     with :ok <- Arguments.validate(args, tool.input_schema()),
          {:ok, result} <- Executor.run(tool, args, session),
          true <- valid_envelope?(result) do
@@ -75,32 +103,4 @@ defmodule WeGoNext.Analysis do
 
   def error_result(reason),
     do: %{data: nil, evidence: [], truncated: false, next_cursor: nil, error: reason}
-
-  defp resolve_log(nil) do
-    case Repo.one(
-           from(l in CombatLogFile,
-             where: not is_nil(l.last_parsed_at),
-             order_by: [desc: l.last_parsed_at, desc: l.id],
-             limit: 1
-           )
-         ) do
-      nil -> {:error, "No imported log is available"}
-      log -> {:ok, log}
-    end
-  end
-
-  defp resolve_log(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} when id > 0 and id <= 9_223_372_036_854_775_807 ->
-        case Repo.get(CombatLogFile, id) do
-          nil -> {:error, "Log not found"}
-          log -> {:ok, log}
-        end
-
-      _ ->
-        {:error, "log must be a combat_log_files id"}
-    end
-  end
-
-  defp resolve_log(_), do: {:error, "log must be a combat_log_files id"}
 end

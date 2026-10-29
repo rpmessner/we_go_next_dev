@@ -4,13 +4,27 @@ defmodule WeGoNext.Analysis.Registry do
     DamageTaken,
     Deaths,
     Failures,
+    GetPlaybook,
     Interrupts,
+    ListPlaybooks,
     ListPulls,
     PullSummary,
-    SessionContext
+    SessionContext,
+    StartSession
   }
 
-  @tools [SessionContext, ListPulls, PullSummary, Deaths, Failures, DamageTaken, Interrupts]
+  @tools [
+    StartSession,
+    SessionContext,
+    ListPulls,
+    PullSummary,
+    Deaths,
+    Failures,
+    DamageTaken,
+    Interrupts,
+    ListPlaybooks,
+    GetPlaybook
+  ]
   def tools, do: @tools
   def fetch(name), do: Enum.find(@tools, &(&1.name() == name))
 
