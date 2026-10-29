@@ -1,5 +1,5 @@
 defmodule WeGoNext.Analysis.Executor do
-  @moduledoc "Isolates Tool failures and enforces a read-only transaction and wall-clock deadline."
+  @moduledoc "Enforces Tool deadlines and read-only transactions, except approved session creation."
   alias WeGoNext.Repo
   @timeout 5_000
 
@@ -17,6 +17,9 @@ defmodule WeGoNext.Analysis.Executor do
   catch
     :exit, _ -> {:error, "Tool execution failed"}
   end
+
+  defp execute(WeGoNext.Analysis.Tools.StartSession = tool, args, _session),
+    do: tool.run(args, nil)
 
   defp execute(tool, args, session) do
     case Repo.transaction(

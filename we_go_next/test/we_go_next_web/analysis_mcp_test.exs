@@ -26,16 +26,23 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
     assert %{"result" => %{"tools" => tools}} = rpc("tools/list")
 
     assert Enum.map(tools, & &1["name"]) == [
+             "start_session",
              "session_context",
              "list_pulls",
              "pull_summary",
              "deaths",
              "failures",
              "damage_taken",
-             "interrupts"
+             "interrupts",
+             "list_playbooks",
+             "get_playbook"
            ]
 
-    assert Enum.all?(tools, &("session_id" in &1["inputSchema"]["required"]))
+    assert Enum.all?(
+             Enum.reject(tools, &(&1["name"] == "start_session")),
+             &("session_id" in &1["inputSchema"]["required"])
+           )
+
     assert Enum.find(tools, &(&1["name"] == "interrupts"))["description"] =~ "log_events"
     assert %{"result" => %{"prompts" => [%{"name" => "analysis-session"}]}} = rpc("prompts/list")
   end
@@ -51,8 +58,16 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
     session = Repo.one!(Session)
     assert text =~ session.id
     assert text =~ "session_context"
+    assert text =~ "# Between-pull method"
+    assert text =~ "[Sszorak pull 4, 2:31, deaths]"
+    assert [%{"id" => "between-pulls", "git_commit" => commit}] = session.loaded_playbooks
+
+    assert commit ==
+             WeGoNext.Analysis.Playbooks.git_commit(WeGoNext.Analysis.Playbooks.directory())
+
     assert session.combat_log_file_id == log.id
-    assert session.boss == "Sszorak"
+    assert session.boss == nil
+    assert text =~ "Unknown boss"
 
     assert %{"result" => %{"isError" => false, "content" => [%{"text" => result}]}} =
              rpc("tools/call", %{
@@ -101,6 +116,83 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
     end
 
     assert Repo.aggregate(ToolCall, :count) == 2
+  end
+
+  test "prompt selects active boss Playbooks by name or game id and excludes retired ones", %{
+    log: log
+  } do
+    alias WeGoNext.Analysis.Playbooks
+
+    for {id, status} <- [{"test-boss", "active"}, {"test-retired", "retired"}] do
+      path = Path.join(Playbooks.directory(), "#{id}.md")
+      on_exit(fn -> File.rm!(path) end)
+
+      File.write!(path, """
+      ---
+      title: Test boss method
+      scope: boss
+      encounter_ids: [42]
+      question_families: ["mechanics"]
+      status: #{status}
+      ---
+      Instructions for #{id}.
+      """)
+    end
+
+    Repo.insert!(%WeGoNext.Encounters.Encounter{
+      combat_log_file_id: log.id,
+      name: "Sszorak",
+      wow_encounter_id: "42"
+    })
+
+    for boss <- ["Sszorak", "42", "Other"] do
+      response =
+        rpc("prompts/get", %{"name" => "analysis-session", "arguments" => %{"boss" => boss}})
+
+      assert %{"result" => %{"messages" => [%{"content" => %{"text" => text}}]}} = response
+      assert text =~ "# Between-pull method"
+      assert text =~ "Instructions for test-boss." == (boss != "Other")
+      refute text =~ "Instructions for test-retired."
+    end
+
+    sessions = Repo.all(Session)
+
+    for session <- sessions do
+      ids = Enum.map(session.loaded_playbooks, & &1["id"])
+      assert "test-boss" in ids == (session.boss == "Sszorak")
+      refute "test-retired" in ids
+    end
+
+    session = hd(sessions)
+
+    assert %{"result" => %{"isError" => false, "content" => [%{"text" => data}]}} =
+             rpc("tools/call", %{
+               "name" => "list_playbooks",
+               "arguments" => %{"session_id" => session.id, "question_family" => "mechanics"}
+             })
+
+    assert Enum.any?(Jason.decode!(data)["data"], &(&1["id"] == "test-boss"))
+    refute Enum.any?(Jason.decode!(data)["data"], &(&1["id"] == "test-retired"))
+
+    assert %{"result" => %{"isError" => true}} =
+             rpc("tools/call", %{
+               "name" => "get_playbook",
+               "arguments" => %{"session_id" => session.id, "id" => "test-retired"}
+             })
+  end
+
+  test "prompt records null provenance when git is unavailable" do
+    path = System.fetch_env!("PATH")
+    System.put_env("PATH", "")
+
+    try do
+      assert %{"result" => _} = rpc("prompts/get", %{"name" => "analysis-session"})
+
+      assert [%{"id" => "between-pulls", "git_commit" => nil}] =
+               Repo.one!(Session).loaded_playbooks
+    after
+      System.put_env("PATH", path)
+    end
   end
 
   test "invalid Tool arguments return Tool results, not protocol errors" do
@@ -155,11 +247,14 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
     assert %{"result" => _} = rpc("prompts/get", %{"name" => "analysis-session"})
     assert Repo.one!(Session).combat_log_file_id == log.id
 
-    assert %{"error" => %{"code" => -32_602}} =
+    assert %{"result" => %{"messages" => [%{"content" => %{"text" => text}}]}} =
              rpc("prompts/get", %{
                "name" => "analysis-session",
                "arguments" => %{"log" => "999999999999999999999999999999"}
              })
+
+    assert text =~ "No Analysis session started"
+    assert Repo.aggregate(Session, :count) == 1
   end
 
   test "the negotiated March protocol accepts batches but not batched initialization" do

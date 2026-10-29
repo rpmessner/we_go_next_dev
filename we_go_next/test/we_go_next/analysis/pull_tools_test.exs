@@ -18,7 +18,13 @@ defmodule WeGoNext.Analysis.PullToolsTest do
     end)
 
     user = Repo.insert!(%WeGoNext.Accounts.User{name: "pull-tools"})
-    log = Repo.insert!(%CombatLogFile{user_id: user.id, file_path: "/real-slice.txt"})
+
+    log =
+      Repo.insert!(%CombatLogFile{
+        user_id: user.id,
+        file_path: "/real-slice.txt",
+        last_parsed_at: ~U[2026-09-06 12:00:00Z]
+      })
 
     dim =
       Repo.insert!(%DimEncounter{
