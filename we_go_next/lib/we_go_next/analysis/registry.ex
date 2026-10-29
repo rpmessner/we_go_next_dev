@@ -9,6 +9,7 @@ defmodule WeGoNext.Analysis.Registry do
     ListPlaybooks,
     ListPulls,
     PullSummary,
+    RecordVerdict,
     SessionContext,
     StartSession
   }
@@ -23,7 +24,8 @@ defmodule WeGoNext.Analysis.Registry do
     DamageTaken,
     Interrupts,
     ListPlaybooks,
-    GetPlaybook
+    GetPlaybook,
+    RecordVerdict
   ]
   def tools, do: @tools
   def fetch(name), do: Enum.find(@tools, &(&1.name() == name))

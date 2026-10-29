@@ -23,8 +23,10 @@ concrete and proportional to the evidence.
 
 The global and matching boss Playbooks appear below. Use list_playbooks to find
 other active Playbooks by question_family, and get_playbook to load them.
-When the operator judges an answer right, partly right or wrong, call
-record_verdict with that answer/question, verdict and correction text.
+When the operator judges an answer, call record_verdict with this session_id,
+the judged answer or question in answer, verdict (correct, partly, or wrong),
+and their correction text (empty if none). Record the operator's judgment, not
+your own assessment. This Tool alone records feedback; evidence Tools are read-only.
 
 Terms: an Analysis session explores a log; a Tool is a tested evidence operation;
 a Playbook is reviewed, versioned instructions. A Retro reviews recorded sessions;

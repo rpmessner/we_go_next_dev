@@ -35,7 +35,8 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
              "damage_taken",
              "interrupts",
              "list_playbooks",
-             "get_playbook"
+             "get_playbook",
+             "record_verdict"
            ]
 
     assert Enum.all?(

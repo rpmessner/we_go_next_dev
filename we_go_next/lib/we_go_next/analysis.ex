@@ -10,7 +10,8 @@ defmodule WeGoNext.Analysis do
     Registry,
     Result,
     Session,
-    ToolCall
+    ToolCall,
+    Verdict
   }
 
   def start_session(args \\ %{}), do: Startup.start(args)
@@ -21,19 +22,25 @@ defmodule WeGoNext.Analysis do
     outcome = invoke(Registry.fetch(name), args, session)
     session = started_session(name, session, outcome)
     {result, error} = recorded_result(outcome)
+    duration_ms = System.monotonic_time(:millisecond) - start
     record_playbook_load(name, session, outcome)
 
-    Repo.insert!(%ToolCall{
-      session_id: session && session.id,
-      tool: name,
-      args: args,
-      result: result,
-      result_size: byte_size(Jason.encode!(result)),
-      duration_ms: System.monotonic_time(:millisecond) - start,
-      truncated: Map.get(result, :truncated, false),
-      error: error,
-      called_at: DateTime.utc_now()
-    })
+    {:ok, _} =
+      Repo.transaction(fn ->
+        record_verdict(name, outcome, session)
+
+        Repo.insert!(%ToolCall{
+          session_id: session && session.id,
+          tool: name,
+          args: args,
+          result: result,
+          result_size: byte_size(Jason.encode!(result)),
+          duration_ms: duration_ms,
+          truncated: Map.get(result, :truncated, false),
+          error: error,
+          called_at: DateTime.utc_now()
+        })
+      end)
 
     outcome
   rescue
@@ -58,6 +65,18 @@ defmodule WeGoNext.Analysis do
     do: find_session(id)
 
   defp started_session(_, session, _), do: session
+
+  defp record_verdict("record_verdict", {:ok, %{data: data}}, session) do
+    Repo.insert!(%Verdict{
+      session_id: session.id,
+      answer: data["answer"],
+      verdict: data["verdict"],
+      correction: data["correction"],
+      recorded_at: DateTime.utc_now()
+    })
+  end
+
+  defp record_verdict(_, _, _), do: :ok
 
   defp invoke(nil, _, _), do: {:error, "Unknown Tool"}
 

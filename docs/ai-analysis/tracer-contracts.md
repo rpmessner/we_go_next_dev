@@ -56,8 +56,9 @@ also have `error`; MCP returns them with `isError: true`.
 
 Unknown or missing sessions produce audit rows with a null session foreign key.
 The original args retain the supplied id. Existing sessions and calls have
-restricting foreign keys and no automatic expiration. Verdicts, Playbooks, and
-messages are not part of this migration.
+restricting foreign keys and no automatic expiration. Verdicts are added by a separate additive migration; their recording-path write
+exception and JSONL export contract are in [session-export.md](session-export.md).
+Playbooks and messages are not part of the tracer migration.
 
 ## Playbooks
 

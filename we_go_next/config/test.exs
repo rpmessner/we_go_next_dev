@@ -14,7 +14,9 @@ config :we_go_next, document_upload_worker_interval_ms: false
 
 # Keep generated encounter documents out of the dev store. ConnCase/FeatureCase
 # still override this per test; this is the floor for plain ExUnit DB tests.
-config :we_go_next, documents_root: Path.expand("../tmp/test_documents", __DIR__)
+config :we_go_next,
+  documents_root:
+    Path.expand("../tmp/test_documents#{System.get_env("MIX_TEST_PARTITION")}", __DIR__)
 
 # We run a server during Wallaby tests
 config :we_go_next, WeGoNextWeb.Endpoint,
