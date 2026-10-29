@@ -32,7 +32,7 @@ config :wallaby,
 
 # Use test database
 config :we_go_next, WeGoNext.Repo,
-  database: "we_go_next_test",
+  database: "we_go_next_test#{System.get_env("MIX_TEST_PARTITION")}",
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
