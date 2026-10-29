@@ -8,6 +8,7 @@ defmodule WeGoNext.Analysis.Registry do
     Interrupts,
     ListPlaybooks,
     ListPulls,
+    LogEvents,
     PullSummary,
     RecordVerdict,
     SessionContext,
@@ -23,6 +24,7 @@ defmodule WeGoNext.Analysis.Registry do
     Failures,
     DamageTaken,
     Interrupts,
+    LogEvents,
     ListPlaybooks,
     GetPlaybook,
     RecordVerdict

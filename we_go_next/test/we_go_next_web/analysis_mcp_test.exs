@@ -34,6 +34,7 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
              "failures",
              "damage_taken",
              "interrupts",
+             "log_events",
              "list_playbooks",
              "get_playbook",
              "record_verdict"
