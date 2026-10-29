@@ -34,6 +34,25 @@ Null `pull_id` means the public import catalogue has no matching gold encounter.
 come from silver without aliasing. Class and spec are numeric ids, or null when
 unknown. Missing failure facts do not establish that a pull is fresh or clean.
 
+## Bronze escape hatch
+
+`log_events` takes one positive gold `pull` id plus a `filters` object. Optional
+keys: `event_types`, `source_guids`, `target_guids` (exact string lists),
+`spell_ids` (integer list, 0 for synthetic melee/environmental), `time_min_ms`
+and `time_max_ms` (inclusive nonnegative integer milliseconds from pull start).
+Lists OR within a key; keys AND across. Empty lists are invalid. At least one
+nonempty list or a narrower-than-pull time window is required. Results preserve
+raw parser fields and file order; each evidence row has pull id, original log
+timestamp, absolute byte offset and `bronze.combat_log` source. Follow the normal
+result cursor with identical arguments; every page re-parses, never caches.
+
+The Tool uses the session log's path and gold start/end bytes, not public import
+byte bounds. Missing files name that path in a Tool error; there is no path
+resolver. **Timestamp gotcha:** the NIF ignores timezone offsets when calculating
+relative time. The Tool reads the original timestamp at the gold start byte;
+formatting the UTC dimension timestamp would shift time-window matches by hours.
+Raw cast/aura observations are not proof of cooldown availability on their own.
+
 ## Execution and recording
 
 `Analysis.call_tool/2` resolves the session, validates inputs with `Arguments`,
