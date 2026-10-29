@@ -32,6 +32,10 @@ defmodule WeGoNextWeb.Endpoint do
     only: WeGoNextWeb.static_paths()
   )
 
+  if Application.compile_env(:we_go_next, :analysis_mcp_enabled, false) do
+    plug(WeGoNextWeb.Plugs.AnalysisMCP)
+  end
+
   # Tidewave MCP server for AI assistant integration
   # allow_remote_access needed since endpoint binds to 0.0.0.0 for WSL2->Windows access
   if Code.ensure_loaded?(Tidewave) do

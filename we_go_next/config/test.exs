@@ -1,5 +1,7 @@
 import Config
 
+config :we_go_next, analysis_mcp_enabled: true
+
 # Enable SQL sandbox for browser test isolation
 config :we_go_next, sql_sandbox: true
 

@@ -26,7 +26,8 @@ defmodule WeGoNext.Application do
 
     [
       # Start the Repo
-      WeGoNext.Repo
+      WeGoNext.Repo,
+      {Task.Supervisor, name: WeGoNext.Analysis.TaskSupervisor}
     ] ++
       release_migrator_children(migrate_on_boot?) ++
       [

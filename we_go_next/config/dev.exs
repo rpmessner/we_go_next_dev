@@ -1,5 +1,7 @@
 import Config
 
+config :we_go_next, analysis_mcp_enabled: true
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 
