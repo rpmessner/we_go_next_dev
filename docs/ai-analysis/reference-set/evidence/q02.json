@@ -1,0 +1,944 @@
+{
+  "applicable_rules": {
+    "436": [],
+    "437": [],
+    "438": [],
+    "439": [],
+    "440": [],
+    "441": [],
+    "442": [],
+    "443": [],
+    "444": []
+  },
+  "observed_damage": {
+    "436": [
+      {
+        "amount": 2043178,
+        "hits": 88,
+        "name": "Corrosive Effluvium",
+        "spell": 1299462
+      },
+      {
+        "amount": 1852302,
+        "hits": 38,
+        "name": "Ula'tek's Presence",
+        "spell": 1285965
+      },
+      {
+        "amount": 1342966,
+        "hits": 10,
+        "name": "Caustic Venom",
+        "spell": 1290036
+      },
+      {
+        "amount": 101917,
+        "hits": 1,
+        "name": "Tail Whip",
+        "spell": 1299461
+      },
+      {
+        "amount": 93730,
+        "hits": 1,
+        "name": "Venomous Torrent",
+        "spell": 1290183
+      },
+      {
+        "amount": 27704,
+        "hits": 1,
+        "name": "Burning Rush",
+        "spell": 111400
+      },
+      {
+        "amount": 14691,
+        "hits": 5,
+        "name": "Refraction",
+        "spell": 1309786
+      },
+      {
+        "amount": 5986,
+        "hits": 12,
+        "name": "Fel Armor",
+        "spell": 387846
+      },
+      {
+        "amount": 3646,
+        "hits": 4,
+        "name": "Rune of Void-Tainted Shell",
+        "spell": 1287955
+      }
+    ],
+    "437": [],
+    "438": [
+      {
+        "amount": 56940581,
+        "hits": 1389,
+        "name": "Ula'tek's Presence",
+        "spell": 1285965
+      },
+      {
+        "amount": 50455962,
+        "hits": 941,
+        "name": "Mutilated Gash",
+        "spell": 1285998
+      },
+      {
+        "amount": 20029289,
+        "hits": 279,
+        "name": "Viscous Cyst",
+        "spell": 1287205
+      },
+      {
+        "amount": 13812369,
+        "hits": 162,
+        "name": "Tempest",
+        "spell": 1287083
+      },
+      {
+        "amount": 10913945,
+        "hits": 44,
+        "name": "Mutilate",
+        "spell": 1285999
+      },
+      {
+        "amount": 10050848,
+        "hits": 89,
+        "name": "Venomous Surge",
+        "spell": 1306120
+      },
+      {
+        "amount": 3650823,
+        "hits": 17,
+        "name": "Raging Crosswinds",
+        "spell": 1285616
+      },
+      {
+        "amount": 1779082,
+        "hits": 35,
+        "name": "Venomous Surge",
+        "spell": 1312156
+      },
+      {
+        "amount": 1737005,
+        "hits": 5,
+        "name": "Ravage",
+        "spell": 1277101
+      },
+      {
+        "amount": 1199683,
+        "hits": 110,
+        "name": "Raging Crosswinds",
+        "spell": 1312219
+      },
+      {
+        "amount": 673855,
+        "hits": 117,
+        "name": "Refraction",
+        "spell": 1309786
+      },
+      {
+        "amount": 203335,
+        "hits": 7,
+        "name": "Burning Rush",
+        "spell": 111400
+      },
+      {
+        "amount": 188987,
+        "hits": 7,
+        "name": "Caustic Residue",
+        "spell": 1296667
+      },
+      {
+        "amount": 136452,
+        "hits": 287,
+        "name": "Fel Armor",
+        "spell": 387846
+      },
+      {
+        "amount": 62034,
+        "hits": 59,
+        "name": "Set Fire to the Pain",
+        "spell": 453286
+      },
+      {
+        "amount": 49279,
+        "hits": 48,
+        "name": "Seriously Sharp Seashell",
+        "spell": 1292299
+      },
+      {
+        "amount": 46539,
+        "hits": 9,
+        "name": "Stretch Time",
+        "spell": 413924
+      },
+      {
+        "amount": 22355,
+        "hits": 34,
+        "name": "Rune of Void-Tainted Shell",
+        "spell": 1287955
+      }
+    ],
+    "439": [
+      {
+        "amount": 17715063,
+        "hits": 3,
+        "name": "Mutilate",
+        "spell": 1285999
+      },
+      {
+        "amount": 8177613,
+        "hits": 189,
+        "name": "Ula'tek's Presence",
+        "spell": 1285965
+      },
+      {
+        "amount": 7956910,
+        "hits": 6,
+        "name": "Ravage",
+        "spell": 1277101
+      },
+      {
+        "amount": 1010554,
+        "hits": 12,
+        "name": "Tempest",
+        "spell": 1287083
+      },
+      {
+        "amount": 126431,
+        "hits": 4,
+        "name": "Burning Rush",
+        "spell": 111400
+      },
+      {
+        "amount": 28322,
+        "hits": 23,
+        "name": "Refraction",
+        "spell": 1309786
+      },
+      {
+        "amount": 10864,
+        "hits": 2,
+        "name": "Stretch Time",
+        "spell": 413924
+      },
+      {
+        "amount": 3861,
+        "hits": 16,
+        "name": "Fel Armor",
+        "spell": 387846
+      }
+    ],
+    "440": [
+      {
+        "amount": 141545759,
+        "hits": 3436,
+        "name": "Ula'tek's Presence",
+        "spell": 1285965
+      },
+      {
+        "amount": 135982463,
+        "hits": 2129,
+        "name": "Mutilated Gash",
+        "spell": 1285998
+      },
+      {
+        "amount": 64865351,
+        "hits": 935,
+        "name": "Viscous Cyst",
+        "spell": 1287205
+      },
+      {
+        "amount": 32238189,
+        "hits": 333,
+        "name": "Tempest",
+        "spell": 1287083
+      },
+      {
+        "amount": 29676756,
+        "hits": 100,
+        "name": "Mutilate",
+        "spell": 1285999
+      },
+      {
+        "amount": 25426237,
+        "hits": 220,
+        "name": "Venomous Surge",
+        "spell": 1306120
+      },
+      {
+        "amount": 10247020,
+        "hits": 51,
+        "name": "Raging Crosswinds",
+        "spell": 1285616
+      },
+      {
+        "amount": 5778016,
+        "hits": 110,
+        "name": "Venomous Surge",
+        "spell": 1312156
+      },
+      {
+        "amount": 4562980,
+        "hits": 9,
+        "name": "Ravage",
+        "spell": 1277101
+      },
+      {
+        "amount": 4180207,
+        "hits": 363,
+        "name": "Raging Crosswinds",
+        "spell": 1312219
+      },
+      {
+        "amount": 3376518,
+        "hits": 121,
+        "name": "Caustic Residue",
+        "spell": 1296667
+      },
+      {
+        "amount": 1793390,
+        "hits": 324,
+        "name": "Refraction",
+        "spell": 1309786
+      },
+      {
+        "amount": 1172992,
+        "hits": 73,
+        "name": "Stretch Time",
+        "spell": 413924
+      },
+      {
+        "amount": 654940,
+        "hits": 2,
+        "name": "Caustic Claws",
+        "spell": 1305998
+      },
+      {
+        "amount": 652807,
+        "hits": 23,
+        "name": "Burning Rush",
+        "spell": 111400
+      },
+      {
+        "amount": 253057,
+        "hits": 642,
+        "name": "Fel Armor",
+        "spell": 387846
+      },
+      {
+        "amount": 111933,
+        "hits": 166,
+        "name": "Rune of Void-Tainted Shell",
+        "spell": 1287955
+      },
+      {
+        "amount": 111830,
+        "hits": 95,
+        "name": "Seriously Sharp Seashell",
+        "spell": 1292299
+      },
+      {
+        "amount": 99796,
+        "hits": 77,
+        "name": "Set Fire to the Pain",
+        "spell": 453286
+      },
+      {
+        "amount": 18308,
+        "hits": 1,
+        "name": "Shadow Word: Death",
+        "spell": 32409
+      }
+    ],
+    "441": [
+      {
+        "amount": 50232740,
+        "hits": 837,
+        "name": "Mutilated Gash",
+        "spell": 1285998
+      },
+      {
+        "amount": 49593507,
+        "hits": 1207,
+        "name": "Ula'tek's Presence",
+        "spell": 1285965
+      },
+      {
+        "amount": 17349109,
+        "hits": 160,
+        "name": "Tempest",
+        "spell": 1287083
+      },
+      {
+        "amount": 9826525,
+        "hits": 87,
+        "name": "Venomous Surge",
+        "spell": 1306120
+      },
+      {
+        "amount": 9562743,
+        "hits": 37,
+        "name": "Mutilate",
+        "spell": 1285999
+      },
+      {
+        "amount": 6626001,
+        "hits": 118,
+        "name": "Viscous Cyst",
+        "spell": 1287205
+      },
+      {
+        "amount": 3920746,
+        "hits": 18,
+        "name": "Raging Crosswinds",
+        "spell": 1285616
+      },
+      {
+        "amount": 1627168,
+        "hits": 35,
+        "name": "Venomous Surge",
+        "spell": 1312156
+      },
+      {
+        "amount": 1433496,
+        "hits": 126,
+        "name": "Raging Crosswinds",
+        "spell": 1312219
+      },
+      {
+        "amount": 683963,
+        "hits": 3,
+        "name": "Ravage",
+        "spell": 1277101
+      },
+      {
+        "amount": 551930,
+        "hits": 105,
+        "name": "Refraction",
+        "spell": 1309786
+      },
+      {
+        "amount": 375507,
+        "hits": 13,
+        "name": "Burning Rush",
+        "spell": 111400
+      },
+      {
+        "amount": 206218,
+        "hits": 7,
+        "name": "Caustic Residue",
+        "spell": 1296667
+      },
+      {
+        "amount": 141380,
+        "hits": 20,
+        "name": "Stretch Time",
+        "spell": 413924
+      },
+      {
+        "amount": 55779,
+        "hits": 158,
+        "name": "Fel Armor",
+        "spell": 387846
+      },
+      {
+        "amount": 54905,
+        "hits": 39,
+        "name": "Set Fire to the Pain",
+        "spell": 453286
+      },
+      {
+        "amount": 42163,
+        "hits": 61,
+        "name": "Rune of Void-Tainted Shell",
+        "spell": 1287955
+      },
+      {
+        "amount": 6943,
+        "hits": 11,
+        "name": "Seriously Sharp Seashell",
+        "spell": 1292299
+      }
+    ],
+    "442": [
+      {
+        "amount": 84419399,
+        "hits": 2045,
+        "name": "Ula'tek's Presence",
+        "spell": 1285965
+      },
+      {
+        "amount": 63354263,
+        "hits": 1126,
+        "name": "Mutilated Gash",
+        "spell": 1285998
+      },
+      {
+        "amount": 36851006,
+        "hits": 555,
+        "name": "Viscous Cyst",
+        "spell": 1287205
+      },
+      {
+        "amount": 20505399,
+        "hits": 54,
+        "name": "Mutilate",
+        "spell": 1285999
+      },
+      {
+        "amount": 14494100,
+        "hits": 129,
+        "name": "Venomous Surge",
+        "spell": 1306120
+      },
+      {
+        "amount": 13090310,
+        "hits": 148,
+        "name": "Tempest",
+        "spell": 1287083
+      },
+      {
+        "amount": 6224374,
+        "hits": 28,
+        "name": "Raging Crosswinds",
+        "spell": 1285616
+      },
+      {
+        "amount": 3762588,
+        "hits": 9,
+        "name": "Ravage",
+        "spell": 1277101
+      },
+      {
+        "amount": 2649761,
+        "hits": 55,
+        "name": "Venomous Surge",
+        "spell": 1312156
+      },
+      {
+        "amount": 2220937,
+        "hits": 188,
+        "name": "Raging Crosswinds",
+        "spell": 1312219
+      },
+      {
+        "amount": 1424051,
+        "hits": 4,
+        "name": "Caustic Claws",
+        "spell": 1305998
+      },
+      {
+        "amount": 1415177,
+        "hits": 50,
+        "name": "Caustic Residue",
+        "spell": 1296667
+      },
+      {
+        "amount": 848604,
+        "hits": 62,
+        "name": "Stretch Time",
+        "spell": 413924
+      },
+      {
+        "amount": 638013,
+        "hits": 138,
+        "name": "Refraction",
+        "spell": 1309786
+      },
+      {
+        "amount": 557574,
+        "hits": 19,
+        "name": "Burning Rush",
+        "spell": 111400
+      },
+      {
+        "amount": 244255,
+        "hits": 566,
+        "name": "Fel Armor",
+        "spell": 387846
+      },
+      {
+        "amount": 99071,
+        "hits": 102,
+        "name": "Seriously Sharp Seashell",
+        "spell": 1292299
+      },
+      {
+        "amount": 51358,
+        "hits": 69,
+        "name": "Set Fire to the Pain",
+        "spell": 453286
+      },
+      {
+        "amount": 21084,
+        "hits": 35,
+        "name": "Rune of Void-Tainted Shell",
+        "spell": 1287955
+      }
+    ],
+    "443": [
+      {
+        "amount": 30788090,
+        "hits": 4,
+        "name": "Mutilate",
+        "spell": 1285999
+      },
+      {
+        "amount": 7798351,
+        "hits": 218,
+        "name": "Ula'tek's Presence",
+        "spell": 1285965
+      },
+      {
+        "amount": 6672572,
+        "hits": 6,
+        "name": "Ravage",
+        "spell": 1277101
+      },
+      {
+        "amount": 3261457,
+        "hits": 8,
+        "name": "Mutilated Gash",
+        "spell": 1285998
+      },
+      {
+        "amount": 1280354,
+        "hits": 17,
+        "name": "Tempest",
+        "spell": 1287083
+      },
+      {
+        "amount": 465017,
+        "hits": 3,
+        "name": "Venomous Surge",
+        "spell": 1306120
+      },
+      {
+        "amount": 444678,
+        "hits": 12,
+        "name": "Venomous Surge",
+        "spell": 1312156
+      },
+      {
+        "amount": 341370,
+        "hits": 12,
+        "name": "Burning Rush",
+        "spell": 111400
+      },
+      {
+        "amount": 70657,
+        "hits": 27,
+        "name": "Refraction",
+        "spell": 1309786
+      },
+      {
+        "amount": 31032,
+        "hits": 6,
+        "name": "Stretch Time",
+        "spell": 413924
+      },
+      {
+        "amount": 21238,
+        "hits": 28,
+        "name": "Fel Armor",
+        "spell": 387846
+      },
+      {
+        "amount": 4924,
+        "hits": 7,
+        "name": "Seriously Sharp Seashell",
+        "spell": 1292299
+      },
+      {
+        "amount": 774,
+        "hits": 1,
+        "name": "Rune of Void-Tainted Shell",
+        "spell": 1287955
+      }
+    ],
+    "444": [
+      {
+        "amount": 159400845,
+        "hits": 3848,
+        "name": "Ula'tek's Presence",
+        "spell": 1285965
+      },
+      {
+        "amount": 147888710,
+        "hits": 2463,
+        "name": "Mutilated Gash",
+        "spell": 1285998
+      },
+      {
+        "amount": 67879201,
+        "hits": 1101,
+        "name": "Viscous Cyst",
+        "spell": 1287205
+      },
+      {
+        "amount": 35122230,
+        "hits": 357,
+        "name": "Tempest",
+        "spell": 1287083
+      },
+      {
+        "amount": 28297321,
+        "hits": 109,
+        "name": "Mutilate",
+        "spell": 1285999
+      },
+      {
+        "amount": 26224303,
+        "hits": 241,
+        "name": "Venomous Surge",
+        "spell": 1306120
+      },
+      {
+        "amount": 10302169,
+        "hits": 48,
+        "name": "Raging Crosswinds",
+        "spell": 1285616
+      },
+      {
+        "amount": 4565127,
+        "hits": 12,
+        "name": "Ravage",
+        "spell": 1277101
+      },
+      {
+        "amount": 4434677,
+        "hits": 109,
+        "name": "Venomous Surge",
+        "spell": 1312156
+      },
+      {
+        "amount": 3855535,
+        "hits": 340,
+        "name": "Raging Crosswinds",
+        "spell": 1312219
+      },
+      {
+        "amount": 2131461,
+        "hits": 72,
+        "name": "Void Leech",
+        "spell": 451963
+      },
+      {
+        "amount": 1431982,
+        "hits": 76,
+        "name": "Stretch Time",
+        "spell": 413924
+      },
+      {
+        "amount": 1122370,
+        "hits": 3,
+        "name": "Caustic Claws",
+        "spell": 1305998
+      },
+      {
+        "amount": 892130,
+        "hits": 160,
+        "name": "Refraction",
+        "spell": 1309786
+      },
+      {
+        "amount": 860828,
+        "hits": 30,
+        "name": "Burning Rush",
+        "spell": 111400
+      },
+      {
+        "amount": 538657,
+        "hits": 20,
+        "name": "Caustic Residue",
+        "spell": 1296667
+      },
+      {
+        "amount": 316142,
+        "hits": 743,
+        "name": "Fel Armor",
+        "spell": 387846
+      },
+      {
+        "amount": 155762,
+        "hits": 148,
+        "name": "Set Fire to the Pain",
+        "spell": 453286
+      },
+      {
+        "amount": 106269,
+        "hits": 6,
+        "name": "Shadow Word: Death",
+        "spell": 32409
+      },
+      {
+        "amount": 86984,
+        "hits": 120,
+        "name": "Rune of Void-Tainted Shell",
+        "spell": 1287955
+      },
+      {
+        "amount": 81017,
+        "hits": 69,
+        "name": "Seriously Sharp Seashell",
+        "spell": 1292299
+      }
+    ]
+  },
+  "pulls": [
+    {
+      "boss": "Sszorak",
+      "death_events": 1,
+      "duration_ms": 4963,
+      "failure_rows": [],
+      "minimum_observed_boss_hp": {
+        "byte": 128796664,
+        "guid": "Creature-0-3019-3004-416243-257347-00001D8292",
+        "hp": 781421829,
+        "max_hp": 782266500,
+        "ms": 4650,
+        "pct": 99.892,
+        "timestamp": "9/6/2026 11:22:20.409-4"
+      },
+      "number": 1,
+      "pull": 436,
+      "success": false
+    },
+    {
+      "boss": "Sszorak",
+      "death_events": 0,
+      "duration_ms": 16,
+      "failure_rows": [],
+      "minimum_observed_boss_hp": null,
+      "number": 2,
+      "pull": 437,
+      "success": false
+    },
+    {
+      "boss": "Sszorak",
+      "death_events": 23,
+      "duration_ms": 147085,
+      "failure_rows": [],
+      "minimum_observed_boss_hp": {
+        "byte": 161475212,
+        "guid": "Creature-0-3019-3004-416243-257347-00001D856A",
+        "hp": 502589774,
+        "max_hp": 820998900,
+        "ms": 146778,
+        "pct": 61.217,
+        "timestamp": "9/6/2026 11:29:58.574-4"
+      },
+      "number": 3,
+      "pull": 438,
+      "success": false
+    },
+    {
+      "boss": "Sszorak",
+      "death_events": 20,
+      "duration_ms": 31371,
+      "failure_rows": [],
+      "minimum_observed_boss_hp": {
+        "byte": 162903900,
+        "guid": "Creature-0-3019-3004-416243-257347-00001D8714",
+        "hp": 817018023,
+        "max_hp": 820998900,
+        "ms": 30727,
+        "pct": 99.515,
+        "timestamp": "9/6/2026 11:31:59.690-4"
+      },
+      "number": 4,
+      "pull": 439,
+      "success": false
+    },
+    {
+      "boss": "Sszorak",
+      "death_events": 27,
+      "duration_ms": 411678,
+      "failure_rows": [],
+      "minimum_observed_boss_hp": {
+        "byte": 232588883,
+        "guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+        "hp": 145386012,
+        "max_hp": 820998900,
+        "ms": 411663,
+        "pct": 17.708,
+        "timestamp": "9/6/2026 11:40:12.602-4"
+      },
+      "number": 5,
+      "pull": 440,
+      "success": false
+    },
+    {
+      "boss": "Sszorak",
+      "death_events": 23,
+      "duration_ms": 126278,
+      "failure_rows": [],
+      "minimum_observed_boss_hp": {
+        "byte": 258427816,
+        "guid": "Creature-0-3019-3004-416243-257347-00001D8979",
+        "hp": 551700828,
+        "max_hp": 820998900,
+        "ms": 126230,
+        "pct": 67.199,
+        "timestamp": "9/6/2026 11:43:47.094-4"
+      },
+      "number": 6,
+      "pull": 441,
+      "success": false
+    },
+    {
+      "boss": "Sszorak",
+      "death_events": 22,
+      "duration_ms": 205423,
+      "failure_rows": [],
+      "minimum_observed_boss_hp": {
+        "byte": 300105290,
+        "guid": "Creature-0-3019-3004-416243-257347-00001D8A50",
+        "hp": 361182804,
+        "max_hp": 820998900,
+        "ms": 205404,
+        "pct": 43.993,
+        "timestamp": "9/6/2026 11:50:19.113-4"
+      },
+      "number": 7,
+      "pull": 442,
+      "success": false
+    },
+    {
+      "boss": "Sszorak",
+      "death_events": 23,
+      "duration_ms": 44890,
+      "failure_rows": [],
+      "minimum_observed_boss_hp": {
+        "byte": 305356459,
+        "guid": "Creature-0-3019-3004-416243-257347-00001D8BD8",
+        "hp": 752571537,
+        "max_hp": 820998900,
+        "ms": 44750,
+        "pct": 91.665,
+        "timestamp": "9/6/2026 11:53:51.657-4"
+      },
+      "number": 8,
+      "pull": 443,
+      "success": false
+    },
+    {
+      "boss": "Sszorak",
+      "death_events": 7,
+      "duration_ms": 402790,
+      "failure_rows": [],
+      "minimum_observed_boss_hp": {
+        "byte": 382107716,
+        "guid": "Creature-0-3019-3004-416243-257347-00001D8CAD",
+        "hp": 98426,
+        "max_hp": 820998900,
+        "ms": 402788,
+        "pct": 0.012,
+        "timestamp": "9/6/2026 12:16:47.650-4"
+      },
+      "number": 9,
+      "pull": 444,
+      "success": true
+    }
+  ]
+}

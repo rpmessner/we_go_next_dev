@@ -1,0 +1,1163 @@
+{
+  "authored_failure_rows": [],
+  "observed_trends": [
+    {
+      "boss": "Sszorak",
+      "guid": "Player-11-0EB97A9E",
+      "name": "Felthuzad",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 77,
+          "killing_blow_deaths": 1,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 168,
+          "killing_blow_deaths": 1,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 83,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 219,
+          "killing_blow_deaths": 1,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 195,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 387846
+    },
+    {
+      "boss": "The Twin Fangs",
+      "guid": "Player-11-0EB97A9E",
+      "name": "Felthuzad",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 283691,
+          "hits": 132,
+          "killing_blow_deaths": 0,
+          "pull": 445
+        },
+        {
+          "duration_ms": 497468,
+          "hits": 402,
+          "killing_blow_deaths": 0,
+          "pull": 446
+        },
+        {
+          "duration_ms": 462952,
+          "hits": 546,
+          "killing_blow_deaths": 0,
+          "pull": 447
+        },
+        {
+          "duration_ms": 476596,
+          "hits": 566,
+          "killing_blow_deaths": 1,
+          "pull": 448
+        },
+        {
+          "duration_ms": 504056,
+          "hits": 169,
+          "killing_blow_deaths": 0,
+          "pull": 449
+        },
+        {
+          "duration_ms": 467355,
+          "hits": 493,
+          "killing_blow_deaths": 0,
+          "pull": 450
+        },
+        {
+          "duration_ms": 460394,
+          "hits": 352,
+          "killing_blow_deaths": 0,
+          "pull": 451
+        },
+        {
+          "duration_ms": 445659,
+          "hits": 330,
+          "killing_blow_deaths": 0,
+          "pull": 452
+        }
+      ],
+      "spell": 387846
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-1171-069A3241",
+      "name": "Zazi",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 64,
+          "killing_blow_deaths": 1,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 185,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 60,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 91,
+          "killing_blow_deaths": 0,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 190,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-1171-0A34A5C5",
+      "name": "Kahnu",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 61,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 76,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 60,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 94,
+          "killing_blow_deaths": 0,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 198,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-1171-0A9AD785",
+      "name": "Frostygnome",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 58,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 183,
+          "killing_blow_deaths": 1,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 57,
+          "killing_blow_deaths": 0,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 83,
+          "killing_blow_deaths": 1,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 172,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-1171-0AC0B593",
+      "name": "Belprie",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 8,
+          "killing_blow_deaths": 1,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 55,
+          "killing_blow_deaths": 1,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 4,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 26,
+          "killing_blow_deaths": 1,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 56,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1287205
+    },
+    {
+      "boss": "The Twin Fangs",
+      "guid": "Player-1171-0ACD1EFC",
+      "name": "Omeggon",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 283691,
+          "hits": 131,
+          "killing_blow_deaths": 0,
+          "pull": 445
+        },
+        {
+          "duration_ms": 497468,
+          "hits": 403,
+          "killing_blow_deaths": 1,
+          "pull": 446
+        },
+        {
+          "duration_ms": 462952,
+          "hits": 314,
+          "killing_blow_deaths": 1,
+          "pull": 447
+        },
+        {
+          "duration_ms": 476596,
+          "hits": 358,
+          "killing_blow_deaths": 0,
+          "pull": 448
+        },
+        {
+          "duration_ms": 504056,
+          "hits": 395,
+          "killing_blow_deaths": 0,
+          "pull": 449
+        },
+        {
+          "duration_ms": 467355,
+          "hits": 202,
+          "killing_blow_deaths": 1,
+          "pull": 450
+        },
+        {
+          "duration_ms": 460394,
+          "hits": 374,
+          "killing_blow_deaths": 0,
+          "pull": 451
+        },
+        {
+          "duration_ms": 445659,
+          "hits": 324,
+          "killing_blow_deaths": 0,
+          "pull": 452
+        }
+      ],
+      "spell": 1290480
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-1171-0AE668C6",
+      "name": "Zuthere",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 0,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 0,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 0,
+          "killing_blow_deaths": 0,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 1,
+          "killing_blow_deaths": 1,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 0,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1277101
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-1171-0AFC0EE7",
+      "name": "Provibria",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 63,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 183,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 56,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 95,
+          "killing_blow_deaths": 1,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 189,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-1171-0B076010",
+      "name": "M\u00e4dz",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 0,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 11,
+          "killing_blow_deaths": 2,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 15,
+          "killing_blow_deaths": 3,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 3,
+          "killing_blow_deaths": 0,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 7,
+          "killing_blow_deaths": 1,
+          "pull": 444
+        }
+      ],
+      "spell": 1287083
+    },
+    {
+      "boss": "The Twin Fangs",
+      "guid": "Player-1171-0B0ACDBC",
+      "name": "Wispless",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 283691,
+          "hits": 171,
+          "killing_blow_deaths": 0,
+          "pull": 445
+        },
+        {
+          "duration_ms": 497468,
+          "hits": 223,
+          "killing_blow_deaths": 0,
+          "pull": 446
+        },
+        {
+          "duration_ms": 462952,
+          "hits": 245,
+          "killing_blow_deaths": 0,
+          "pull": 447
+        },
+        {
+          "duration_ms": 476596,
+          "hits": 198,
+          "killing_blow_deaths": 1,
+          "pull": 448
+        },
+        {
+          "duration_ms": 504056,
+          "hits": 252,
+          "killing_blow_deaths": 1,
+          "pull": 449
+        },
+        {
+          "duration_ms": 467355,
+          "hits": 125,
+          "killing_blow_deaths": 0,
+          "pull": 450
+        },
+        {
+          "duration_ms": 460394,
+          "hits": 208,
+          "killing_blow_deaths": 2,
+          "pull": 451
+        },
+        {
+          "duration_ms": 445659,
+          "hits": 298,
+          "killing_blow_deaths": 0,
+          "pull": 452
+        }
+      ],
+      "spell": 1290480
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-1175-0FFC33AE",
+      "name": "Pixen",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 108,
+          "killing_blow_deaths": 1,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 272,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 75,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 173,
+          "killing_blow_deaths": 0,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 264,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 387846
+    },
+    {
+      "boss": "The Twin Fangs",
+      "guid": "Player-1175-0FFC33AE",
+      "name": "Pixen",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 283691,
+          "hits": 246,
+          "killing_blow_deaths": 0,
+          "pull": 445
+        },
+        {
+          "duration_ms": 497468,
+          "hits": 526,
+          "killing_blow_deaths": 0,
+          "pull": 446
+        },
+        {
+          "duration_ms": 462952,
+          "hits": 333,
+          "killing_blow_deaths": 0,
+          "pull": 447
+        },
+        {
+          "duration_ms": 476596,
+          "hits": 353,
+          "killing_blow_deaths": 0,
+          "pull": 448
+        },
+        {
+          "duration_ms": 504056,
+          "hits": 481,
+          "killing_blow_deaths": 0,
+          "pull": 449
+        },
+        {
+          "duration_ms": 467355,
+          "hits": 432,
+          "killing_blow_deaths": 1,
+          "pull": 450
+        },
+        {
+          "duration_ms": 460394,
+          "hits": 326,
+          "killing_blow_deaths": 0,
+          "pull": 451
+        },
+        {
+          "duration_ms": 445659,
+          "hits": 491,
+          "killing_blow_deaths": 0,
+          "pull": 452
+        }
+      ],
+      "spell": 387846
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-3676-0ABEDF88",
+      "name": "Roarsch\u00e4ch",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 52,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 77,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 47,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 78,
+          "killing_blow_deaths": 1,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 162,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "The Twin Fangs",
+      "guid": "Player-3678-0E20B334",
+      "name": "Strongwoman",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 283691,
+          "hits": 222,
+          "killing_blow_deaths": 0,
+          "pull": 445
+        },
+        {
+          "duration_ms": 497468,
+          "hits": 348,
+          "killing_blow_deaths": 1,
+          "pull": 446
+        },
+        {
+          "duration_ms": 462952,
+          "hits": 371,
+          "killing_blow_deaths": 1,
+          "pull": 447
+        },
+        {
+          "duration_ms": 476596,
+          "hits": 291,
+          "killing_blow_deaths": 1,
+          "pull": 448
+        },
+        {
+          "duration_ms": 504056,
+          "hits": 416,
+          "killing_blow_deaths": 0,
+          "pull": 449
+        },
+        {
+          "duration_ms": 467355,
+          "hits": 341,
+          "killing_blow_deaths": 0,
+          "pull": 450
+        },
+        {
+          "duration_ms": 460394,
+          "hits": 334,
+          "killing_blow_deaths": 0,
+          "pull": 451
+        },
+        {
+          "duration_ms": 445659,
+          "hits": 241,
+          "killing_blow_deaths": 0,
+          "pull": 452
+        }
+      ],
+      "spell": 1290480
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-3678-0E27CA8C",
+      "name": "Saveen\u00f3",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 69,
+          "killing_blow_deaths": 1,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 183,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 59,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 93,
+          "killing_blow_deaths": 1,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 198,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-3684-0E6EFE03",
+      "name": "Umbraz",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 62,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 113,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 54,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 90,
+          "killing_blow_deaths": 0,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 196,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-3693-0E34A82B",
+      "name": "Twistedfaith",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 62,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 152,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 47,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 82,
+          "killing_blow_deaths": 0,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 188,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-60-0E4C861C",
+      "name": "Creepitout",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 68,
+          "killing_blow_deaths": 1,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 190,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 59,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 96,
+          "killing_blow_deaths": 1,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 197,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "The Twin Fangs",
+      "guid": "Player-60-0EDD7543",
+      "name": "Dymitrius",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 283691,
+          "hits": 2,
+          "killing_blow_deaths": 0,
+          "pull": 445
+        },
+        {
+          "duration_ms": 497468,
+          "hits": 2,
+          "killing_blow_deaths": 0,
+          "pull": 446
+        },
+        {
+          "duration_ms": 462952,
+          "hits": 2,
+          "killing_blow_deaths": 1,
+          "pull": 447
+        },
+        {
+          "duration_ms": 476596,
+          "hits": 4,
+          "killing_blow_deaths": 1,
+          "pull": 448
+        },
+        {
+          "duration_ms": 504056,
+          "hits": 5,
+          "killing_blow_deaths": 1,
+          "pull": 449
+        },
+        {
+          "duration_ms": 467355,
+          "hits": 2,
+          "killing_blow_deaths": 0,
+          "pull": 450
+        },
+        {
+          "duration_ms": 460394,
+          "hits": 4,
+          "killing_blow_deaths": 0,
+          "pull": 451
+        },
+        {
+          "duration_ms": 445659,
+          "hits": 5,
+          "killing_blow_deaths": 0,
+          "pull": 452
+        }
+      ],
+      "spell": 1290662
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-60-0FD01AB6",
+      "name": "Bigj\u00edm",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 61,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 191,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 60,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 81,
+          "killing_blow_deaths": 0,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 95,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "The Twin Fangs",
+      "guid": "Player-60-0FF75E8B",
+      "name": "Pepsa",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 283691,
+          "hits": 232,
+          "killing_blow_deaths": 1,
+          "pull": 445
+        },
+        {
+          "duration_ms": 497468,
+          "hits": 323,
+          "killing_blow_deaths": 0,
+          "pull": 446
+        },
+        {
+          "duration_ms": 462952,
+          "hits": 401,
+          "killing_blow_deaths": 1,
+          "pull": 447
+        },
+        {
+          "duration_ms": 476596,
+          "hits": 428,
+          "killing_blow_deaths": 0,
+          "pull": 448
+        },
+        {
+          "duration_ms": 504056,
+          "hits": 414,
+          "killing_blow_deaths": 1,
+          "pull": 449
+        },
+        {
+          "duration_ms": 467355,
+          "hits": 405,
+          "killing_blow_deaths": 1,
+          "pull": 450
+        },
+        {
+          "duration_ms": 460394,
+          "hits": 317,
+          "killing_blow_deaths": 0,
+          "pull": 451
+        },
+        {
+          "duration_ms": 445659,
+          "hits": 413,
+          "killing_blow_deaths": 0,
+          "pull": 452
+        }
+      ],
+      "spell": 1290480
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-67-0FF8BB89",
+      "name": "Jentle",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 64,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 97,
+          "killing_blow_deaths": 0,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 58,
+          "killing_blow_deaths": 1,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 96,
+          "killing_blow_deaths": 1,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 193,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 1285965
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-76-0BE7FABE",
+      "name": "Sparfox",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 15,
+          "killing_blow_deaths": 0,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 53,
+          "killing_blow_deaths": 1,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 6,
+          "killing_blow_deaths": 0,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 27,
+          "killing_blow_deaths": 0,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 53,
+          "killing_blow_deaths": 1,
+          "pull": 444
+        }
+      ],
+      "spell": 1287205
+    },
+    {
+      "boss": "Sszorak",
+      "guid": "Player-77-0FE5C2F4",
+      "name": "Valendara",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 147085,
+          "hits": 102,
+          "killing_blow_deaths": 1,
+          "pull": 438
+        },
+        {
+          "duration_ms": 411678,
+          "hits": 202,
+          "killing_blow_deaths": 1,
+          "pull": 440
+        },
+        {
+          "duration_ms": 126278,
+          "hits": 0,
+          "killing_blow_deaths": 0,
+          "pull": 441
+        },
+        {
+          "duration_ms": 205423,
+          "hits": 174,
+          "killing_blow_deaths": 0,
+          "pull": 442
+        },
+        {
+          "duration_ms": 402790,
+          "hits": 284,
+          "killing_blow_deaths": 0,
+          "pull": 444
+        }
+      ],
+      "spell": 387846
+    },
+    {
+      "boss": "The Twin Fangs",
+      "guid": "Player-77-0FE5C2F4",
+      "name": "Valendara",
+      "raw_hits_fell_first_to_last": false,
+      "series": [
+        {
+          "duration_ms": 283691,
+          "hits": 345,
+          "killing_blow_deaths": 1,
+          "pull": 445
+        },
+        {
+          "duration_ms": 497468,
+          "hits": 409,
+          "killing_blow_deaths": 0,
+          "pull": 446
+        },
+        {
+          "duration_ms": 462952,
+          "hits": 467,
+          "killing_blow_deaths": 0,
+          "pull": 447
+        },
+        {
+          "duration_ms": 476596,
+          "hits": 432,
+          "killing_blow_deaths": 0,
+          "pull": 448
+        },
+        {
+          "duration_ms": 504056,
+          "hits": 472,
+          "killing_blow_deaths": 0,
+          "pull": 449
+        },
+        {
+          "duration_ms": 467355,
+          "hits": 628,
+          "killing_blow_deaths": 0,
+          "pull": 450
+        },
+        {
+          "duration_ms": 460394,
+          "hits": 420,
+          "killing_blow_deaths": 0,
+          "pull": 451
+        },
+        {
+          "duration_ms": 445659,
+          "hits": 390,
+          "killing_blow_deaths": 0,
+          "pull": 452
+        }
+      ],
+      "spell": 387846
+    }
+  ]
+}

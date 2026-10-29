@@ -1,0 +1,62 @@
+[
+  {
+    "id": "q01",
+    "question": "Why did Sszorak pull N wipe: what was the first thing that went wrong?",
+    "selection": "Sszorak pull 5, gold pull 440. It is the longest Sszorak wipe and has the most death events."
+  },
+  {
+    "id": "q02",
+    "question": "Were we improving across the Sszorak pulls, and on which mechanics?",
+    "selection": "All Sszorak pulls in log 30, gold pulls 436 through 444, including resets."
+  },
+  {
+    "id": "q03",
+    "question": "What changed between our last Twin Fangs wipe and the kill?",
+    "selection": "The last Twin Fangs wipe (pull 7, gold 451) and the kill (pull 8, gold 452)."
+  },
+  {
+    "id": "q04",
+    "question": "Who died first on pull N, to what, and was it avoidable?",
+    "selection": "Sszorak pull 5, gold pull 440, the same wipe as Q1."
+  },
+  {
+    "id": "q05",
+    "question": "For each death on the night: defensives on cooldown or sitting unused, and did a healthstone or potion get used?",
+    "selection": "All 18 encounter pulls in log 30, gold pulls 435 through 452. Exclude trash and events between encounters."
+  },
+  {
+    "id": "q06",
+    "question": "Did anyone die through a defensive or potion (the damage was simply too much)?",
+    "selection": "All 18 encounter pulls in log 30, gold pulls 435 through 452. Use a 10-second pre-death cast window and aura evidence."
+  },
+  {
+    "id": "q07",
+    "question": "Who took avoidable damage on Twin Fangs, which spells, and how many times per pull?",
+    "selection": "All eight Twin Fangs pulls in log 30, gold pulls 445 through 452."
+  },
+  {
+    "id": "q08",
+    "question": "Which casts on Sszorak went uninterrupted, and who was assigned or nearby?",
+    "selection": "All nine Sszorak pulls in log 30, gold pulls 436 through 444. Verify casts and interrupts from bronze, not interrupt silver."
+  },
+  {
+    "id": "q09",
+    "question": "Is there a spell that keeps hurting people that we haven't marked as a mechanic yet?",
+    "selection": "All 18 encounter pulls in log 30, gold pulls 435 through 452. Rank repeated unruled damage by total logged amount."
+  },
+  {
+    "id": "q10",
+    "question": "What is the one thing each player should fix for next week, as a private note per player?",
+    "selection": "All players in log 30 across gold pulls 435 through 452. Use a repeated killing blow as an investigation priority, not an automatic avoidable failure."
+  },
+  {
+    "id": "q11",
+    "question": "Which players improved on their worst mechanic over the night?",
+    "selection": "All log 30 pulls. Separate authored mechanic improvement from observed hit and killing-blow trends. Exclude sub-minute resets from hit comparisons."
+  },
+  {
+    "id": "q12",
+    "question": "As Mittwoch, what did I lose on pull N: deaths, downtime, wasted cooldowns?",
+    "selection": "Sszorak pull 5, gold pull 440. Search for Mittwoch by exact character identity; do not guess an alias."
+  }
+]

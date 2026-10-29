@@ -1,0 +1,1704 @@
+[
+  {
+    "aura_spell_ids": [
+      48707,
+      410358,
+      444741
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 60000,
+    "cast_spell_ids": [
+      48707,
+      410358,
+      444740
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 6,
+    "effect_kind": "absorb",
+    "key": "anti_magic_shell",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Anti-Magic Shell",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      250,
+      251,
+      252
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      48792
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      48792
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 6,
+    "effect_kind": "damage_reduction",
+    "key": "icebound_fortitude",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Icebound Fortitude",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      250,
+      251,
+      252
+    ],
+    "talent_entry_ids": [
+      96210
+    ],
+    "talent_spell_id": 48792,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      48743
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      48743
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 6,
+    "effect_kind": "instant_heal",
+    "key": "death_pact",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Death Pact",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      250,
+      251,
+      252
+    ],
+    "talent_entry_ids": [
+      96204
+    ],
+    "talent_spell_id": 48743,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      49039
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      49039
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 6,
+    "effect_kind": "damage_reduction",
+    "key": "lichborne",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Lichborne",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      250,
+      251,
+      252
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      55233
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 90000,
+    "cast_spell_ids": [
+      55233
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 6,
+    "effect_kind": "damage_reduction",
+    "key": "vampiric_blood",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Vampiric Blood",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      250
+    ],
+    "talent_entry_ids": [
+      96308
+    ],
+    "talent_spell_id": 55233,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      81256
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      49028
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 6,
+    "effect_kind": "damage_reduction",
+    "key": "dancing_rune_weapon",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Dancing Rune Weapon",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      250
+    ],
+    "talent_entry_ids": [
+      96269
+    ],
+    "talent_spell_id": 49028,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      145629
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 240000,
+    "cast_spell_ids": [
+      51052
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 6,
+    "effect_kind": "damage_reduction",
+    "key": "anti_magic_zone",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Anti-Magic Zone",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      250,
+      251,
+      252
+    ],
+    "talent_entry_ids": [
+      96194
+    ],
+    "talent_spell_id": 51052,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      212800
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 60000,
+    "cast_spell_ids": [
+      198589
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 12,
+    "effect_kind": "damage_reduction",
+    "key": "blur",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Blur",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      577
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      203819
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 20000,
+    "cast_spell_ids": [
+      203720
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 12,
+    "effect_kind": "damage_reduction",
+    "key": "demon_spikes",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Demon Spikes",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      581
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [],
+    "availability": "talent",
+    "base_cooldown_ms": 300000,
+    "cast_spell_ids": [
+      196718
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 12,
+    "effect_kind": "damage_reduction",
+    "key": "darkness",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Darkness",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      577
+    ],
+    "talent_entry_ids": [
+      112921
+    ],
+    "talent_spell_id": 196718,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      22812
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 60000,
+    "cast_spell_ids": [
+      22812
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 11,
+    "effect_kind": "damage_reduction",
+    "key": "barkskin",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Barkskin",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      102,
+      103,
+      104,
+      105
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      61336
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 180000,
+    "cast_spell_ids": [
+      61336
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 11,
+    "effect_kind": "damage_reduction",
+    "key": "survival_instincts",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Survival Instincts",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      104
+    ],
+    "talent_entry_ids": [
+      103180,
+      103193
+    ],
+    "talent_spell_id": 61336,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      22842
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 36000,
+    "cast_spell_ids": [
+      22842
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 11,
+    "effect_kind": "hot",
+    "key": "frenzied_regeneration",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Frenzied Regeneration",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      104
+    ],
+    "talent_entry_ids": [
+      103298
+    ],
+    "talent_spell_id": 22842,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      102342
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 90000,
+    "cast_spell_ids": [
+      102342
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 11,
+    "effect_kind": "damage_reduction",
+    "key": "ironbark",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Ironbark",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      105
+    ],
+    "talent_entry_ids": [
+      103141
+    ],
+    "talent_spell_id": 102342,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      363916
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 90000,
+    "cast_spell_ids": [
+      363916
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 13,
+    "effect_kind": "damage_reduction",
+    "key": "obsidian_scales",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Obsidian Scales",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      1467,
+      1468,
+      1473
+    ],
+    "talent_entry_ids": [
+      115613
+    ],
+    "talent_spell_id": 363916,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      374227
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      374227
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 13,
+    "effect_kind": "damage_reduction",
+    "key": "zephyr",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Zephyr",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      1467,
+      1468,
+      1473
+    ],
+    "talent_entry_ids": [
+      115661
+    ],
+    "talent_spell_id": 374227,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      357170
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 60000,
+    "cast_spell_ids": [
+      357170
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 13,
+    "effect_kind": "damage_reduction",
+    "key": "time_dilation",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Time Dilation",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      1468
+    ],
+    "talent_entry_ids": [
+      115650
+    ],
+    "talent_spell_id": 357170,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      186265
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 180000,
+    "cast_spell_ids": [
+      186265
+    ],
+    "category": "immunity",
+    "charges": 1,
+    "class_id": 3,
+    "effect_kind": "immunity",
+    "key": "aspect_of_the_turtle",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Aspect of the Turtle",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      253,
+      254,
+      255
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      264735
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 90000,
+    "cast_spell_ids": [
+      264735
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 3,
+    "effect_kind": "damage_reduction",
+    "key": "survival_of_the_fittest",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Survival of the Fittest",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      253,
+      254,
+      255
+    ],
+    "talent_entry_ids": [
+      126488
+    ],
+    "talent_spell_id": 264735,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [],
+    "availability": "baseline",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      109304
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 3,
+    "effect_kind": "instant_heal",
+    "key": "exhilaration",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Exhilaration",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      253,
+      254,
+      255
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      45438
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 240000,
+    "cast_spell_ids": [
+      45438
+    ],
+    "category": "immunity",
+    "charges": 1,
+    "class_id": 8,
+    "effect_kind": "immunity",
+    "key": "ice_block",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Ice Block",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      62,
+      63,
+      64
+    ],
+    "talent_entry_ids": [
+      80181
+    ],
+    "talent_spell_id": 45438,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      110960
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      110959
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 8,
+    "effect_kind": "damage_reduction",
+    "key": "greater_invisibility",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Greater Invisibility",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      62
+    ],
+    "talent_entry_ids": [
+      115877
+    ],
+    "talent_spell_id": 110959,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      235450
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 30000,
+    "cast_spell_ids": [
+      235450
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 8,
+    "effect_kind": "absorb",
+    "key": "prismatic_barrier",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Prismatic Barrier",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      62
+    ],
+    "talent_entry_ids": [
+      80180
+    ],
+    "talent_spell_id": 235450,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      11426
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 30000,
+    "cast_spell_ids": [
+      11426
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 8,
+    "effect_kind": "absorb",
+    "key": "ice_barrier",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Ice Barrier",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      64
+    ],
+    "talent_entry_ids": [
+      80176
+    ],
+    "talent_spell_id": 11426,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      342246
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 60000,
+    "cast_spell_ids": [
+      342245
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 8,
+    "effect_kind": "instant_heal",
+    "key": "alter_time",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Alter Time",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      62,
+      63,
+      64
+    ],
+    "talent_entry_ids": [
+      80174
+    ],
+    "talent_spell_id": 342245,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      120954
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 360000,
+    "cast_spell_ids": [
+      115203
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 10,
+    "effect_kind": "damage_reduction",
+    "key": "fortifying_brew",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Fortifying Brew",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      268,
+      269,
+      270
+    ],
+    "talent_entry_ids": [
+      124968
+    ],
+    "talent_spell_id": 115203,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      122470,
+      124280,
+      125174
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 90000,
+    "cast_spell_ids": [
+      122470
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 10,
+    "effect_kind": "absorb",
+    "key": "touch_of_karma",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Touch of Karma",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      269
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      642,
+      1246384
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 300000,
+    "cast_spell_ids": [
+      642
+    ],
+    "category": "immunity",
+    "charges": 1,
+    "class_id": 2,
+    "effect_kind": "immunity",
+    "key": "divine_shield",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Divine Shield",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      65,
+      66,
+      70
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      498,
+      403876
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 60000,
+    "cast_spell_ids": [
+      498,
+      403876
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 2,
+    "effect_kind": "damage_reduction",
+    "key": "divine_protection",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Divine Protection",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      65,
+      66,
+      70
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      31850
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 90000,
+    "cast_spell_ids": [
+      31850
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 2,
+    "effect_kind": "damage_reduction",
+    "key": "ardent_defender",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Ardent Defender",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      66
+    ],
+    "talent_entry_ids": [
+      102445
+    ],
+    "talent_spell_id": 31850,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      86659,
+      393108
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 180000,
+    "cast_spell_ids": [
+      86659
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 2,
+    "effect_kind": "damage_reduction",
+    "key": "guardian_of_ancient_kings",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Guardian of Ancient Kings",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      66
+    ],
+    "talent_entry_ids": [
+      102456
+    ],
+    "talent_spell_id": 86659,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      1022
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 300000,
+    "cast_spell_ids": [
+      1022
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 2,
+    "effect_kind": "immunity",
+    "key": "blessing_of_protection",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Blessing of Protection",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      65,
+      66,
+      70
+    ],
+    "talent_entry_ids": [
+      102604
+    ],
+    "talent_spell_id": 1022,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      204018
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 300000,
+    "cast_spell_ids": [
+      204018
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 2,
+    "effect_kind": "immunity",
+    "key": "blessing_of_spellwarding",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Blessing of Spellwarding",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      66
+    ],
+    "talent_entry_ids": [
+      111886
+    ],
+    "talent_spell_id": 204018,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      6940
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      6940
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 2,
+    "effect_kind": "damage_reduction",
+    "key": "blessing_of_sacrifice",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Blessing of Sacrifice",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      65,
+      66,
+      70
+    ],
+    "talent_entry_ids": [
+      102602
+    ],
+    "talent_spell_id": 6940,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      19236
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 90000,
+    "cast_spell_ids": [
+      19236
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 5,
+    "effect_kind": "instant_heal",
+    "key": "desperate_prayer",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Desperate Prayer",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      256,
+      257,
+      258
+    ],
+    "talent_entry_ids": [
+      134846
+    ],
+    "talent_spell_id": 19236,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      47585
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      47585
+    ],
+    "category": "immunity",
+    "charges": 1,
+    "class_id": 5,
+    "effect_kind": "damage_reduction",
+    "key": "dispersion",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Dispersion",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      258
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      33206
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 180000,
+    "cast_spell_ids": [
+      33206
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 5,
+    "effect_kind": "damage_reduction",
+    "key": "pain_suppression",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Pain Suppression",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      256
+    ],
+    "talent_entry_ids": [
+      103713
+    ],
+    "talent_spell_id": 33206,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      47788
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 180000,
+    "cast_spell_ids": [
+      47788
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 5,
+    "effect_kind": "damage_reduction",
+    "key": "guardian_spirit",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Guardian Spirit",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      257
+    ],
+    "talent_entry_ids": [
+      103774
+    ],
+    "talent_spell_id": 47788,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      1966
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 15000,
+    "cast_spell_ids": [
+      1966
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 4,
+    "effect_kind": "damage_reduction",
+    "key": "feint",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Feint",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      259,
+      260,
+      261
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      31224
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      31224
+    ],
+    "category": "immunity",
+    "charges": 1,
+    "class_id": 4,
+    "effect_kind": "immunity",
+    "key": "cloak_of_shadows",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Cloak of Shadows",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      259,
+      260,
+      261
+    ],
+    "talent_entry_ids": [
+      112585
+    ],
+    "talent_spell_id": 31224,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      5277
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      5277
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 4,
+    "effect_kind": "damage_reduction",
+    "key": "evasion",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Evasion",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      259,
+      260,
+      261
+    ],
+    "talent_entry_ids": [
+      112654
+    ],
+    "talent_spell_id": 5277,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      185311
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 30000,
+    "cast_spell_ids": [
+      185311
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 4,
+    "effect_kind": "hot",
+    "key": "crimson_vial",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Crimson Vial",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      259,
+      260,
+      261
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      108271
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      108271
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 7,
+    "effect_kind": "damage_reduction",
+    "key": "astral_shift",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Astral Shift",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      262,
+      263,
+      264
+    ],
+    "talent_entry_ids": [
+      127893
+    ],
+    "talent_spell_id": 108271,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      198103
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 180000,
+    "cast_spell_ids": [
+      198103
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 7,
+    "effect_kind": "damage_reduction",
+    "key": "earth_elemental",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Earth Elemental",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      262,
+      263,
+      264
+    ],
+    "talent_entry_ids": [
+      127858
+    ],
+    "talent_spell_id": 198103,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      104773
+    ],
+    "availability": "baseline",
+    "base_cooldown_ms": 180000,
+    "cast_spell_ids": [
+      104773
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 9,
+    "effect_kind": "damage_reduction",
+    "key": "unending_resolve",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Unending Resolve",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      265,
+      266,
+      267
+    ],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      108416
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 60000,
+    "cast_spell_ids": [
+      108416
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 9,
+    "effect_kind": "absorb",
+    "key": "dark_pact",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Dark Pact",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      265,
+      266,
+      267
+    ],
+    "talent_entry_ids": [
+      91444
+    ],
+    "talent_spell_id": 108416,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      23920,
+      385391
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 25000,
+    "cast_spell_ids": [
+      23920
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 1,
+    "effect_kind": "damage_reduction",
+    "key": "spell_reflection",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Spell Reflection",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      71,
+      72,
+      73
+    ],
+    "talent_entry_ids": [
+      112253
+    ],
+    "talent_spell_id": 23920,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      118038
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      118038
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 1,
+    "effect_kind": "damage_reduction",
+    "key": "die_by_the_sword",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Die by the Sword",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      71
+    ],
+    "talent_entry_ids": [
+      112121
+    ],
+    "talent_spell_id": 118038,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      184364
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 120000,
+    "cast_spell_ids": [
+      184364
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 1,
+    "effect_kind": "hot",
+    "key": "enraged_regeneration",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Enraged Regeneration",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      72
+    ],
+    "talent_entry_ids": [
+      112264
+    ],
+    "talent_spell_id": 184364,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      871
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 180000,
+    "cast_spell_ids": [
+      871
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 1,
+    "effect_kind": "damage_reduction",
+    "key": "shield_wall",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Shield Wall",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      73
+    ],
+    "talent_entry_ids": [
+      112156
+    ],
+    "talent_spell_id": 871,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      190456
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 1000,
+    "cast_spell_ids": [
+      190456
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 1,
+    "effect_kind": "absorb",
+    "key": "ignore_pain",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Ignore Pain",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      73
+    ],
+    "talent_entry_ids": [
+      112149
+    ],
+    "talent_spell_id": 190456,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [],
+    "availability": "talent",
+    "base_cooldown_ms": 25000,
+    "cast_spell_ids": [
+      202168
+    ],
+    "category": "personal",
+    "charges": 1,
+    "class_id": 1,
+    "effect_kind": "instant_heal",
+    "key": "impending_victory",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Impending Victory",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      71,
+      72,
+      73
+    ],
+    "talent_entry_ids": [
+      112183
+    ],
+    "talent_spell_id": 202168,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [
+      97463
+    ],
+    "availability": "talent",
+    "base_cooldown_ms": 180000,
+    "cast_spell_ids": [
+      97462
+    ],
+    "category": "external",
+    "charges": 1,
+    "class_id": 1,
+    "effect_kind": "damage_reduction",
+    "key": "rallying_cry",
+    "kind": "defensive",
+    "max_uses_per_combat": null,
+    "name": "Rallying Cry",
+    "shared_cooldown_group": null,
+    "spec_ids": [
+      71,
+      72,
+      73
+    ],
+    "talent_entry_ids": [
+      112188
+    ],
+    "talent_spell_id": 97462,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [],
+    "availability": "baseline",
+    "base_cooldown_ms": 60000,
+    "cast_spell_ids": [
+      6262,
+      452930
+    ],
+    "category": "consumable",
+    "charges": 1,
+    "class_id": null,
+    "effect_kind": "instant_heal",
+    "key": "healthstone",
+    "kind": "healthstone",
+    "max_uses_per_combat": 1,
+    "name": "Healthstone",
+    "shared_cooldown_group": "healthstone",
+    "spec_ids": [],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [],
+    "availability": "baseline",
+    "base_cooldown_ms": 300000,
+    "cast_spell_ids": [
+      1262857
+    ],
+    "category": "consumable",
+    "charges": 1,
+    "class_id": null,
+    "effect_kind": "instant_heal",
+    "key": "potent_healing_potion",
+    "kind": "health_potion",
+    "max_uses_per_combat": 1,
+    "name": "Potent Healing Potion",
+    "shared_cooldown_group": "combat_potion",
+    "spec_ids": [],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  },
+  {
+    "aura_spell_ids": [],
+    "availability": "baseline",
+    "base_cooldown_ms": 300000,
+    "cast_spell_ids": [
+      1234768
+    ],
+    "category": "consumable",
+    "charges": 1,
+    "class_id": null,
+    "effect_kind": "instant_heal",
+    "key": "silvermoon_health_potion",
+    "kind": "health_potion",
+    "max_uses_per_combat": 1,
+    "name": "Silvermoon Health Potion",
+    "shared_cooldown_group": "combat_potion",
+    "spec_ids": [],
+    "talent_entry_ids": null,
+    "talent_spell_id": null,
+    "verified_retail": {
+      "build_major": 12,
+      "project_id": 1
+    }
+  }
+]
