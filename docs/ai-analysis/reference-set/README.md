@@ -43,7 +43,7 @@ Compare the JSON line from that output with `survival-catalog.json`. The catalog
 2. Confirm the selected pulls in `index.md`. Change `questions.json` and the answer together if you choose a different pull.
 3. Check causal and coaching statements as inference. No failure facts exist for this night in this snapshot. No active-ruleset criterion applies to these bosses. Archived seed criteria do not establish active coverage.
 4. Check Q5, Q6, and Q8 against the original bronze offsets. Q5 lists observed uses, not invented ready or unused cooldowns. Q6 distinguishes an open aura at the damage timestamp from a recent cast. Q8 does not turn every completed boss ability into a missed kick.
-5. Resolve Q12's identity gap only with the operator. Mittwoch is absent from the imported roster. Do not silently substitute a warlock or another character.
+5. Q12 targets the operator's character, set by `OWN_CHARACTER` in `analysis_reference.py` (Wispless for Sept 6). Change it only on the operator's word; never infer the character from class or the project character list.
 6. Record reviewer, date, corrections, and approved scope in `index.md`. Retain the reviewed reference revision with the baseline artifacts.
 
 The Python extractor is a focused reference query, not a replacement combat-log parser. It reads the common CSV event prefix, spell IDs, interrupt extra-spell IDs, and the existing advanced damage block's unit HP fields. Spell names come from the log. Milliseconds use the original wall-clock origin at each gold start byte; timezone offsets are not applied a second time. Boss HP is the minimum observed valid boss-named sample, not necessarily the exact final percentage. An absent sample stays unknown.

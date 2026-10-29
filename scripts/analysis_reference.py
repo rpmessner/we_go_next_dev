@@ -11,6 +11,9 @@ import json
 from pathlib import Path
 import re
 
+# The operator's character in the Sept 6 log (Q12), confirmed on we-xf4.8.
+OWN_CHARACTER = 'Wispless'
+
 
 def wall_ms(timestamp):
     wall = re.sub(r'[+-]\d+(?::\d+)?$', '', timestamp)
@@ -229,7 +232,7 @@ def evidence(snapshot, events, names, health, catalog):
                   e['type'] == 'SPELL_CAST_SUCCESS' and e['source'].startswith('Player-') and
                   e['spell'] in {s for a in catalog for s in a['cast_spell_ids']}]
     survival_counts = Counter((e['pull'], e['spell'], e['name']) for e in pair_casts)
-    own_guids = {p['guid'] for p in snapshot['players'] if p['name'].split('-')[0] == 'Mittwoch'}
+    own_guids = {p['guid'] for p in snapshot['players'] if p['name'].split('-')[0] == OWN_CHARACTER}
     own_casts = [e for e in events if e['pull'] == chosen['id'] and
                  e['source'] in own_guids and e['type'] == 'SPELL_CAST_SUCCESS']
     gaps = [{'from_ms': a['ms'], 'to_ms': b['ms'], 'gap_ms': b['ms'] - a['ms'],
