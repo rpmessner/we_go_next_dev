@@ -15,7 +15,7 @@ unless build =~ "const optimize: std.builtin.OptimizeMode = .ReleaseSafe;" do
   raise "CombatLogParser must build in ReleaseSafe (#{Mix.env()})"
 end
 
-for {name, arity} <- [{"parse_events", 4}, {"scan_boundaries", 2}] do
+for {name, arity} <- [{"parse_events", 4}, {"scan_boundaries", 2}, {"parse_events_filtered", 5}] do
   pattern =
     ~r/\.name = "#{name}", \.arity = #{arity}, \.fptr = #{name}, \.flags = e\.ERL_NIF_DIRTY_JOB_CPU_BOUND/
 
@@ -24,4 +24,4 @@ for {name, arity} <- [{"parse_events", 4}, {"scan_boundaries", 2}] do
   end
 end
 
-IO.puts("#{Mix.env()}: ReleaseSafe and dirty CPU registration for both parse NIFs PASS")
+IO.puts("#{Mix.env()}: ReleaseSafe and dirty CPU registration for all three parse NIFs PASS")
