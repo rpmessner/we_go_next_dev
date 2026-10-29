@@ -1,0 +1,553 @@
+{
+  "notes": [
+    {
+      "death_events": 14,
+      "evidence": [
+        {
+          "ms": 127000,
+          "pull": 438
+        },
+        {
+          "ms": 196359,
+          "pull": 440
+        },
+        {
+          "ms": 121229,
+          "pull": 441
+        },
+        {
+          "ms": 203363,
+          "pull": 442
+        },
+        {
+          "ms": 452398,
+          "pull": 448
+        }
+      ],
+      "fatal_count": 5,
+      "focus_spell": 387846,
+      "guid": "Player-11-0EB97A9E",
+      "name": "Felthuzad",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Fel Armor"
+    },
+    {
+      "death_events": 13,
+      "evidence": [
+        {
+          "ms": 134024,
+          "pull": 438
+        },
+        {
+          "ms": 122183,
+          "pull": 441
+        }
+      ],
+      "fatal_count": 2,
+      "focus_spell": 1285965,
+      "guid": "Player-1171-069A3241",
+      "name": "Zazi",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 14,
+      "evidence": [
+        {
+          "ms": 22308,
+          "pull": 439
+        },
+        {
+          "ms": 122197,
+          "pull": 441
+        },
+        {
+          "ms": 27819,
+          "pull": 443
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1285965,
+      "guid": "Player-1171-0A34A5C5",
+      "name": "Kahnu",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 13,
+      "evidence": [
+        {
+          "ms": 11072,
+          "pull": 439
+        },
+        {
+          "ms": 411295,
+          "pull": 440
+        },
+        {
+          "ms": 200389,
+          "pull": 442
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1285965,
+      "guid": "Player-1171-0A9AD785",
+      "name": "Frostygnome",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 11,
+      "evidence": [
+        {
+          "ms": 126906,
+          "pull": 438
+        },
+        {
+          "ms": 389759,
+          "pull": 440
+        },
+        {
+          "ms": 110723,
+          "pull": 441
+        },
+        {
+          "ms": 202066,
+          "pull": 442
+        }
+      ],
+      "fatal_count": 4,
+      "focus_spell": 1287205,
+      "guid": "Player-1171-0AC0B593",
+      "name": "Belprie",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Viscous Cyst"
+    },
+    {
+      "death_events": 15,
+      "evidence": [
+        {
+          "ms": 490783,
+          "pull": 446
+        },
+        {
+          "ms": 309652,
+          "pull": 447
+        },
+        {
+          "ms": 319913,
+          "pull": 450
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1290480,
+      "guid": "Player-1171-0ACD1EFC",
+      "name": "Omeggon",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Eternal Venom"
+    },
+    {
+      "death_events": 13,
+      "evidence": [
+        {
+          "ms": 202976,
+          "pull": 442
+        },
+        {
+          "ms": 8631,
+          "pull": 443
+        }
+      ],
+      "fatal_count": 2,
+      "focus_spell": 1277101,
+      "guid": "Player-1171-0AE668C6",
+      "name": "Zuthere",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ravage"
+    },
+    {
+      "death_events": 14,
+      "evidence": [
+        {
+          "ms": 118823,
+          "pull": 441
+        },
+        {
+          "ms": 200376,
+          "pull": 442
+        },
+        {
+          "ms": 28118,
+          "pull": 443
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1285965,
+      "guid": "Player-1171-0AFC0EE7",
+      "name": "Provibria",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 22,
+      "evidence": [
+        {
+          "ms": 91983,
+          "pull": 440
+        },
+        {
+          "ms": 171398,
+          "pull": 440
+        },
+        {
+          "ms": 56842,
+          "pull": 441
+        },
+        {
+          "ms": 77141,
+          "pull": 441
+        },
+        {
+          "ms": 97646,
+          "pull": 441
+        },
+        {
+          "ms": 20463,
+          "pull": 444
+        }
+      ],
+      "fatal_count": 6,
+      "focus_spell": 1287083,
+      "guid": "Player-1171-0B076010",
+      "name": "M\u00e4dz",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Tempest"
+    },
+    {
+      "death_events": 16,
+      "evidence": [
+        {
+          "ms": 282907,
+          "pull": 448
+        },
+        {
+          "ms": 379147,
+          "pull": 449
+        },
+        {
+          "ms": 215214,
+          "pull": 451
+        },
+        {
+          "ms": 453721,
+          "pull": 451
+        }
+      ],
+      "fatal_count": 4,
+      "focus_spell": 1290480,
+      "guid": "Player-1171-0B0ACDBC",
+      "name": "Wispless",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Eternal Venom"
+    },
+    {
+      "death_events": 15,
+      "evidence": [
+        {
+          "ms": 126624,
+          "pull": 438
+        },
+        {
+          "ms": 120151,
+          "pull": 441
+        },
+        {
+          "ms": 454449,
+          "pull": 450
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 387846,
+      "guid": "Player-1175-0FFC33AE",
+      "name": "Pixen",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Fel Armor"
+    },
+    {
+      "death_events": 14,
+      "evidence": [
+        {
+          "ms": 16006,
+          "pull": 439
+        },
+        {
+          "ms": 122252,
+          "pull": 441
+        },
+        {
+          "ms": 205092,
+          "pull": 442
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1285965,
+      "guid": "Player-3676-0ABEDF88",
+      "name": "Roarsch\u00e4ch",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 15,
+      "evidence": [
+        {
+          "ms": 447138,
+          "pull": 446
+        },
+        {
+          "ms": 462118,
+          "pull": 447
+        },
+        {
+          "ms": 385615,
+          "pull": 448
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1290480,
+      "guid": "Player-3678-0E20B334",
+      "name": "Strongwoman",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Eternal Venom"
+    },
+    {
+      "death_events": 15,
+      "evidence": [
+        {
+          "ms": 144806,
+          "pull": 438
+        },
+        {
+          "ms": 122366,
+          "pull": 441
+        },
+        {
+          "ms": 194055,
+          "pull": 442
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1285965,
+      "guid": "Player-3678-0E27CA8C",
+      "name": "Saveen\u00f3",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 14,
+      "evidence": [
+        {
+          "ms": 10474,
+          "pull": 439
+        },
+        {
+          "ms": 121434,
+          "pull": 441
+        },
+        {
+          "ms": 18323,
+          "pull": 443
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1285965,
+      "guid": "Player-3684-0E6EFE03",
+      "name": "Umbraz",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 13,
+      "evidence": [
+        {
+          "ms": 24506,
+          "pull": 439
+        },
+        {
+          "ms": 120123,
+          "pull": 441
+        }
+      ],
+      "fatal_count": 2,
+      "focus_spell": 1285965,
+      "guid": "Player-3693-0E34A82B",
+      "name": "Twistedfaith",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 14,
+      "evidence": [
+        {
+          "ms": 139384,
+          "pull": 438
+        },
+        {
+          "ms": 29415,
+          "pull": 439
+        },
+        {
+          "ms": 122662,
+          "pull": 441
+        },
+        {
+          "ms": 200734,
+          "pull": 442
+        }
+      ],
+      "fatal_count": 4,
+      "focus_spell": 1285965,
+      "guid": "Player-60-0E4C861C",
+      "name": "Creepitout",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 12,
+      "evidence": [
+        {
+          "ms": 71138,
+          "pull": 447
+        },
+        {
+          "ms": 239020,
+          "pull": 448
+        },
+        {
+          "ms": 306865,
+          "pull": 449
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1290662,
+      "guid": "Player-60-0EDD7543",
+      "name": "Dymitrius",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ravenous Feast"
+    },
+    {
+      "death_events": 15,
+      "evidence": [
+        {
+          "ms": 122252,
+          "pull": 441
+        },
+        {
+          "ms": 25919,
+          "pull": 443
+        }
+      ],
+      "fatal_count": 2,
+      "focus_spell": 1285965,
+      "guid": "Player-60-0FD01AB6",
+      "name": "Bigj\u00edm",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 15,
+      "evidence": [
+        {
+          "ms": 262611,
+          "pull": 445
+        },
+        {
+          "ms": 447135,
+          "pull": 447
+        },
+        {
+          "ms": 496398,
+          "pull": 449
+        },
+        {
+          "ms": 446814,
+          "pull": 450
+        }
+      ],
+      "fatal_count": 4,
+      "focus_spell": 1290480,
+      "guid": "Player-60-0FF75E8B",
+      "name": "Pepsa",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Eternal Venom"
+    },
+    {
+      "death_events": 14,
+      "evidence": [
+        {
+          "ms": 12773,
+          "pull": 439
+        },
+        {
+          "ms": 121001,
+          "pull": 441
+        },
+        {
+          "ms": 192025,
+          "pull": 442
+        }
+      ],
+      "fatal_count": 3,
+      "focus_spell": 1285965,
+      "guid": "Player-67-0FF8BB89",
+      "name": "Jentle",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Ula'tek's Presence"
+    },
+    {
+      "death_events": 9,
+      "evidence": [
+        {
+          "ms": 391237,
+          "pull": 440
+        },
+        {
+          "ms": 58255,
+          "pull": 444
+        }
+      ],
+      "fatal_count": 2,
+      "focus_spell": 1287205,
+      "guid": "Player-76-0BE7FABE",
+      "name": "Sparfox",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Viscous Cyst"
+    },
+    {
+      "death_events": 12,
+      "evidence": [
+        {
+          "ms": 127034,
+          "pull": 438
+        },
+        {
+          "ms": 18372,
+          "pull": 439
+        },
+        {
+          "ms": 255918,
+          "pull": 440
+        },
+        {
+          "ms": 263896,
+          "pull": 445
+        }
+      ],
+      "fatal_count": 4,
+      "focus_spell": 387846,
+      "guid": "Player-77-0FE5C2F4",
+      "name": "Valendara",
+      "note": "Review the damage window for this repeated killing blow; agree a positioning or mitigation plan with the raid lead. This is an investigation priority, not proof of avoidability.",
+      "spell_name": "Fel Armor"
+    }
+  ]
+}

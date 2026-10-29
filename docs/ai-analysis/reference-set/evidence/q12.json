@@ -1,0 +1,51 @@
+{
+  "cast_counts": {},
+  "cast_gaps_at_least_5s": [],
+  "deaths": [],
+  "guids": [],
+  "pull": {
+    "boss": "Sszorak",
+    "death_events": 27,
+    "duration_ms": 411678,
+    "failure_rows": [],
+    "minimum_observed_boss_hp": {
+      "byte": 232588883,
+      "guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+      "hp": 145386012,
+      "max_hp": 820998900,
+      "ms": 411663,
+      "pct": 17.708,
+      "timestamp": "9/6/2026 11:40:12.602-4"
+    },
+    "number": 5,
+    "pull": 440,
+    "success": false
+  },
+  "roster": [
+    "Belprie",
+    "Bigj\u00edm",
+    "Creepitout",
+    "Dymitrius",
+    "Felthuzad",
+    "Frostygnome",
+    "Jentle",
+    "Kahnu",
+    "M\u00e4dz",
+    "Omeggon",
+    "Pepsa",
+    "Pixen",
+    "Provibria",
+    "Roarsch\u00e4ch",
+    "Saveen\u00f3",
+    "Sparfox",
+    "Strongwoman",
+    "Twistedfaith",
+    "Umbraz",
+    "Valendara",
+    "Wispless",
+    "Zazi",
+    "Zuthere",
+    "__UNKNOWN_PLAYER__"
+  ],
+  "survival": []
+}
