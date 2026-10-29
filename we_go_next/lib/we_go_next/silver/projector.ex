@@ -48,7 +48,7 @@ defmodule WeGoNext.Silver.Projector do
     %Projection{
       damage_taken: project_damage_taken(encounter_dim_id, events),
       damage_taken_event: project_damage_taken_events(encounter_dim_id, indexed_events),
-      damage_done: project_damage_done(encounter_dim_id, events),
+      damage_done: project_damage_done(encounter_dim_id, events, pet_owner_map(events)),
       death: project_deaths(encounter_dim_id, events, survival_action, death_window_ms),
       interrupt_opportunity: project_interrupt_opportunities(encounter_dim_id, events),
       debuff_application: project_debuff_applications(encounter_dim_id, events),
@@ -146,14 +146,57 @@ defmodule WeGoNext.Silver.Projector do
     }
   end
 
-  defp project_damage_done(encounter_dim_id, events) do
+  # Pets and guardians log damage under their own GUID. Their owning player is
+  # recoverable from two places: SPELL_SUMMON (player summons the unit during
+  # the encounter — wild imps, Xuen, Grimoire pets) and the advanced-block
+  # owner GUID the parser surfaces on pet melee hits (covers permanent pets
+  # summoned before the pull, which log no SPELL_SUMMON in the encounter
+  # slice). Built as a full pass before aggregation so a pet's early spell
+  # hits attribute even when the owning evidence appears later in the stream.
+  defp pet_owner_map(events) do
+    Enum.reduce(events, %{}, fn event, acc ->
+      source_guid = event_value(event, :source_guid)
+      target_guid = event_value(event, :target_guid)
+      owner_guid = event_value(event, :owner_guid)
+
+      cond do
+        event_type(event) == "SPELL_SUMMON" and player_guid?(source_guid) and
+            is_binary(target_guid) ->
+          Map.put(acc, target_guid, source_guid)
+
+        player_guid?(owner_guid) and is_binary(source_guid) and not player_guid?(source_guid) ->
+          Map.put_new(acc, source_guid, owner_guid)
+
+        true ->
+          acc
+      end
+    end)
+  end
+
+  # Damage a player did directly, or that a pet the player owns did.
+  defp damage_done_source_guid(event, pet_owners) do
+    source_guid = event_value(event, :source_guid)
+
+    if player_guid?(source_guid) do
+      source_guid
+    else
+      Map.get(pet_owners, source_guid)
+    end
+  end
+
+  defp project_damage_done(encounter_dim_id, events, pet_owners) do
     events
     |> Enum.filter(&(event_type(&1) in @damage_done_types))
-    |> Enum.filter(
-      &(player_guid?(event_value(&1, :source_guid)) and npc_guid?(event_value(&1, :target_guid)))
-    )
-    |> Enum.reduce(%{}, fn event, acc ->
-      source_guid = normalize_guid(event_value(event, :source_guid), @unknown_source_guid)
+    |> Enum.flat_map(fn event ->
+      source_guid = damage_done_source_guid(event, pet_owners)
+
+      if is_binary(source_guid) and npc_guid?(event_value(event, :target_guid)) do
+        [{source_guid, event}]
+      else
+        []
+      end
+    end)
+    |> Enum.reduce(%{}, fn {source_guid, event}, acc ->
       target_guid = normalize_guid(event_value(event, :target_guid), @unknown_target_guid)
       spell_id = normalize_spell_id(event_value(event, :spell_id))
       amount = non_negative_integer(event_value(event, :amount))

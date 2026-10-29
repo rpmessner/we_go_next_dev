@@ -348,6 +348,21 @@ Issue tracking lives **in-repo via [beads](https://github.com/steveyegge/beads) 
 - `UNIT_DIED` - Deaths with cause analysis
 - `SWING_DAMAGE`, `SPELL_PERIODIC_DAMAGE` - Damage patterns
 
+### Advanced-block semantics and pet attribution (verified on live 12.x logs)
+
+- The 19-field advanced block (`infoGUID, ownerGUID, hp, maxhp, ...`) pertains
+  to the **source** on `SWING_DAMAGE` but to the **target** on
+  `SPELL_DAMAGE`/`SPELL_PERIODIC_DAMAGE`/`RANGE_DAMAGE`. Only pet *melee* lines
+  carry the owning player's GUID; pet *spell* lines do not.
+- Pet/guardian damage-done attribution therefore needs two evidence sources,
+  combined in a full pass before aggregation (`Silver.Projector.pet_owner_map/1`):
+  `SPELL_SUMMON` (mid-encounter summons — wild imps, Xuen, Grimoire pets) and
+  swing-line `ownerGUID` (permanent pets summoned before the pull, which log no
+  `SPELL_SUMMON` in the encounter slice). Both paths together attributed 100%
+  of pet damage on a real Twin Fangs pull; unattributable pet damage is dropped.
+- The Zig NIF emits `owner_guid` only when `infoGUID == source_guid` and the
+  owner is a `Player-` GUID (`priv/native/combat_log_parser.zig`).
+
 ### Tech Stack
 
 - **Backend**: Elixir (streams, pattern matching, fault tolerance)

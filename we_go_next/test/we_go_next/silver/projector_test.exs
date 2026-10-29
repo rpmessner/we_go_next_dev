@@ -772,4 +772,100 @@ defmodule WeGoNext.Silver.ProjectorTest do
              }
            ] = projection.damage_taken
   end
+
+  test "attributes pet and summoned-guardian damage done to the owning player" do
+    projection =
+      Projector.project(@encounter_dim_id, [
+        # Pet spell hit BEFORE the swing that names the owner: the owner map
+        # is built in a full pass, so early spell hits still attribute.
+        CombatLogEventFixtures.spell_damage_event(
+          time_into_fight: 1.0,
+          source_guid: "Pet-Felguard",
+          source_name: "Skreetom",
+          target_guid: "Creature-Boss",
+          target_name: "Boss",
+          spell_id: 89_753,
+          spell_name: "Felstorm",
+          amount: 1_500
+        ),
+        CombatLogEventFixtures.swing_damage_event(
+          time_into_fight: 2.0,
+          source_guid: "Pet-Felguard",
+          source_name: "Skreetom",
+          target_guid: "Creature-Boss",
+          target_name: "Boss",
+          owner_guid: "Player-Warlock",
+          amount: 2_000
+        ),
+        CombatLogEventFixtures.spell_summon_event(
+          time_into_fight: 3.0,
+          source_guid: "Player-Warlock",
+          source_name: "Warlock-Realm",
+          target_guid: "Creature-Imp",
+          target_name: "Wild Imp",
+          spell_id: 104_317,
+          spell_name: "Call Wild Imp"
+        ),
+        CombatLogEventFixtures.spell_damage_event(
+          time_into_fight: 4.0,
+          source_guid: "Creature-Imp",
+          source_name: "Wild Imp",
+          target_guid: "Creature-Boss",
+          target_name: "Boss",
+          spell_id: 104_318,
+          spell_name: "Fel Firebolt",
+          amount: 700
+        ),
+        # Owner's own damage aggregates alongside pet damage, same source key.
+        CombatLogEventFixtures.spell_damage_event(
+          time_into_fight: 5.0,
+          source_guid: "Player-Warlock",
+          source_name: "Warlock-Realm",
+          target_guid: "Creature-Boss",
+          target_name: "Boss",
+          spell_id: 686,
+          spell_name: "Shadow Bolt",
+          amount: 3_000
+        ),
+        # Unattributable pet damage (no summon, no owner evidence) is dropped.
+        CombatLogEventFixtures.spell_damage_event(
+          time_into_fight: 6.0,
+          source_guid: "Pet-Stray",
+          source_name: "Stray",
+          target_guid: "Creature-Boss",
+          target_name: "Boss",
+          spell_id: 17_253,
+          spell_name: "Bite",
+          amount: 900
+        )
+      ])
+
+    assert [
+             %{
+               source_guid: "Player-Warlock",
+               target_guid: "Creature-Boss",
+               spell_id: 0,
+               total_amount: 2_000,
+               hit_count: 1
+             },
+             %{
+               source_guid: "Player-Warlock",
+               target_guid: "Creature-Boss",
+               spell_id: 686,
+               total_amount: 3_000
+             },
+             %{
+               source_guid: "Player-Warlock",
+               target_guid: "Creature-Boss",
+               spell_id: 89_753,
+               total_amount: 1_500
+             },
+             %{
+               source_guid: "Player-Warlock",
+               target_guid: "Creature-Boss",
+               spell_id: 104_318,
+               total_amount: 700
+             }
+           ] = projection.damage_done
+  end
 end
