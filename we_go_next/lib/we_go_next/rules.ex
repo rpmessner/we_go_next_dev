@@ -395,33 +395,25 @@ defmodule WeGoNext.Rules do
        ) do
     attrs = gold_snapshot_attrs(ruleset, criterion, opts)
 
-    %DimMechanicCriterion{}
-    |> DimMechanicCriterion.changeset(attrs)
-    |> Repo.insert(
-      on_conflict:
-        {:replace,
-         [
-           :ruleset_id,
-           :ruleset_version,
-           :criterion_key,
-           :product,
-           :channel,
-           :build_version,
-           :build_key,
-           :spell_id,
-           :spell_name,
-           :mechanic_type,
-           :boss_encounter_id,
-           :boss_name,
-           :difficulty_id,
-           :threshold,
-           :notes,
-           :active,
-           :updated_at
-         ]},
-      conflict_target: [:source_rule_id],
-      returning: true
-    )
+    new_snapshot = DimMechanicCriterion.changeset(%DimMechanicCriterion{}, attrs)
+    criterion_key = Ecto.Changeset.get_field(new_snapshot, :criterion_key)
+
+    # A criterion kept by a newer ruleset arrives with a new source_rule_id but the
+    # same criterion_key. Reuse its snapshot so existing facts keep their criterion.
+    case existing_gold_snapshot(criterion.id, criterion_key) do
+      nil ->
+        Repo.insert(new_snapshot)
+
+      %DimMechanicCriterion{} = snapshot ->
+        snapshot
+        |> DimMechanicCriterion.changeset(Map.put(attrs, :criterion_key, criterion_key))
+        |> Repo.update()
+    end
+  end
+
+  defp existing_gold_snapshot(source_rule_id, criterion_key) do
+    Repo.get_by(DimMechanicCriterion, source_rule_id: source_rule_id) ||
+      (criterion_key && Repo.get_by(DimMechanicCriterion, criterion_key: criterion_key))
   end
 
   defp gold_snapshot_attrs(%Ruleset{} = ruleset, %MechanicCriterion{} = criterion, opts) do

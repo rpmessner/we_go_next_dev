@@ -437,6 +437,39 @@ defmodule WeGoNext.RulesTest do
     assert Repo.aggregate(DimMechanicCriterion, :count) == 2
   end
 
+  test "syncing a new ruleset that keeps an existing criterion reuses its gold snapshot" do
+    assert {:ok, %{ruleset: season_one}} =
+             Rules.sync_raid_mechanics("midnight_season_1", activate: true, promote: true)
+
+    season_one_keys =
+      DimMechanicCriterion
+      |> where([c], c.ruleset_id == ^season_one.id)
+      |> select([c], {c.criterion_key, c.id})
+      |> Repo.all()
+      |> Map.new()
+
+    assert map_size(season_one_keys) > 0
+
+    assert {:ok, %{ruleset: current_tier}} =
+             Rules.sync_current_tier_rules(activate: true, promote: true)
+
+    refute current_tier.id == season_one.id
+
+    current_keys =
+      DimMechanicCriterion
+      |> where([c], c.ruleset_id == ^current_tier.id)
+      |> select([c], {c.criterion_key, c.id})
+      |> Repo.all()
+      |> Map.new()
+
+    for {key, dim_id} <- season_one_keys do
+      assert Map.get(current_keys, key) == dim_id,
+             "criterion #{key} should keep gold snapshot #{dim_id} under the new ruleset"
+    end
+
+    assert map_size(current_keys) > map_size(season_one_keys)
+  end
+
   test "promotion uses rules criteria" do
     {:ok, ruleset} = Rules.create_ruleset(%{name: "Active Rules", status: "active"})
 
