@@ -34,6 +34,28 @@ Null `pull_id` means the public import catalogue has no matching gold encounter.
 come from silver without aliasing. Class and spec are numeric ids, or null when
 unknown. Missing failure facts do not establish that a pull is fresh or clean.
 
+## Damage-done target classes
+
+`damage_done(pulls, player?, target_class?)` reads owner-attributed
+`silver.damage_done` and returns one compact row per pull/player with total,
+boss, priority and other damage. Class shares are fractions of that player's
+**all-target** total, with zero shares for a zero total. `player` matches exact
+name or GUID. `target_class` (`boss`, `priority`, `other`) selects players with
+positive damage in that class; it never changes totals or share denominators.
+Players without silver damage rows are not synthesized from the roster.
+
+The encounter-scoped lists live in the raid catalogs' `damage_targets/0`.
+`targets_verified` means NPC identities were checked against a real log, not
+that the list is exhaustive or an official WCL ranking rule. Missing catalogs
+and unverified bosses are explicit in evidence. Unknown NPCs remain **other,
+not proven padding**. Priority intent is authored knowledge. No damage-done
+time grain, phase weighting, DPS percentile, or spec comparison is inferred.
+
+Each evidence row includes pull-start time, the target catalog and one largest
+silver target/spell aggregate per nonempty class (ties by target GUID, then
+spell id). These are bounded samples, not a complete spell breakdown. Compact
+player rows paginate with the normal scoped cursor and 8,192-byte envelope cap.
+
 ## Bronze escape hatch
 
 `log_events` takes one positive gold `pull` id plus a `filters` object. Optional
