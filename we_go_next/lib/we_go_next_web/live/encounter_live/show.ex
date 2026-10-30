@@ -1278,9 +1278,13 @@ defmodule WeGoNextWeb.EncounterLive.Show do
       <p class="mt-2 text-sm text-yellow-100">
         This document was generated with derivation version
         <span class="font-mono">{@document.derivation_version || "unknown"}</span>
-        but the app expects
-        <span class="font-mono">{@current_version}</span>.
-        Rebuild encounter documents to refresh failure and read-model semantics.
+        (the app expects <span class="font-mono">{@current_version}</span>).
+        Death projection version:
+        <span class="font-mono">{Map.get(@document, :silver_death_derivation_version) || "unknown"}</span>
+        (current: <span class="font-mono">{Documents.current_death_derivation_version()}</span>).
+        Failure or silver death semantics are outdated or unknown.
+        Force reimport the source log for stale silver deaths; a document-only rebuild cannot repair them.
+        Rebuild encounter documents after the source data is current.
       </p>
     </section>
     """
@@ -1518,7 +1522,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     current_version = Documents.current_derivation_version()
 
     cond do
-      document.derivation_version != current_version -> {:stale, current_version}
+      Documents.stale?(document) -> {:stale, current_version}
       empty_document?(document) -> :empty
       true -> :fresh
     end

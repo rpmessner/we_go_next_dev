@@ -357,7 +357,7 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
 
   defp document_state(document) do
     cond do
-      document.derivation_version != Documents.current_derivation_version() ->
+      Documents.stale?(document) ->
         {:stale, Documents.current_derivation_version()}
 
       empty_document?(document) ->
@@ -378,7 +378,11 @@ defmodule WeGoNextWeb.PublicDocumentLive.Show do
       <h2 class="font-semibold text-yellow-100">Stale Encounter Document</h2>
       <p class="mt-1 text-sm text-yellow-200">
         This document was built with derivation version {@document.derivation_version}; the app expects
-        {@current_version}. Some sections may not match the current analysis semantics.
+        {@current_version}. Death projection version:
+        {Map.get(@document, :silver_death_derivation_version) || "unknown"}
+        (current: {Documents.current_death_derivation_version()}).
+        Failure or silver death semantics are outdated or unknown.
+        The publisher must reimport stale source logs, then regenerate and upload the documents.
       </p>
     </section>
     """

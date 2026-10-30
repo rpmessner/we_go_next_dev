@@ -84,6 +84,27 @@ Use force reimport when:
 
 Do not force reimport just because rules changed.
 
+### Death projection freshness
+
+`gold.dim_encounter.silver_death_derivation_version` records the silver death
+projection version, including pulls with no deaths. `NULL` means unstamped/old;
+version 2 excludes `UNIT_DIED` events whose `unconsciousOnDeath` flag is 1
+(Feign Death). Analysis `session_context` reports `stale_death_pull_ids` and a
+log-wide count. Encounter documents copy the stored silver stamp and show a
+stale banner when it is missing or outdated. Gold-only and document-only
+rebuilds cannot repair silver or advance its stamp.
+
+After applying migrations, force reimport the affected log from `/logs`, or run
+this for log 30 from the Phoenix app directory:
+
+```bash
+mix run -e 'log = WeGoNext.Repo.get!(WeGoNext.CombatLogFile, 30); IO.inspect(WeGoNext.Importer.import_log(log.file_path, log.user_id, force_reimport: true))'
+```
+
+This reprojects silver and rebuilds gold/documents through the normal import
+path. It prunes obsolete death rows, not just upserts real deaths. Re-upload
+published documents after verifying the corrected local counts.
+
 ## Current-Tier Mechanics Bootstrap
 
 The preferred current-tier path is to sync code-defined raid mechanics and

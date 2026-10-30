@@ -9,6 +9,7 @@ defmodule WeGoNext.Documents do
   alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Repo
+  alias WeGoNext.Silver.DeathDerivation
 
   @type generate_result :: %{
           source_encounter_key: String.t(),
@@ -106,6 +107,13 @@ defmodule WeGoNext.Documents do
   end
 
   def current_derivation_version, do: Derivation.current_version()
+  def current_death_derivation_version, do: DeathDerivation.current_version()
+
+  def stale?(document) do
+    document.derivation_version != current_derivation_version() or
+      Map.get(document, :silver_death_derivation_version) !=
+        current_death_derivation_version()
+  end
 
   @doc """
   Builds the public index entry for an encounter document.

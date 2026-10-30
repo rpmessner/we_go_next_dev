@@ -632,8 +632,10 @@ fn parse_event_line(env: *e.ErlNifEnv, line: []const u8, encounter_start_us: i12
 
     // Event-type-specific fields
     if (std.mem.eql(u8, event_type_field, "UNIT_DIED")) {
-        // UNIT_DIED has no additional fields we need beyond the prefix
-        // (the extra field after prefix is just "0")
+        // unconsciousOnDeath: 1 is Feign Death, 0 is a real death.
+        keys[field_count] = e.enif_make_atom(env, "unconscious_on_death");
+        vals[field_count] = beam.make(parse_i64_field(next_csv_field(rest, &pos)), .{}).v;
+        field_count += 1;
     } else if (std.mem.eql(u8, event_type_field, "SWING_DAMAGE")) {
         // SWING_DAMAGE: no spell info, but has advanced params
         // Skip to the advanced combat log params

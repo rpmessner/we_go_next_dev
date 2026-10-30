@@ -18,7 +18,7 @@ defmodule WeGoNext.Analysis.Tools.LogEvents do
   def name, do: "log_events"
 
   def description do
-    "Escape hatch for defensives, consumables, casts, auras and resources not answered by silver/gold. Re-parses only one gold pull's bronze byte range, without caching. Supply at least one nonempty selective filter or a time window narrower than the pull. Lists OR within each filter; filters AND across. Time bounds are inclusive integer milliseconds relative to pull start. Names/GUIDs are unaliased; spell_ids matches the primary spell, not interrupt extra spells. Follow next_cursor with identical arguments. Raw observations alone do not establish cooldown availability."
+    "Escape hatch for defensives, consumables, casts, auras and resources not answered by silver/gold. Re-parses only one gold pull's bronze byte range, without caching. Supply at least one nonempty selective filter or a time window narrower than the pull. Lists OR within each filter; filters AND across. Time bounds are inclusive integer milliseconds relative to pull start. Names/GUIDs are unaliased; spell_ids matches the primary spell, not interrupt extra spells. Follow next_cursor with identical arguments. UNIT_DIED includes unconscious_on_death: 1 means Feign Death, 0 means a real death. Raw observations alone do not establish cooldown availability."
   end
 
   def input_schema do

@@ -17,6 +17,7 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     DamageTaken,
     DamageTakenEvent,
     Death,
+    DeathDerivation,
     DebuffApplication,
     DefensiveBuffWindow,
     InterruptOpportunity,
@@ -347,6 +348,13 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     assert html =~ "Empty Encounter Document"
     assert html =~ "no roster, deaths, failures, damage review rows"
     assert html =~ "No player roster data exists for this pull yet."
+  end
+
+  test "reports an unstamped death projection as stale", %{conn: conn} do
+    write_fixture_document!("unstamped-deaths", %{silver_death_derivation_version: nil})
+    {:ok, _view, html} = live(conn, "/encounters/unstamped-deaths")
+    assert html =~ "Stale Encounter Document"
+    assert html =~ "Force reimport the source log"
   end
 
   test "reports a version 2 fixture document as stale", %{conn: conn} do
@@ -888,6 +896,7 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
         schema_version: 1,
         generated_at: "2026-07-08T20:10:00Z",
         derivation_version: Documents.current_derivation_version(),
+        silver_death_derivation_version: DeathDerivation.current_version(),
         source_encounter_key: source_encounter_key,
         encounter: %{
           id: 9_001,

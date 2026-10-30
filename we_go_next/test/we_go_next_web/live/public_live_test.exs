@@ -4,6 +4,7 @@ defmodule WeGoNextWeb.PublicLiveTest do
   alias WeGoNext.Documents
   alias WeGoNext.Mirror.PublicReport
   alias WeGoNext.Repo
+  alias WeGoNext.Silver.DeathDerivation
   alias WeGoNext.Support.StubSourceDocumentStore
 
   setup do
@@ -454,6 +455,7 @@ defmodule WeGoNextWeb.PublicLiveTest do
         schema_version: 1,
         generated_at: "2026-07-08T20:10:00Z",
         derivation_version: Documents.current_derivation_version(),
+        silver_death_derivation_version: DeathDerivation.current_version(),
         source_encounter_key: source_encounter_key,
         raid_night: %{
           key: "20260708T200000",

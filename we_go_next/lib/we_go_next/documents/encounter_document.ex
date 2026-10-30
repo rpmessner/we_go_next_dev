@@ -26,6 +26,7 @@ defmodule WeGoNext.Documents.EncounterDocument do
          schema_version: @schema_version,
          generated_at: Keyword.get(opts, :generated_at, DateTime.utc_now()),
          derivation_version: Derivation.current_version(),
+         silver_death_derivation_version: detail.encounter.silver_death_derivation_version,
          source_encounter_key: source_encounter_key,
          raid_night: RaidNights.for_encounter(detail.encounter),
          encounter: encode_encounter(detail.encounter),
