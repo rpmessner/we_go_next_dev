@@ -6,7 +6,7 @@ defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
 
       mix we_go_next.sync_raid_rules
       mix we_go_next.sync_raid_rules the_voidspire
-      mix we_go_next.sync_raid_rules midnight_season_1 --activate --failure-ready --rebuild
+      mix we_go_next.sync_raid_rules current_tier --rebuild
 
   `--failure-ready` makes synced mechanics available to failure rebuilds.
   """
@@ -39,7 +39,7 @@ defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
 
     raid_slug =
       case positional do
-        [] -> "midnight_season_1"
+        [] -> "current_tier"
         [slug] -> slug
         _ -> Mix.raise("Expected at most one raid slug")
       end

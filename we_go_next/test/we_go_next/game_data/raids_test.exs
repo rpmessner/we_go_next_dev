@@ -17,7 +17,9 @@ defmodule WeGoNext.GameData.RaidsTest do
     assert Enum.map(Raids.all(), & &1.slug) == [
              "the_voidspire",
              "the_dreamrift",
-             "march_on_quel_danas"
+             "march_on_quel_danas",
+             "the_venomous_abyss",
+             "midnight_lairs"
            ]
 
     assert Raids.by_slug("midnight_season_1") == MidnightSeason1

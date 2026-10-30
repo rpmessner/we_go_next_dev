@@ -111,7 +111,10 @@ The preferred current-tier path is to sync code-defined raid mechanics and
 rebuild failure facts. Treat the checked-in raid modules as the durable mechanic
 source; ruleset/promotion tables are internal plumbing for fact keys.
 
-Sync Midnight Season 1 current-tier raid mechanics:
+Sync the current Midnight catalog (Season 1 raids, The Venomous Abyss, and
+Nymrissa Wavecaller in Midnight Lairs). New failure criteria are limited to
+avoidable damage checked against real logs; other new bosses remain catalog
+observations:
 
 ```bash
 mix we_go_next.sync_raid_rules
@@ -120,7 +123,7 @@ mix we_go_next.sync_raid_rules
 Sync and rebuild in one command:
 
 ```bash
-mix we_go_next.sync_raid_rules midnight_season_1 --rebuild
+mix we_go_next.sync_raid_rules current_tier --rebuild
 ```
 
 The curated source lives in `we_go_next/lib/we_go_next/game_data/raids/`.
@@ -487,3 +490,12 @@ When a computation intentionally changes, prefer explicit rebuilds over trying t
 | Log identity/provenance bug | Purge/reconcile only with a clear reason |
 
 This matches real medallion warehouse practice: immutable source inputs, versioned or replaceable derived partitions, and explicit backfills when transform behavior changes.
+
+## Browser test environment
+
+On this WSL host, Wallaby selecting `/snap/bin/chromium` creates sessions that
+immediately fail with `invalid session id`. The installed
+`/usr/bin/chromium-browser` wrapper works. Remove `/snap/bin` from the test
+command's `PATH` so Wallaby discovers that wrapper; do not change app code to
+work around the browser launch failure. Set `MIX_TEST_PARTITION` and `TEST_PORT`
+per worktree, and create/migrate only that partition's test database.

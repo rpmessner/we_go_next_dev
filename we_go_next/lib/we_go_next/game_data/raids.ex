@@ -1,18 +1,26 @@
 defmodule WeGoNext.GameData.Raids do
   @moduledoc "Index of code-defined raid mechanic catalogs."
 
-  alias WeGoNext.GameData.Raids.{Dreamrift, MarchOnQuelDanas, MidnightSeason1, Voidspire}
+  alias WeGoNext.GameData.Raids.{
+    CurrentTier,
+    Dreamrift,
+    MarchOnQuelDanas,
+    MidnightLairs,
+    MidnightSeason1,
+    VenomousAbyss,
+    Voidspire
+  }
 
   def all do
-    [
-      Voidspire.info(),
-      Dreamrift.info(),
-      MarchOnQuelDanas.info()
-    ]
+    Enum.map(CurrentTier.raids(), & &1.info())
   end
 
   def by_slug(slug)
 
+  def by_slug("current_tier"), do: CurrentTier
+  def by_slug("the_venomous_abyss"), do: VenomousAbyss
+  def by_slug("venomous_abyss"), do: VenomousAbyss
+  def by_slug("midnight_lairs"), do: MidnightLairs
   def by_slug("midnight_season_1"), do: MidnightSeason1
   def by_slug("the_voidspire"), do: Voidspire
   def by_slug("voidspire"), do: Voidspire
@@ -38,7 +46,7 @@ defmodule WeGoNext.GameData.Raids do
   end
 
   def by_boss_encounter_id(encounter_id) when is_integer(encounter_id) do
-    Enum.find([Voidspire, Dreamrift, MarchOnQuelDanas], fn raid_module ->
+    Enum.find(CurrentTier.raids(), fn raid_module ->
       Enum.any?(raid_module.bosses(), &(&1.encounter_id == encounter_id))
     end)
   end
@@ -46,7 +54,7 @@ defmodule WeGoNext.GameData.Raids do
   def by_boss_encounter_id(_encounter_id), do: nil
 
   def interruptible_spells do
-    MidnightSeason1.mechanics()
+    CurrentTier.mechanics()
     |> Enum.filter(&(&1.mechanic_type == :interrupt))
   end
 end

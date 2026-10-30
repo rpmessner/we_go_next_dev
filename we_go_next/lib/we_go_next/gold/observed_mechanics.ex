@@ -10,7 +10,7 @@ defmodule WeGoNext.Gold.ObservedMechanics do
   import Ecto.Query
 
   alias WeGoNext.GameData.{Interrupts, Spells}
-  alias WeGoNext.GameData.Raids.{Mechanic, MidnightSeason1}
+  alias WeGoNext.GameData.Raids.{CurrentTier, Mechanic}
 
   alias WeGoNext.Gold.{
     DimEncounter,
@@ -233,7 +233,7 @@ defmodule WeGoNext.Gold.ObservedMechanics do
   end
 
   defp catalog_by_spell(wow_encounter_id) do
-    MidnightSeason1.mechanics()
+    CurrentTier.mechanics()
     |> Enum.filter(&(to_string(Map.get(&1, :boss_encounter_id)) == to_string(wow_encounter_id)))
     |> Map.new(&{&1.spell_id, catalog_entry(&1)})
   end
