@@ -16,6 +16,69 @@ defmodule WeGoNext.Analysis do
 
   def start_session(args \\ %{}), do: Startup.start(args)
 
+  @doc "Starts a supervised headless question. Scope uses log/boss and optional pull ids; model is an operator choice."
+  def ask(scope, text, opts \\ [])
+      when is_map(scope) and is_binary(text) and byte_size(text) > 0 do
+    with {:ok, session} <- question_session(scope, opts) do
+      model = Keyword.get(opts, :model, session.model)
+
+      if model != session.model do
+        {:error, "Model must match this Analysis session's operator choice"}
+      else
+        question =
+          Repo.insert!(%WeGoNext.Analysis.Question{
+            session_id: session.id,
+            scope: scope,
+            text: text,
+            model: model
+          })
+
+        if Keyword.get(opts, :subscribe, false), do: subscribe_question(question.id)
+
+        case DynamicSupervisor.start_child(
+               WeGoNext.Analysis.QuestionSupervisor,
+               {WeGoNext.Analysis.QuestionRunner, {question, session, opts}}
+             ) do
+          {:ok, pid} -> {:ok, question, pid}
+          {:error, _} -> {:error, "Could not start question process"}
+        end
+      end
+    end
+  end
+
+  def get_question(id), do: Repo.get(WeGoNext.Analysis.Question, id)
+  def question_event(id, event), do: WeGoNext.Analysis.QuestionRunner.event(id, event)
+  def subscribe_question(id), do: WeGoNext.Analysis.QuestionRunner.subscribe(id)
+
+  defp question_session(scope, opts) do
+    case Keyword.get(opts, :session_id) do
+      nil ->
+        args = scope |> Map.take(["log", "boss"]) |> Map.new(fn {k, v} -> {k, to_string(v)} end)
+
+        with {:ok, session} <- start_session(args) do
+          session
+          |> Ecto.Changeset.change(model: Keyword.get(opts, :model, session.model))
+          |> Repo.update()
+        end
+
+      id ->
+        case find_session(id) do
+          nil ->
+            {:error, "Unknown Analysis session"}
+
+          session ->
+            books =
+              WeGoNext.Analysis.Playbooks.for_boss(
+                WeGoNext.Analysis.Playbooks.load(),
+                session.boss,
+                WeGoNext.Analysis.ReadModel.pulls(session)
+              )
+
+            {:ok, %{session | playbooks: books}}
+        end
+    end
+  end
+
   def call_tool(name, args) when is_binary(name) and is_map(args) do
     start = System.monotonic_time(:millisecond)
     session = find_session(args["session_id"])
