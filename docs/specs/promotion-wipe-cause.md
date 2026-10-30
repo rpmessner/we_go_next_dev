@@ -1,6 +1,6 @@
 # Promotion 1: the promote-analysis skill, proven on the wipe-cause fact
 
-Status: draft for operator approval (2026-10-30). Ticket we-sfg.1 under the Promotion epic we-sfg. Vocabulary: `GLOSSARY.md` (Promotion, Tool, Analysis session).
+Status: approved by the operator (foreman, 2026-10-30): first 3 deaths, 30 s wipe cutoff. Ticket we-sfg.1 under the Promotion epic we-sfg. Vocabulary: `GLOSSARY.md` (Promotion, Tool, Analysis session).
 
 ## Goal
 
@@ -23,7 +23,7 @@ The operator wants analysis the AI does well to become part of the warehouse, so
 
 ## Decisions
 
-1. **Which deaths decide a wipe** (operator, open). Proposed rules:
+1. **Which deaths decide a wipe** (operator, approved). Proposed rules:
    - Take the first 3 player deaths in a wiped pull that happen before the wipe cutoff, ordered by time.
    - The wipe cutoff is 30 s before the pull ends, matching Warcraft Logs' Death Statistics.
    - Feign Death is already excluded in silver (we-6l9).
