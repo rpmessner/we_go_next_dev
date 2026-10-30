@@ -1,0 +1,53 @@
+---
+title: "Pull pipeline: what the Tonight page shows for one pull"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: working
+    lg1: shown
+    lg2: attention
+    lg3: hidden
+  }
+  class lg0 blue
+  class lg1 teal
+  class lg2 orange
+  class lg3 tan
+  s0: No pull yet
+  s1: Pull in progress
+  s2: Importing the pull
+  s3: Error shown on the card
+  s4: Building pull data
+  s5: Reset skipped
+  s6: Building facts
+  s7: Running checks
+  s8: Card ready
+  s9: Card ready, one check missing
+  s10: Card marked stale
+  [*] --> s0
+  s0 --> s1: the boss is pulled
+  s1 --> s2: the encounter ends (log flushes)
+  s2 --> s3: a step fails
+  s2 --> s4: the import finishes
+  s2 --> s5: the import finishes [pull under 10 s]
+  s3 --> s2: the pipeline retries [under the attempt limit]
+  s4 --> s3: a step fails
+  s4 --> s6: pull data is built
+  s6 --> s3: a step fails
+  s6 --> s7: facts are built
+  s7 --> s8: the checks finish [rules unchanged]
+  s7 --> s9: a check fails
+  s7 --> s10: the checks finish [rules changed meanwhile]
+  s8 --> s10: mechanic rules change
+  s9 --> s10: mechanic rules change
+  s10 --> s4: the rebuild starts
+  class s0 blue
+  class s1 blue
+  class s2 blue
+  class s3 orange
+  class s4 blue
+  class s5 tan
+  class s6 blue
+  class s7 blue
+  class s8 teal
+  class s9 teal
+  class s10 orange
