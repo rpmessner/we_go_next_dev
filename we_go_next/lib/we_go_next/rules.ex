@@ -223,7 +223,11 @@ defmodule WeGoNext.Rules do
     opts = normalize_raid_sync_opts(opts)
 
     with {:ok, raid_module} <- raid_module(raid),
-         {:ok, synced} <- seed_rules(raid_seed_payload(raid_module, opts), opts),
+         {:ok, synced} <-
+           seed_rules(
+             raid_seed_payload(raid_module, opts),
+             Keyword.put(opts, :retire_missing, true)
+           ),
          {:ok, ruleset} <- maybe_activate_synced_ruleset(synced.ruleset, opts),
          {:ok, promoted} <- maybe_promote_synced_ruleset(ruleset, opts),
          {:ok, rebuild} <- maybe_rebuild_after_sync(opts) do
@@ -280,11 +284,25 @@ defmodule WeGoNext.Rules do
 
       with {:ok, ruleset} <- get_or_create_seed_ruleset(ruleset_attrs),
            {:ok, seeded_criteria} <- seed_mechanic_criteria(ruleset, criteria, opts) do
+        if Keyword.get(opts, :retire_missing, false) do
+          retire_unlisted_criteria(ruleset, seeded_criteria)
+        end
+
         %{ruleset: ruleset, criteria: seeded_criteria}
       else
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
+  end
+
+  # The code catalog is the source of truth for a raid sync: a mechanic that was
+  # removed or retyped there must stop producing failures after sync + rebuild.
+  defp retire_unlisted_criteria(%Ruleset{id: ruleset_id}, seeded_criteria) do
+    kept_ids = Enum.map(seeded_criteria, & &1.id)
+
+    MechanicCriterion
+    |> where([c], c.ruleset_id == ^ruleset_id and c.active and c.id not in ^kept_ids)
+    |> Repo.update_all(set: [active: false, updated_at: DateTime.utc_now()])
   end
 
   defp get_or_create_seed_ruleset(attrs) when is_map(attrs) do

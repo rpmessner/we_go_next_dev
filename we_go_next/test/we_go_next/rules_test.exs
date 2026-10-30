@@ -470,6 +470,65 @@ defmodule WeGoNext.RulesTest do
     assert map_size(current_keys) > map_size(season_one_keys)
   end
 
+  defmodule RetireCatalogV1 do
+    def info,
+      do: %{name: "Retire Test Raid", slug: "retire_test", product: "wow", channel: "retail"}
+
+    def rule_criteria do
+      [
+        %{
+          "spell_id" => 9_000_001,
+          "spell_name" => "Kept Pool",
+          "mechanic_type" => "avoidable",
+          "boss_encounter_id" => "9001",
+          "boss_name" => "Test Boss",
+          "threshold" => %{"max_hits" => 0}
+        },
+        %{
+          "spell_id" => 9_000_002,
+          "spell_name" => "Retyped Dive",
+          "mechanic_type" => "avoidable",
+          "boss_encounter_id" => "9001",
+          "boss_name" => "Test Boss",
+          "threshold" => %{"max_hits" => 0}
+        }
+      ]
+    end
+  end
+
+  defmodule RetireCatalogV2 do
+    def info, do: RetireCatalogV1.info()
+    def rule_criteria, do: Enum.take(RetireCatalogV1.rule_criteria(), 1)
+  end
+
+  test "a raid sync retires criteria the catalog no longer has" do
+    assert {:ok, %{ruleset: ruleset}} =
+             Rules.sync_raid_mechanics(RetireCatalogV1, activate: true, promote: true)
+
+    assert {:ok, %{ruleset: %{id: second_id}}} =
+             Rules.sync_raid_mechanics(RetireCatalogV2, activate: true, promote: true)
+
+    assert second_id == ruleset.id
+
+    rules =
+      MechanicCriterion
+      |> where([c], c.ruleset_id == ^ruleset.id)
+      |> select([c], {c.spell_id, c.active})
+      |> Repo.all()
+      |> Map.new()
+
+    assert rules == %{9_000_001 => true, 9_000_002 => false}
+
+    gold =
+      DimMechanicCriterion
+      |> where([c], c.ruleset_id == ^ruleset.id)
+      |> select([c], {c.spell_id, c.active})
+      |> Repo.all()
+      |> Map.new()
+
+    assert gold == %{9_000_001 => true, 9_000_002 => false}
+  end
+
   test "promotion uses rules criteria" do
     {:ok, ruleset} = Rules.create_ruleset(%{name: "Active Rules", status: "active"})
 
