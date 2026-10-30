@@ -33,6 +33,7 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
              "deaths",
              "failures",
              "damage_done",
+             "wipe_cause",
              "damage_taken",
              "interrupts",
              "log_events",

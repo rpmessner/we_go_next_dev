@@ -1,0 +1,24 @@
+{
+  "entries": [
+    {
+      "name": "Saveenó",
+      "timestamp": 1730894,
+      "killingBlow": {
+        "name": "Swirling Whirlpools",
+        "guid": 1258677,
+        "type": 16,
+        "abilityIcon": "inv_elemental_primal_air.jpg"
+      }
+    },
+    {
+      "name": "Wispless",
+      "timestamp": 1731625,
+      "killingBlow": {
+        "name": "Swirling Whirlpools",
+        "guid": 1258677,
+        "type": 16,
+        "abilityIcon": "inv_elemental_primal_air.jpg"
+      }
+    }
+  ]
+}

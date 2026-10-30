@@ -1,0 +1,172 @@
+{
+  "entries": [
+    {
+      "name": "Strongwoman",
+      "timestamp": 4409356,
+      "killingBlow": {
+        "name": "Mutilate",
+        "guid": 1285999,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_missile.jpg"
+      }
+    },
+    {
+      "name": "Pepsa",
+      "timestamp": 4409357,
+      "killingBlow": {
+        "name": "Mutilate",
+        "guid": 1285999,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_missile.jpg"
+      }
+    },
+    {
+      "name": "Bigjím",
+      "timestamp": 4409358,
+      "killingBlow": {
+        "name": "Mutilate",
+        "guid": 1285999,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_missile.jpg"
+      }
+    },
+    {
+      "name": "Twistedfaith",
+      "timestamp": 4429500,
+      "killingBlow": {
+        "name": "Venomous Surge",
+        "guid": 1306120,
+        "type": 8,
+        "abilityIcon": "ability_creature_poison_06.jpg"
+      }
+    },
+    {
+      "name": "Mädz",
+      "timestamp": 4436328,
+      "killingBlow": {
+        "name": "Raging Crosswinds",
+        "guid": 1285616,
+        "type": 8,
+        "abilityIcon": "ability_skyreach_wind.jpg"
+      }
+    },
+    {
+      "name": "Pixen",
+      "timestamp": 4436498,
+      "killingBlow": {
+        "name": "Viscous Cyst",
+        "guid": 1287205,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_nova.jpg"
+      }
+    },
+    {
+      "name": "Zazi",
+      "timestamp": 4436499,
+      "killingBlow": {
+        "name": "Viscous Cyst",
+        "guid": 1287205,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_nova.jpg"
+      }
+    },
+    {
+      "name": "Omeggon",
+      "timestamp": 4436499,
+      "killingBlow": {
+        "name": "Viscous Cyst",
+        "guid": 1287205,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_nova.jpg"
+      }
+    },
+    {
+      "name": "Valendara",
+      "timestamp": 4436500,
+      "killingBlow": {
+        "name": "Viscous Cyst",
+        "guid": 1287205,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_nova.jpg"
+      }
+    },
+    {
+      "name": "Umbraz",
+      "timestamp": 4437272,
+      "killingBlow": {
+        "name": "Tempest",
+        "guid": 1287083,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_beam.jpg"
+      }
+    },
+    {
+      "name": "Kahnu",
+      "timestamp": 4437488,
+      "killingBlow": {
+        "name": "Viscous Cyst",
+        "guid": 1287205,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_nova.jpg"
+      }
+    },
+    {
+      "name": "Jentle",
+      "timestamp": 4438103,
+      "killingBlow": {
+        "name": "Ula'tek's Presence",
+        "guid": 1285965,
+        "type": 8,
+        "abilityIcon": "achievement_dungeon_templeofsethraliss.jpg"
+      }
+    },
+    {
+      "name": "Saveenó",
+      "timestamp": 4440133,
+      "killingBlow": {
+        "name": "Ula'tek's Presence",
+        "guid": 1285965,
+        "type": 8,
+        "abilityIcon": "achievement_dungeon_templeofsethraliss.jpg"
+      }
+    },
+    {
+      "name": "Provibria",
+      "timestamp": 4446454
+    },
+    {
+      "name": "Frostygnome",
+      "timestamp": 4446467
+    },
+    {
+      "name": "Creepitout",
+      "timestamp": 4446812
+    },
+    {
+      "name": "Wispless",
+      "timestamp": 4447153
+    },
+    {
+      "name": "Belprie",
+      "timestamp": 4448144
+    },
+    {
+      "name": "Zuthere",
+      "timestamp": 4449054,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Felthuzad",
+      "timestamp": 4449441
+    },
+    {
+      "name": "Roarschäch",
+      "timestamp": 4451170
+    }
+  ]
+}

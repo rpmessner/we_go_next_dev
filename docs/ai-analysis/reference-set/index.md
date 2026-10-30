@@ -42,6 +42,39 @@ Log `30`, `Archive-WoWCombatLog-090626_103607.txt`. Evidence uses the existing i
 | 451 | The Twin Fangs | 7 | wipe | 460394 | 957263172 | 1055392145 |
 | 452 | The Twin Fangs | 8 | kill | 445659 | 1056119869 | 1167985096 |
 
+## Wipe-cause Promotion (we-sfg.1)
+
+`gold.fact_wipe_cause` version 1 selects up to three player deaths strictly before
+pull end minus 30 seconds. Kills and resets under 10 seconds have no rows. A wiped
+pull can also have no deciding deaths (439 and 441 in this reference). The new
+catalog labels Mutilate `unknown`, Tempest `avoidable`; uncatalogued Fel Armor
+remains unknown. The first loss is not proof of the first mistake or wipe causation.
+
+Reproducible checks:
+- `FactWipeCauseTest`: all 18 reference pulls, Q1/Q4 operator overrides, unknown
+  avoidability, stamped/idempotent rebuilds.
+- `WipeCauseWCLTest`: all 16 shared WCL pulls. Fifteen agree after synthetic melee
+  normalization (gold 0 / WCL 1); WCL leaves Felthuzad's blow on 440 unnamed.
+  On 451 the order/times agree, but WCL names Eternal Venom 1292348 for Jentle,
+  Wispless and Provibria where silver records 1290480. These three ID differences
+  are reported, not silently aliased. This is the approved fixed cutoff, not
+  WCL's full resurrection/first-cluster heuristic.
+- `WipeCauseMCPTest`: deterministic built-in binding and MCP evidence, log scope,
+  stale/missing states, one recorded Tool call and zero model calls/cost.
+- `python3 scripts/verify_wipe_cause_mutations.py --output <artifact-dir>`: removing
+  the cutoff fails reference and WCL checks; reversing order also fails AI
+  agreement; inventing avoidability fails catalog checks; nonzero model calls
+  fails the cost check. Restored production code passes all nine focused tests.
+
+Cost evidence is in [promotion-wipe-cause-cost.json](promotion-wipe-cause-cost.json).
+Original Q1: $4.1979124, 75 CLI turns; Q4: $1.1621076, 39 CLI turns. Turns are not
+relabeled as model request counts. The deterministic integration path uses one
+Tool call, zero model calls and $0. **Post-merge dev Q1/Q4 baseline reruns remain
+pending with the coordinator**, along with persisted-gold verification after
+migration/rebuild. No paid model call was made for this build. The question picker
+and lifecycle UI are still separate work; `Analysis.BuiltInQuestions.answer/2`
+is their deterministic binding boundary.
+
 ## Known limits
 
 No failure facts exist for this night in the queried snapshot. Missing rules are not clean execution. Cooldown availability and interrupt assignments are not established by raw events. Q12 targets Wispless, the operator's character on this log. These limits are part of the reference answers, not permission to invent details.

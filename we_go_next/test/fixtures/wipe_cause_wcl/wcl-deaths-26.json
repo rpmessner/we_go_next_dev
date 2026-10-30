@@ -1,0 +1,24 @@
+{
+  "entries": [
+    {
+      "name": "Kahnu",
+      "timestamp": 12339831,
+      "killingBlow": {
+        "name": "Toxic Fumes",
+        "guid": 1294976,
+        "type": 8,
+        "abilityIcon": "spell_deathvortex.jpg"
+      }
+    },
+    {
+      "name": "Bigjím",
+      "timestamp": 12408129,
+      "killingBlow": {
+        "name": "Eternal Venom",
+        "guid": 1292348,
+        "type": 8,
+        "abilityIcon": "spell_nature_nullifypoison.jpg"
+      }
+    }
+  ]
+}

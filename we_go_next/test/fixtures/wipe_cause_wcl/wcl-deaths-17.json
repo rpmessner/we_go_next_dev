@@ -1,0 +1,58 @@
+{
+  "entries": [
+    {
+      "name": "Mädz",
+      "timestamp": 5674205,
+      "killingBlow": {
+        "name": "Caustic Claws",
+        "guid": 1305998,
+        "type": 8,
+        "abilityIcon": "inv_121_trinket_raid_ulatek_ulatekclaw.jpg"
+      }
+    },
+    {
+      "name": "Sparfox",
+      "timestamp": 5695486
+    },
+    {
+      "name": "Strongwoman",
+      "timestamp": 5731553,
+      "killingBlow": {
+        "name": "Tempest",
+        "guid": 1287083,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_beam.jpg"
+      }
+    },
+    {
+      "name": "Bigjím",
+      "timestamp": 5828744,
+      "killingBlow": {
+        "name": "Tempest",
+        "guid": 1287083,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_beam.jpg"
+      }
+    },
+    {
+      "name": "Felthuzad",
+      "timestamp": 5876106,
+      "killingBlow": {
+        "name": "Tempest",
+        "guid": 1287083,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_beam.jpg"
+      }
+    },
+    {
+      "name": "Pixen",
+      "timestamp": 5975916,
+      "killingBlow": {
+        "name": "Tempest",
+        "guid": 1287083,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_beam.jpg"
+      }
+    }
+  ]
+}

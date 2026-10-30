@@ -1,0 +1,17 @@
+{
+  "promotion": "wipe_cause",
+  "before": {
+    "baseline": "2026-10-29-opus55",
+    "source": "Original baseline CLI stdout result payloads, read without invoking the model",
+    "q01": {"total_cost_usd": 4.1979124, "cli_num_turns": 75},
+    "q04": {"total_cost_usd": 1.1621076, "cli_num_turns": 39},
+    "model_request_count": null,
+    "caveat": "CLI num_turns is preserved as reported, not relabeled as API request count. The committed baseline omits per-request traces."
+  },
+  "after": {
+    "deterministic_binding_test": {"model_calls": 0, "model_cost_usd": 0, "tool_calls": 1},
+    "dev_q01_q04_rerun": "pending coordinator after merge",
+    "paid_model_runs_in_build_session": 0,
+    "caveat": "The integration-test result is not a substitute for the post-merge baseline rerun."
+  }
+}

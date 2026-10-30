@@ -16,8 +16,11 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Claude Code local settings
-.claude/
+# Claude Code local settings; the promotion skill is shared project guidance.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/promote-analysis
 
 # Elixir (combat_log_parser has its own .gitignore)
 # But just in case:
@@ -36,8 +39,13 @@ erl_crash.dump
 .beads-credential-key
 .beads/proxieddb/
 
-# Gas City
-.agents/
+# Gas City local state, except shared project skills.
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/promote-analysis/
+.agents/skills/promote-analysis/*
+!.agents/skills/promote-analysis/SKILL.md
 
 # Local agent/session tooling state
 .codex/

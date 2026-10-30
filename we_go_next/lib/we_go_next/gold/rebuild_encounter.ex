@@ -9,12 +9,13 @@ defmodule WeGoNext.Gold.RebuildEncounter do
   import Ecto.Query
 
   alias WeGoNext.Documents
-  alias WeGoNext.Gold.{DimEncounter, FactFailure}
+  alias WeGoNext.Gold.{DimEncounter, FactFailure, FactWipeCause}
   alias WeGoNext.Mirror.Outbox
   alias WeGoNext.{CombatLogFile, Repo}
 
   @type rebuild_result :: %{
           fact_failure: map(),
+          fact_wipe_cause: map(),
           document: map()
         }
 
@@ -33,6 +34,13 @@ defmodule WeGoNext.Gold.RebuildEncounter do
   end
 
   def rebuild(encounter_dim_id, opts) when is_integer(encounter_dim_id) and is_list(opts) do
+    with {:ok, wipe_cause} <- FactWipeCause.rebuild_for_encounter(encounter_dim_id),
+         {:ok, result} <- rebuild_other_outputs(encounter_dim_id, opts) do
+      {:ok, Map.put(result, :fact_wipe_cause, wipe_cause)}
+    end
+  end
+
+  defp rebuild_other_outputs(encounter_dim_id, opts) do
     case FactFailure.rebuild_for_encounter(encounter_dim_id, rebuild_opts(opts)) do
       {:ok, result} ->
         with {:ok, document_result} <- maybe_generate_document(encounter_dim_id, opts) do
