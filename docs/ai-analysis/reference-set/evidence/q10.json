@@ -189,34 +189,18 @@
       "spell_name": "Ula'tek's Presence"
     },
     {
-      "death_events": 22,
+      "death_events": 13,
       "evidence": [
-        {
-          "ms": 91983,
-          "pull": 440
-        },
         {
           "ms": 171398,
           "pull": 440
         },
         {
-          "ms": 56842,
-          "pull": 441
-        },
-        {
-          "ms": 77141,
-          "pull": 441
-        },
-        {
           "ms": 97646,
           "pull": 441
-        },
-        {
-          "ms": 20463,
-          "pull": 444
         }
       ],
-      "fatal_count": 6,
+      "fatal_count": 2,
       "focus_spell": 1287083,
       "guid": "Player-1171-0B076010",
       "name": "M\u00e4dz",

@@ -51,21 +51,6 @@
       "active_at_last_damage": [],
       "availability": "unknown",
       "consumables": [],
-      "death_ms": 3736,
-      "guid": "Player-1171-0B076010",
-      "killing_spell": 1299462,
-      "last_damage_ms": 2300,
-      "last_defensive_casts": [],
-      "name": "M\u00e4dz",
-      "pull": 436,
-      "recap_damage_last_10s": 134390,
-      "recent_10s_casts": []
-    },
-    {
-      "active": [],
-      "active_at_last_damage": [],
-      "availability": "unknown",
-      "consumables": [],
       "death_ms": 99507,
       "guid": "Player-60-0EDD7543",
       "killing_spell": 1306120,
@@ -927,52 +912,6 @@
       "active": [],
       "active_at_last_damage": [],
       "availability": "unknown",
-      "consumables": [
-        {
-          "byte": 162881375,
-          "key": "healthstone",
-          "ms": 27139,
-          "spell": 6262,
-          "timestamp": "9/6/2026 11:31:56.102-4"
-        }
-      ],
-      "death_ms": 28950,
-      "guid": "Player-1171-0B076010",
-      "killing_spell": 1285965,
-      "last_damage_ms": 27972,
-      "last_defensive_casts": [
-        {
-          "byte": 162870838,
-          "key": "exhilaration",
-          "ms": 25674,
-          "spell": 109304,
-          "timestamp": "9/6/2026 11:31:54.637-4"
-        }
-      ],
-      "name": "M\u00e4dz",
-      "pull": 439,
-      "recap_damage_last_10s": 266787,
-      "recent_10s_casts": [
-        {
-          "byte": 162870838,
-          "key": "exhilaration",
-          "ms": 25674,
-          "spell": 109304,
-          "timestamp": "9/6/2026 11:31:54.637-4"
-        },
-        {
-          "byte": 162881375,
-          "key": "healthstone",
-          "ms": 27139,
-          "spell": 6262,
-          "timestamp": "9/6/2026 11:31:56.102-4"
-        }
-      ]
-    },
-    {
-      "active": [],
-      "active_at_last_damage": [],
-      "availability": "unknown",
       "consumables": [],
       "death_ms": 29415,
       "guid": "Player-60-0E4C861C",
@@ -997,36 +936,6 @@
       "name": "Wispless",
       "pull": 439,
       "recap_damage_last_10s": 741261,
-      "recent_10s_casts": []
-    },
-    {
-      "active": [],
-      "active_at_last_damage": [],
-      "availability": "unknown",
-      "consumables": [],
-      "death_ms": 20476,
-      "guid": "Player-1171-0B076010",
-      "killing_spell": 1285965,
-      "last_damage_ms": 20008,
-      "last_defensive_casts": [],
-      "name": "M\u00e4dz",
-      "pull": 440,
-      "recap_damage_last_10s": 1018148,
-      "recent_10s_casts": []
-    },
-    {
-      "active": [],
-      "active_at_last_damage": [],
-      "availability": "unknown",
-      "consumables": [],
-      "death_ms": 91983,
-      "guid": "Player-1171-0B076010",
-      "killing_spell": 1287083,
-      "last_damage_ms": 91067,
-      "last_defensive_casts": [],
-      "name": "M\u00e4dz",
-      "pull": 440,
-      "recap_damage_last_10s": 648232,
       "recent_10s_casts": []
     },
     {
@@ -1851,36 +1760,6 @@
       "active_at_last_damage": [],
       "availability": "unknown",
       "consumables": [],
-      "death_ms": 56842,
-      "guid": "Player-1171-0B076010",
-      "killing_spell": 1287083,
-      "last_damage_ms": 56468,
-      "last_defensive_casts": [],
-      "name": "M\u00e4dz",
-      "pull": 441,
-      "recap_damage_last_10s": 575758,
-      "recent_10s_casts": []
-    },
-    {
-      "active": [],
-      "active_at_last_damage": [],
-      "availability": "unknown",
-      "consumables": [],
-      "death_ms": 77141,
-      "guid": "Player-1171-0B076010",
-      "killing_spell": 1287083,
-      "last_damage_ms": 76225,
-      "last_defensive_casts": [],
-      "name": "M\u00e4dz",
-      "pull": 441,
-      "recap_damage_last_10s": 534794,
-      "recent_10s_casts": []
-    },
-    {
-      "active": [],
-      "active_at_last_damage": [],
-      "availability": "unknown",
-      "consumables": [],
       "death_ms": 97646,
       "guid": "Player-1171-0B076010",
       "killing_spell": 1287083,
@@ -2398,21 +2277,6 @@
       "name": "Wispless",
       "pull": 441,
       "recap_damage_last_10s": 176222,
-      "recent_10s_casts": []
-    },
-    {
-      "active": [],
-      "active_at_last_damage": [],
-      "availability": "unknown",
-      "consumables": [],
-      "death_ms": 96348,
-      "guid": "Player-1171-0B076010",
-      "killing_spell": 1285998,
-      "last_damage_ms": 96318,
-      "last_defensive_casts": [],
-      "name": "M\u00e4dz",
-      "pull": 442,
-      "recap_damage_last_10s": 1235240,
       "recent_10s_casts": []
     },
     {
@@ -3206,21 +3070,6 @@
       "active_at_last_damage": [],
       "availability": "unknown",
       "consumables": [],
-      "death_ms": 22384,
-      "guid": "Player-1171-0B076010",
-      "killing_spell": 1292299,
-      "last_damage_ms": 22350,
-      "last_defensive_casts": [],
-      "name": "M\u00e4dz",
-      "pull": 443,
-      "recap_damage_last_10s": 360224,
-      "recent_10s_casts": []
-    },
-    {
-      "active": [],
-      "active_at_last_damage": [],
-      "availability": "unknown",
-      "consumables": [],
       "death_ms": 25584,
       "guid": "Player-60-0FF75E8B",
       "killing_spell": 1285965,
@@ -3333,7 +3182,7 @@
       "last_defensive_casts": [],
       "name": "M\u00e4dz",
       "pull": 443,
-      "recap_damage_last_10s": 75581,
+      "recap_damage_last_10s": 396364,
       "recent_10s_casts": []
     },
     {
@@ -3425,21 +3274,6 @@
       "name": "Jentle",
       "pull": 443,
       "recap_damage_last_10s": 1681690,
-      "recent_10s_casts": []
-    },
-    {
-      "active": [],
-      "active_at_last_damage": [],
-      "availability": "unknown",
-      "consumables": [],
-      "death_ms": 20463,
-      "guid": "Player-1171-0B076010",
-      "killing_spell": 1287083,
-      "last_damage_ms": 20060,
-      "last_defensive_casts": [],
-      "name": "M\u00e4dz",
-      "pull": 444,
-      "recap_damage_last_10s": 659010,
       "recent_10s_casts": []
     },
     {
@@ -10125,9 +9959,9 @@
     }
   ],
   "summary": {
-    "death_events": 322,
+    "death_events": 313,
     "with_open_aura_at_last_damage": 16,
-    "with_prior_consumable": 99,
-    "with_recent_cast": 49
+    "with_prior_consumable": 98,
+    "with_recent_cast": 48
   }
 }

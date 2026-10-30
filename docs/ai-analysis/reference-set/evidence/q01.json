@@ -1,268 +1,6 @@
 {
   "death_chain": [
     {
-      "guid": "Player-1171-0B076010",
-      "ms": 20476,
-      "name": "M\u00e4dz",
-      "pull": 440,
-      "recap": [
-        {
-          "amount": 48969,
-          "ms_into_fight": 20008,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "0000000000000000",
-          "source_name": "nil",
-          "spell_id": 1285965,
-          "spell_name": "Ula'tek's Presence",
-          "timestamp": "9/6/2026 11:33:40.947-4"
-        },
-        {
-          "amount": 161303,
-          "ms_into_fight": 19749,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1287083,
-          "spell_name": "Tempest",
-          "timestamp": "9/6/2026 11:33:40.688-4"
-        },
-        {
-          "amount": 57906,
-          "ms_into_fight": 19583,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1285998,
-          "spell_name": "Mutilated Gash",
-          "timestamp": "9/6/2026 11:33:40.522-4"
-        },
-        {
-          "amount": 161303,
-          "ms_into_fight": 19524,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1287083,
-          "spell_name": "Tempest",
-          "timestamp": "9/6/2026 11:33:40.463-4"
-        },
-        {
-          "amount": 57906,
-          "ms_into_fight": 18576,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1285998,
-          "spell_name": "Mutilated Gash",
-          "timestamp": "9/6/2026 11:33:39.515-4"
-        },
-        {
-          "amount": 48970,
-          "ms_into_fight": 18006,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "0000000000000000",
-          "source_name": "nil",
-          "spell_id": 1285965,
-          "spell_name": "Ula'tek's Presence",
-          "timestamp": "9/6/2026 11:33:38.945-4"
-        },
-        {
-          "amount": 32993,
-          "ms_into_fight": 17572,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1285998,
-          "spell_name": "Mutilated Gash",
-          "timestamp": "9/6/2026 11:33:38.511-4"
-        },
-        {
-          "amount": 27549,
-          "ms_into_fight": 14580,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1285998,
-          "spell_name": "Mutilated Gash",
-          "timestamp": "9/6/2026 11:33:35.519-4"
-        },
-        {
-          "amount": 48970,
-          "ms_into_fight": 14006,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "0000000000000000",
-          "source_name": "nil",
-          "spell_id": 1285965,
-          "spell_name": "Ula'tek's Presence",
-          "timestamp": "9/6/2026 11:33:34.945-4"
-        },
-        {
-          "amount": 57906,
-          "ms_into_fight": 13598,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1285998,
-          "spell_name": "Mutilated Gash",
-          "timestamp": "9/6/2026 11:33:34.537-4"
-        },
-        {
-          "amount": 265404,
-          "ms_into_fight": 12567,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1285999,
-          "spell_name": "Mutilate",
-          "timestamp": "9/6/2026 11:33:33.506-4"
-        },
-        {
-          "amount": 48969,
-          "ms_into_fight": 12000,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "0000000000000000",
-          "source_name": "nil",
-          "spell_id": 1285965,
-          "spell_name": "Ula'tek's Presence",
-          "timestamp": "9/6/2026 11:33:32.939-4"
-        }
-      ],
-      "role": "dps",
-      "spell": 1285965
-    },
-    {
-      "guid": "Player-1171-0B076010",
-      "ms": 91983,
-      "name": "M\u00e4dz",
-      "pull": 440,
-      "recap": [
-        {
-          "amount": 63176,
-          "ms_into_fight": 91067,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1287083,
-          "spell_name": "Tempest",
-          "timestamp": "9/6/2026 11:34:52.006-4"
-        },
-        {
-          "amount": 59386,
-          "ms_into_fight": 90074,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1287083,
-          "spell_name": "Tempest",
-          "timestamp": "9/6/2026 11:34:51.013-4"
-        },
-        {
-          "amount": 43269,
-          "ms_into_fight": 90004,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "0000000000000000",
-          "source_name": "nil",
-          "spell_id": 1285965,
-          "spell_name": "Ula'tek's Presence",
-          "timestamp": "9/6/2026 11:34:50.943-4"
-        },
-        {
-          "amount": 67210,
-          "ms_into_fight": 89064,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1287083,
-          "spell_name": "Tempest",
-          "timestamp": "9/6/2026 11:34:50.003-4"
-        },
-        {
-          "amount": 161303,
-          "ms_into_fight": 88067,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1287083,
-          "spell_name": "Tempest",
-          "timestamp": "9/6/2026 11:34:49.006-4"
-        },
-        {
-          "amount": 48969,
-          "ms_into_fight": 88008,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "0000000000000000",
-          "source_name": "nil",
-          "spell_id": 1285965,
-          "spell_name": "Ula'tek's Presence",
-          "timestamp": "9/6/2026 11:34:48.947-4"
-        },
-        {
-          "amount": 48970,
-          "ms_into_fight": 86004,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "0000000000000000",
-          "source_name": "nil",
-          "spell_id": 1285965,
-          "spell_name": "Ula'tek's Presence",
-          "timestamp": "9/6/2026 11:34:46.943-4"
-        },
-        {
-          "amount": 48970,
-          "ms_into_fight": 84011,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "0000000000000000",
-          "source_name": "nil",
-          "spell_id": 1285965,
-          "spell_name": "Ula'tek's Presence",
-          "timestamp": "9/6/2026 11:34:44.950-4"
-        },
-        {
-          "amount": 58010,
-          "ms_into_fight": 82870,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
-          "source_name": "Sszorak",
-          "spell_id": 1285998,
-          "spell_name": "Mutilated Gash",
-          "timestamp": "9/6/2026 11:34:43.809-4"
-        },
-        {
-          "amount": 48969,
-          "ms_into_fight": 82004,
-          "overkill": 0,
-          "school": 8,
-          "source_guid": "0000000000000000",
-          "source_name": "nil",
-          "spell_id": 1285965,
-          "spell_name": "Ula'tek's Presence",
-          "timestamp": "9/6/2026 11:34:42.943-4"
-        }
-      ],
-      "role": "dps",
-      "spell": 1287083
-    },
-    {
       "guid": "Player-1171-0A34A5C5",
       "ms": 155271,
       "name": "Kahnu",
@@ -851,11 +589,405 @@
       ],
       "role": "healer",
       "spell": 1277101
+    },
+    {
+      "guid": "Player-3676-0ABEDF88",
+      "ms": 207027,
+      "name": "Roarsch\u00e4ch",
+      "pull": 440,
+      "recap": [
+        {
+          "amount": 1224707,
+          "ms_into_fight": 207000,
+          "overkill": 460935,
+          "school": 1,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1277101,
+          "spell_name": "Ravage",
+          "timestamp": "9/6/2026 11:36:47.939-4"
+        },
+        {
+          "amount": 2726,
+          "ms_into_fight": 206649,
+          "overkill": 0,
+          "school": 4,
+          "source_guid": "Player-3676-0ABEDF88",
+          "source_name": "Roarsch\u00e4ch-Area52-US",
+          "spell_id": 453286,
+          "spell_name": "Set Fire to the Pain",
+          "timestamp": "9/6/2026 11:36:47.588-4"
+        },
+        {
+          "amount": 2726,
+          "ms_into_fight": 205652,
+          "overkill": 0,
+          "school": 4,
+          "source_guid": "Player-3676-0ABEDF88",
+          "source_name": "Roarsch\u00e4ch-Area52-US",
+          "spell_id": 453286,
+          "spell_name": "Set Fire to the Pain",
+          "timestamp": "9/6/2026 11:36:46.591-4"
+        },
+        {
+          "amount": 2726,
+          "ms_into_fight": 204650,
+          "overkill": 0,
+          "school": 4,
+          "source_guid": "Player-3676-0ABEDF88",
+          "source_name": "Roarsch\u00e4ch-Area52-US",
+          "spell_id": 453286,
+          "spell_name": "Set Fire to the Pain",
+          "timestamp": "9/6/2026 11:36:45.589-4"
+        },
+        {
+          "amount": 41670,
+          "ms_into_fight": 204034,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:36:44.973-4"
+        },
+        {
+          "amount": 2726,
+          "ms_into_fight": 203660,
+          "overkill": 0,
+          "school": 4,
+          "source_guid": "Player-3676-0ABEDF88",
+          "source_name": "Roarsch\u00e4ch-Area52-US",
+          "spell_id": 453286,
+          "spell_name": "Set Fire to the Pain",
+          "timestamp": "9/6/2026 11:36:44.599-4"
+        },
+        {
+          "amount": 2726,
+          "ms_into_fight": 202648,
+          "overkill": 0,
+          "school": 4,
+          "source_guid": "Player-3676-0ABEDF88",
+          "source_name": "Roarsch\u00e4ch-Area52-US",
+          "spell_id": 453286,
+          "spell_name": "Set Fire to the Pain",
+          "timestamp": "9/6/2026 11:36:43.587-4"
+        },
+        {
+          "amount": 41669,
+          "ms_into_fight": 202021,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:36:42.960-4"
+        },
+        {
+          "amount": 2726,
+          "ms_into_fight": 201659,
+          "overkill": 0,
+          "school": 4,
+          "source_guid": "Player-3676-0ABEDF88",
+          "source_name": "Roarsch\u00e4ch-Area52-US",
+          "spell_id": 453286,
+          "spell_name": "Set Fire to the Pain",
+          "timestamp": "9/6/2026 11:36:42.598-4"
+        },
+        {
+          "amount": 2726,
+          "ms_into_fight": 200650,
+          "overkill": 0,
+          "school": 4,
+          "source_guid": "Player-3676-0ABEDF88",
+          "source_name": "Roarsch\u00e4ch-Area52-US",
+          "spell_id": 453286,
+          "spell_name": "Set Fire to the Pain",
+          "timestamp": "9/6/2026 11:36:41.589-4"
+        },
+        {
+          "amount": 59471,
+          "ms_into_fight": 200223,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287083,
+          "spell_name": "Tempest",
+          "timestamp": "9/6/2026 11:36:41.162-4"
+        },
+        {
+          "amount": 8324,
+          "ms_into_fight": 200014,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:36:40.953-4"
+        },
+        {
+          "amount": 2755,
+          "ms_into_fight": 199648,
+          "overkill": 0,
+          "school": 4,
+          "source_guid": "Player-3676-0ABEDF88",
+          "source_name": "Roarsch\u00e4ch-Area52-US",
+          "spell_id": 453286,
+          "spell_name": "Set Fire to the Pain",
+          "timestamp": "9/6/2026 11:36:40.587-4"
+        },
+        {
+          "amount": 107413,
+          "ms_into_fight": 199627,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1287083,
+          "spell_name": "Tempest",
+          "timestamp": "9/6/2026 11:36:40.566-4"
+        }
+      ],
+      "role": "dps",
+      "spell": 1277101
+    },
+    {
+      "guid": "Player-3684-0E6EFE03",
+      "ms": 233505,
+      "name": "Umbraz",
+      "pull": 440,
+      "recap": [
+        {
+          "amount": 75607,
+          "ms_into_fight": 233504,
+          "overkill": 59088,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1285998,
+          "spell_name": "Mutilated Gash",
+          "timestamp": "9/6/2026 11:37:14.443-4"
+        },
+        {
+          "amount": 57232,
+          "ms_into_fight": 232659,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1312156,
+          "spell_name": "Venomous Surge",
+          "timestamp": "9/6/2026 11:37:13.598-4"
+        },
+        {
+          "amount": 80432,
+          "ms_into_fight": 232492,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1285998,
+          "spell_name": "Mutilated Gash",
+          "timestamp": "9/6/2026 11:37:13.431-4"
+        },
+        {
+          "amount": 51014,
+          "ms_into_fight": 232004,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:37:12.943-4"
+        },
+        {
+          "amount": 57232,
+          "ms_into_fight": 231651,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1312156,
+          "spell_name": "Venomous Surge",
+          "timestamp": "9/6/2026 11:37:12.590-4"
+        },
+        {
+          "amount": 80432,
+          "ms_into_fight": 231487,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1285998,
+          "spell_name": "Mutilated Gash",
+          "timestamp": "9/6/2026 11:37:12.426-4"
+        },
+        {
+          "amount": 57232,
+          "ms_into_fight": 230655,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1312156,
+          "spell_name": "Venomous Surge",
+          "timestamp": "9/6/2026 11:37:11.594-4"
+        },
+        {
+          "amount": 80432,
+          "ms_into_fight": 230492,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1285998,
+          "spell_name": "Mutilated Gash",
+          "timestamp": "9/6/2026 11:37:11.431-4"
+        },
+        {
+          "amount": 51015,
+          "ms_into_fight": 230013,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:37:10.952-4"
+        },
+        {
+          "amount": 57232,
+          "ms_into_fight": 229655,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1312156,
+          "spell_name": "Venomous Surge",
+          "timestamp": "9/6/2026 11:37:10.594-4"
+        },
+        {
+          "amount": 80432,
+          "ms_into_fight": 229506,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1285998,
+          "spell_name": "Mutilated Gash",
+          "timestamp": "9/6/2026 11:37:10.445-4"
+        },
+        {
+          "amount": 57232,
+          "ms_into_fight": 228650,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1312156,
+          "spell_name": "Venomous Surge",
+          "timestamp": "9/6/2026 11:37:09.589-4"
+        },
+        {
+          "amount": 80432,
+          "ms_into_fight": 228493,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1285998,
+          "spell_name": "Mutilated Gash",
+          "timestamp": "9/6/2026 11:37:09.432-4"
+        },
+        {
+          "amount": 51014,
+          "ms_into_fight": 228014,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:37:08.953-4"
+        },
+        {
+          "amount": 57232,
+          "ms_into_fight": 227658,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1312156,
+          "spell_name": "Venomous Surge",
+          "timestamp": "9/6/2026 11:37:08.597-4"
+        },
+        {
+          "amount": 17912,
+          "ms_into_fight": 227494,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1285998,
+          "spell_name": "Mutilated Gash",
+          "timestamp": "9/6/2026 11:37:08.433-4"
+        },
+        {
+          "amount": 57232,
+          "ms_into_fight": 226662,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1312156,
+          "spell_name": "Venomous Surge",
+          "timestamp": "9/6/2026 11:37:07.601-4"
+        },
+        {
+          "amount": 80432,
+          "ms_into_fight": 226520,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1285998,
+          "spell_name": "Mutilated Gash",
+          "timestamp": "9/6/2026 11:37:07.459-4"
+        },
+        {
+          "amount": 51014,
+          "ms_into_fight": 226014,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "0000000000000000",
+          "source_name": "nil",
+          "spell_id": 1285965,
+          "spell_name": "Ula'tek's Presence",
+          "timestamp": "9/6/2026 11:37:06.953-4"
+        },
+        {
+          "amount": 79662,
+          "ms_into_fight": 225500,
+          "overkill": 0,
+          "school": 8,
+          "source_guid": "Creature-0-3019-3004-416243-257347-00001D878D",
+          "source_name": "Sszorak",
+          "spell_id": 1285998,
+          "spell_name": "Mutilated Gash",
+          "timestamp": "9/6/2026 11:37:06.439-4"
+        }
+      ],
+      "role": "dps",
+      "spell": 1285998
     }
   ],
   "pull": {
     "boss": "Sszorak",
-    "death_events": 27,
+    "death_events": 25,
     "duration_ms": 411678,
     "failure_rows": [],
     "minimum_observed_boss_hp": {

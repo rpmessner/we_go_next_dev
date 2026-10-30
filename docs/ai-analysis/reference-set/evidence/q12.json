@@ -201,7 +201,7 @@
   ],
   "pull": {
     "boss": "Sszorak",
-    "death_events": 27,
+    "death_events": 25,
     "duration_ms": 411678,
     "failure_rows": [],
     "minimum_observed_boss_hp": {
