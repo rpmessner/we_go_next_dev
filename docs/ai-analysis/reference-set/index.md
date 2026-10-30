@@ -69,9 +69,7 @@ Reproducible checks:
 Cost evidence is in [promotion-wipe-cause-cost.json](promotion-wipe-cause-cost.json).
 Original Q1: $4.1979124, 75 CLI turns; Q4: $1.1621076, 39 CLI turns. Turns are not
 relabeled as model request counts. The deterministic integration path uses one
-Tool call, zero model calls and $0. **Post-merge dev Q1/Q4 baseline reruns remain
-pending with the coordinator**, along with persisted-gold verification after
-migration/rebuild. No paid model call was made for this build. The question picker
+Tool call, zero model calls and $0. Post-merge (coordinator, 2026-10-30): dev holds 31 wipe-cause rows for Sept 6, and pull 440's three deciding deaths match the spec. The WCL comparison on the stored rows lists only pull 451's three Eternal Venom spell-id differences. The Q1/Q4 rerun ([baselines/2026-10-30-promotion-q1q4](baselines/2026-10-30-promotion-q1q4/)) graded both correct: Q1 $1.37, 35 Tool calls; Q4 $0.63, 21 Tool calls. Before, Q1 was $4.20 with 74 Tool calls and Q4 $1.16 with 38, both partly. Each rerun called `wipe_cause` once. The drop is not cleanly attributable to the promotion alone, because the Feign Death fix and the deaths survival field landed between the runs. The question picker
 and lifecycle UI are still separate work; `Analysis.BuiltInQuestions.answer/2`
 is their deterministic binding boundary.
 

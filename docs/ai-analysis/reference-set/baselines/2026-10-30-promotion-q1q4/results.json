@@ -1,0 +1,12 @@
+[
+  {
+    "question": "q01",
+    "verdict": "correct",
+    "reason": "Matches the reference: first death Kahnu at 155.27s to Mutilate (471,786, 15,359 overkill) after Viscous Cyst and Ula'tek's Presence ticks; then M\u00e4dz at 2:51 to Tempest, Jentle and Roarsch\u00e4ch to Ravage at 3:27, Umbraz to Mutilated Gash at 3:53; 25 deaths in 411.7s; first death not claimed as cause; inferences labeled. Flag for human review: extra bronze claims (Tempest hits from 0:16, Dymitrius at 3:57 to Venomous Surge, Kahnu as Balance Druid) and Felthuzad's killer left unknown where the reference records Fel Armor."
+  },
+  {
+    "question": "q04",
+    "verdict": "correct",
+    "reason": "Matches the reference: Kahnu first at 155.271 s, Mutilate kill blow (471,786 dmg, 15,359 overkill, 155.248 s), Presence/Cyst lead-up with times, and avoidability unknown. The unavoidable reading is labeled as inference. Flag for human review: the extra M\u00e4dz 171.4 s Tempest death, Caustic Residue, and raid-wide Mutilate claims."
+  }
+]
