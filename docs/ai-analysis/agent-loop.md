@@ -53,7 +53,7 @@ The ten-minute timeout is a named `:gen_statem` timeout, not a state timeout. Ch
 
 The default turn cap is 40, raised to 80 by Continue. Full spend/request accounting and operator-facing limit controls belong to we-cqa.3. The lifecycle counters follow the TLA+ abstraction: successful Tool or answer turns, rather than failed HTTP attempts.
 
-Migration `20261030200000_create_analysis_questions_and_messages.exs` changes only the `analysis` schema:
+Migration `20261030210000_create_analysis_questions_and_messages.exs` changes only the `analysis` schema:
 
 - `sessions.model` stores the operator's model choice.
 - `questions` stores scope, question text, model, state, lifecycle snapshot, answer, and error.
