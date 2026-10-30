@@ -1,6 +1,6 @@
 # Sept 6 phase-1 reference set
 
-Status: all answers are drafts. Operator verification and the paid baseline are pending. No baseline score or live acceptance check is claimed.
+Status: Q1-Q11 operator-accepted, Q12 redrafted for Wispless and awaiting a check. Baseline recorded below. Q1-Q6 and Q10 are known to rest partly on Feign Death rows (we-6l9) and will be re-versioned after that fix; the baseline stays graded against this revision.
 
 Log `30`, `Archive-WoWCombatLog-090626_103607.txt`. Evidence uses the existing imported silver and gold snapshot plus bronze byte ranges. Query origin is the worktree base `f3b06f29ce314dfa34b372343c6069d4ecb76383`.
 
@@ -54,6 +54,10 @@ See [README.md](README.md) for recomputation, operator verification, reruns, gra
 
 - Reviewer and date: operator, 2026-10-29 (foreman decision on we-xf4.8: Q1-Q11 accepted as drafted).
 - Reference corrections and scope changes: none to Q1-Q11. Q12 retargeted from Mittwoch (absent from the Sept 6 roster) to Wispless, the operator's character that night (foreman decision on we-xf4.8); its evidence was recomputed and its answer redrafted, pending operator check.
-- Baseline run directory and model: pending.
-- Baseline grade counts and human overrides: pending.
+- Baseline run directory and model: [baselines/2026-10-29-opus55](baselines/2026-10-29-opus55/), `claude-opus-5-5` for both run and judge, graded against this revision. Cost: $30.99 for the run (Q3 and Q6 about $6.70 each, 100+ turns) plus $0.76 for the judge.
+- Baseline grade counts: 4 correct (Q7, Q9, Q11, Q12), 8 partly, 0 wrong. Advisory 8/12, with partly counting as half; no pass threshold.
+- Human overrides (coordinator, from bronze; operator review pending):
+  - Q1 and Q4: the model is right and the reference is wrong. Mädz's 0:20.5 and 1:32 deaths on pull 440 are Feign Death: the `UNIT_DIED` `unconsciousOnDeath` flag is 1, and Mädz keeps casting with no resurrection. The first real death is Kahnu at 155.271 s (Mutilate). Read Q1 and Q4 as correct, which makes the overridden score 6 correct, 6 partly. Root cause: silver.death ignores the flag (we-6l9).
+  - Q2: the judge's "unverified Feign Death inference" flag is likewise answered by we-6l9; the verdict stays partly for the other omissions.
+  - The other partly verdicts stand: each one omits a reference element the judge named.
 - Live Q1, persisted verdict, and joined export evidence: Analysis session `3e11529b-7679-446c-9cec-721125402dd2` (Claude Code, Opus 5.5) answered Q1 on Sszorak pull 5 (gold 440). It made 15 Tool calls with 0 errors; `log_events` took 345-462 ms per call. The answer cited Tool evidence for every claim, labelled its inference, and named the same first death as the reference: Mädz at 0:20.5. Export matched all 15 transcript calls to their server rows (0 unmatched either way; 1 unscoped ToolSearch call). Verdict: pending, because the operator has not judged the answer in that session yet.

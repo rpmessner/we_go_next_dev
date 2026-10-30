@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "command": "run",
+  "model": "claude-opus-5-5",
+  "started_at": "2026-10-29T23:30:24.587075+00:00",
+  "reference_hashes": {
+    "evidence/q01.json": "7d2a6b8b899bd112ffbb950583388a7f403f7e4bcb6af88bd0d148d0f0e34cd1",
+    "evidence/q02.json": "8dcc48174d5099b89bec95f3db8536f13917906e12d54c47a31f47c43fe6efc3",
+    "evidence/q03.json": "1f3ef0ab608aee711eef290ff7b5a80bdc2a2cd44b255cb72222cf084c1541e3",
+    "evidence/q04.json": "eb6eebe994004ca58da1332f50602310eb5a81c933d470b987d01f6fa3106360",
+    "evidence/q05.json": "9b860c5802e4254f83c53b836f1f79f3ee4e2a6c685284200c24bab6ee817f80",
+    "evidence/q06.json": "6d0820a4b24082a6d957a44e154962b6433e5ada19a3067428243a4b2c571878",
+    "evidence/q07.json": "a55ea5f309c1318cce82c3760da477360279082d6d3eddd07353bcbb4d95a927",
+    "evidence/q08.json": "a230cab3cea1f2c6241367d7a23ae788ce5e6cc5821c38498f84aec0046f0cae",
+    "evidence/q09.json": "6e14d096b01a258d959b52361d0a55cb51b5b53ba2760c0b01d0dd51cb125119",
+    "evidence/q10.json": "5bd30894a695c1724d8ff8108be60696d10eafa314c9b9727e811e28f57f1f91",
+    "evidence/q11.json": "5223cdfb86f7b02471cedf127f886a9ae9317dcf78bcad0f838bb21e0082ce8f",
+    "evidence/q12.json": "aefc771a97e604488f26de64c68008aa43e6994d7b88ba723999151d9b7df376",
+    "evidence/spell-names.json": "811a86613eddba3634a7c8f5cacdf3248fa5aa5c27e9b7ecbf1786d8db19555b",
+    "q01.md": "417996d414519a616e402764305f6d3ff9604e1c50bb2b7ab8ab3ad67040ead5",
+    "q02.md": "e66774366c4449ca59d68947027190599e5b3dd8bfa18cab400ef59f77e4e04f",
+    "q03.md": "921bf44b987ad427750fd7479768d77103a873d50a5a8d70a54854d3618e7f41",
+    "q04.md": "546f55081761934180dd33251ed68a75de5ecdb14cea17783f9acd247760cfaa",
+    "q05.md": "39ef5d50d2ebba2e20c102a3cca650da1b53d1d292e2e1c123524c52486951b9",
+    "q06.md": "4fd6c3cf9ea67d8b0e4edf96869becb92a4712d39e366600f8fa81ef583a44c7",
+    "q07.md": "716329e79db62942baa647b96297d559d54a8bb63963951566d4b030364859a7",
+    "q08.md": "d718548ebc579f451eff794ad4c87ad9395320d117ad03569be8bd00d2c72221",
+    "q09.md": "e29867ae87e90b4cbde9a35ef4ddf50f3ce959411451ed18f04c411a9b7d6ef3",
+    "q10.md": "0c32edbd6ec1950f53f79d2b0994f9b181b24b36897341e573547209a67cd582",
+    "q11.md": "84409e2537c62b54fe7e774a91477d7d13e8d28a421312b958b190f6a568429f",
+    "q12.md": "ca3ed8b0bc61ff747cc7d5e1fb22488ab5060ed7b04bf451fa84782656fa5a70",
+    "questions.json": "d9a0f999a3568f865cec1bf85088902c9888ce77af24cfa8484319764969281f",
+    "survival-catalog.json": "a50b865606b42c5ca1c1488593a44c24bef02e5767e2f458ac7edf8fc3b4d6a7"
+  },
+  "questions": [
+    {
+      "id": "q01",
+      "question": "Why did Sszorak pull N wipe: what was the first thing that went wrong?",
+      "selection": "Sszorak pull 5, gold pull 440. It is the longest Sszorak wipe and has the most death events."
+    },
+    {
+      "id": "q02",
+      "question": "Were we improving across the Sszorak pulls, and on which mechanics?",
+      "selection": "All Sszorak pulls in log 30, gold pulls 436 through 444, including resets."
+    },
+    {
+      "id": "q03",
+      "question": "What changed between our last Twin Fangs wipe and the kill?",
+      "selection": "The last Twin Fangs wipe (pull 7, gold 451) and the kill (pull 8, gold 452)."
+    },
+    {
+      "id": "q04",
+      "question": "Who died first on pull N, to what, and was it avoidable?",
+      "selection": "Sszorak pull 5, gold pull 440, the same wipe as Q1."
+    },
+    {
+      "id": "q05",
+      "question": "For each death on the night: defensives on cooldown or sitting unused, and did a healthstone or potion get used?",
+      "selection": "All 18 encounter pulls in log 30, gold pulls 435 through 452. Exclude trash and events between encounters."
+    },
+    {
+      "id": "q06",
+      "question": "Did anyone die through a defensive or potion (the damage was simply too much)?",
+      "selection": "All 18 encounter pulls in log 30, gold pulls 435 through 452. Use a 10-second pre-death cast window and aura evidence."
+    },
+    {
+      "id": "q07",
+      "question": "Who took avoidable damage on Twin Fangs, which spells, and how many times per pull?",
+      "selection": "All eight Twin Fangs pulls in log 30, gold pulls 445 through 452."
+    },
+    {
+      "id": "q08",
+      "question": "Which casts on Sszorak went uninterrupted, and who was assigned or nearby?",
+      "selection": "All nine Sszorak pulls in log 30, gold pulls 436 through 444. Verify casts and interrupts from bronze, not interrupt silver."
+    },
+    {
+      "id": "q09",
+      "question": "Is there a spell that keeps hurting people that we haven't marked as a mechanic yet?",
+      "selection": "All 18 encounter pulls in log 30, gold pulls 435 through 452. Rank repeated unruled damage by total logged amount."
+    },
+    {
+      "id": "q10",
+      "question": "What is the one thing each player should fix for next week, as a private note per player?",
+      "selection": "All players in log 30 across gold pulls 435 through 452. Use a repeated killing blow as an investigation priority, not an automatic avoidable failure."
+    },
+    {
+      "id": "q11",
+      "question": "Which players improved on their worst mechanic over the night?",
+      "selection": "All log 30 pulls. Separate authored mechanic improvement from observed hit and killing-blow trends. Exclude sub-minute resets from hit comparisons."
+    },
+    {
+      "id": "q12",
+      "question": "As Wispless, what did I lose on pull N: deaths, downtime, wasted cooldowns?",
+      "selection": "Sszorak pull 5, gold pull 440. Search for Wispless by exact character identity."
+    }
+  ],
+  "log": "30",
+  "runner_sha256": "f08f2a9555acd9eac7be953f9a90062900587138a404ce4838b330225ff7645a",
+  "run_directory": null
+}
