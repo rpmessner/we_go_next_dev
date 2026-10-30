@@ -1,6 +1,6 @@
 # Sept 6 phase-1 reference set
 
-Status: revision 2. After the we-6l9 Feign Death fix and the dev rebuild, Q1, Q2, Q4, Q5, Q6, Q10, Q11 and Q12 were recomputed and rewritten, and they await operator verification. Q3, Q7, Q8 and Q9 had no evidence change and stay as accepted. The 2026-10-29 baseline was graded against revision 1 (commit bf6b6be); see its overrides below.
+Status: revision 2. After the we-6l9 Feign Death fix and the dev rebuild, Q1, Q2, Q4, Q5, Q6, Q10, Q11 and Q12 were recomputed and rewritten. The operator accepted revision 2 on 2026-10-30 (foreman decision on we-xf4.8). Q3, Q7, Q8 and Q9 had no evidence change and stay as accepted. The 2026-10-29 baseline was graded against revision 1 (commit bf6b6be); see its overrides below.
 
 Log `30`, `Archive-WoWCombatLog-090626_103607.txt`. Evidence uses the existing imported silver and gold snapshot plus bronze byte ranges. Query origin is the worktree base `f3b06f29ce314dfa34b372343c6069d4ecb76383`.
 
