@@ -59,11 +59,11 @@ Recommendation:
 - The `deaths` Tool pages one recap hit per page. That caused 163 follow-up calls across 13 sessions, and it is the biggest single driver of call counts. It is a Tool-contract candidate for the first retro.
 - `session_context` had 45 cursor follow-ups, probably from paginated stale-pull lists. Worth checking.
 
-## Open questions for the operator
+## Operator decisions (foreman, 2026-10-30)
 
-1. **Context.** Design for the raid break and after the raid, and leave between-pull help to the existing views and future Auto-runs?
-2. **Placement.** A top-level Analysis page scoped to a log, with "Ask about this pull" entry points from encounter detail and Failures? The alternative is a panel docked on encounter detail.
-3. **Evidence.** When you check a citation, do you want the raw rows beside the answer (a side inspector), or a jump into the existing Death Recap or log view?
-4. **Trail.** Show a coverage summary by default, with the raw Tool calls on demand? Or watch the calls live while the answer runs?
+1. **Context:** design mainly for the raid break and after the raid. The operator still wants help between pulls, for course correction ("if you're doing something wrong or making a repeated mechanic mistake, it'd be good to know"). It doesn't have to be tied to one pull: a **break page that builds up as each encounter finishes**. That pulls the Auto-run fog into scope for design. The page is filled by Tools the app runs on its own at `ENCOUNTER_END` (the log flushes then), not by questions asked during runback. Real example from Sept 6: Eternal Venom was the top killing blow on all 7 Twin Fangs wipes (5–10 deaths each).
+2. **Placement:** test both, the log-level Analysis page and the panel docked on encounter detail.
+3. **Evidence:** test both, the side inspector and the jump into existing views. Also, "the main chat [should] have a link to the full analysis page": a compact panel and a full page coexist, linked.
+4. **Trail and history:** "I don't really want my main interface to keep scrolling and have to go searching through old stuff, it should be a more hierarchical interface." This rules out a chat transcript as the main structure. Questions and answers are organised by night, then encounter, then pull. One answer is shown at a time, with its evidence and coverage beneath it. History is navigated through that tree, not by scrolling.
 
-The prototype's variants then test whatever these answers leave open: placement, evidence inspection and trail visibility.
+Mockups: the private canvas "Analysis session screen options" (claude.ai/artifact/5HbrEmQKhXMxWmFyFZ9Uq7). Rows 1–3 show the first options. Row 4 adds the hierarchical page and the build-up break page from these decisions.
