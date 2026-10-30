@@ -584,3 +584,5 @@ mix test test/features/minimal_flow_test.exs
 # With Credo
 mix credo
 ```
+
+Feature tests fail with Wallaby `invalid session id` on this WSL host because the snap chromedriver cannot launch the `/snap/bin/chromium` wrapper from inside its namespace. Put a `google-chrome` symlink to `/snap/chromium/current/usr/lib/chromium-browser/chrome` in a directory under `~/snap/chromium/common/` and prepend that directory to `PATH` for the run. Parallel worktrees also need `MIX_TEST_PARTITION` and `TEST_PORT` set.
