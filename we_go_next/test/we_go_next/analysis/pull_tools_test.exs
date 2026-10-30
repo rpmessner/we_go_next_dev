@@ -8,6 +8,7 @@ defmodule WeGoNext.Analysis.PullToolsTest do
   alias WeGoNext.Silver.{Death, PlayerInfo, Projector}
 
   setup do
+    Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
     root = Path.join(System.tmp_dir!(), "pull-tools-#{System.unique_integer([:positive])}")
     original = Application.fetch_env!(:we_go_next, :documents_root)
     Application.put_env(:we_go_next, :documents_root, root)
@@ -63,6 +64,12 @@ defmodule WeGoNext.Analysis.PullToolsTest do
     for row <- projection.player_info, do: Repo.insert!(PlayerInfo.changeset(%PlayerInfo{}, row))
     for row <- projection.death, do: Repo.insert!(Death.changeset(%Death{}, row))
 
+    for row <- projection.survival_action,
+        do:
+          Repo.insert!(
+            WeGoNext.Silver.SurvivalAction.changeset(%WeGoNext.Silver.SurvivalAction{}, row)
+          )
+
     for row <- projection.damage_taken,
         do:
           Repo.insert!(WeGoNext.Silver.DamageTaken.changeset(%WeGoNext.Silver.DamageTaken{}, row))
@@ -106,6 +113,23 @@ defmodule WeGoNext.Analysis.PullToolsTest do
     assert first.recap_count == 5
     assert Enum.all?(page.evidence, &(&1.pull_id == dim.id and &1.ms_into_fight == 147_028))
     assert byte_size(Jason.encode!(page)) <= 8192
+  end
+
+  test "deaths reports no observed survival use when the real healthstone predates the window", %{
+    context: context,
+    dim: dim
+  } do
+    args = %{"pulls" => [dim.id]}
+    assert {:ok, page} = Deaths.run(args, context)
+    rows = drain(Deaths, args, context, page)
+    assert [first | rest] = rows
+
+    # Manaken used a Healthstone at 93_035ms, outside this death's 10-second window.
+    assert first[:survival] == %{observed: [], externals_received: []}
+
+    assert Enum.all?(rest, &(not Map.has_key?(&1, :survival)))
+    assert Enum.all?(page.evidence, &(&1.pull_id == dim.id and &1.ms_into_fight == 147_028))
+    assert Enum.all?(page.evidence, &(&1.timestamp == dim.start_time))
   end
 
   test "failures returns gold facts with optional exact player and mechanic filters", %{
@@ -292,7 +316,17 @@ defmodule WeGoNext.Analysis.PullToolsTest do
     )
 
     assert {:ok, page} = Deaths.run(%{"pulls" => [dim.id]}, context)
-    assert [%{damage_recap: [], killing_blow: nil, recap_count: 0, recap_index: nil}] = page.data
+
+    assert [
+             %{
+               damage_recap: [],
+               killing_blow: nil,
+               recap_count: 0,
+               recap_index: nil,
+               survival: %{observed: [], externals_received: []}
+             }
+           ] = page.data
+
     assert [%{ms_into_fight: 147_028}] = page.evidence
   end
 
