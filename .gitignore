@@ -45,3 +45,4 @@ erl_crash.dump
 
 # Local planning scratch (promote keepers into docs/)
 plans/
+__pycache__/
