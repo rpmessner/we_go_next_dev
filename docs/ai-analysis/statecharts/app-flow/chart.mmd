@@ -1,0 +1,48 @@
+---
+title: "App flow: how the Analysis screens connect"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: existing pages
+    lg1: asking
+    lg2: answer
+    lg3: evidence
+  }
+  class lg0 blue
+  class lg1 tan
+  class lg2 teal
+  class lg3 purple
+  s0: Tonight (break page)
+  s1: Encounter detail
+  s2: Failures
+  s3: Question picker
+  s4: Encounter + docked panel
+  s5: Question in the Analysis tree
+  s6: Evidence inspector open
+  s7: Death Recap row + Back bar
+  [*] --> s0
+  s0 --> s1: you open a pull card
+  s0 --> s2: you open Failures
+  s0 --> s3: Ask why
+  s1 --> s4: you open the panel
+  s1 --> s3: Ask about this pull
+  s2 --> s3: Ask about this mechanic
+  s3 --> s5: you ask or you cancel
+  s3 --> s0: you cancel
+  s4 --> s1: you close the panel
+  s4 --> s5: Open full analysis
+  s3 --> s1: you cancel
+  s3 --> s2: you cancel
+  s5 --> s6: citation [inspector]
+  s5 --> s3: you ask a follow-up
+  s5 --> s7: citation [jump]
+  s6 --> s5: close
+  s7 --> s5: Back to the answer
+  class s0 blue
+  class s1 blue
+  class s2 blue
+  class s3 tan
+  class s4 blue
+  class s5 teal
+  class s6 purple
+  class s7 purple

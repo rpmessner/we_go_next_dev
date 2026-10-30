@@ -1,9 +1,10 @@
 # Analysis statecharts
 
-TLA+ models of the two state machines proposed for the Analysis screens (we-c5q.12). TLC checks each model against the rules the operator agreed to, and the statechart skill draws `chart.mmd` from the states it explores. The models are a design check, not code. When the transition tables are implemented, each machine's pure `step` table must match its model, and each rule becomes a property test.
+TLA+ models of the app flow and the two state machines proposed for the Analysis screens (we-c5q.12). TLC checks each model against the rules the operator agreed to, and the statechart skill draws `chart.mmd` from the states it explores. The models are a design check, not code. When the transition tables are implemented, each machine's pure `step` table must match its model, and each rule becomes a property test.
 
 | Machine | Drives | Rules checked |
 |---|---|---|
+| `app-flow` | Navigation between the Analysis screens | Cancel returns where the picker was opened; Back from a Death Recap jump returns to the answer; every question has a scope |
 | `pull-pipeline` | One pull's card on the Tonight (break) page | a shown card uses the current rules; a short reset is never shown; a failed pull shows its error; retries are bounded |
 | `question-lifecycle` | One question in the Analysis tree | a built-in with a deterministic Tool never calls the model; the budget is never exceeded; a running question always has its 10-minute timer; every Tool call is recorded; a verdict exists only on an answer |
 
@@ -25,6 +26,10 @@ cd docs/ai-analysis/statecharts/pull-pipeline
 ~/.claude/skills/statechart/scripts/statechart PullPipeline.tla --view view.ts --out /tmp/pull-chart
 cd ../question-lifecycle
 ~/.claude/skills/statechart/scripts/statechart QuestionLifecycle.tla --view view.ts --out /tmp/question-chart
+cd ../app-flow
+~/.claude/skills/statechart/scripts/statechart AppFlow.tla --view view.ts --out /tmp/app-chart
 ```
 
 What the models leave out: real spend amounts and request counts (budget is counted in model turns, with small limits); several pulls at once (one machine per pull); the content of answers and checks; Tool errors (they behave like a Tool returning).
+
+Render each `chart.mmd` to `chart.svg` with Pele 1.9.0, per the statechart skill's `references/render.md`.

@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="pele pele-state" viewBox="0 0 1429 957" width="1429" height="957" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_tw:var(--pele-title-weight,bold);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="state"><style>.pele {
+  --pele-bg: #ffffff;
+  --pele-fg: #1c1c1c;
+  --pele-muted: #656565;
+  --pele-line: #808080;
+  --pele-surface: #fcfcfc;
+  --pele-surface-alt: #f1f1f1;
+  --pele-border: #c9c9c9;
+}
+.pele .blue rect { fill: #c3e0ff; }
+.pele .orange rect { fill: #f0d3bf; }
+.pele .purple rect { fill: #e3d5ff; }
+.pele .yellow rect { fill: #f0dcbf; }
+.pele .teal rect { fill: #bfe3df; }
+.pele .tan rect { fill: #e5d9ce; }
+.pele .pink rect { fill: #ffcbe6; }
+.pele .breaks rect {
+  fill: #ffecee !important;
+  stroke: #e72e3b !important;
+  stroke-width: 2.5px !important;
+}
+.pele .breaks text {
+  fill: #cd2834 !important;
+}
+.pele .mayBreak rect {
+  fill: #fff3e6 !important;
+  stroke: #e8730c !important;
+  stroke-width: 2.5px !important;
+}
+.pele .mayBreak text {
+  fill: #b85a06 !important;
+}
+.pele .bugPath rect {
+  stroke: #1680f3 !important;
+  stroke-width: 2.5px !important;
+}
+.pele .repeats rect {
+  stroke: #9b35d6 !important;
+  stroke-width: 2.5px !important;
+  stroke-dasharray: 6 3;
+}
+@media (prefers-color-scheme: dark) {
+  .pele {
+    --pele-bg: #1f1f1f;
+    --pele-fg: #f5f5f5;
+    --pele-muted: #acacac;
+    --pele-line: #939393;
+    --pele-surface: #121212;
+    --pele-surface-alt: #2c2c2c;
+    --pele-border: #4e4e4e;
+  }
+  .pele .blue rect { fill: #1b3857; }
+  .pele .orange rect { fill: #573117; }
+  .pele .purple rect { fill: #3c2e57; }
+  .pele .yellow rect { fill: #573d17; }
+  .pele .teal rect { fill: #174641; }
+  .pele .tan rect { fill: #3d3127; }
+  .pele .pink rect { fill: #57233e; }
+  .pele .breaks rect {
+    fill: #2e2021 !important;
+    stroke: #cf2b35 !important;
+  }
+  .pele .breaks text {
+    fill: #ff6463 !important;
+  }
+  .pele .mayBreak rect {
+    fill: #2e2619 !important;
+    stroke: #d0700f !important;
+  }
+  .pele .mayBreak text {
+    fill: #ffa257 !important;
+  }
+  .pele .bugPath rect {
+    stroke: #116dd2 !important;
+  }
+  .pele .repeats rect {
+    stroke: #9a3fcf !important;
+  }
+}
+</style><text class="pele-title" font-weight="var(--_tw)" text-anchor="middle" xml:space="preserve"><tspan x="714.5" y="25.6">App flow: how the Analysis screens connect</tspan></text><g transform="translate(0,36)"><g class="pele-clusters"><g class="pele-cluster pele-state-composite" data-id="legend"><rect x="876.6" y="8" width="544.11" height="112" rx="10" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)"/><path d="M876.6,44H1420.72" fill="none" stroke="var(--_b)"/><text class="pele-cluster-label" x="1148.66" y="31.6" text-anchor="middle">Legend</text></g></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge pele-transition" data-id="edge0"><path d="M829.6,120L829.6,157"/><path class="pele-marker" d="M829.6,164L826.24,156L832.96,156Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge1"><path d="M791.35,208L791.35,216.09C791.35,218.7 577.5,223.9 577.5,226.5L577.5,270"/><path class="pele-marker" d="M577.5,277L574.14,269L580.86,269Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge2"><path d="M883.86,208L883.86,221C883.86,249 1148.89,249 1148.89,277L1148.89,840.75C1148.89,844.84 900.69,852.59 900.69,856.69L900.69,862"/><path class="pele-marker" d="M900.69,869L897.33,861L904.05,861Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge3"><path d="M851.86,208L851.86,221C851.86,249 944.27,249 944.27,277L944.27,565C944.27,649.5 837.38,649.5 837.38,734L837.38,740"/><path class="pele-marker" d="M837.38,747L834.02,739L840.74,739Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge4"><path d="M554.59,321L554.59,330.63C554.59,333.72 282.42,339.91 282.42,343L282.42,383"/><path class="pele-marker" d="M282.42,390L279.06,382L285.78,382Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge5"><path d="M591.31,321L591.31,333.31C591.31,337.96 810.01,344.6 810.01,349.25L810.01,663.75C810.01,698.88 805.38,698.88 805.38,734L805.38,740"/><path class="pele-marker" d="M805.38,747L802.02,739L808.74,739Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge6"><path d="M868.69,869L868.69,859.38C868.69,853.19 802.14,853.19 802.14,847L802.14,798"/><path class="pele-marker" d="M802.14,791L805.5,799L798.78,799Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge7"><path d="M773.38,747L773.38,734C773.38,719.12 736.73,710 676.93,710C617.13,710 580.48,694.8 580.48,670L580.48,645C580.48,620.2 534.84,605 460.36,605C385.88,605 340.23,594.74 340.23,578L340.23,572"/><path class="pele-marker" d="M340.23,565L343.59,573L336.87,573Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge8"><path d="M853.38,747L853.38,734C853.38,649.5 1031.79,649.5 1031.79,565L1031.79,277C1031.79,249 867.86,249 867.86,221L867.86,215"/><path class="pele-marker" d="M867.86,208L871.22,216L864.5,216Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge9"><path d="M347.59,390L347.59,380.38C347.59,377.28 570.59,371.09 570.59,368L570.59,328"/><path class="pele-marker" d="M570.59,321L573.95,329L567.23,329Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge10"><path d="M290.42,434L290.42,496"/><path class="pele-marker" d="M290.42,503L287.06,495L293.78,495Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge11"><path d="M821.38,747L821.38,734C821.38,649.5 880.81,649.5 880.81,565L880.81,349.25C880.81,345.27 607.31,337.3 607.31,333.31L607.31,328"/><path class="pele-marker" d="M607.31,321L610.67,329L603.95,329Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge12"><path d="M829.72,791L829.72,804C829.72,813 939.47,813 939.47,822L939.47,847C939.47,852.63 884.69,852.63 884.69,858.25L884.69,862"/><path class="pele-marker" d="M884.69,869L881.33,861L888.05,861Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge13"><path d="M232.6,565L232.6,578C232.6,591.02 205.74,599 161.92,599C118.1,599 91.24,616.48 91.24,645L91.24,740"/><path class="pele-marker" d="M91.24,747L87.88,739L94.6,739Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge14"><path d="M356.23,565L356.23,577.25C356.23,587.02 428.41,593 546.16,593C663.92,593 736.09,612.76 736.09,645L736.09,670C736.09,687.36 746.22,698 762.74,698C779.26,698 789.38,711.68 789.38,734L789.38,740"/><path class="pele-marker" d="M789.38,747L786.02,739L792.74,739Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge15"><path d="M282.42,565L282.42,731"/><path class="pele-marker" d="M282.42,738L279.06,730L285.78,730Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge16"><path d="M191.99,747L191.99,645C191.99,623.92 202.75,611 220.3,611C237.85,611 248.6,598.46 248.6,578L248.6,572"/><path class="pele-marker" d="M248.6,565L251.96,573L245.24,573Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge17"><path d="M413.13,738L413.13,645C413.13,627.64 396.24,617 368.68,617C341.12,617 324.23,602.18 324.23,578L324.23,572"/><path class="pele-marker" d="M324.23,565L327.59,573L320.87,573Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="edge1"><rect x="510.46" y="228.5" width="134.07" height="21" rx="3" fill="var(--_bg)"/><text x="577.5" y="243.9" text-anchor="middle">you open a pull card</text></g><g class="pele-edge-label" data-id="edge2"><rect x="1089.25" y="401.5" width="119.27" height="21" rx="3" fill="var(--_bg)"/><text x="1148.89" y="416.9" text-anchor="middle">you open Failures</text></g><g class="pele-edge-label" data-id="edge3"><rect x="914.21" y="401.5" width="60.12" height="21" rx="3" fill="var(--_bg)"/><text x="944.27" y="416.9" text-anchor="middle">Ask why</text></g><g class="pele-edge-label" data-id="edge4"><rect x="218.88" y="345" width="127.08" height="21" rx="3" fill="var(--_bg)"/><text x="282.42" y="360.4" text-anchor="middle">you open the panel</text></g><g class="pele-edge-label" data-id="edge5"><rect x="749.2" y="401.5" width="121.61" height="21" rx="3" fill="var(--_bg)"/><text x="810.01" y="416.9" text-anchor="middle">Ask about this pull</text></g><g class="pele-edge-label" data-id="edge6"><rect x="722.27" y="824" width="159.73" height="21" rx="3" fill="var(--_bg)"/><text x="802.14" y="839.4" text-anchor="middle">Ask about this mechanic</text></g><g class="pele-edge-label" data-id="edge7"><rect x="508.79" y="647" width="143.39" height="21" rx="3" fill="var(--_bg)"/><text x="580.48" y="662.4" text-anchor="middle">you ask or you cancel</text></g><g class="pele-edge-label" data-id="edge8"><rect x="994.33" y="401.5" width="74.92" height="21" rx="3" fill="var(--_bg)"/><text x="1031.79" y="416.9" text-anchor="middle">you cancel</text></g><g class="pele-edge-label" data-id="edge9"><rect x="506.28" y="345" width="128.62" height="21" rx="3" fill="var(--_bg)"/><text x="570.59" y="360.4" text-anchor="middle">you close the panel</text></g><g class="pele-edge-label" data-id="edge10"><rect x="231.17" y="454.5" width="118.49" height="21" rx="3" fill="var(--_bg)"/><text x="290.42" y="469.9" text-anchor="middle">Open full analysis</text></g><g class="pele-edge-label" data-id="edge11"><rect x="843.35" y="523.5" width="74.92" height="21" rx="3" fill="var(--_bg)"/><text x="880.81" y="538.9" text-anchor="middle">you cancel</text></g><g class="pele-edge-label" data-id="edge12"><rect x="902.01" y="824" width="74.92" height="21" rx="3" fill="var(--_bg)"/><text x="939.47" y="839.4" text-anchor="middle">you cancel</text></g><g class="pele-edge-label" data-id="edge13"><rect x="30.83" y="647" width="120.83" height="21" rx="3" fill="var(--_bg)"/><text x="91.24" y="662.4" text-anchor="middle">citation [inspector]</text></g><g class="pele-edge-label" data-id="edge14"><rect x="672.18" y="647" width="127.83" height="21" rx="3" fill="var(--_bg)"/><text x="736.09" y="662.4" text-anchor="middle">you ask a follow-up</text></g><g class="pele-edge-label" data-id="edge15"><rect x="235.23" y="647" width="94.37" height="21" rx="3" fill="var(--_bg)"/><text x="282.42" y="662.4" text-anchor="middle">citation [jump]</text></g><g class="pele-edge-label" data-id="edge16"><rect x="171.65" y="647" width="40.68" height="21" rx="3" fill="var(--_bg)"/><text x="191.99" y="662.4" text-anchor="middle">close</text></g><g class="pele-edge-label" data-id="edge17"><rect x="349.6" y="647" width="127.06" height="21" rx="3" fill="var(--_bg)"/><text x="413.13" y="662.4" text-anchor="middle">Back to the answer</text></g></g><g class="pele-nodes"><g class="pele-node pele-state blue" data-id="s0" transform="translate(829.6,186)"><rect x="-90.26" y="-22" width="180.51" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Tonight (break page)</text></g><g class="pele-node pele-state blue" data-id="s1" transform="translate(577.5,299)"><rect x="-73.81" y="-22" width="147.62" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Encounter detail</text></g><g class="pele-node pele-state blue" data-id="s2" transform="translate(884.69,891)"><rect x="-44.45" y="-22" width="88.9" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Failures</text></g><g class="pele-node pele-state tan" data-id="s3" transform="translate(810.14,769)"><rect x="-71.58" y="-22" width="143.15" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Question picker</text></g><g class="pele-node pele-state blue" data-id="s4" transform="translate(290.42,412)"><rect x="-109.17" y="-22" width="218.34" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Encounter + docked panel</text></g><g class="pele-node pele-state teal" data-id="s5" transform="translate(290.42,534)"><rect x="-101.82" y="-31" width="203.63" height="62" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="0" y="-4.9">Question in the Analysis</tspan><tspan x="0" y="16.1">tree</tspan></text></g><g class="pele-node pele-state purple" data-id="s6" transform="translate(111.6,769)"><rect x="-103.6" y="-22" width="207.2" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Evidence inspector open</text></g><g class="pele-node pele-state purple" data-id="s7" transform="translate(359.9,769)"><rect x="-104.7" y="-31" width="209.41" height="62" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" text-anchor="middle" xml:space="preserve"><tspan x="0" y="-4.9">Death Recap row + Back</tspan><tspan x="0" y="16.1">bar</tspan></text></g><g class="pele-node pele-state-start" data-id="root_start" transform="translate(829.6,113)"><circle r="7" fill="var(--_l)"/></g><g class="pele-node pele-state blue" data-id="lg0" transform="translate(959.74,82)"><rect x="-67.14" y="-22" width="134.27" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">existing pages</text></g><g class="pele-node pele-state tan" data-id="lg1" transform="translate(1106,82)"><rect x="-39.12" y="-22" width="78.24" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">asking</text></g><g class="pele-node pele-state teal" data-id="lg2" transform="translate(1226.9,82)"><rect x="-41.78" y="-22" width="83.57" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">answer</text></g><g class="pele-node pele-state purple" data-id="lg3" transform="translate(1356.7,82)"><rect x="-48.02" y="-22" width="96.03" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">evidence</text></g></g></g></svg>
