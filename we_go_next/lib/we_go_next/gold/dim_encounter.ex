@@ -28,6 +28,7 @@ defmodule WeGoNext.Gold.DimEncounter do
     field(:fight_time_ms, :integer)
     field(:start_byte, :integer)
     field(:end_byte, :integer)
+    field(:silver_death_derivation_version, :integer)
 
     timestamps(type: :utc_datetime_usec)
   end

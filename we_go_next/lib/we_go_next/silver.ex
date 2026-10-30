@@ -3,6 +3,8 @@ defmodule WeGoNext.Silver do
   Public API for projecting and persisting silver medallion rows.
   """
 
+  import Ecto.Query
+
   alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Repo
 
@@ -11,6 +13,7 @@ defmodule WeGoNext.Silver do
     DamageTaken,
     DamageTakenEvent,
     Death,
+    DeathDerivation,
     DebuffApplication,
     DefensiveBuffWindow,
     InterruptOpportunity,
@@ -40,17 +43,42 @@ defmodule WeGoNext.Silver do
          true <- is_list(events),
          projection <-
            Projector.project(dim_encounter.id, events, Keyword.take(opts, [:death_window_ms])) do
-      persist_projection(projection)
+      persist_projection(dim_encounter.id, projection)
     else
       :error -> {:error, :events_required}
       false -> {:error, :invalid_events}
     end
   end
 
-  defp persist_projection(%Projection{} = projection) do
+  defp persist_projection(encounter_dim_id, %Projection{} = projection) do
     now = DateTime.utc_now()
 
     Repo.transaction(fn ->
+      # Upserts alone retain now-excluded feigns. Prune absent natural keys,
+      # preserving ids of real deaths across repeated projections.
+      retained_deaths =
+        Enum.reduce(projection.death, dynamic(false), fn row, retained ->
+          dynamic(
+            [d],
+            ^retained or
+              (d.target_guid == ^row.target_guid and
+                 d.died_at_ms_into_fight == ^row.died_at_ms_into_fight)
+          )
+        end)
+
+      removed_deaths = dynamic(not (^retained_deaths))
+
+      Repo.delete_all(
+        from(d in Death,
+          where: d.encounter_dim_id == ^encounter_dim_id,
+          where: ^removed_deaths
+        )
+      )
+
+      Repo.update_all(from(d in DimEncounter, where: d.id == ^encounter_dim_id),
+        set: [silver_death_derivation_version: DeathDerivation.current_version()]
+      )
+
       %{
         damage_taken:
           insert_rows(

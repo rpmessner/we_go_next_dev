@@ -45,6 +45,8 @@ defmodule WeGoNext.Analysis.Tools.SessionContext do
       Map.merge(freshness, %{
         unimported_pull_count: length(freshness.unimported_pull_ids),
         stale_failure_pull_count: length(freshness.stale_failure_pull_ids),
+        stale_death_pull_count: length(freshness.stale_death_pull_ids),
+        stale_death_pull_ids: Enum.filter(freshness.stale_death_pull_ids, &(&1 in gold_ids)),
         unimported_pull_ids: Enum.filter(freshness.unimported_pull_ids, &(&1 in public_ids)),
         stale_failure_pull_ids: Enum.filter(freshness.stale_failure_pull_ids, &(&1 in gold_ids)),
         id_scope: "this page; counts cover the session log"

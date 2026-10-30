@@ -251,7 +251,9 @@ defmodule WeGoNext.Silver.Projector do
         window_kind = death_window_kind(event)
 
         cond do
-          event_type(event) == "UNIT_DIED" and player_guid?(event_value(event, :target_guid)) ->
+          event_type(event) == "UNIT_DIED" and
+            event_value(event, :unconscious_on_death) != 1 and
+              player_guid?(event_value(event, :target_guid)) ->
             target_guid = normalize_guid(event_value(event, :target_guid), @unknown_target_guid)
 
             death =

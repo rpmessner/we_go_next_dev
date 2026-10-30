@@ -5,7 +5,7 @@ defmodule WeGoNext.Analysis.ReadModel do
   alias WeGoNext.Encounters.Encounter
   alias WeGoNext.Gold.{DimEncounter, EncounterIdentity, FactFailure}
   alias WeGoNext.Gold.FactFailure.Derivation
-  alias WeGoNext.Silver.PlayerInfo
+  alias WeGoNext.Silver.{DeathDerivation, PlayerInfo}
 
   def log(context), do: Repo.get!(CombatLogFile, context.combat_log_file_id)
 
@@ -78,13 +78,30 @@ defmodule WeGoNext.Analysis.ReadModel do
         )
       )
 
+    stale_deaths =
+      Repo.all(
+        from(d in DimEncounter,
+          where:
+            d.id in ^ids and
+              fragment(
+                "? IS DISTINCT FROM ?",
+                d.silver_death_derivation_version,
+                ^DeathDerivation.current_version()
+              ),
+          order_by: d.id,
+          select: d.id
+        )
+      )
+
     %{
+      current_silver_death_derivation: DeathDerivation.current_version(),
+      stale_death_pull_ids: stale_deaths,
       current_failure_derivation: Derivation.current_version(),
       stale_failure_pull_ids: stale,
       unimported_pull_ids: for(p <- pulls, is_nil(p.pull_id), do: p.public_encounter_id),
       unparsed_bytes: max((log.file_size || 0) - (log.last_parsed_byte || 0), 0),
       caveat:
-        "Missing gold ids are catalogued pulls without medallion import. Unparsed bytes may include trash or an unfinished pull. No failure rows does not prove freshness."
+        "Missing gold ids are catalogued pulls without medallion import. Unparsed bytes may include trash or an unfinished pull. No failure rows does not prove freshness. Stale silver deaths require force reimport, not a gold/document-only rebuild."
     }
   end
 
