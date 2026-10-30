@@ -27,7 +27,9 @@ defmodule WeGoNext.Application do
     [
       # Start the Repo
       WeGoNext.Repo,
-      {Task.Supervisor, name: WeGoNext.Analysis.TaskSupervisor}
+      {Task.Supervisor, name: WeGoNext.Analysis.TaskSupervisor},
+      {Registry, keys: :unique, name: WeGoNext.Analysis.QuestionRegistry},
+      {DynamicSupervisor, strategy: :one_for_one, name: WeGoNext.Analysis.QuestionSupervisor}
     ] ++
       release_migrator_children(migrate_on_boot?) ++
       [

@@ -7,6 +7,7 @@ defmodule WeGoNext.Analysis.Session do
     field(:started_at, :utc_datetime_usec)
     field(:combat_log_file_id, :id)
     field(:boss, :string)
+    field(:model, :string, default: "claude-opus-5-5")
     field(:loaded_playbooks, {:array, :map}, default: [])
     field(:playbooks, {:array, :map}, virtual: true, default: [])
   end

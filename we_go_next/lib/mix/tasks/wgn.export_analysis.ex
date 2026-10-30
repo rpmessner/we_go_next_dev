@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Wgn.ExportAnalysis do
   use Mix.Task
   import Ecto.Query
   alias WeGoNext.{CombatLogFile, Repo}
-  alias WeGoNext.Analysis.{Export, Session, ToolCall, Verdict}
+  alias WeGoNext.Analysis.{Export, Message, Session, ToolCall, Verdict}
   @shortdoc "Export recorded Analysis sessions as JSONL"
 
   @impl true
@@ -82,8 +82,6 @@ defmodule Mix.Tasks.Wgn.ExportAnalysis do
         dir -> paths ++ Path.wildcard(Path.join(dir, "*.jsonl"))
       end
 
-    if paths == [], do: Mix.raise("Supply --transcript or a nonempty --transcript-dir")
-
     paths
     |> Enum.map(&Path.expand/1)
     |> Enum.uniq()
@@ -113,7 +111,16 @@ defmodule Mix.Tasks.Wgn.ExportAnalysis do
       snapshot_source: "recorded session_context Tool calls"
     }
 
-    Export.build(session, context, events, calls, verdicts)
+    messages = Repo.all(from(m in Message, where: m.session_id == ^session.id, order_by: m.id))
+
+    if messages == [] do
+      if events == [],
+        do: Mix.raise("MCP sessions require --transcript or a nonempty --transcript-dir")
+
+      Export.build(session, context, events, calls, verdicts)
+    else
+      Export.build_in_app(session, context, messages, calls, verdicts)
+    end
   end
 
   defp write_records(path, records) do

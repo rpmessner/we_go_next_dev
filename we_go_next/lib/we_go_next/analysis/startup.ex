@@ -44,7 +44,7 @@ defmodule WeGoNext.Analysis.Startup do
     end
   end
 
-  defp instructions(session) do
+  def instructions(session) do
     analyst = :we_go_next |> :code.priv_dir() |> Path.join("analysis/analyst.md") |> File.read!()
 
     analyst <>

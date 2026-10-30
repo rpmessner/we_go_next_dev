@@ -45,6 +45,44 @@ defmodule WeGoNext.Analysis.Export do
     }
   end
 
+  @doc "Exports persisted in-app messages in the v1 envelope, with exact Analysis-session scope."
+  def build_in_app(session, context, messages, calls, verdicts) do
+    events =
+      Enum.map(messages, fn message ->
+        %{
+          "uuid" => to_string(message.id),
+          "sessionId" => session.id,
+          "question_id" => message.question_id,
+          "timestamp" => DateTime.to_iso8601(message.inserted_at),
+          "_source" => %{path: "analysis.messages:#{session.id}", line: message.id},
+          "message" => %{
+            "role" => message.role,
+            "content" => message.content,
+            "usage" => message.usage,
+            "stop_reason" => message.stop_reason
+          }
+        }
+      end)
+
+    # Execution pins session_id to the owning Analysis session. Keep the original
+    # wire input in messages, but join using the effective, scoped executor args.
+    scoped = Enum.map(events, &scope_event(&1, session.id))
+
+    record = build(session, context, scoped, calls, verdicts)
+    %{record | messages_scope: "analysis_session", messages: events}
+  end
+
+  defp scope_event(event, session_id) do
+    update_in(event, ["message", "content"], fn blocks ->
+      Enum.map(blocks, &scope_block(&1, session_id))
+    end)
+  end
+
+  defp scope_block(%{"type" => "tool_use", "input" => input} = block, session_id),
+    do: Map.put(block, "input", Map.put(input, "session_id", session_id))
+
+  defp scope_block(block, _session_id), do: block
+
   defp transcript_calls(events, session_id) do
     results = transcript_results(events)
 

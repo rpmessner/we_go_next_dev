@@ -2,6 +2,14 @@
 
 Run from `we_go_next/` against the database containing the Analysis sessions:
 
+In-app sessions use their recorded messages and need no external transcript:
+
+```sh
+mix wgn.export_analysis --session ANALYSIS_UUID --output /tmp/analysis-in-app.jsonl
+```
+
+For phase 1 MCP sessions, supply the Claude Code transcript:
+
 ```sh
 mix wgn.export_analysis --session ANALYSIS_UUID \
   --transcript /path/to/claude-session.jsonl --output /tmp/analysis-session.jsonl
@@ -25,6 +33,10 @@ Each JSONL line is an `analysis_session` record with `schema_version: 1`:
   `messages_scope: source_transcripts` means messages retain **transcript-wide**
   scope. A transcript can span multiple Analysis sessions; these messages are
   not falsely assigned to one. All supplied messages are retained for retro.
+  In-app sessions instead use `messages_scope: analysis_session`. Each event has
+  its stored message id, question id, role, content, usage, stop reason, timestamp,
+  and an `analysis.messages` source. External transcripts apply only to MCP
+  sessions in mixed-night exports.
 - `tool_calls`: entries with `status`, `transcript` and `server`. Server data
   includes args, the full bounded result, errors, result size and duration.
   Transcript data includes the Tool-use id, wire name, timestamp and Tool results.
@@ -39,6 +51,9 @@ Tool name (stripping the MCP `mcp__SERVER__` prefix), exact JSON args and occurr
 order. Transcript calls are timestamp-ordered across files and line-ordered within
 equal timestamps; server rows are id-ordered. Repeated identical calls consume
 one row each. A missing transcript result is preserved as an empty results list.
+In-app exports use the same join and envelope. Execution pins Tool arguments to
+its owning Analysis session; the join uses those effective arguments while
+`messages` retains the original model content.
 
 `record_verdict` prepares and caps feedback in the normal read-only executor.
 Only after successful execution does the recording path insert `analysis.verdicts`

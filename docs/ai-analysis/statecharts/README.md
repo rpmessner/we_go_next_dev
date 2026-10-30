@@ -16,6 +16,20 @@ Five gaps in the first proposed tables were found by TLC and fixed in these mode
 4. **Question:** the answer turn was not checked against the budget. Fix: the last turn of the budget is reserved for the answer.
 5. **Question:** "continue with a new cap" while a timed-out Tool was still running let the agent start a second call that took the first call's late result. Fix: continue waits for the running Tool. Retry also re-arms the timer.
 
+## Elixir question lifecycle
+
+The headless adapter is documented in [Headless Analysis questions](../agent-loop.md).
+`WeGoNext.Analysis.QuestionLifecycle` implements every model action, including
+ignored pairs, as rows. The generated `implementation-matrix.md` and
+`implementation.mmd` live beside the question model and are checked by ExUnit.
+The five model rules are tested after each prefix of seeded random event sequences.
+
+Regenerate the implementation artifacts from `we_go_next/` without starting the app:
+
+```sh
+MIX_ENV=test mix run --no-start -e 'alias WeGoNext.Analysis.QuestionLifecycle, as: M; File.write!("../docs/ai-analysis/statecharts/question-lifecycle/implementation-matrix.md", M.matrix()); File.write!("../docs/ai-analysis/statecharts/question-lifecycle/implementation.mmd", M.diagram())'
+```
+
 ## Regenerate
 
 Requires the `statechart` skill and TLC (`tla2tools.jar` v1.7.4). Use a new `--out` folder each time:

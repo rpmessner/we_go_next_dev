@@ -1,0 +1,363 @@
+defmodule WeGoNext.Analysis.QuestionRunnerTest do
+  use WeGoNext.DataCase, async: false
+  import Ecto.Query
+  alias WeGoNext.{Analysis, CombatLogFile, Repo}
+  alias WeGoNext.Analysis.{Export, Message, QuestionRunner, ToolCall}
+
+  setup do
+    Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
+    Req.Test.set_req_test_to_shared()
+    old = System.get_env("ANTHROPIC_API_KEY")
+    System.put_env("ANTHROPIC_API_KEY", "stub-not-a-secret")
+
+    on_exit(fn ->
+      if old,
+        do: System.put_env("ANTHROPIC_API_KEY", old),
+        else: System.delete_env("ANTHROPIC_API_KEY")
+    end)
+
+    user = Repo.insert!(%WeGoNext.Accounts.User{name: "agent-loop"})
+
+    log =
+      Repo.insert!(%CombatLogFile{
+        user_id: user.id,
+        file_path: "/fixture-sept6.txt",
+        last_parsed_at: ~U[2026-09-06 12:00:00Z]
+      })
+
+    %{scope: %{"log" => log.id, "boss" => "Sszorak", "pull_number" => 5}}
+  end
+
+  test "a supervised question runs Tools, preserves messages, answers and exports", %{
+    scope: scope
+  } do
+    owner = self()
+
+    Req.Test.expect(__MODULE__, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      body = Jason.decode!(body)
+      send(owner, {:request, body})
+
+      respond(
+        conn,
+        [
+          %{
+            "type" => "tool_use",
+            "id" => "call-1",
+            "name" => "list_pulls",
+            "input" => %{"boss" => "Sszorak"}
+          }
+        ],
+        "tool_use"
+      )
+    end)
+
+    Req.Test.expect(__MODULE__, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(owner, {:answer_request, Jason.decode!(body)})
+
+      respond(
+        conn,
+        [
+          %{"type" => "thinking", "thinking" => "", "signature" => "signed"},
+          %{"type" => "text", "text" => "No matching pulls [list_pulls]."}
+        ],
+        "end_turn"
+      )
+    end)
+
+    {question, pid} = ask(scope, cap: 2)
+    assert is_pid(pid)
+    assert_receive {:request, body}, 5_000
+    assert body["model"] == "claude-opus-5-5"
+    assert hd(body["system"])["cache_control"] == %{"type" => "ephemeral", "ttl" => "1h"}
+    assert List.last(body["tools"])["cache_control"]["ttl"] == "1h"
+    assert_receive {:answer_request, body}, 5_000
+    assert body["tool_choice"]["type"] == "none"
+
+    assert [%{"type" => "tool_result", "tool_use_id" => "call-1", "is_error" => false}] =
+             List.last(body["messages"])["content"]
+
+    await_state(question.id, :answered)
+    assert Analysis.get_question(question.id).answer == "No matching pulls [list_pulls]."
+    assert {:answered, _} = QuestionRunner.snapshot(question.id)
+    calls = Repo.all(from(c in ToolCall, where: c.session_id == ^question.session_id))
+    assert [%{tool: "list_pulls", error: nil}] = calls
+    assert hd(calls).args["session_id"] == question.session_id
+
+    messages =
+      Repo.all(from(m in Message, where: m.session_id == ^question.session_id, order_by: m.id))
+
+    assert Enum.map(messages, & &1.role) == ["user", "assistant", "user", "assistant"]
+    assert List.last(messages).usage["cache_read_input_tokens"] == 200
+    assert hd(List.last(messages).content)["signature"] == "signed"
+    session = Repo.get!(Analysis.Session, question.session_id)
+    export = Export.build_in_app(session, %{}, messages, calls, [])
+    assert export.schema_version == 1
+    assert export.messages_scope == "analysis_session"
+    assert [%{status: "matched", transcript: %{results: [_]}}] = export.tool_calls
+    assert export.unmatched.server_calls == 0
+    assert export.unmatched.unscoped_transcript_calls == 0
+    assert {:ok, _} = Jason.encode(export)
+    path = Path.join(System.tmp_dir!(), "analysis-export-#{Ecto.UUID.generate()}.jsonl")
+    on_exit(fn -> File.rm(path) end)
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      Mix.Tasks.Wgn.ExportAnalysis.run(["--session", question.session_id, "--output", path])
+    end)
+
+    actual = path |> File.read!() |> Jason.decode!()
+    assert actual["messages_scope"] == "analysis_session"
+    assert [%{"status" => "matched"}] = actual["tool_calls"]
+    assert length(actual["messages"]) == 4
+    assert_mixed_night_export(session)
+    Req.Test.verify!()
+  end
+
+  test "HTTP errors are recorded as failed and Retry re-arms the question", %{scope: scope} do
+    Req.Test.expect(__MODULE__, &Plug.Conn.send_resp(&1, 429, "private body must not be stored"))
+
+    Req.Test.expect(
+      __MODULE__,
+      &respond(&1, [%{"type" => "text", "text" => "Retried [inference]."}], "end_turn")
+    )
+
+    {question, _} = ask(scope)
+    await_state(question.id, :failed)
+    assert Analysis.get_question(question.id).error == "Messages API HTTP 429"
+    assert :ok = Analysis.question_event(question.id, :retry)
+    await_state(question.id, :answered)
+    assert Analysis.get_question(question.id).error == nil
+    Req.Test.verify!()
+  end
+
+  test "cancel and the ten-minute timer stop an outstanding API request", %{scope: scope} do
+    owner = self()
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      send(owner, {:http_started, self()})
+
+      receive do
+        :release -> respond(conn, [%{"type" => "text", "text" => "too late"}], "end_turn")
+      end
+    end)
+
+    for stop <- [:cancel, :timeout] do
+      opts = if stop == :timeout, do: [timeout_ms: 50], else: []
+      {question, _} = ask(scope, opts)
+      assert_receive {:http_started, worker}, 5_000
+      monitor = Process.monitor(worker)
+      if stop == :cancel, do: Analysis.question_event(question.id, :cancel)
+      await_state(question.id, if(stop == :cancel, do: :cancelled, else: :limit_hit))
+      assert_receive {:DOWN, ^monitor, :process, ^worker, _}, 5_000
+      assert Analysis.get_question(question.id).answer == nil
+    end
+  end
+
+  test "a deterministic built-in uses the recorded executor without the model", %{scope: scope} do
+    System.delete_env("ANTHROPIC_API_KEY")
+    {question, _} = ask(scope, kind: :builtin, builtin_tool: {"list_pulls", %{}})
+    await_state(question.id, :answered)
+    assert Analysis.get_question(question.id).lifecycle["model_calls"] == 0
+
+    assert [%{tool: "list_pulls"}] =
+             Repo.all(from(c in ToolCall, where: c.session_id == ^question.session_id))
+  end
+
+  test "a Tool error is recorded and returned to the model, not a process crash", %{scope: scope} do
+    owner = self()
+
+    Req.Test.expect(
+      __MODULE__,
+      &respond(
+        &1,
+        [%{"type" => "tool_use", "id" => "bad", "name" => "unknown", "input" => %{}}],
+        "tool_use"
+      )
+    )
+
+    Req.Test.expect(__MODULE__, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(owner, {:tool_error, List.last(Jason.decode!(body)["messages"])})
+      respond(conn, [%{"type" => "text", "text" => "Cannot verify [inference]."}], "end_turn")
+    end)
+
+    {question, _} = ask(scope)
+    await_state(question.id, :answered)
+
+    assert_receive {:tool_error,
+                    %{"content" => [%{"is_error" => true, "content" => "Unknown Tool"}]}}
+
+    assert [%{error: "Unknown Tool"}] =
+             Repo.all(from(c in ToolCall, where: c.session_id == ^question.session_id))
+  end
+
+  test "unexpected parallel Tool requests fail without executing unmodeled work", %{scope: scope} do
+    calls =
+      for id <- ["one", "two"],
+          do: %{"type" => "tool_use", "id" => id, "name" => "list_pulls", "input" => %{}}
+
+    Req.Test.expect(__MODULE__, &respond(&1, calls, "tool_use"))
+    {question, _} = ask(scope)
+    await_state(question.id, :failed)
+    assert Analysis.get_question(question.id).error =~ "exactly one valid Tool"
+    assert Repo.all(from(c in ToolCall, where: c.session_id == ^question.session_id)) == []
+
+    result =
+      Repo.one!(
+        from(m in Message, where: m.question_id == ^question.id, order_by: [desc: m.id], limit: 1)
+      )
+
+    assert Enum.map(result.content, & &1["tool_use_id"]) == ["one", "two"]
+    assert Enum.all?(result.content, & &1["is_error"])
+  end
+
+  test "the headless Mix task prints a recorded answer using stubbed HTTP", %{scope: scope} do
+    old = Req.default_options()
+    Req.default_options(plug: {Req.Test, __MODULE__})
+    on_exit(fn -> Req.default_options(old) end)
+
+    Req.Test.expect(
+      __MODULE__,
+      &respond(
+        &1,
+        [%{"type" => "text", "text" => "A cited answer [Sszorak pull 5, 0:12, deaths]."}],
+        "end_turn"
+      )
+    )
+
+    output =
+      ExUnit.CaptureIO.capture_io(fn ->
+        Mix.Tasks.Wgn.Ask.run([
+          "--log",
+          to_string(scope["log"]),
+          "--boss",
+          "Sszorak",
+          "--pull",
+          "5"
+        ])
+      end)
+
+    assert output =~ "A cited answer [Sszorak pull 5, 0:12, deaths]."
+    assert output =~ "Analysis session"
+    question = Repo.one!(from(q in Analysis.Question, order_by: [desc: q.inserted_at], limit: 1))
+
+    assert question.text ==
+             "Why did Sszorak pull 5 wipe: what was the first thing that went wrong?"
+
+    assert question.state == "answered"
+    [{pid, _}] = Registry.lookup(Analysis.QuestionRegistry, question.id)
+    on_exit(fn -> DynamicSupervisor.terminate_child(Analysis.QuestionSupervisor, pid) end)
+    Req.Test.verify!()
+  end
+
+  test "without a runtime key the question fails without making an HTTP request", %{scope: scope} do
+    System.delete_env("ANTHROPIC_API_KEY")
+    {question, _} = ask(scope)
+    await_state(question.id, :failed)
+    assert Analysis.get_question(question.id).error == "ANTHROPIC_API_KEY is not set"
+  end
+
+  defp ask(scope, opts \\ []) do
+    {:ok, question, pid} =
+      Analysis.ask(
+        scope,
+        "Why did Sszorak pull 5 wipe?",
+        Keyword.merge([subscribe: true, req_options: [plug: {Req.Test, __MODULE__}]], opts)
+      )
+
+    on_exit(fn ->
+      DynamicSupervisor.terminate_child(Analysis.QuestionSupervisor, pid)
+    end)
+
+    {question, pid}
+  end
+
+  defp assert_mixed_night_export(session) do
+    mcp =
+      Repo.insert!(%Analysis.Session{
+        started_at: DateTime.utc_now(),
+        combat_log_file_id: session.combat_log_file_id
+      })
+
+    transcript = Path.join(System.tmp_dir!(), "mcp-#{mcp.id}.jsonl")
+    output = Path.join(System.tmp_dir!(), "night-#{mcp.id}.jsonl")
+
+    File.write!(
+      transcript,
+      Jason.encode!(%{
+        "uuid" => "external",
+        "message" => %{"role" => "user", "content" => "MCP question"}
+      }) <> "\n"
+    )
+
+    on_exit(fn ->
+      File.rm(transcript)
+      File.rm(output)
+    end)
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      Mix.Tasks.Wgn.ExportAnalysis.run([
+        "--night",
+        Date.to_iso8601(Date.utc_today()),
+        "--transcript",
+        transcript,
+        "--output",
+        output
+      ])
+    end)
+
+    records =
+      output
+      |> File.stream!()
+      |> Enum.map(&Jason.decode!/1)
+      |> Map.new(&{&1["session"]["id"], &1})
+
+    assert records[session.id]["messages_scope"] == "analysis_session"
+    assert length(records[session.id]["messages"]) == 4
+    assert records[mcp.id]["messages_scope"] == "source_transcripts"
+    assert [%{"uuid" => "external"}] = records[mcp.id]["messages"]
+  end
+
+  defp await_state(id, expected) do
+    receive do
+      {:analysis_question, ^id, {:state, ^expected}} -> :ok
+      {:analysis_question, ^id, _} -> await_state(id, expected)
+    after
+      5_000 -> flunk("question did not reach #{expected}")
+    end
+  end
+
+  defp respond(conn, blocks, stop_reason) do
+    events =
+      [
+        %{
+          "type" => "message_start",
+          "message" => %{
+            "role" => "assistant",
+            "usage" => %{"input_tokens" => 12, "cache_read_input_tokens" => 200}
+          }
+        }
+      ] ++
+        Enum.flat_map(Enum.with_index(blocks), fn {block, index} ->
+          [
+            %{"type" => "content_block_start", "index" => index, "content_block" => block},
+            %{"type" => "content_block_stop", "index" => index}
+          ]
+        end) ++
+        [
+          %{
+            "type" => "message_delta",
+            "delta" => %{"stop_reason" => stop_reason},
+            "usage" => %{"output_tokens" => 10}
+          },
+          %{"type" => "message_stop"}
+        ]
+
+    stream = Enum.map_join(events, "", &("data: " <> Jason.encode!(&1) <> "\n\n"))
+
+    conn
+    |> Plug.Conn.put_resp_content_type("text/event-stream")
+    |> Plug.Conn.send_resp(200, stream)
+  end
+end
