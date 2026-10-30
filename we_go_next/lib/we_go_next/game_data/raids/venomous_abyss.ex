@@ -38,6 +38,66 @@ defmodule WeGoNext.GameData.Raids.VenomousAbyss do
     )
   end
 
+  @doc "Authored damage target classes; unlisted NPCs remain other, not proven padding."
+  def damage_targets do
+    %{
+      3420 => %{
+        boss: [257_347],
+        priority: [],
+        verified: true,
+        notes:
+          "Sszorak.lua:8 RegisterEnableMob; Sept 6 boss GUID confirmed. No priority add NPC established; residual trash stays other."
+      },
+      3421 => %{
+        boss: [257_361, 257_368],
+        priority: [264_023],
+        verified: true,
+        notes:
+          "TwinFangs.lua:8 Vexhul/Ithraz; :52 Venomous Emergence adds, :394 adds warning. Sept 6 Spawn of Vexhul 264023 casts Corrosive Spit 1291478 and Eternal Venom 1290336; authored priority kill target."
+      },
+      3429 => %{
+        boss: [257_911, 259_854],
+        priority: [],
+        verified: false,
+        notes:
+          "UNVERIFIED: CoiledAltar.lua:8 Zul'jan, Hex Lord Malacrass. Priority add IDs unknown."
+      },
+      3497 => %{
+        boss: [261_835, 261_843, 261_848],
+        priority: [],
+        verified: false,
+        notes:
+          "UNVERIFIED: Explorers.lua:8 First Mate Nama, Scrollsage Iku, Trader Gebbo. Priority add IDs unknown."
+      },
+      3470 => %{
+        boss: [259_927],
+        priority: [263_050],
+        verified: false,
+        notes:
+          "UNVERIFIED: Nekzali.lua:8 Nek'zali and Echo of Jawae; Echo authored as priority add, not the primary boss."
+      },
+      3445 => %{
+        boss: [258_557, 258_556],
+        priority: [],
+        verified: false,
+        notes: "UNVERIFIED: Sentinels.lua:8 Breath/Blood of Ula'tek. Priority add IDs unknown."
+      },
+      3455 => %{
+        boss: [259_181],
+        priority: [],
+        verified: false,
+        notes: "UNVERIFIED: Vashnik.lua:8 Vashnik. Priority add IDs unknown."
+      },
+      3492 => %{
+        boss: [257_758],
+        priority: [],
+        verified: false,
+        notes:
+          "UNVERIFIED: Ulatek.lua:8 boss. Lines 10-14 exclude Gore Rattle 259555, Venomous Heart 267460, Doomscale Egg 268164, Ravenous Doomscale 263900 from wipe health; this alone does not establish priority kill intent. Priority IDs unknown."
+      }
+    }
+  end
+
   def mechanics do
     verified_mechanics() ++ unverified_mechanics()
   end
@@ -46,52 +106,190 @@ defmodule WeGoNext.GameData.Raids.VenomousAbyss do
 
   defp verified_mechanics do
     [
-      entry(3420, 1_287_083, "Tempest", :avoidable, :damage_taken,
-        "Sszorak.lua: Tempest debuffFailureMoveFromCastNote. Real damage is ST, sparse per application; ticks count as hits."),
-      entry(3420, 1_296_667, "Caustic Residue", :avoidable, :damage_taken,
-        "Sszorak.lua: underyou warning. Real ground damage is ST, not a raid-wide pulse."),
-      entry(3420, 1_277_025, "Apex Predator", :tank_mechanic, :cast,
-        "Sszorak.lua: tank_combo; never blame the tank for taking the assigned combo."),
-      entry(3420, 1_285_965, "Ula'tek's Presence", :unknown, :damage_taken,
-        "Raid-wide AOE pressure in the real log; no individual failure attribution."),
-      entry(3420, 1_285_999, "Mutilate", :unknown, :damage_taken,
-        "AOE hits reach the whole raid. Tank-combo warning does not make every damage variant avoidable."),
-      entry(3420, 1_285_998, "Mutilated Gash", :unknown, :damage_taken,
-        "Raid-wide AOE periodic damage, distinct from the tank debuff 1277051."),
-      entry(3420, 1_287_205, "Viscous Cyst", :unknown, :damage_taken,
-        "BigWigs labels an add cast; observed AOE reaches the raid, not generic avoidable damage."),
-      entry(3420, 1_306_120, "Venomous Surge", :unknown, :damage_taken,
-        "BigWigs bombs warning; observed raid-wide AOE is not proof of individual failure."),
-      entry(3420, 1_305_959, "Venomous Surge", :spread, :cast,
-        "Sszorak.lua: bombs; targeted placement needs dedicated attribution, not raw damage blame."),
-      entry(3420, 1_285_425, "Raging Crosswinds", :unknown, :cast,
-        "BigWigs winds warning alone does not prove avoidable player damage."),
-      entry(3421, 1_293_295, "Corrosive Spit", :avoidable, :damage_taken,
-        "TwinFangs.lua: 1291478 avoid annotation. Sparse AOE impact 1293295, not the targeting debuff."),
-      entry(3421, 1_292_807, "Stir the Depths", :avoidable, :damage_taken,
-        "TwinFangs.lua: 1290956 dodge waves. Sparse hit/debuff 1292807; NOT raid-wide AOE 1292806."),
-      entry(3421, 1_306_876, "Sanguine Storm", :avoidable, :damage_taken,
-        "TwinFangs.lua: 1306872 avoid pools. Sparse AOE impact 1306876; other damage variants remain unclassified."),
-      entry(3421, 1_290_516, "Ravenous Feast", :soak, :cast,
-        "TwinFangs.lua explicitly renames this to soak."),
-      entry(3421, 1_290_662, "Ravenous Feast", :soak, :damage_taken,
-        "Observed shared AOE soak damage, not avoidable damage."),
-      entry(3421, 1_310_371, "Stone Breaker", :tank_mechanic, :damage_taken,
-        "BigWigs 1288538 TANK/slams annotation; observed impact primarily hits two tanks."),
-      entry(3421, 1_294_976, "Toxic Fumes", :unknown, :damage_taken,
-        "All 23 players in all eight pulls; raid-wide AOE pressure, not avoidable by volume alone."),
-      entry(3421, 1_290_480, "Eternal Venom", :unknown, :damage_taken,
-        "All 23 players in all eight pulls; ST suffix on periodic damage does not establish avoidability."),
-      entry(3421, 1_290_878, "Coiling Ichor", :unknown, :damage_taken,
-        "All 23 players in all eight pulls. BigWigs toxin label supplies no safe individual blame rule."),
-      entry(3421, 1_292_806, "Stir the Depths", :unknown, :damage_taken,
-        "Raid-wide AOE component; must not inherit the wave-hit criterion on 1292807."),
-      entry(3421, 1_288_237, "Caustic Deluge", :unknown, :damage_taken,
-        "ST damage on two players per pull. Do not confuse assigned targets with avoidable globules."),
-      entry(3421, 1_288_201, "Caustic Globule", :unknown, :damage_taken,
-        "Hits nearly everyone per pull; BigWigs orbs annotation is insufficient to classify this variant."),
-      entry(3421, 1_308_122, "Venomous Emergence", :unknown, :damage_taken,
-        "BigWigs adds annotation; AOE reaches the raid. No individual failure semantics.")
+      entry(
+        3420,
+        1_287_083,
+        "Tempest",
+        :avoidable,
+        :damage_taken,
+        "Sszorak.lua: Tempest debuffFailureMoveFromCastNote. Real damage is ST, sparse per application; ticks count as hits."
+      ),
+      entry(
+        3420,
+        1_296_667,
+        "Caustic Residue",
+        :avoidable,
+        :damage_taken,
+        "Sszorak.lua: underyou warning. Real ground damage is ST, not a raid-wide pulse."
+      ),
+      entry(
+        3420,
+        1_277_025,
+        "Apex Predator",
+        :tank_mechanic,
+        :cast,
+        "Sszorak.lua: tank_combo; never blame the tank for taking the assigned combo."
+      ),
+      entry(
+        3420,
+        1_285_965,
+        "Ula'tek's Presence",
+        :unknown,
+        :damage_taken,
+        "Raid-wide AOE pressure in the real log; no individual failure attribution."
+      ),
+      entry(
+        3420,
+        1_285_999,
+        "Mutilate",
+        :unknown,
+        :damage_taken,
+        "AOE hits reach the whole raid. Tank-combo warning does not make every damage variant avoidable."
+      ),
+      entry(
+        3420,
+        1_285_998,
+        "Mutilated Gash",
+        :unknown,
+        :damage_taken,
+        "Raid-wide AOE periodic damage, distinct from the tank debuff 1277051."
+      ),
+      entry(
+        3420,
+        1_287_205,
+        "Viscous Cyst",
+        :unknown,
+        :damage_taken,
+        "BigWigs labels an add cast; observed AOE reaches the raid, not generic avoidable damage."
+      ),
+      entry(
+        3420,
+        1_306_120,
+        "Venomous Surge",
+        :unknown,
+        :damage_taken,
+        "BigWigs bombs warning; observed raid-wide AOE is not proof of individual failure."
+      ),
+      entry(
+        3420,
+        1_305_959,
+        "Venomous Surge",
+        :spread,
+        :cast,
+        "Sszorak.lua: bombs; targeted placement needs dedicated attribution, not raw damage blame."
+      ),
+      entry(
+        3420,
+        1_285_425,
+        "Raging Crosswinds",
+        :unknown,
+        :cast,
+        "BigWigs winds warning alone does not prove avoidable player damage."
+      ),
+      entry(
+        3421,
+        1_293_295,
+        "Corrosive Spit",
+        :avoidable,
+        :damage_taken,
+        "TwinFangs.lua: 1291478 avoid annotation. Sparse AOE impact 1293295, not the targeting debuff."
+      ),
+      entry(
+        3421,
+        1_292_807,
+        "Stir the Depths",
+        :avoidable,
+        :damage_taken,
+        "TwinFangs.lua: 1290956 dodge waves. Sparse hit/debuff 1292807; NOT raid-wide AOE 1292806."
+      ),
+      entry(
+        3421,
+        1_306_876,
+        "Sanguine Storm",
+        :avoidable,
+        :damage_taken,
+        "TwinFangs.lua: 1306872 avoid pools. Sparse AOE impact 1306876; other damage variants remain unclassified."
+      ),
+      entry(
+        3421,
+        1_290_516,
+        "Ravenous Feast",
+        :soak,
+        :cast,
+        "TwinFangs.lua explicitly renames this to soak."
+      ),
+      entry(
+        3421,
+        1_290_662,
+        "Ravenous Feast",
+        :soak,
+        :damage_taken,
+        "Observed shared AOE soak damage, not avoidable damage."
+      ),
+      entry(
+        3421,
+        1_310_371,
+        "Stone Breaker",
+        :tank_mechanic,
+        :damage_taken,
+        "BigWigs 1288538 TANK/slams annotation; observed impact primarily hits two tanks."
+      ),
+      entry(
+        3421,
+        1_294_976,
+        "Toxic Fumes",
+        :unknown,
+        :damage_taken,
+        "All 23 players in all eight pulls; raid-wide AOE pressure, not avoidable by volume alone."
+      ),
+      entry(
+        3421,
+        1_290_480,
+        "Eternal Venom",
+        :unknown,
+        :damage_taken,
+        "All 23 players in all eight pulls; ST suffix on periodic damage does not establish avoidability."
+      ),
+      entry(
+        3421,
+        1_290_878,
+        "Coiling Ichor",
+        :unknown,
+        :damage_taken,
+        "All 23 players in all eight pulls. BigWigs toxin label supplies no safe individual blame rule."
+      ),
+      entry(
+        3421,
+        1_292_806,
+        "Stir the Depths",
+        :unknown,
+        :damage_taken,
+        "Raid-wide AOE component; must not inherit the wave-hit criterion on 1292807."
+      ),
+      entry(
+        3421,
+        1_288_237,
+        "Caustic Deluge",
+        :unknown,
+        :damage_taken,
+        "ST damage on two players per pull. Do not confuse assigned targets with avoidable globules."
+      ),
+      entry(
+        3421,
+        1_288_201,
+        "Caustic Globule",
+        :unknown,
+        :damage_taken,
+        "Hits nearly everyone per pull; BigWigs orbs annotation is insufficient to classify this variant."
+      ),
+      entry(
+        3421,
+        1_308_122,
+        "Venomous Emergence",
+        :unknown,
+        :damage_taken,
+        "BigWigs adds annotation; AOE reaches the raid. No individual failure semantics."
+      )
     ]
   end
 
@@ -99,28 +297,96 @@ defmodule WeGoNext.GameData.Raids.VenomousAbyss do
     # UNVERIFIED: no September 6 pulls for these bosses. No damage rule seeds.
     [
       entry(3429, 1_299_680, "Sever", :tank_mechanic, :cast, "CoiledAltar.lua: tank_frontal."),
-      entry(3429, 1_286_573, "Soul Sever", :tank_mechanic, :cast, "CoiledAltar.lua: tank_frontal."),
-      entry(3429, 1_307_279, "Blighted Sever", :tank_mechanic, :cast, "CoiledAltar.lua: tank_frontal."),
-      entry(3497, 1_295_858, "Shredding Shards", :tank_mechanic, :debuff_application,
-        "Explorers.lua: tank_debuff."),
-      entry(3497, 1_291_929, "Steady Strikes", :tank_mechanic, :debuff_application,
-        "Explorers.lua: tank_debuff."),
-      entry(3497, 1_286_921, "Icebound Flames", :interrupt, :interrupt_opportunity,
-        "Explorers.lua: cast option 1286921, failure-to-interrupt debuff 1286922."),
-      entry(3470, 1_284_109, "Hollowing Strikes", :tank_mechanic, :debuff_application,
-        "Nekzali.lua: tank_debuff / tank stacks."),
+      entry(
+        3429,
+        1_286_573,
+        "Soul Sever",
+        :tank_mechanic,
+        :cast,
+        "CoiledAltar.lua: tank_frontal."
+      ),
+      entry(
+        3429,
+        1_307_279,
+        "Blighted Sever",
+        :tank_mechanic,
+        :cast,
+        "CoiledAltar.lua: tank_frontal."
+      ),
+      entry(
+        3497,
+        1_295_858,
+        "Shredding Shards",
+        :tank_mechanic,
+        :debuff_application,
+        "Explorers.lua: tank_debuff."
+      ),
+      entry(
+        3497,
+        1_291_929,
+        "Steady Strikes",
+        :tank_mechanic,
+        :debuff_application,
+        "Explorers.lua: tank_debuff."
+      ),
+      entry(
+        3497,
+        1_286_921,
+        "Icebound Flames",
+        :interrupt,
+        :interrupt_opportunity,
+        "Explorers.lua: cast option 1286921, failure-to-interrupt debuff 1286922."
+      ),
+      entry(
+        3470,
+        1_284_109,
+        "Hollowing Strikes",
+        :tank_mechanic,
+        :debuff_application,
+        "Nekzali.lua: tank_debuff / tank stacks."
+      ),
       entry(3470, 1_305_421, "Hungering Pyre", :soak, :cast, "Nekzali.lua: soak."),
-      entry(3470, 1_285_681, "Soulcoil Ignition", :avoidable, :cast,
-        "Nekzali.lua: dodge. Cast-only observation until damage ID is verified."),
-      entry(3445, 1_284_491, "Bloodvenom Injection", :tank_mechanic, :debuff_application,
-        "Sentinels.lua: tank_debuff, drops pool when it expires."),
+      entry(
+        3470,
+        1_285_681,
+        "Soulcoil Ignition",
+        :avoidable,
+        :cast,
+        "Nekzali.lua: dodge. Cast-only observation until damage ID is verified."
+      ),
+      entry(
+        3445,
+        1_284_491,
+        "Bloodvenom Injection",
+        :tank_mechanic,
+        :debuff_application,
+        "Sentinels.lua: tank_debuff, drops pool when it expires."
+      ),
       entry(3445, 1_288_232, "Unstable Miasma", :soak, :cast, "Sentinels.lua: soak."),
-      entry(3455, 1_280_935, "Dripping Fangs", :tank_mechanic, :cast,
-        "Vashnik.lua: TANK / tank_hit."),
-      entry(3455, 1_295_173, "Exploding Infection", :healer_mechanic, :debuff_application,
-        "Vashnik.lua: magic dispel."),
-      entry(3492, 1_298_367, "Mother's Wrath", :tank_mechanic, :cast,
-        "Ulatek.lua: TANK / tank_knockback."),
+      entry(
+        3455,
+        1_280_935,
+        "Dripping Fangs",
+        :tank_mechanic,
+        :cast,
+        "Vashnik.lua: TANK / tank_hit."
+      ),
+      entry(
+        3455,
+        1_295_173,
+        "Exploding Infection",
+        :healer_mechanic,
+        :debuff_application,
+        "Vashnik.lua: magic dispel."
+      ),
+      entry(
+        3492,
+        1_298_367,
+        "Mother's Wrath",
+        :tank_mechanic,
+        :cast,
+        "Ulatek.lua: TANK / tank_knockback."
+      ),
       entry(3492, 1_300_530, "Spectral Coils", :soak, :cast, "Ulatek.lua: soaks, left/right."),
       entry(3492, 1_295_905, "Serpent's Bite", :soak, :cast, "Ulatek.lua: soaks.")
     ]

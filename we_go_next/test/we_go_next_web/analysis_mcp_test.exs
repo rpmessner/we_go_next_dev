@@ -32,6 +32,7 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
              "pull_summary",
              "deaths",
              "failures",
+             "damage_done",
              "damage_taken",
              "interrupts",
              "log_events",
@@ -107,7 +108,7 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
         name: "Vanguard"
       })
 
-    for name <- ["damage_taken", "interrupts"] do
+    for name <- ["damage_done", "damage_taken", "interrupts"] do
       assert %{"result" => %{"isError" => false, "content" => [%{"text" => json}]}} =
                rpc("tools/call", %{
                  "name" => name,
@@ -117,7 +118,7 @@ defmodule WeGoNextWeb.AnalysisMCPTest do
       assert %{"evidence" => [], "truncated" => false} = Jason.decode!(json)
     end
 
-    assert Repo.aggregate(ToolCall, :count) == 2
+    assert Repo.aggregate(ToolCall, :count) == 3
   end
 
   test "prompt selects active boss Playbooks by name or game id and excludes retired ones", %{

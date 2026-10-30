@@ -1,6 +1,7 @@
 defmodule WeGoNext.Analysis.Registry do
   @moduledoc "Enabled Tools as data. Later phase-one Tools register here."
   alias WeGoNext.Analysis.Tools.{
+    DamageDone,
     DamageTaken,
     Deaths,
     Failures,
@@ -22,6 +23,7 @@ defmodule WeGoNext.Analysis.Registry do
     PullSummary,
     Deaths,
     Failures,
+    DamageDone,
     DamageTaken,
     Interrupts,
     LogEvents,
