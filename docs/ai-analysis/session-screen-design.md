@@ -67,3 +67,9 @@ Recommendation:
 4. **Trail and history:** "I don't really want my main interface to keep scrolling and have to go searching through old stuff, it should be a more hierarchical interface." This rules out a chat transcript as the main structure. Questions and answers are organised by night, then encounter, then pull. One answer is shown at a time, with its evidence and coverage beneath it. History is navigated through that tree, not by scrolling.
 
 Mockups: the private canvas "Analysis session screen options" (claude.ai/artifact/5HbrEmQKhXMxWmFyFZ9Uq7). Rows 1–3 show the first options. Row 4 adds the hierarchical page and the build-up break page from these decisions.
+
+## Operator direction after the mockups (foreman, 2026-10-30)
+
+**Built-in questions.** The Analysis screen offers common questions as selectable options, the things raiders go to Warcraft Logs for. Examples: why a pull wiped, low performers, all-stars, and players padding meters without being effective. Free-form questions stay available. The catalog of candidate questions is research ticket we-c5q.13.
+
+**The library.** "The actual analysis engine in the medallion tiers doesn't actually do much at this point." The questions need a library of recurring wipe conditions and mechanic failures behind them, built into the warehouse. The taxonomy of failure kinds and how to detect each is research ticket we-c5q.14. The clickable prototype waits on both, so its question picker and break-page signals come from them, not invention.
