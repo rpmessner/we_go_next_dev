@@ -23,24 +23,24 @@ stateDiagram-v2
   s8: Writing the answer
   s9: Verdict recorded
   [*] --> s0
-  s0 --> s2: you ask [needs the agent]
-  s0 --> s1: you ask [built-in with a Tool]
-  s1 --> s3: the Tool returns
-  s2 --> s4: the agent calls a Tool [budget left beyond the answer]
-  s2 --> s5: you press Cancel
-  s2 --> s6: the model call fails
-  s2 --> s7: 10 minutes pass or the agent wants more [budget used up]
-  s2 --> s8: the agent starts answering [a turn left]
+  s0 --> s2: you ask [needs AI]
+  s0 --> s1: you ask [built-in]
+  s1 --> s3: Tool returns
+  s2 --> s4: calls a Tool [budget left]
+  s2 --> s5: Cancel
+  s2 --> s6: AI call fails
+  s2 --> s7: 10 min pass or budget used up
+  s2 --> s8: starts answering
   s3 --> s9: you give a verdict
-  s4 --> s5: you press Cancel
-  s4 --> s7: 10 minutes pass
-  s4 --> s2: the Tool returns
-  s6 --> s2: you press Retry
-  s7 --> s2: you continue with a new cap [once, no Tool still running]
-  s8 --> s3: the answer finishes
-  s8 --> s5: you press Cancel
-  s8 --> s6: the model call fails
-  s8 --> s7: 10 minutes pass
+  s4 --> s5: Cancel
+  s4 --> s7: 10 min pass
+  s4 --> s2: Tool returns
+  s6 --> s2: Retry
+  s7 --> s2: Continue [once, no Tool running]
+  s8 --> s3: answer done
+  s8 --> s5: Cancel
+  s8 --> s6: AI call fails
+  s8 --> s7: 10 min pass
   class s0 tan
   class s1 blue
   class s2 blue
