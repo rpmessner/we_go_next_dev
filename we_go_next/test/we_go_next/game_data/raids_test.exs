@@ -51,8 +51,8 @@ defmodule WeGoNext.GameData.RaidsTest do
     criteria = MidnightSeason1.rule_criteria()
 
     assert length(MidnightSeason1.mechanics()) == 164
-    assert length(criteria) == 30
-    assert Enum.count(criteria, &(&1["mechanic_type"] == "avoidable")) == 29
+    assert length(criteria) == 26
+    assert Enum.count(criteria, &(&1["mechanic_type"] == "avoidable")) == 25
     assert Enum.count(criteria, &(&1["mechanic_type"] == "targeted_cone")) == 1
     assert Enum.any?(criteria, &(&1["spell_id"] == 1_244_221))
     assert Enum.any?(criteria, &(&1["spell_id"] == 1_260_718))

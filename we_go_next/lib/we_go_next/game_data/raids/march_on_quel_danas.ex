@@ -30,29 +30,35 @@ defmodule WeGoNext.GameData.Raids.MarchOnQuelDanas do
 
   def mechanics do
     [
-      mechanic("Belo'ren, Child of Al'ar", 3182, 1_241_291, "Dives", :avoidable, :damage_taken, [
-        :wowanalyzer
+      # Heroic real logs: Dive impacts hit groups; target-marker auras are not
+      # damage. Keep soakers out of avoidable facts (see beloren-dives research).
+      mechanic("Belo'ren, Child of Al'ar", 3182, 1_241_291, "Light Dive", :soak, :damage_taken, [
+        :wowanalyzer,
+        :bigwigs,
+        :local_logs
       ]),
       mechanic(
         "Belo'ren, Child of Al'ar",
         3182,
         1_241_292,
-        "Light Diver",
-        :avoidable,
-        :damage_taken,
-        [:dbm, :wowanalyzer]
+        "Light Dive",
+        :soak,
+        :debuff_application,
+        [:dbm, :wowanalyzer, :bigwigs, :local_logs]
       ),
       mechanic(
         "Belo'ren, Child of Al'ar",
         3182,
         1_241_339,
-        "Void Diver",
-        :avoidable,
-        :damage_taken,
-        [:dbm, :wowanalyzer]
+        "Void Dive",
+        :soak,
+        :debuff_application,
+        [:dbm, :wowanalyzer, :bigwigs, :local_logs]
       ),
-      mechanic("Belo'ren, Child of Al'ar", 3182, 1_241_340, "Dives", :avoidable, :damage_taken, [
-        :wowanalyzer
+      mechanic("Belo'ren, Child of Al'ar", 3182, 1_241_340, "Void Dive", :soak, :damage_taken, [
+        :wowanalyzer,
+        :bigwigs,
+        :local_logs
       ]),
       mechanic(
         "Belo'ren, Child of Al'ar",

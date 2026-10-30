@@ -305,7 +305,7 @@ defmodule WeGoNext.RulesTest do
 
     assert ruleset.name == "Midnight Season 1 Mechanics"
     assert ruleset.status == "draft"
-    assert length(criteria) == 30
+    assert length(criteria) == 26
 
     assert %MechanicCriterion{
              spell_id: 1_248_652,
@@ -353,8 +353,8 @@ defmodule WeGoNext.RulesTest do
              Rules.sync_raid_mechanics("midnight_season_1", rebuild: true)
 
     assert ruleset.status == "active"
-    assert length(criteria) == 30
-    assert length(promoted.criteria) == 30
+    assert length(criteria) == 26
+    assert length(promoted.criteria) == 26
     assert %{encounters: 1, inserted: 1} = rebuild
 
     criterion = Enum.find(promoted.criteria, &(&1.spell_id == 1_248_652))
