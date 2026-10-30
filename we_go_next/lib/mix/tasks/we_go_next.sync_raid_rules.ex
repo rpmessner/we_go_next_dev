@@ -51,7 +51,9 @@ defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
         )
 
         if result.promoted do
-          Mix.shell().info("#{length(result.promoted.criteria)} mechanic(s) are failure-ready.")
+          Mix.shell().info(
+            "#{Enum.count(result.promoted.criteria, & &1.active)} mechanic(s) are failure-ready."
+          )
         end
 
         if result.rebuild do
