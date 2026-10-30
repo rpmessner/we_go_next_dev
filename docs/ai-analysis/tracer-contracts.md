@@ -34,6 +34,33 @@ Null `pull_id` means the public import catalogue has no matching gold encounter.
 come from silver without aliasing. Class and spec are numeric ids, or null when
 unknown. Missing failure facts do not establish that a pull is fresh or clean.
 
+## Wipe-cause Promotion
+
+`wipe_cause(pulls)` reads only `gold.fact_wipe_cause` and freshness metadata.
+Its envelope data has `deciding_deaths`, `most_common_deciding_killing_blow`,
+`model_calls: 0` and `model_cost_usd: 0`. Each fact row includes pull id, rank,
+player, pull-relative death time, recorded killing-blow spell/source, catalog
+mechanic/type, nullable avoidability, derivation version and rebuild time.
+Evidence cites `gold.fact_wipe_cause`, pull start and `ms_into_fight`.
+
+The approved rule is first three player deaths strictly before pull end minus
+30 seconds; kills and resets under 10 seconds have no facts. This is not the
+full WCL combat-resurrection/first-cluster heuristic. The first loss is not
+proof of causation. `unknown` catalog intent and uncatalogued spells have null
+avoidability. Joining catalog mechanics is boss- and damage-family-specific.
+
+Per-pull status is `current`, `kill`, `reset`, `missing_or_stale_gold`, or
+`stale_silver_deaths`. An empty result still emits a status row. Reimport stale
+silver deaths before rebuilding gold; a gold rebuild cannot repair silver.
+The encounter stamp records successful empty builds. The most-common summary
+counts deciding deaths across the entire requested scope, not the current page,
+and breaks frequency ties by spell id. Unknown killing blows do not compete.
+
+`Analysis.BuiltInQuestions` binds “Why did this pull wipe?” to this Tool.
+`answer("wipe_cause", args)` uses the same validated, read-only execution and
+Tool-call recording as MCP, without a model. The future question picker can
+call this boundary; this Promotion does not implement its lifecycle UI.
+
 ## Bronze escape hatch
 
 `log_events` takes one positive gold `pull` id plus a `filters` object. Optional

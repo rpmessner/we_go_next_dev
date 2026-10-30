@@ -1,0 +1,126 @@
+{
+  "entries": [
+    {
+      "name": "Dymitrius",
+      "timestamp": 3183672,
+      "killingBlow": {
+        "name": "Venomous Surge",
+        "guid": 1306120,
+        "type": 8,
+        "abilityIcon": "ability_creature_poison_06.jpg"
+      }
+    },
+    {
+      "name": "Pixen",
+      "timestamp": 3210789
+    },
+    {
+      "name": "Twistedfaith",
+      "timestamp": 3210789
+    },
+    {
+      "name": "Umbraz",
+      "timestamp": 3210906
+    },
+    {
+      "name": "Omeggon",
+      "timestamp": 3211034
+    },
+    {
+      "name": "Belprie",
+      "timestamp": 3211071
+    },
+    {
+      "name": "Bigjím",
+      "timestamp": 3211089
+    },
+    {
+      "name": "Felthuzad",
+      "timestamp": 3211165
+    },
+    {
+      "name": "Valendara",
+      "timestamp": 3211199
+    },
+    {
+      "name": "Pepsa",
+      "timestamp": 3211240
+    },
+    {
+      "name": "Jentle",
+      "timestamp": 3211241
+    },
+    {
+      "name": "Kahnu",
+      "timestamp": 3212884
+    },
+    {
+      "name": "Mädz",
+      "timestamp": 3216087
+    },
+    {
+      "name": "Zazi",
+      "timestamp": 3218189,
+      "killingBlow": {
+        "name": "Ula'tek's Presence",
+        "guid": 1285965,
+        "type": 8,
+        "abilityIcon": "achievement_dungeon_templeofsethraliss.jpg"
+      }
+    },
+    {
+      "name": "Provibria",
+      "timestamp": 3218587
+    },
+    {
+      "name": "Strongwoman",
+      "timestamp": 3219439,
+      "killingBlow": {
+        "name": "Viscous Cyst",
+        "guid": 1287205,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_nova.jpg"
+      }
+    },
+    {
+      "name": "Wispless",
+      "timestamp": 3219580
+    },
+    {
+      "name": "Frostygnome",
+      "timestamp": 3222686
+    },
+    {
+      "name": "Creepitout",
+      "timestamp": 3223549
+    },
+    {
+      "name": "Roarschäch",
+      "timestamp": 3223923
+    },
+    {
+      "name": "Zuthere",
+      "timestamp": 3225215,
+      "killingBlow": {
+        "name": "Melee",
+        "guid": 1,
+        "type": 1,
+        "abilityIcon": "inv_axe_02.jpg"
+      }
+    },
+    {
+      "name": "Saveenó",
+      "timestamp": 3228971
+    },
+    {
+      "name": "Jentle",
+      "timestamp": 3230952,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    }
+  ]
+}

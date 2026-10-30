@@ -1,0 +1,132 @@
+{
+  "fights": [
+    {
+      "id": 2,
+      "boss": 3379,
+      "name": "Nymrissa Wavecaller",
+      "kill": true,
+      "start_time": 1612744,
+      "end_time": 1944840
+    },
+    {
+      "id": 11,
+      "boss": 3420,
+      "name": "Sszorak",
+      "kill": false,
+      "start_time": 3084165,
+      "end_time": 3231243
+    },
+    {
+      "id": 12,
+      "boss": 3420,
+      "name": "Sszorak",
+      "kill": false,
+      "start_time": 3321332,
+      "end_time": 3352651
+    },
+    {
+      "id": 13,
+      "boss": 3420,
+      "name": "Sszorak",
+      "kill": false,
+      "start_time": 3433308,
+      "end_time": 3844985
+    },
+    {
+      "id": 14,
+      "boss": 3420,
+      "name": "Sszorak",
+      "kill": false,
+      "start_time": 3933233,
+      "end_time": 4059489
+    },
+    {
+      "id": 15,
+      "boss": 3420,
+      "name": "Sszorak",
+      "kill": false,
+      "start_time": 4246078,
+      "end_time": 4451497
+    },
+    {
+      "id": 16,
+      "boss": 3420,
+      "name": "Sszorak",
+      "kill": false,
+      "start_time": 4619276,
+      "end_time": 4664160
+    },
+    {
+      "id": 17,
+      "boss": 3420,
+      "name": "Sszorak",
+      "kill": true,
+      "start_time": 5637231,
+      "end_time": 6040022
+    },
+    {
+      "id": 19,
+      "boss": 3421,
+      "name": "The Twin Fangs",
+      "kill": false,
+      "start_time": 6967851,
+      "end_time": 7251526
+    },
+    {
+      "id": 20,
+      "boss": 3421,
+      "name": "The Twin Fangs",
+      "kill": false,
+      "start_time": 7588113,
+      "end_time": 8085560
+    },
+    {
+      "id": 21,
+      "boss": 3421,
+      "name": "The Twin Fangs",
+      "kill": false,
+      "start_time": 8266592,
+      "end_time": 8729525
+    },
+    {
+      "id": 22,
+      "boss": 3421,
+      "name": "The Twin Fangs",
+      "kill": false,
+      "start_time": 9546750,
+      "end_time": 10023243
+    },
+    {
+      "id": 23,
+      "boss": 3421,
+      "name": "The Twin Fangs",
+      "kill": false,
+      "start_time": 10175761,
+      "end_time": 10679794
+    },
+    {
+      "id": 24,
+      "boss": 3421,
+      "name": "The Twin Fangs",
+      "kill": false,
+      "start_time": 10840719,
+      "end_time": 11308072
+    },
+    {
+      "id": 25,
+      "boss": 3421,
+      "name": "The Twin Fangs",
+      "kill": false,
+      "start_time": 11388398,
+      "end_time": 11848749
+    },
+    {
+      "id": 26,
+      "boss": 3421,
+      "name": "The Twin Fangs",
+      "kill": true,
+      "start_time": 11983846,
+      "end_time": 12429483
+    }
+  ]
+}

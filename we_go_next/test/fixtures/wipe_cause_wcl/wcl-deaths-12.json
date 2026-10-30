@@ -1,0 +1,134 @@
+{
+  "entries": [
+    {
+      "name": "Zazi",
+      "timestamp": 3329908,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Omeggon",
+      "timestamp": 3329908,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Dymitrius",
+      "timestamp": 3329910,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Umbraz",
+      "timestamp": 3331806
+    },
+    {
+      "name": "Frostygnome",
+      "timestamp": 3332404
+    },
+    {
+      "name": "Jentle",
+      "timestamp": 3334105
+    },
+    {
+      "name": "Zuthere",
+      "timestamp": 3334371
+    },
+    {
+      "name": "Felthuzad",
+      "timestamp": 3335572,
+      "killingBlow": {
+        "name": "Tempest",
+        "guid": 1287083,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_beam.jpg"
+      }
+    },
+    {
+      "name": "Roarschäch",
+      "timestamp": 3337338
+    },
+    {
+      "name": "Saveenó",
+      "timestamp": 3338405,
+      "killingBlow": {
+        "name": "Mutilate",
+        "guid": 1285999,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_missile.jpg"
+      }
+    },
+    {
+      "name": "Valendara",
+      "timestamp": 3339704
+    },
+    {
+      "name": "Pepsa",
+      "timestamp": 3342404,
+      "killingBlow": {
+        "name": "Mutilate",
+        "guid": 1285999,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_missile.jpg"
+      }
+    },
+    {
+      "name": "Kahnu",
+      "timestamp": 3343640
+    },
+    {
+      "name": "Twistedfaith",
+      "timestamp": 3345838
+    },
+    {
+      "name": "Strongwoman",
+      "timestamp": 3346373,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Bigjím",
+      "timestamp": 3346373,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Pixen",
+      "timestamp": 3347271
+    },
+    {
+      "name": "Creepitout",
+      "timestamp": 3350747
+    },
+    {
+      "name": "Wispless",
+      "timestamp": 3351965,
+      "killingBlow": {
+        "name": "Melee",
+        "guid": 1,
+        "type": 1,
+        "abilityIcon": "inv_axe_02.jpg"
+      }
+    }
+  ]
+}

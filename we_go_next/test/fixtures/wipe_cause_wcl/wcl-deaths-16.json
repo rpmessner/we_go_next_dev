@@ -1,0 +1,170 @@
+{
+  "entries": [
+    {
+      "name": "Roarschäch",
+      "timestamp": 4619766,
+      "killingBlow": {
+        "name": "Melee",
+        "guid": 1,
+        "type": 1,
+        "abilityIcon": "inv_axe_02.jpg"
+      }
+    },
+    {
+      "name": "Felthuzad",
+      "timestamp": 4627905,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Zuthere",
+      "timestamp": 4627907,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Twistedfaith",
+      "timestamp": 4627908,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Dymitrius",
+      "timestamp": 4627908,
+      "killingBlow": {
+        "name": "Ravage",
+        "guid": 1277101,
+        "type": 1,
+        "abilityIcon": "inv_10_specialreagentfoozles_tuskclaw-black.jpg"
+      }
+    },
+    {
+      "name": "Saveenó",
+      "timestamp": 4631848,
+      "killingBlow": {
+        "name": "Mutilate",
+        "guid": 1285999,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_missile.jpg"
+      }
+    },
+    {
+      "name": "Omeggon",
+      "timestamp": 4631848,
+      "killingBlow": {
+        "name": "Mutilate",
+        "guid": 1285999,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_missile.jpg"
+      }
+    },
+    {
+      "name": "Wispless",
+      "timestamp": 4636131
+    },
+    {
+      "name": "Umbraz",
+      "timestamp": 4637599
+    },
+    {
+      "name": "Frostygnome",
+      "timestamp": 4640328,
+      "killingBlow": {
+        "name": "Mutilate",
+        "guid": 1285999,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_missile.jpg"
+      }
+    },
+    {
+      "name": "Pepsa",
+      "timestamp": 4644860
+    },
+    {
+      "name": "Bigjím",
+      "timestamp": 4645195
+    },
+    {
+      "name": "Belprie",
+      "timestamp": 4646960
+    },
+    {
+      "name": "Kahnu",
+      "timestamp": 4647095
+    },
+    {
+      "name": "Provibria",
+      "timestamp": 4647394
+    },
+    {
+      "name": "Creepitout",
+      "timestamp": 4647927,
+      "killingBlow": {
+        "name": "Melee",
+        "guid": 1,
+        "type": 1,
+        "abilityIcon": "inv_axe_02.jpg"
+      }
+    },
+    {
+      "name": "Mädz",
+      "timestamp": 4648326
+    },
+    {
+      "name": "Valendara",
+      "timestamp": 4650760,
+      "killingBlow": {
+        "name": "Melee",
+        "guid": 1,
+        "type": 1,
+        "abilityIcon": "inv_axe_02.jpg"
+      }
+    },
+    {
+      "name": "Pixen",
+      "timestamp": 4653960
+    },
+    {
+      "name": "Zazi",
+      "timestamp": 4657793,
+      "killingBlow": {
+        "name": "Melee",
+        "guid": 1,
+        "type": 1,
+        "abilityIcon": "inv_axe_02.jpg"
+      }
+    },
+    {
+      "name": "Strongwoman",
+      "timestamp": 4660660,
+      "killingBlow": {
+        "name": "Tempest",
+        "guid": 1287083,
+        "type": 8,
+        "abilityIcon": "inv_ability_poison_beam.jpg"
+      }
+    },
+    {
+      "name": "Jentle",
+      "timestamp": 4661426,
+      "killingBlow": {
+        "name": "Melee",
+        "guid": 1,
+        "type": 1,
+        "abilityIcon": "inv_axe_02.jpg"
+      }
+    }
+  ]
+}

@@ -12,7 +12,8 @@ defmodule WeGoNext.Analysis.Registry do
     PullSummary,
     RecordVerdict,
     SessionContext,
-    StartSession
+    StartSession,
+    WipeCause
   }
 
   @tools [
@@ -22,6 +23,7 @@ defmodule WeGoNext.Analysis.Registry do
     PullSummary,
     Deaths,
     Failures,
+    WipeCause,
     DamageTaken,
     Interrupts,
     LogEvents,
