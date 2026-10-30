@@ -28,12 +28,12 @@ defmodule Mix.Tasks.WeGoNext.SeedRulesTest do
     output = capture_task_output(fn -> SeedRules.run([]) end)
 
     assert output =~
-             "Synced 30 mechanic definition(s) into Midnight Season 1 Mechanics v1."
+             "Synced 36 mechanic definition(s) into Midnight Current Tier Mechanics v1."
 
-    assert Repo.get_by(Ruleset, name: "Midnight Season 1 Mechanics", version: 1)
+    assert Repo.get_by(Ruleset, name: "Midnight Current Tier Mechanics", version: 1)
     refute Repo.get_by(Ruleset, name: "Initial Mechanic Rules", version: 1)
 
-    assert 30 =
+    assert 36 =
              MechanicCriterion
              |> Repo.aggregate(:count)
   end

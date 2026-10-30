@@ -7,7 +7,7 @@ defmodule Mix.Tasks.WeGoNext.SeedRules do
       mix we_go_next.seed_rules
       mix we_go_next.seed_rules path/to/rules.json
 
-  With no path, this task syncs the current-tier Midnight Season 1 raid catalog.
+  With no path, this task syncs the current-tier Midnight raid catalog.
   Passing a path imports a legacy/static JSON definition file directly.
   """
 

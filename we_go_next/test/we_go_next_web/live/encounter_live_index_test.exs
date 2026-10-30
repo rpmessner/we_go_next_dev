@@ -167,13 +167,13 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
       |> get(~p"/")
       |> html_response(200)
 
-    assert active_ruleset.name == "Midnight Season 1 Mechanics"
-    assert length(criteria) == 30
-    assert length(promoted.criteria) == 30
-    refute html =~ "30 synced mechanics"
-    refute html =~ "30 failure-ready mechanics"
-    refute html =~ "Active: Midnight Season 1 Mechanics"
-    assert Repo.aggregate(DimMechanicCriterion, :count) == 30
+    assert active_ruleset.name == "Midnight Current Tier Mechanics"
+    assert length(criteria) == 36
+    assert length(promoted.criteria) == 36
+    refute html =~ "36 synced mechanics"
+    refute html =~ "36 failure-ready mechanics"
+    refute html =~ "Active: Midnight Current Tier Mechanics"
+    assert Repo.aggregate(DimMechanicCriterion, :count) == 36
   end
 
   test "encounter headers prefer code-defined raid names over raw instance ids", %{conn: conn} do

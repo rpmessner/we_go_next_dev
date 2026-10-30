@@ -199,7 +199,7 @@ defmodule WeGoNext.Rules do
   Syncs the default current-tier raid catalogs into mechanic definitions.
   """
   def sync_current_tier_mechanics(opts \\ []) do
-    sync_raid_mechanics("midnight_season_1", opts)
+    sync_raid_mechanics("current_tier", opts)
   end
 
   def sync_current_tier_rules(opts \\ []), do: sync_current_tier_mechanics(opts)

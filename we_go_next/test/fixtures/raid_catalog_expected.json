@@ -1,0 +1,311 @@
+[
+  {
+    "id": "435",
+    "boss": "3379",
+    "facts": 8,
+    "hits": 11,
+    "by_spell": {
+      "1258677": 11
+    },
+    "rows": [
+      {
+        "guid": "Player-11-0EB97A9E",
+        "name": "Felthuzad-Tichondrius-US",
+        "spell": 1258677,
+        "hits": 1,
+        "damage": 151693
+      },
+      {
+        "guid": "Player-1171-0A9AD785",
+        "name": "Frostygnome-WyrmrestAccord-US",
+        "spell": 1258677,
+        "hits": 1,
+        "damage": 426213
+      },
+      {
+        "guid": "Player-1171-0AE668C6",
+        "name": "Zuthere-WyrmrestAccord-US",
+        "spell": 1258677,
+        "hits": 1,
+        "damage": 569598
+      },
+      {
+        "guid": "Player-1171-0B0ACDBC",
+        "name": "Wispless-WyrmrestAccord-US",
+        "spell": 1258677,
+        "hits": 3,
+        "damage": 1049520
+      },
+      {
+        "guid": "Player-3676-0ABEDF88",
+        "name": "Roarschäch-Area52-US",
+        "spell": 1258677,
+        "hits": 1,
+        "damage": 451317
+      },
+      {
+        "guid": "Player-3678-0E20B334",
+        "name": "Strongwoman-Thrall-US",
+        "spell": 1258677,
+        "hits": 1,
+        "damage": 469145
+      },
+      {
+        "guid": "Player-3678-0E27CA8C",
+        "name": "Saveenó-Thrall-US",
+        "spell": 1258677,
+        "hits": 2,
+        "damage": 1099346
+      },
+      {
+        "guid": "Player-67-0FF8BB89",
+        "name": "Jentle-Elune-US",
+        "spell": 1258677,
+        "hits": 1,
+        "damage": 501671
+      }
+    ]
+  },
+  {
+    "id": "438",
+    "boss": "3420",
+    "facts": 17,
+    "hits": 169,
+    "by_spell": {
+      "1296667": 7,
+      "1287083": 162
+    },
+    "rows": [
+      {
+        "guid": "Player-1171-069A3241",
+        "name": "Zazi-WyrmrestAccord-US",
+        "spell": 1287083,
+        "hits": 7,
+        "damage": 506903
+      },
+      {
+        "guid": "Player-1171-069A3241",
+        "name": "Zazi-WyrmrestAccord-US",
+        "spell": 1296667,
+        "hits": 1,
+        "damage": 33945
+      },
+      {
+        "guid": "Player-1171-0A34A5C5",
+        "name": "Kahnu-WyrmrestAccord-US",
+        "spell": 1287083,
+        "hits": 19,
+        "damage": 2459669
+      },
+      {
+        "guid": "Player-1171-0A9AD785",
+        "name": "Frostygnome-WyrmrestAccord-US",
+        "spell": 1287083,
+        "hits": 20,
+        "damage": 1616814
+      },
+      {
+        "guid": "Player-1171-0AC0B593",
+        "name": "Belprie-WyrmrestAccord-US",
+        "spell": 1287083,
+        "hits": 9,
+        "damage": 941547
+      },
+      {
+        "guid": "Player-1171-0ACD1EFC",
+        "name": "Omeggon-WyrmrestAccord-US",
+        "spell": 1287083,
+        "hits": 8,
+        "damage": 442281
+      },
+      {
+        "guid": "Player-1171-0AE668C6",
+        "name": "Zuthere-WyrmrestAccord-US",
+        "spell": 1287083,
+        "hits": 17,
+        "damage": 1688519
+      },
+      {
+        "guid": "Player-1171-0AFC0EE7",
+        "name": "Provibria-WyrmrestAccord-US",
+        "spell": 1287083,
+        "hits": 3,
+        "damage": 345911
+      },
+      {
+        "guid": "Player-1171-0B0ACDBC",
+        "name": "Wispless-WyrmrestAccord-US",
+        "spell": 1287083,
+        "hits": 13,
+        "damage": 1288886
+      },
+      {
+        "guid": "Player-3676-0ABEDF88",
+        "name": "Roarschäch-Area52-US",
+        "spell": 1287083,
+        "hits": 23,
+        "damage": 1547501
+      },
+      {
+        "guid": "Player-3676-0ABEDF88",
+        "name": "Roarschäch-Area52-US",
+        "spell": 1296667,
+        "hits": 3,
+        "damage": 64016
+      },
+      {
+        "guid": "Player-3678-0E27CA8C",
+        "name": "Saveenó-Thrall-US",
+        "spell": 1296667,
+        "hits": 2,
+        "damage": 60014
+      },
+      {
+        "guid": "Player-60-0E4C861C",
+        "name": "Creepitout-Stormrage-US",
+        "spell": 1287083,
+        "hits": 14,
+        "damage": 935160
+      },
+      {
+        "guid": "Player-60-0EDD7543",
+        "name": "Dymitrius-Stormrage-US",
+        "spell": 1287083,
+        "hits": 7,
+        "damage": 316730
+      },
+      {
+        "guid": "Player-60-0FD01AB6",
+        "name": "Bigjím-Stormrage-US",
+        "spell": 1287083,
+        "hits": 12,
+        "damage": 1058688
+      },
+      {
+        "guid": "Player-60-0FD01AB6",
+        "name": "Bigjím-Stormrage-US",
+        "spell": 1296667,
+        "hits": 1,
+        "damage": 31012
+      },
+      {
+        "guid": "Player-60-0FF75E8B",
+        "name": "Pepsa-Stormrage-US",
+        "spell": 1287083,
+        "hits": 10,
+        "damage": 663760
+      }
+    ]
+  },
+  {
+    "id": "445",
+    "boss": "3421",
+    "facts": 14,
+    "hits": 17,
+    "by_spell": {
+      "1306876": 3,
+      "1292807": 4,
+      "1293295": 10
+    },
+    "rows": [
+      {
+        "guid": "Player-1171-0ACD1EFC",
+        "name": "Omeggon-WyrmrestAccord-US",
+        "spell": 1293295,
+        "hits": 1,
+        "damage": 210428
+      },
+      {
+        "guid": "Player-1171-0ACD1EFC",
+        "name": "Omeggon-WyrmrestAccord-US",
+        "spell": 1306876,
+        "hits": 1,
+        "damage": 257346
+      },
+      {
+        "guid": "Player-1171-0B0ACDBC",
+        "name": "Wispless-WyrmrestAccord-US",
+        "spell": 1292807,
+        "hits": 1,
+        "damage": 92707
+      },
+      {
+        "guid": "Player-1171-0B0ACDBC",
+        "name": "Wispless-WyrmrestAccord-US",
+        "spell": 1293295,
+        "hits": 2,
+        "damage": 539554
+      },
+      {
+        "guid": "Player-1175-0FFC33AE",
+        "name": "Pixen-Moonrunner-US",
+        "spell": 1292807,
+        "hits": 1,
+        "damage": 53249
+      },
+      {
+        "guid": "Player-3676-0ABEDF88",
+        "name": "Roarschäch-Area52-US",
+        "spell": 1292807,
+        "hits": 1,
+        "damage": 82507
+      },
+      {
+        "guid": "Player-3676-0ABEDF88",
+        "name": "Roarschäch-Area52-US",
+        "spell": 1293295,
+        "hits": 2,
+        "damage": 508153
+      },
+      {
+        "guid": "Player-3693-0E34A82B",
+        "name": "Twistedfaith-Kel'Thuzad-US",
+        "spell": 1293295,
+        "hits": 1,
+        "damage": 308598
+      },
+      {
+        "guid": "Player-60-0EDD7543",
+        "name": "Dymitrius-Stormrage-US",
+        "spell": 1293295,
+        "hits": 1,
+        "damage": 319858
+      },
+      {
+        "guid": "Player-67-0FF8BB89",
+        "name": "Jentle-Elune-US",
+        "spell": 1292807,
+        "hits": 1,
+        "damage": 46955
+      },
+      {
+        "guid": "Player-67-0FF8BB89",
+        "name": "Jentle-Elune-US",
+        "spell": 1306876,
+        "hits": 1,
+        "damage": 263829
+      },
+      {
+        "guid": "Player-76-0BE7FABE",
+        "name": "Sparfox-Sargeras-US",
+        "spell": 1293295,
+        "hits": 1,
+        "damage": 152182
+      },
+      {
+        "guid": "Player-76-0BE7FABE",
+        "name": "Sparfox-Sargeras-US",
+        "spell": 1306876,
+        "hits": 1,
+        "damage": 270028
+      },
+      {
+        "guid": "Player-77-0FE5C2F4",
+        "name": "Valendara-Azgalor-US",
+        "spell": 1293295,
+        "hits": 2,
+        "damage": 453320
+      }
+    ]
+  }
+]
