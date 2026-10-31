@@ -11,6 +11,7 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   alias WeGoNext.{Accounts, Documents}
   alias WeGoNext.WowClass
+  alias WeGoNextWeb.EncounterLive.DetailState
 
   import WeGoNextWeb.EncounterComponents,
     only: [
@@ -25,7 +26,13 @@ defmodule WeGoNextWeb.EncounterLive.Show do
   @impl true
   def mount(%{"source_encounter_key" => source_encounter_key} = params, _session, socket) do
     user = Accounts.get_or_create_default_user()
-    active_tab = parse_tab(Map.get(params, "tab"))
+
+    socket =
+      socket
+      |> assign(:source_encounter_key, source_encounter_key)
+      |> assign(:detail_status, :missing)
+      |> assign(:detail_state, DetailState.initial())
+      |> transition({:params, Map.get(params, "tab")})
 
     case Documents.fetch_encounter(source_encounter_key) do
       {:ok, document} ->
@@ -34,21 +41,17 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:page_title, document.encounter.name)
          |> assign(:user, user)
          |> assign(:document, document)
-         |> assign(:document_state, document_state(document))
+         |> transition({:document, document})
          |> assign(:encounter, document.encounter)
          |> assign(:counts, document.counts)
          |> assign(:roster, document.roster)
          |> assign(:deaths, document.deaths)
          |> assign(:survival_usage, Map.get(document, :survival_usage) || empty_survival_usage())
-         |> assign(:death_heal_keys, MapSet.new())
          |> assign(:pull_review, document.pull_review)
          |> assign(:failure_preview, normalize_failure_preview(document.failure_preview))
          |> assign(:interrupt_coverage, document.interrupt_coverage)
          |> assign(:observed_mechanics, normalize_observed_mechanics(document.observed_mechanics))
-         |> assign_personal_summary(document.personal_pull_summary)
-         |> assign(:active_tab, active_tab)
-         |> assign(:show_untagged_mechanics, false)
-         |> assign(:show_player_debuffs, false)}
+         |> assign(:personal_pull_summary, document.personal_pull_summary)}
 
       {:error, reason} ->
         {:ok,
@@ -56,13 +59,12 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:page_title, "Encounter Not Found")
          |> assign(:user, user)
          |> assign(:document, nil)
-         |> assign(:document_state, {:missing, source_encounter_key})
+         |> transition({:document, nil})
          |> assign(:encounter, nil)
          |> assign(:counts, %{})
          |> assign(:roster, [])
          |> assign(:deaths, [])
          |> assign(:survival_usage, empty_survival_usage())
-         |> assign(:death_heal_keys, MapSet.new())
          |> assign(:pull_review, %{
            damage_done: [],
            low_dps: [],
@@ -72,51 +74,40 @@ defmodule WeGoNextWeb.EncounterLive.Show do
          |> assign(:failure_preview, %{mechanics: [], diagnostics: [], counts: %{failures: 0}})
          |> assign(:interrupt_coverage, %{spell_coverage: [], player_contributions: []})
          |> assign(:observed_mechanics, %{mechanics: [], counts: %{observed_spells: 0}})
-         |> assign_personal_summary(%{selected_player_guid: nil, players: []})
-         |> assign(:active_tab, active_tab)
-         |> assign(:show_untagged_mechanics, false)
-         |> assign(:show_player_debuffs, false)
+         |> assign(:personal_pull_summary, %{selected_player_guid: nil, players: []})
          |> assign(:error, not_found_message(reason, source_encounter_key))}
     end
   end
 
   @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, transition(socket, {:params, Map.get(params, "tab")})}
+  end
+
+  @impl true
   def handle_event("switch_tab", %{"tab" => tab}, socket) do
-    {:noreply, assign(socket, :active_tab, parse_tab(tab))}
+    {:noreply, transition(socket, {:switch_tab, tab})}
   end
 
   @impl true
   def handle_event("select_personal_player", params, socket) do
     player_guid = get_in(params, ["personal", "player_guid"]) || Map.get(params, "player_guid")
 
-    {:noreply,
-     socket
-     |> assign(:selected_personal_player_guid, player_guid)
-     |> assign(
-       :selected_personal_player,
-       selected_personal_player(socket.assigns.personal_pull_summary.players, player_guid)
-     )}
+    {:noreply, transition(socket, {:select_personal_player, player_guid})}
   end
 
   @impl true
   def handle_event("toggle_untagged_mechanics", _params, socket) do
-    {:noreply, update(socket, :show_untagged_mechanics, &(!&1))}
+    {:noreply, transition(socket, :toggle_untagged_mechanics)}
   end
 
   @impl true
   def handle_event("toggle_death_heals", %{"key" => key}, socket) do
-    keys = socket.assigns.death_heal_keys
-
-    keys =
-      if MapSet.member?(keys, key),
-        do: MapSet.delete(keys, key),
-        else: MapSet.put(keys, key)
-
-    {:noreply, assign(socket, :death_heal_keys, keys)}
+    {:noreply, transition(socket, {:toggle_death_heals, key})}
   end
 
   def handle_event("toggle_player_debuffs", _params, socket) do
-    {:noreply, update(socket, :show_player_debuffs, &(!&1))}
+    {:noreply, transition(socket, :toggle_player_debuffs)}
   end
 
   @impl true
@@ -1377,33 +1368,31 @@ defmodule WeGoNextWeb.EncounterLive.Show do
     """
   end
 
-  defp parse_tab("deaths"), do: :deaths
-  defp parse_tab("damage"), do: :damage
-  defp parse_tab("failures"), do: :failures
-  defp parse_tab("mechanics"), do: :mechanics
-  defp parse_tab("interrupts"), do: :interrupts
-  defp parse_tab("personal"), do: :personal
-  defp parse_tab(_tab), do: :overview
+  defp transition(socket, event) do
+    {:ok, status, data, effects} =
+      DetailState.step(socket.assigns.detail_status, event, socket.assigns.detail_state)
 
-  defp document_state(document) do
-    current_version = Documents.current_derivation_version()
+    socket =
+      socket
+      |> assign(:detail_status, status)
+      |> assign(:detail_state, data)
+      |> assign(Map.drop(data, [:players]))
+      |> assign(:document_state, banner_state(status))
 
-    cond do
-      Documents.stale?(document) -> {:stale, current_version}
-      empty_document?(document) -> :empty
-      true -> :fresh
-    end
+    Enum.reduce(effects, socket, &apply_effect/2)
   end
 
-  defp empty_document?(document) do
-    document.roster == [] and document.deaths == [] and
-      document.failure_preview.mechanics == [] and
-      document.pull_review.damage_done == [] and
-      document.pull_review.damage_taken_spells == [] and
-      document.pull_review.debuffs.all == [] and
-      document.interrupt_coverage.spell_coverage == [] and
-      document.observed_mechanics.mechanics == []
+  defp banner_state(:stale), do: {:stale, Documents.current_derivation_version()}
+  defp banner_state(status), do: status
+
+  defp apply_effect(:patch_tab, socket) do
+    push_patch(socket,
+      to:
+        ~p"/encounters/#{socket.assigns.source_encounter_key}?#{[tab: socket.assigns.active_tab]}"
+    )
   end
+
+  defp apply_effect(_effect, socket), do: socket
 
   defp normalize_failure_preview(failure_preview) do
     Map.put_new(
@@ -1728,22 +1717,6 @@ defmodule WeGoNextWeb.EncounterLive.Show do
 
   defp format_datetime(datetime) do
     Calendar.strftime(datetime, "%b %d, %Y %I:%M %p")
-  end
-
-  defp assign_personal_summary(socket, summary) do
-    selected_player_guid = summary.selected_player_guid
-
-    socket
-    |> assign(:personal_pull_summary, summary)
-    |> assign(:selected_personal_player_guid, selected_player_guid)
-    |> assign(
-      :selected_personal_player,
-      selected_personal_player(summary.players, selected_player_guid)
-    )
-  end
-
-  defp selected_personal_player(players, selected_player_guid) do
-    Enum.find(players, &(&1.player_guid == selected_player_guid))
   end
 
   defp not_found_message(:missing_document, source_encounter_key) do

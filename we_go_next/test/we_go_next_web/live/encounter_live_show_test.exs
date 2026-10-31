@@ -24,6 +24,108 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     PlayerInfo
   }
 
+  test "tab clicks patch the URL and survive reload and history", %{conn: conn} do
+    write_fixture_document!("tab-history")
+    {:ok, view, _} = live(conn, "/encounters/tab-history")
+
+    for tab <- ~w(mechanics damage failures deaths interrupts personal overview) do
+      view |> element("button[phx-value-tab=#{tab}]") |> render_click()
+      assert_patch(view, "/encounters/tab-history?tab=#{tab}")
+      assert has_element?(view, "button[phx-value-tab=#{tab}].border-wow-gold")
+    end
+
+    render_patch(view, "/encounters/tab-history?tab=deaths")
+    assert has_element?(view, "button[phx-value-tab=deaths].border-wow-gold")
+    {:ok, reloaded, _} = live(conn, "/encounters/tab-history?tab=deaths")
+    assert has_element?(reloaded, "button[phx-value-tab=deaths].border-wow-gold")
+    render_patch(view, "/encounters/tab-history?tab=unknown")
+    assert has_element?(view, "button[phx-value-tab=overview].border-wow-gold")
+  end
+
+  test "document states use all shared freshness stamps before emptiness", %{conn: conn} do
+    write_fixture_document!("current-empty")
+    {:ok, _, html} = live(conn, "/encounters/current-empty")
+    assert html =~ "Empty Encounter Document"
+    refute html =~ "Stale Encounter Document"
+
+    write_fixture_document!("current-populated", %{
+      roster: [
+        %{
+          player_guid: "Player-One",
+          player_name: "One",
+          class_id: 9,
+          spec_id: 266,
+          detected_role: "dps",
+          item_level: 498
+        }
+      ]
+    })
+
+    {:ok, _, html} = live(conn, "/encounters/current-populated")
+    refute html =~ "Empty Encounter Document"
+    refute html =~ "Stale Encounter Document"
+
+    for key <- Map.keys(WeGoNext.Freshness.current_versions()), value <- [nil, -1, 0] do
+      source = "stamp-#{key}-#{inspect(value)}"
+      write_fixture_document!(source, %{key => value})
+      {:ok, _, html} = live(conn, "/encounters/#{source}")
+      assert html =~ "Stale Encounter Document"
+      refute html =~ "Empty Encounter Document"
+    end
+
+    {:ok, _, html} = live(conn, "/encounters/no-such-document")
+    assert html =~ "Encounter Not Found"
+  end
+
+  test "mechanics filters toggle both ways and persist across tab patches", %{conn: conn} do
+    write_fixture_document!("filters")
+    {:ok, view, _} = live(conn, "/encounters/filters?tab=mechanics")
+
+    for event <- ~w(toggle_untagged_mechanics toggle_player_debuffs) do
+      selector = "input[phx-click=#{event}]"
+      refute has_element?(view, selector <> "[checked]")
+      view |> element(selector) |> render_click()
+      assert has_element?(view, selector <> "[checked]")
+      view |> element("button[phx-value-tab=overview]") |> render_click()
+      view |> element("button[phx-value-tab=mechanics]") |> render_click()
+      assert has_element?(view, selector <> "[checked]")
+      view |> element(selector) |> render_click()
+      refute has_element?(view, selector <> "[checked]")
+    end
+  end
+
+  test "personal player selection persists across tab patches", %{conn: conn} do
+    encounter = insert_dim_encounter!()
+
+    for {guid, name} <- [{"Player-One", "One"}, {"Player-Two", "Two"}] do
+      insert_player_info!(encounter, %{
+        player_guid: guid,
+        player_name: name,
+        class_id: 9,
+        spec_id: 266,
+        detected_role: "dps"
+      })
+    end
+
+    generate_document!(encounter)
+    {:ok, view, _} = live(conn, ~p"/encounters/#{encounter.source_encounter_key}?tab=personal")
+
+    view
+    |> form("form[phx-change=select_personal_player]", personal: %{player_guid: "Player-One"})
+    |> render_change()
+
+    assert has_element?(view, "option[value=Player-One][selected]")
+
+    view
+    |> form("form[phx-change=select_personal_player]", personal: %{player_guid: "Player-Two"})
+    |> render_change()
+
+    assert has_element?(view, "option[value=Player-Two][selected]")
+    view |> element("button[phx-value-tab=overview]") |> render_click()
+    view |> element("button[phx-value-tab=personal]") |> render_click()
+    assert has_element?(view, "option[value=Player-Two][selected]")
+  end
+
   test "renders an encounter detail page keyed by imported pull id", %{conn: conn} do
     encounter = insert_dim_encounter!()
     player = insert_dim_player!()
@@ -508,6 +610,8 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
     html = view |> element("input[phx-click=toggle_death_heals]") |> render_click()
     assert html =~ "Renew"
     assert html =~ "Heals received in window"
+    html = view |> element("input[phx-click=toggle_death_heals]") |> render_click()
+    refute html =~ "Renew"
   end
 
   test "death cards degrade when the document predates survival analysis", %{conn: conn} do
