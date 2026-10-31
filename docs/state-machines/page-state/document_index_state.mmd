@@ -1,0 +1,7 @@
+stateDiagram-v2
+  ready --> empty: empty [always]
+  ready --> unavailable: unavailable [always]
+  empty --> ready: ready [always]
+  empty --> unavailable: unavailable [always]
+  unavailable --> ready: ready [always]
+  unavailable --> empty: empty [always]

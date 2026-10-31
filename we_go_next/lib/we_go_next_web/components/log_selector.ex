@@ -16,9 +16,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
   attr(:selected_log, :string, default: nil)
   attr(:import_enabled, :boolean, default: false)
   attr(:reimport, :boolean, default: false)
-  attr(:loading, :boolean, required: true)
-  attr(:import_progress, :map, default: nil)
-  attr(:error, :string, default: nil)
+  attr(:import_status, :map, required: true)
   attr(:watch_log, :map, default: nil)
 
   def render(assigns) do
@@ -33,7 +31,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
             <select
               id="log-selector"
               name="log_path"
-              disabled={@loading}
+              disabled={@import_status.state == :importing}
               class="flex-1 bg-zinc-900 border border-zinc-600 rounded px-3 py-2 text-zinc-100 focus:border-wow-gold focus:ring-1 focus:ring-wow-gold disabled:opacity-50"
             >
               <option value="all" selected={@selected_log == "all"}>All imported logs</option>
@@ -45,39 +43,32 @@ defmodule WeGoNextWeb.Components.LogSelector do
             </select>
             <button
               type="submit"
-              disabled={@loading || !@import_enabled}
+              disabled={@import_status.state == :importing || !@import_enabled}
               class="px-4 py-2 bg-wow-gold text-zinc-900 font-semibold rounded hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {cond do
-                @loading -> "Importing..."
+                @import_status.state == :importing -> "Importing..."
                 @reimport -> "Re-import"
                 true -> "Import"
               end}
             </button>
           </form>
 
-          <label
+          <WeGoNextWeb.WatchControl.render
             :if={@watch_log}
+            id="watch-newest-log"
+            file={@watch_log}
+            label="Watch newest log for completed encounters"
             class="mt-3 inline-flex items-center gap-2 text-sm text-zinc-300"
-          >
-            <input
-              id="watch-newest-log"
-              type="checkbox"
-              checked={@watch_log.watch_enabled}
-              phx-click="toggle_watch_enabled"
-              phx-value-file_id={@watch_log.id}
-              class="rounded border-zinc-600 bg-zinc-900 text-wow-gold focus:ring-wow-gold"
-            />
-            Watch newest log for completed encounters
-          </label>
+          />
 
-          <.progress_bar :if={@import_progress} progress={@import_progress} />
+          <.progress_bar :if={@import_status.state == :importing} progress={@import_status} />
         </div>
       <% else %>
         <.empty_state user={@user} />
       <% end %>
 
-      <p :if={@error} class="mt-2 text-sm text-red-400">{@error}</p>
+      <p :if={@import_status.state in [:failed, :timed_out]} class="mt-2 text-sm text-red-400">{@import_status.error}</p>
     </div>
     """
   end

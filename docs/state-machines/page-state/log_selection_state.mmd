@@ -1,0 +1,7 @@
+stateDiagram-v2
+  all --> available: available [always]
+  all --> imported: imported [always]
+  available --> all: all [always]
+  available --> imported: imported [always]
+  imported --> all: all [always]
+  imported --> available: available [always]

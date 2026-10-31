@@ -66,19 +66,12 @@ defmodule WeGoNextWeb.Components.ImportedLogsSwitcher do
           Current
         </span>
 
-        <label
+        <WeGoNextWeb.WatchControl.render
           :if={@watchable}
+          id={"watch-log-#{@clf.id}"}
+          file={@clf}
           class="flex items-center gap-1 rounded bg-zinc-800 px-2 py-1 text-xs font-semibold text-zinc-300"
-        >
-          <input
-            type="checkbox"
-            class="rounded border-zinc-600 bg-zinc-950 text-wow-gold focus:ring-wow-gold"
-            checked={@clf.watch_enabled}
-            phx-click="toggle_watch_enabled"
-            phx-value-file_id={@clf.id}
-          />
-          Watch
-        </label>
+        />
 
         <button
           type="button"

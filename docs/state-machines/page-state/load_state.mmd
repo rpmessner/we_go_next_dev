@@ -1,0 +1,6 @@
+stateDiagram-v2
+  idle --> loading: load [always]
+  loading --> loading: load [always]
+  failed --> loading: load [always]
+  loading --> idle: loaded [always]
+  loading --> failed: failed [always]
