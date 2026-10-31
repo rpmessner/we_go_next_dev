@@ -6,9 +6,14 @@ Already a machine: `Analysis.QuestionLifecycle`, built on `WeGoNext.StateTable`.
 
 ## Ranked by likely bug yield
 
-### 1. Ruleset status and the sync flow (risk high; pure table)
+### 1. Live catalog sync (we-g18.10)
 
-States: `draft`, `active`, `archived`. Set in `Rules.activate_ruleset`, `archive_ruleset` and the seed path. Callers are the mix tasks only.
+Rulesets and promotion are retired by operator decision. The live code catalog
+syncs directly into gold; the remaining pure flow is sync → optional rebuild.
+See [model and evidence](ruleset-flow/README.md). The findings below describe the
+removed lifecycle, not current behavior.
+
+Former states: `draft`, `active`, `archived`. Set in `Rules.activate_ruleset`, `archive_ruleset` and the seed path. Callers are the mix tasks only.
 
 - **Confirmed:** re-seeding an existing ruleset writes `status: "draft"` by default, so `mix we_go_next.seed_rules`, or `sync_raid_rules` without `--activate`, demotes the active ruleset. It keeps its `activated_at`. Rebuilds then skip with `active_ruleset_not_found` and leave old facts in place.
 - None of these transitions are guarded: archived → draft, archived → active, or archiving the active ruleset, which leaves none active.

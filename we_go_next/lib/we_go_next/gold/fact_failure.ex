@@ -13,8 +13,6 @@ defmodule WeGoNext.Gold.FactFailure do
   @schema_prefix "gold"
 
   schema "fact_failure" do
-    field(:ruleset_id, :integer)
-    field(:ruleset_version, :integer)
     field(:product, :string, default: "wow")
     field(:channel, :string, default: "retail")
     field(:build_version, :string)
@@ -40,8 +38,6 @@ defmodule WeGoNext.Gold.FactFailure do
       :encounter_dim_id,
       :player_dim_id,
       :criterion_dim_id,
-      :ruleset_id,
-      :ruleset_version,
       :product,
       :channel,
       :build_version,
@@ -55,8 +51,6 @@ defmodule WeGoNext.Gold.FactFailure do
       :encounter_dim_id,
       :player_dim_id,
       :criterion_dim_id,
-      :ruleset_id,
-      :ruleset_version,
       :product,
       :channel,
       :failure_count,
@@ -69,7 +63,7 @@ defmodule WeGoNext.Gold.FactFailure do
   """
   @spec rebuild_for_encounter(pos_integer(), keyword()) ::
           {:ok, %{deleted: non_neg_integer(), inserted: non_neg_integer()}} | {:error, term()}
-  def rebuild_for_encounter(encounter_dim_id, opts \\ [ruleset: :active])
+  def rebuild_for_encounter(encounter_dim_id, opts \\ [])
       when is_integer(encounter_dim_id) and is_list(opts) do
     Rebuilder.rebuild_for_encounter(encounter_dim_id, opts)
   end

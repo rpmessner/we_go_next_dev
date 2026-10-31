@@ -60,6 +60,7 @@ defmodule WeGoNext.Mirror.Keys do
       fetch(attrs, :mechanic_type),
       criterion_semantics_hash
     ]
+    |> append_validity(attrs)
     |> Enum.map(&normalize_value/1)
     |> hash_values()
   end
@@ -77,6 +78,14 @@ defmodule WeGoNext.Mirror.Keys do
       end)
 
     hash_values([canonical_json(fetch(attrs, :threshold) || %{}), semantics_version])
+  end
+
+  # Undated keys remain byte-for-byte compatible with existing failure facts.
+  defp append_validity(values, attrs) do
+    case {fetch(attrs, :valid_from), fetch(attrs, :valid_until)} do
+      {nil, nil} -> values
+      {from, until} -> values ++ ["validity", from, until]
+    end
   end
 
   defp hash_values(values) do

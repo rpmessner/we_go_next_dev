@@ -10,7 +10,6 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
   }
 
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.Ruleset
   alias WeGoNext.Silver.{DamageTaken, PlayerInfo}
 
   setup do
@@ -43,12 +42,11 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
     assert WeGoNext.Gold.FailureSummary.readiness().stale_failure_logic_count == 1
   end
 
-  test "rebuild/2 runs the current fact_failure builder with the active ruleset", %{
+  test "rebuild/2 runs the current fact_failure builder with the live catalog", %{
     encounter: encounter,
     documents_root: documents_root
   } do
-    ruleset = insert_ruleset!("Active Ruleset", "active")
-    criterion = insert_criterion!(ruleset, encounter, 101)
+    criterion = insert_criterion!(encounter, 101)
 
     insert_player_info!(encounter, "Player-One", "One")
     insert_damage_taken!(encounter, "Player-One", 101, 100, 1)
@@ -76,8 +74,7 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
     encounter: encounter,
     documents_root: root
   } do
-    ruleset = insert_ruleset!("Active Ruleset", "active")
-    insert_criterion!(ruleset, encounter, 909)
+    insert_criterion!(encounter, 909)
     insert_player_info!(encounter, "Player-One", "One")
     insert_damage_taken!(encounter, "Player-One", 909, 100, 1)
 
@@ -120,46 +117,20 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
   end
 
   test "a successful zero-fact rebuild stamps the pull", %{encounter: encounter} do
-    insert_ruleset!("Active Ruleset", "active")
     assert {:ok, %{fact_failure: %{inserted: 0}}} = RebuildEncounter.rebuild(encounter)
 
     assert Repo.get!(DimEncounter, encounter.id).failure_derivation_version ==
              WeGoNext.Gold.FactFailure.Derivation.current_version()
   end
 
-  test "rebuild/2 passes through an explicit ruleset id", %{encounter: encounter} do
-    active_ruleset = insert_ruleset!("Active Ruleset", "active")
-    explicit_ruleset = insert_ruleset!("Explicit Ruleset", "draft", build_key: "explicit")
-
-    active_criterion = insert_criterion!(active_ruleset, encounter, 202)
-    explicit_criterion = insert_criterion!(explicit_ruleset, encounter, 202)
-
-    insert_player_info!(encounter, "Player-One", "One")
-    insert_damage_taken!(encounter, "Player-One", 202, 100, 1)
-
-    assert {:ok, %{fact_failure: %{inserted: 1}}} =
-             RebuildEncounter.rebuild(encounter.id, ruleset_id: explicit_ruleset.id)
-
-    assert Repo.get_by(FactFailure,
-             encounter_dim_id: encounter.id,
-             criterion_dim_id: explicit_criterion.id
-           )
-
-    refute Repo.get_by(FactFailure,
-             encounter_dim_id: encounter.id,
-             criterion_dim_id: active_criterion.id
-           )
-  end
-
-  test "rebuild/2 treats a missing active ruleset as a skipped gold rebuild", %{
+  test "rebuild/2 completes with an empty catalog", %{
     encounter: encounter
   } do
     assert {:ok,
             %{
               fact_failure: %{
                 deleted: 0,
-                inserted: 0,
-                skipped: :active_ruleset_not_found
+                inserted: 0
               }
             }} = RebuildEncounter.rebuild(encounter)
   end
@@ -186,22 +157,9 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
     |> Repo.insert!()
   end
 
-  defp insert_ruleset!(name, status, attrs \\ %{}) do
-    %Ruleset{}
-    |> Ruleset.changeset(Map.merge(%{name: name, status: status}, Map.new(attrs)))
-    |> Repo.insert!()
-  end
-
-  defp insert_criterion!(%Ruleset{} = ruleset, %DimEncounter{} = encounter, spell_id) do
+  defp insert_criterion!(%DimEncounter{} = encounter, spell_id) do
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(%{
-      source_rule_id: System.unique_integer([:positive]),
-      ruleset_id: ruleset.id,
-      ruleset_version: ruleset.version,
-      product: ruleset.product,
-      channel: ruleset.channel,
-      build_version: ruleset.build_version,
-      build_key: ruleset.build_key,
       spell_id: spell_id,
       spell_name: "Bad #{spell_id}",
       mechanic_type: "avoidable",

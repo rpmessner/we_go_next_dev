@@ -5,7 +5,6 @@ defmodule WeGoNext.ImporterTest do
   alias WeGoNext.{CombatLogFile, Importer, Repo}
   alias WeGoNext.Encounters.Encounter, as: EncounterRecord
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, FactFailure}
-  alias WeGoNext.Rules
 
   alias WeGoNext.Silver.{
     DamageDone,
@@ -86,11 +85,9 @@ defmodule WeGoNext.ImporterTest do
     log_path = Path.join(dir, "WoWCombatLog-112725_120000.txt")
     File.cp!(source_path, log_path)
 
-    {:ok, ruleset} = Rules.create_ruleset(%{name: "Importer Active Rules", status: "active"})
-
-    {:ok, rule} =
-      Rules.create_mechanic_criterion(%{
-        ruleset_id: ruleset.id,
+    criterion =
+      %DimMechanicCriterion{}
+      |> DimMechanicCriterion.changeset(%{
         spell_id: 888_888,
         spell_name: "Crushing Blow",
         mechanic_type: "avoidable",
@@ -98,9 +95,7 @@ defmodule WeGoNext.ImporterTest do
         difficulty_id: 15,
         threshold: %{"max_hits" => 0}
       })
-
-    {:ok, %{criteria: [criterion]}} = Rules.promote_ruleset_to_gold(ruleset)
-    assert criterion.source_rule_id == rule.id
+      |> Repo.insert!()
 
     assert {:ok, %{new_encounters: 1, medallion_results: [{:ok, medallion_result}]}} =
              Importer.import_log(log_path, user.id)
@@ -130,7 +125,7 @@ defmodule WeGoNext.ImporterTest do
     assert Repo.aggregate(DebuffApplication, :count) == 1
     assert Repo.aggregate(PlayerInfo, :count) == 3
 
-    assert Repo.get_by!(DimMechanicCriterion, source_rule_id: rule.id).ruleset_id == ruleset.id
+    assert Repo.get!(DimMechanicCriterion, criterion.id).active
 
     assert %FactFailure{failure_count: 1, total_damage: 200_000} =
              Repo.get_by!(FactFailure,

@@ -4,7 +4,7 @@ defmodule WeGoNext.Gold.FactFailure.Query do
 
   Mechanic builders emit CTEs with a shared row shape:
   `encounter_dim_id`, `player_dim_id`, `criterion_dim_id`,
-  `failure_count`, and `total_damage`. Build and ruleset metadata are copied
+  `failure_count`, and `total_damage`. Build metadata is copied
   from the selected criterion snapshot at insert time.
   """
 
@@ -14,7 +14,7 @@ defmodule WeGoNext.Gold.FactFailure.Query do
   def encounter_scope_cte do
     """
     encounter_scope AS (
-      SELECT id AS encounter_dim_id, wow_encounter_id, difficulty_id
+      SELECT id AS encounter_dim_id, wow_encounter_id, difficulty_id, start_time
       FROM gold.dim_encounter
       WHERE id = $1
     )
@@ -40,8 +40,6 @@ defmodule WeGoNext.Gold.FactFailure.Query do
       encounter_dim_id,
       player_dim_id,
       criterion_dim_id,
-      ruleset_id,
-      ruleset_version,
       product,
       channel,
       build_version,
@@ -55,14 +53,12 @@ defmodule WeGoNext.Gold.FactFailure.Query do
       rows.encounter_dim_id,
       rows.player_dim_id,
       rows.criterion_dim_id,
-      criterion.ruleset_id,
-      criterion.ruleset_version,
       criterion.product,
       criterion.channel,
       criterion.build_version,
       criterion.build_key,
-      $3::integer AS derivation_version,
-      $4::timestamptz AS rebuilt_at,
+      $2::integer AS derivation_version,
+      ($3::timestamptz AT TIME ZONE 'UTC') AS rebuilt_at,
       sum(failure_count)::integer AS failure_count,
       sum(total_damage)::bigint AS total_damage
     FROM fact_rows rows
@@ -72,8 +68,6 @@ defmodule WeGoNext.Gold.FactFailure.Query do
       rows.encounter_dim_id,
       rows.player_dim_id,
       rows.criterion_dim_id,
-      criterion.ruleset_id,
-      criterion.ruleset_version,
       criterion.product,
       criterion.channel,
       criterion.build_version,

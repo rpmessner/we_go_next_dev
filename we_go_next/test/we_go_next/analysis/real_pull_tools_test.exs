@@ -54,17 +54,13 @@ defmodule WeGoNext.Analysis.RealPullToolsTest do
       })
 
       assert {:ok, persisted} = Silver.project_and_persist(dim, events: events)
-      assert {:ok, _} = Rules.sync_current_tier_rules(activate: true)
+      assert {:ok, _} = Rules.sync_current_tier_rules()
       # An explicit test-only criterion exercises fact reads even when the current
       # tier catalog no longer covers the historical log's boss/spells.
-      ruleset = Repo.get_by!(WeGoNext.Rules.Ruleset, status: "active")
       sample = Enum.max_by(persisted.projection.damage_taken, & &1.hit_count)
 
       Repo.insert!(
         WeGoNext.Gold.DimMechanicCriterion.changeset(%WeGoNext.Gold.DimMechanicCriterion{}, %{
-          source_rule_id: 9_999_999,
-          ruleset_id: ruleset.id,
-          ruleset_version: ruleset.version,
           spell_id: sample.spell_id,
           spell_name: "Real-pull test criterion",
           mechanic_type: "avoidable",

@@ -45,7 +45,7 @@ defmodule WeGoNext.Gold.Rebuilds do
   Rebuilds supported failure facts for every known imported pull.
   """
   @spec rebuild_all(keyword()) :: {:ok, totals()} | {:error, map()}
-  def rebuild_all(opts \\ [ruleset: :active]) do
+  def rebuild_all(opts \\ []) do
     rebuild_encounters(encounter_ids(), opts)
   end
 
@@ -53,11 +53,10 @@ defmodule WeGoNext.Gold.Rebuilds do
   Rebuilds supported gold facts for the given encounter ids.
   """
   @spec rebuild_encounters([pos_integer()], keyword()) :: {:ok, totals()} | {:error, map()}
-  def rebuild_encounters(encounter_ids, opts \\ [ruleset: :active]) when is_list(encounter_ids) do
-    rebuild_opts = normalize_rebuild_opts(opts)
+  def rebuild_encounters(encounter_ids, opts \\ []) when is_list(encounter_ids) do
     totals = %{encounters: length(encounter_ids), deleted: 0, inserted: 0, skipped: 0}
 
-    rebuild_batch(encounter_ids, rebuild_opts, totals, [])
+    rebuild_batch(encounter_ids, opts, totals, [])
   end
 
   defp rebuild_batch([], _opts, totals, _completed), do: {:ok, totals}
@@ -92,9 +91,6 @@ defmodule WeGoNext.Gold.Rebuilds do
     |> select([encounter], encounter.id)
     |> Repo.all()
   end
-
-  defp normalize_rebuild_opts([]), do: [ruleset: :active]
-  defp normalize_rebuild_opts(opts), do: opts
 
   defp add_result(totals, result) do
     %{

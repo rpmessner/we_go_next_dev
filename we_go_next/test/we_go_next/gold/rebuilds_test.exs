@@ -3,7 +3,6 @@ defmodule WeGoNext.Gold.RebuildsTest do
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure, Rebuilds}
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.Ruleset
   alias WeGoNext.Silver.{DamageTaken, PlayerInfo}
 
   setup do
@@ -21,7 +20,6 @@ defmodule WeGoNext.Gold.RebuildsTest do
     Repo.delete_all(PlayerInfo)
     Repo.delete_all(DimPlayer)
     Repo.delete_all(DimEncounter)
-    Repo.delete_all(Ruleset)
 
     on_exit(fn ->
       Application.put_env(:we_go_next, :documents_root, original_documents_root)
@@ -34,7 +32,7 @@ defmodule WeGoNext.Gold.RebuildsTest do
   test "status returns imported pull and tracked failure counts with compatibility aliases" do
     encounter = insert_dim_encounter!("boss-one")
     player = insert_player!("Player-One", "One")
-    criterion = insert_criterion!(insert_ruleset!("Rules", "active"), encounter, 101)
+    criterion = insert_criterion!(encounter, 101)
 
     insert_failure!(encounter, player, criterion)
 
@@ -47,12 +45,11 @@ defmodule WeGoNext.Gold.RebuildsTest do
   end
 
   test "rebuild_all recomputes facts for all gold encounters from silver rows" do
-    ruleset = insert_ruleset!("Active Ruleset", "active")
     first_encounter = insert_dim_encounter!("boss-one")
     second_encounter = insert_dim_encounter!("boss-two")
 
-    first_criterion = insert_criterion!(ruleset, first_encounter, 101)
-    second_criterion = insert_criterion!(ruleset, second_encounter, 202)
+    first_criterion = insert_criterion!(first_encounter, 101)
+    second_criterion = insert_criterion!(second_encounter, 202)
 
     insert_player_info!(first_encounter, "Player-One", "One")
     insert_player_info!(second_encounter, "Player-Two", "Two")
@@ -60,14 +57,13 @@ defmodule WeGoNext.Gold.RebuildsTest do
     insert_damage_taken!(second_encounter, "Player-Two", 202, 200, 1)
 
     assert {:ok, %{encounters: 2, deleted: 0, inserted: 2, skipped: 0}} =
-             Rebuilds.rebuild_all(ruleset: :active)
+             Rebuilds.rebuild_all()
 
     assert fact_exists?(first_encounter, "Player-One", first_criterion)
     assert fact_exists?(second_encounter, "Player-Two", second_criterion)
   end
 
   test "a failed batch identifies completed, failed and unattempted encounters" do
-    ruleset = insert_ruleset!("Batch Rules", "active")
     first = insert_dim_encounter!("boss-one")
     last = insert_dim_encounter!("boss-two")
 
@@ -78,7 +74,7 @@ defmodule WeGoNext.Gold.RebuildsTest do
               remaining_encounter_ids: [remaining],
               totals: %{encounters: 3}
             }} =
-             Rebuilds.rebuild_encounters([first.id, -1, last.id], ruleset_id: ruleset.id)
+             Rebuilds.rebuild_encounters([first.id, -1, last.id])
 
     assert completed == first.id
     assert remaining == last.id
@@ -123,18 +119,9 @@ defmodule WeGoNext.Gold.RebuildsTest do
     |> Repo.insert!()
   end
 
-  defp insert_ruleset!(name, status) do
-    %Ruleset{}
-    |> Ruleset.changeset(%{name: name, status: status})
-    |> Repo.insert!()
-  end
-
-  defp insert_criterion!(%Ruleset{} = ruleset, %DimEncounter{} = encounter, spell_id) do
+  defp insert_criterion!(%DimEncounter{} = encounter, spell_id) do
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(%{
-      source_rule_id: System.unique_integer([:positive]),
-      ruleset_id: ruleset.id,
-      ruleset_version: ruleset.version,
       spell_id: spell_id,
       spell_name: "Bad #{spell_id}",
       mechanic_type: "avoidable",
@@ -180,8 +167,6 @@ defmodule WeGoNext.Gold.RebuildsTest do
       encounter_dim_id: encounter.id,
       player_dim_id: player.id,
       criterion_dim_id: criterion.id,
-      ruleset_id: criterion.ruleset_id,
-      ruleset_version: criterion.ruleset_version,
       product: criterion.product,
       channel: criterion.channel,
       build_version: criterion.build_version,

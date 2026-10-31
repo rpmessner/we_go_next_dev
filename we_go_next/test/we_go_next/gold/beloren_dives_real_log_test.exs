@@ -1,8 +1,6 @@
 defmodule WeGoNext.Gold.BelorenDivesRealLogTest do
   use WeGoNext.DataCase, async: false
 
-  import Ecto.Query
-
   alias WeGoNext.{CombatLogParser, Repo, Rules, Silver}
   alias WeGoNext.GameData.Raids.MarchOnQuelDanas
   alias WeGoNext.Gold.{DimEncounter, FactFailure}
@@ -68,34 +66,17 @@ defmodule WeGoNext.Gold.BelorenDivesRealLogTest do
         |> Repo.insert!()
 
       assert {:ok, _} = Silver.project_and_persist(encounter, events: events)
-      legacy = seed_legacy_dive_rules!()
+      seed_legacy_dive_rules!()
 
       assert {:ok, %{inserted: unquote(old_rows)}} =
                FactFailure.rebuild_for_encounter(encounter.id)
 
-      # Sync is additive: use a fresh version to retire previously authored
-      # avoidable Dive criteria rather than retaining their old snapshots.
-      assert {:ok, %{ruleset: current}} =
-               Rules.sync_current_tier_rules(version: 2, activate: true, promote: true)
-
-      assert {:ok, %{inserted: 0}} = FactFailure.rebuild_for_encounter(encounter.id)
-
-      assert Repo.aggregate(
-               from(f in FactFailure, where: f.ruleset_id == ^current.id),
-               :count
-             ) == 0
-
-      # Replacement archives history; it does not delete the old ruleset's facts.
+      # Sync retires removed definitions in place; rebuild removes their facts.
+      assert {:ok, _} = Rules.sync_current_tier_rules()
       assert Repo.aggregate(FactFailure, :count) == unquote(old_rows)
 
-      for criterion <- Rules.list_mechanic_criteria(legacy) do
-        assert {:ok, _} = Rules.update_mechanic_criterion(criterion, %{active: false})
-      end
-
-      assert {:ok, _} = Rules.promote_ruleset_to_gold(legacy)
-
       assert {:ok, %{deleted: unquote(old_rows), inserted: 0}} =
-               FactFailure.rebuild_for_encounter(encounter.id, ruleset_id: legacy.id)
+               FactFailure.rebuild_for_encounter(encounter.id)
 
       assert Repo.aggregate(FactFailure, :count) == 0
     end
@@ -113,15 +94,11 @@ defmodule WeGoNext.Gold.BelorenDivesRealLogTest do
         }
       end)
 
-    assert {:ok, %{ruleset: ruleset}} =
-             Rules.seed_rules(%{
-               "ruleset" => %{"name" => "Midnight Current Tier Mechanics", "version" => 1},
-               "criteria" => criteria
-             })
-
-    assert {:ok, _} = Rules.activate_ruleset(ruleset)
-    assert {:ok, _} = Rules.promote_ruleset_to_gold(ruleset)
-    ruleset
+    Enum.each(criteria, fn attrs ->
+      %WeGoNext.Gold.DimMechanicCriterion{}
+      |> WeGoNext.Gold.DimMechanicCriterion.changeset(attrs)
+      |> Repo.insert!()
+    end)
   end
 
   test "both Dive damage and target markers are observation-only soaks" do

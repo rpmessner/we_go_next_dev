@@ -26,8 +26,8 @@ WITH pulls AS (
   JOIN gold.dim_mechanic_criterion c ON c.id = f.criterion_dim_id
 ), criteria AS (
   SELECT c.spell_id AS spell, c.spell_name, c.mechanic_type, c.boss_encounter_id, c.boss_name,
-         c.difficulty_id, c.active, c.build_key, c.ruleset_id, r.status AS ruleset_status
-  FROM gold.dim_mechanic_criterion c JOIN rules.ruleset r ON r.id = c.ruleset_id
+         c.difficulty_id, c.active, c.build_key, c.criterion_key, c.valid_from, c.valid_until
+  FROM gold.dim_mechanic_criterion c
 )
 SELECT jsonb_build_object(
   'pulls', coalesce((SELECT jsonb_agg(to_jsonb(p) ORDER BY start_time,id) FROM pulls p), '[]'),
@@ -35,6 +35,6 @@ SELECT jsonb_build_object(
   'deaths', coalesce((SELECT jsonb_agg(to_jsonb(d) ORDER BY pull,ms,guid) FROM deaths d), '[]'),
   'damage', coalesce((SELECT jsonb_agg(to_jsonb(d) ORDER BY pull,guid,spell) FROM damage d), '[]'),
   'failures', coalesce((SELECT jsonb_agg(to_jsonb(f) ORDER BY pull,guid,spell) FROM failures f), '[]'),
-  'criteria', coalesce((SELECT jsonb_agg(to_jsonb(c) ORDER BY spell,ruleset_id) FROM criteria c), '[]')
+  'criteria', coalesce((SELECT jsonb_agg(to_jsonb(c) ORDER BY spell,criterion_key) FROM criteria c), '[]')
 );
 ROLLBACK;

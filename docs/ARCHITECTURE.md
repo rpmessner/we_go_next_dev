@@ -82,7 +82,7 @@ Current dimensions:
 
 - `gold.dim_encounter` — analytics encounter grain.
 - `gold.dim_player` — conformed player dimension sourced from `silver.player_info`.
-- `gold.dim_mechanic_criterion` — promoted snapshot of authored rule rows.
+- `gold.dim_mechanic_criterion` — live code-defined mechanics catalog and stable fact keys.
 
 Current fact:
 
@@ -104,14 +104,15 @@ Encounter-level gold rebuilds should go through `WeGoNext.Gold.RebuildEncounter`
 
 ### Rules
 
-Rules are business configuration in the `rules` schema.
+Mechanics are authored under `WeGoNext.GameData.Raids` and synced directly to
+`gold.dim_mechanic_criterion`. The `current_tier` aggregate is the single live
+catalog. There is no ruleset, activation or promotion model; both old rules
+tables are dropped by we-g18.10.
 
-- `rules.ruleset` supports `draft`, `active`, and `archived`.
-- `rules.mechanic_criterion` stores authored mechanic criteria.
-- `gold.dim_mechanic_criterion` stores promoted authored criteria used by
-  `gold.fact_failure`.
-
-There is currently exactly one active ruleset globally. Backfills and tests may pass an explicit `ruleset_id`.
+Sync retires removed mechanics without deleting their dimension ids/keys or
+attached facts. Rebuild replaces each pull's facts against active catalog rows.
+Optional `valid_from` (inclusive) and `valid_until` (exclusive) UTC instants apply
+by pull start time. Undated criterion keys remain compatible with old facts.
 
 Threshold semantics are intentionally narrow:
 
@@ -141,7 +142,7 @@ Current source-data groundwork:
 
 DBM imports create parsed source rows with source file, line number, module metadata, warning constructor, role filters, labels, comments, confidence, and review status. The parser is a focused static Lua tokenizer/call extractor for DBM declaration forms, not Lua execution. Tree-sitter Lua was evaluated as a broader AST option, but the current narrow Elixir parser is sufficient for `DBM:NewMod`, module metadata setters, `mod:NewSpecialWarning*`, and warning `SetAlert` calls without adding a native parser dependency. These rows are source annotations, not active rules. They do not write gold facts directly.
 
-WowAnalyzer timeline imports create parsed source rows from local raid boss timeline metadata such as `src/game/raids/vs_dr_mqd`. Rows capture encounter id/name, timeline type (`ability` or `debuff`), event type (`cast`, `begincast`, `summon`, `debuff`, or `buff`), spell id, comment-derived mechanic hints, source file/line, repository revision, and repository license. These rows are also annotations only; they do not call WowAnalyzer runtime code and do not write active rules, promoted criterion snapshots, or facts.
+WowAnalyzer timeline imports create parsed source rows from local raid boss timeline metadata such as `src/game/raids/vs_dr_mqd`. Rows capture encounter id/name, timeline type (`ability` or `debuff`), event type (`cast`, `begincast`, `summon`, `debuff`, or `buff`), spell id, comment-derived mechanic hints, source file/line, repository revision, and repository license. These rows are also annotations only; they do not call WowAnalyzer runtime code and do not write live catalog criteria or facts.
 
 Warcraft Logs API imports write flat JSON bronze artifacts under the local bronze root (`var/bronze/warcraft_logs` by default) and catalog them in `source_data.warcraft_logs_api_fetch`. Rows capture report code, fight id, source URL, query metadata, request parameters, fetch timestamp, request hash, response hash, artifact path/hash/size, raw JSON payload, and provenance metadata. These rows are separate from `combat_log_files`; local WoW combat logs remain the parser input, while Warcraft Logs rows are used only for validation and investigation.
 
@@ -238,8 +239,8 @@ Oban job: rebuild gold for one encounter
 ### Reactor Workflows
 
 `WeGoNext.Medallion.BuildEncounter` is the first required Reactor workflow. Its
-inputs are `encounter_id`, optional `combat_log_file_id`, and build options such
-as `ruleset_id` or `ruleset: :active`. It returns a compact summary:
+inputs are `encounter_id`, optional `combat_log_file_id`, and build options.
+Failure builders always use the live catalog. It returns a compact summary:
 
 ```elixir
 %{
@@ -264,13 +265,12 @@ Steps:
 6. Publish a completion event and return the summary.
 
 The workflow must be safe to rerun for the same encounter. Silver upserts by
-natural key, gold fact rebuilds replace rows for one encounter/ruleset, and
+natural key, gold fact rebuilds replace rows for one encounter, and
 `gold.dim_encounter` lookup avoids duplicate dimensions.
 
 Rules sync is a separate workflow only if it needs multi-step durability. The
 preferred first pass is to keep `WeGoNext.Rules.sync_current_tier_rules/1` as
-the rules boundary and enqueue gold rebuild jobs after rules have been synced
-and promoted.
+the catalog boundary and enqueue gold rebuild jobs after sync.
 
 ### Job Boundaries and Uniqueness
 
@@ -305,12 +305,10 @@ encounter byte range.
 Gold rebuild jobs use:
 
 ```text
-{"gold_rebuild", dim_encounter_id, ruleset_key}
+{"gold_rebuild", dim_encounter_id}
 ```
 
-`ruleset_key` is `active` or the explicit ruleset id. This prevents duplicate
-rule-triggered rebuilds for the same encounter while allowing an explicit test
-or backfill to choose another ruleset.
+This prevents duplicate catalog-triggered rebuilds for the same encounter.
 
 ### Progress and Failure Events
 
@@ -335,9 +333,8 @@ not depend on process-local task state.
   replacement exists, record/log a skip rather than retrying forever.
 - Per-encounter build jobs: retry parser and database errors. The workflow is
   idempotent, so a retry can rerun all steps.
-- Gold rebuild jobs: retry database/rules lookup errors. A missing active
-  ruleset should return the existing skipped rebuild result instead of being a
-  failed job.
+- Gold rebuild jobs: retry database errors. An empty catalog completes with
+  zero failures; readiness asks the operator to sync mechanics.
 - Force reimport jobs should be explicit and operator-triggered. They may delete
   transitional `public.encounters` rows for the selected log before rescanning,
   but they must not purge unrelated logs or gold dimensions without a separate
@@ -362,7 +359,7 @@ Gold is rebuildable from silver. Silver is rebuildable from bronze logs.
 
 Use the smallest necessary rebuild:
 
-- Rules changed: promote rules, then rebuild gold.
+- Catalog changed: sync, then rebuild gold.
 - Gold fact logic changed: rebuild gold.
 - Silver projection changed: force reimport affected logs.
 - Parser or boundary logic changed: force reimport, and purge only if identity/offset assumptions changed.

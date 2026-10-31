@@ -8,7 +8,7 @@ defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
       mix we_go_next.sync_raid_rules the_voidspire
       mix we_go_next.sync_raid_rules current_tier --rebuild
 
-  `--failure-ready` makes synced mechanics available to failure rebuilds.
+  Synced mechanics are immediately failure-ready; `--rebuild` refreshes existing pulls.
   """
 
   use Mix.Task
@@ -23,14 +23,7 @@ defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
 
     {opts, positional, invalid} =
       OptionParser.parse(args,
-        strict: [
-          activate: :boolean,
-          failure_ready: :boolean,
-          promote: :boolean,
-          rebuild: :boolean,
-          version: :integer,
-          name: :string
-        ]
+        strict: [rebuild: :boolean]
       )
 
     if invalid != [] do
@@ -44,21 +37,15 @@ defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
         _ -> Mix.raise("Expected at most one raid slug")
       end
 
-    report_result(Rules.sync_raid_mechanics(raid_slug, normalize_opts(opts)))
+    report_result(Rules.sync_raid_mechanics(raid_slug, opts))
   end
 
   defp report_result(result) do
     case result do
       {:ok, result} ->
         Mix.shell().info(
-          "Synced #{length(result.criteria)} raid mechanic(s) from #{result.ruleset.name}."
+          "Synced #{length(result.criteria)} raid mechanic(s) into the live gold catalog."
         )
-
-        if result.promoted do
-          Mix.shell().info(
-            "#{Enum.count(result.promoted.criteria, & &1.active)} mechanic(s) are failure-ready."
-          )
-        end
 
         if result.rebuild do
           Mix.shell().info("Rebuilt failures: #{inspect(result.rebuild)}")
@@ -74,16 +61,6 @@ defmodule Mix.Tasks.WeGoNext.SyncRaidRules do
 
       {:error, reason} ->
         Mix.raise("Failed to sync raid mechanics: #{inspect(reason)}")
-    end
-  end
-
-  defp normalize_opts(opts) do
-    if Keyword.get(opts, :failure_ready) do
-      opts
-      |> Keyword.delete(:failure_ready)
-      |> Keyword.put(:promote, true)
-    else
-      Keyword.delete(opts, :failure_ready)
     end
   end
 end

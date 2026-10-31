@@ -7,7 +7,6 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
   alias Mix.Tasks.Wgn.RebuildGold
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.Ruleset
   alias WeGoNext.Silver.{DamageTaken, PlayerInfo}
 
   setup do
@@ -30,12 +29,11 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
   end
 
   test "rebuilds tracked failures for all imported pulls from observations" do
-    ruleset = insert_ruleset!("Active Ruleset", "active")
     first_encounter = insert_dim_encounter!("boss-one")
     second_encounter = insert_dim_encounter!("boss-two")
 
-    first_criterion = insert_criterion!(ruleset, first_encounter, 101)
-    second_criterion = insert_criterion!(ruleset, second_encounter, 202)
+    first_criterion = insert_criterion!(first_encounter, 101)
+    second_criterion = insert_criterion!(second_encounter, 202)
 
     insert_player_info!(first_encounter, "Player-One", "One")
     insert_player_info!(second_encounter, "Player-Two", "Two")
@@ -45,7 +43,7 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
     output = capture_task_output(fn -> RebuildGold.run([]) end)
 
     assert output =~
-             "Rebuilt tracked failures for 2 pull(s) using current mechanic definitions."
+             "Rebuilt tracked failures for 2 pull(s) using the live mechanics catalog."
 
     assert output =~ "inserted 2 row(s)."
 
@@ -53,36 +51,12 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
     assert fact_exists?(second_encounter, "Player-Two", second_criterion)
   end
 
-  test "accepts explicit ruleset id and keeps active ruleset facts intact" do
-    active_ruleset = insert_ruleset!("Active Ruleset", "active")
-    draft_ruleset = insert_ruleset!("Draft Ruleset", "draft", build_key: "draft")
-    encounter = insert_dim_encounter!("boss-one")
-
-    active_criterion = insert_criterion!(active_ruleset, encounter, 303)
-    draft_criterion = insert_criterion!(draft_ruleset, encounter, 303)
-
-    insert_player_info!(encounter, "Player-One", "One")
-    insert_damage_taken!(encounter, "Player-One", 303, 100, 1)
-
-    RebuildGold.run([])
-    assert fact_exists?(encounter, "Player-One", active_criterion)
-    refute fact_exists?(encounter, "Player-One", draft_criterion)
-
-    output =
-      capture_task_output(fn -> RebuildGold.run(["--ruleset-id", "#{draft_ruleset.id}"]) end)
-
-    assert output =~ "using definition_set_id=#{draft_ruleset.id}"
-    assert fact_exists?(encounter, "Player-One", active_criterion)
-    assert fact_exists?(encounter, "Player-One", draft_criterion)
-  end
-
   test "can rebuild a single encounter" do
-    ruleset = insert_ruleset!("Active Ruleset", "active")
     first_encounter = insert_dim_encounter!("boss-one")
     second_encounter = insert_dim_encounter!("boss-two")
 
-    first_criterion = insert_criterion!(ruleset, first_encounter, 101)
-    second_criterion = insert_criterion!(ruleset, second_encounter, 202)
+    first_criterion = insert_criterion!(first_encounter, 101)
+    second_criterion = insert_criterion!(second_encounter, 202)
 
     insert_player_info!(first_encounter, "Player-One", "One")
     insert_player_info!(second_encounter, "Player-Two", "Two")
@@ -152,22 +126,9 @@ defmodule Mix.Tasks.Wgn.RebuildGoldTest do
     |> Repo.insert!()
   end
 
-  defp insert_ruleset!(name, status, attrs \\ %{}) do
-    %Ruleset{}
-    |> Ruleset.changeset(Map.merge(%{name: name, status: status}, Map.new(attrs)))
-    |> Repo.insert!()
-  end
-
-  defp insert_criterion!(%Ruleset{} = ruleset, %DimEncounter{} = encounter, spell_id) do
+  defp insert_criterion!(%DimEncounter{} = encounter, spell_id) do
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(%{
-      source_rule_id: System.unique_integer([:positive]),
-      ruleset_id: ruleset.id,
-      ruleset_version: ruleset.version,
-      product: ruleset.product,
-      channel: ruleset.channel,
-      build_version: ruleset.build_version,
-      build_key: ruleset.build_key,
       spell_id: spell_id,
       spell_name: "Bad #{spell_id}",
       mechanic_type: "avoidable",

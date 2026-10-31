@@ -8,7 +8,7 @@ defmodule WeGoNextWeb.Features.FailuresTest do
   alias WeGoNext.Rules
   alias WeGoNext.Silver.{DamageTaken, PlayerInfo}
 
-  feature "renders medallion-backed failures from promoted rules and silver rows", %{
+  feature "renders medallion-backed failures from the live catalog and silver rows", %{
     session: session
   } do
     {:ok, expected} = prepare_failure_fixture()
@@ -21,7 +21,7 @@ defmodule WeGoNextWeb.Features.FailuresTest do
     |> FailuresPage.assert_stat("Damage", expected.total_damage)
     |> FailuresPage.assert_player_group(expected.player_name, expected.player_guid)
     |> FailuresPage.assert_failure_row(%{
-      spell_name: expected.spell_name,
+      spell_id: expected.spell_id,
       mechanic_type: "Avoidable",
       failure_count: expected.failure_count,
       total_damage: expected.total_damage,
@@ -30,12 +30,9 @@ defmodule WeGoNextWeb.Features.FailuresTest do
   end
 
   defp prepare_failure_fixture do
-    {:ok, %{ruleset: seeded_ruleset}} = Rules.seed_initial_rules()
-    {:ok, active_ruleset} = Rules.activate_ruleset(seeded_ruleset)
-    {:ok, %{criteria: promoted_criteria}} = Rules.promote_ruleset_to_gold(active_ruleset)
-
-    criterion = Enum.find(promoted_criteria, &(&1.spell_id == 1_214_081))
-    encounter = insert_dim_encounter!()
+    {:ok, %{criteria: criteria}} = Rules.sync_current_tier_rules()
+    criterion = Enum.find(criteria, &(&1.mechanic_type == "avoidable"))
+    encounter = insert_dim_encounter!(criterion.boss_encounter_id)
 
     player_guid = "Player-Feature-#{System.unique_integer([:positive])}"
     player_name = "Feature Tester"
@@ -57,16 +54,16 @@ defmodule WeGoNextWeb.Features.FailuresTest do
      %{
        player_guid: player_guid,
        player_name: player_name,
-       spell_name: criterion.spell_name,
+       spell_id: criterion.spell_id,
        failure_count: fact.failure_count,
        total_damage: fact.total_damage
      }}
   end
 
-  defp insert_dim_encounter! do
+  defp insert_dim_encounter!(boss_id) do
     %DimEncounter{}
     |> DimEncounter.changeset(%{
-      wow_encounter_id: "feature-boss",
+      wow_encounter_id: boss_id,
       name: "Feature Boss",
       difficulty_id: 16,
       difficulty_name: "Mythic",

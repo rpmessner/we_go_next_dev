@@ -31,15 +31,15 @@ defmodule WeGoNext.Integration.Pages.FailuresPage do
   end
 
   def assert_failure_row(session, attrs) do
-    spell_name = Map.fetch!(attrs, :spell_name)
+    spell_id = Map.fetch!(attrs, :spell_id)
 
+    # Wowhead may rewrite link text to its canonical name after page load.
     row =
       session
-      |> find(Query.css("tr", text: spell_name))
+      |> find(Query.css("tr:has(a[href*='spell=#{spell_id}'])"))
       |> Wallaby.Element.text()
 
     [
-      spell_name,
       Map.fetch!(attrs, :mechanic_type),
       to_string(Map.fetch!(attrs, :failure_count)),
       to_string(Map.fetch!(attrs, :total_damage)),

@@ -51,9 +51,6 @@ defmodule WeGoNext.Gold.SchemaTest do
 
     dim_criterion_changeset =
       DimMechanicCriterion.changeset(%DimMechanicCriterion{}, %{
-        source_rule_id: 1,
-        ruleset_id: 1,
-        ruleset_version: 1,
         product: "wow",
         channel: "retail",
         spell_id: 123,
@@ -70,8 +67,6 @@ defmodule WeGoNext.Gold.SchemaTest do
         encounter_dim_id: 1,
         player_dim_id: 1,
         criterion_dim_id: 1,
-        ruleset_id: 1,
-        ruleset_version: 1,
         product: "wow",
         channel: "retail",
         derivation_version: 1,

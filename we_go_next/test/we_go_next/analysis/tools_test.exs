@@ -141,9 +141,6 @@ defmodule WeGoNext.Analysis.ToolsTest do
     criterion =
       Repo.insert!(%WeGoNext.Gold.DimMechanicCriterion{
         criterion_key: "analysis-test",
-        source_rule_id: 1,
-        ruleset_id: 1,
-        ruleset_version: 1,
         spell_id: 1,
         spell_name: "Test",
         mechanic_type: "avoidable"
@@ -154,8 +151,6 @@ defmodule WeGoNext.Analysis.ToolsTest do
       player_dim_id: player.id,
       criterion_dim_id: criterion.id,
       failure_count: 1,
-      ruleset_id: 1,
-      ruleset_version: 1,
       derivation_version: 1
     })
 

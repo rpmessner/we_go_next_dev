@@ -109,7 +109,10 @@ local documents after verifying the corrected counts.
 
 The preferred current-tier path is to sync code-defined raid mechanics and
 rebuild failure facts. Treat the checked-in raid modules as the durable mechanic
-source; ruleset/promotion tables are internal plumbing for fact keys.
+source. Sync writes directly to `gold.dim_mechanic_criterion`; ruleset and
+promotion tables no longer exist. Removed definitions become inactive without
+deleting their keys or attached facts. Optional `valid_from` (inclusive) and
+`valid_until` (exclusive) UTC instants scope a definition by pull start time.
 
 Sync the current Midnight catalog (Season 1 raids, The Venomous Abyss, and
 Nymrissa Wavecaller in Midnight Lairs). New failure criteria are limited to
@@ -130,9 +133,6 @@ The curated source lives in `we_go_next/lib/we_go_next/game_data/raids/`.
 DBM/WowAnalyzer/journal data and AI-assisted research can help update those
 files, but the checked-in raid modules are the durable source of curated rules.
 
-The home page starts from the same current-tier path with **Sync Mechanics &
-Rebuild**. That operation syncs the catalog and rebuilds failure facts.
-
 For compatibility, `mix we_go_next.seed_rules` with no path also uses the
 current-tier catalog:
 
@@ -140,15 +140,9 @@ current-tier catalog:
 mix we_go_next.seed_rules
 ```
 
-The historical bundled seed file remains at
-`we_go_next/priv/rules/initial_mechanic_rules.json`, but it is legacy fixture
-data, not the default operator path. To seed any static JSON file explicitly:
-
-```bash
-mix we_go_next.seed_rules priv/rules/initial_mechanic_rules.json
-```
-
-After that, imports and gold rebuilds can produce `gold.fact_failure` rows for matching silver observations.
+JSON seed paths and activate/promote/failure-ready/version/name flags are retired.
+Sync alone makes mechanics failure-ready. `--rebuild` refreshes existing pulls;
+if rebuild fails, sync stays committed and the command reports its failed stage.
 
 ## Rebuild Failures
 
@@ -164,11 +158,8 @@ Rebuild for one encounter:
 mix wgn.rebuild_gold --encounter-id 123
 ```
 
-Rebuild with an explicit ruleset:
-
-```bash
-mix wgn.rebuild_gold --ruleset-id 456
-```
+All rebuilds use the live catalog. An empty catalog produces zero failures, not
+a skipped rebuild; readiness explains that mechanics need syncing.
 
 The task uses `WeGoNext.Gold.RebuildEncounter`, the same boundary used by the importer.
 
@@ -179,17 +170,15 @@ jobs instead of a direct long-running loop in a UI process. The gold rebuild job
 key is:
 
 ```text
-{"gold_rebuild", dim_encounter_id, ruleset_key}
+{"gold_rebuild", dim_encounter_id}
 ```
 
-`ruleset_key` is `active` for the current active ruleset or the explicit
-ruleset id passed by an operator/test. This prevents duplicate concurrent
-rebuilds for the same encounter and ruleset while keeping explicit backfills
-possible.
+This prevents duplicate concurrent rebuilds for the same encounter. All
+backfills use the current catalog and its optional per-mechanic validity dates.
 
 The smallest-rebuild rule remains unchanged:
 
-- rules changed: sync/promote rules, then enqueue gold rebuild jobs,
+- catalog changed: sync, then enqueue gold rebuild jobs,
 - gold fact logic changed: enqueue gold rebuild jobs,
 - silver projection changed: force reimport affected logs,
 - parser or boundary logic changed: force reimport and purge only when identity
@@ -222,8 +211,7 @@ Retry expectations:
 - unchanged or incomplete current logs should no-op cleanly,
 - per-encounter medallion builds can safely rerun because silver upserts and
   gold encounter rebuilds are idempotent,
-- missing active rulesets should produce the existing skipped gold rebuild
-  result, not an endlessly retrying job.
+- an empty catalog completes with zero failures; readiness asks for a sync.
 
 ## Import DBM Source Annotations
 
@@ -437,8 +425,9 @@ projection changes.
 Useful SQL for deeper inspection:
 
 ```sql
-SELECT id, name, version, status FROM rules.ruleset ORDER BY id;
-SELECT count(*) FROM rules.mechanic_criterion;
+SELECT count(*) FROM gold.dim_mechanic_criterion WHERE active;
+SELECT criterion_key, spell_id, active, valid_from, valid_until
+FROM gold.dim_mechanic_criterion ORDER BY spell_id;
 SELECT count(*) FROM gold.dim_mechanic_criterion;
 SELECT count(*) FROM silver.damage_taken;
 SELECT count(*) FROM silver.interrupt_opportunity;

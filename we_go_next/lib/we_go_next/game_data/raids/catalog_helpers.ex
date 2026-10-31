@@ -40,7 +40,9 @@ defmodule WeGoNext.GameData.Raids.CatalogHelpers do
       "boss_name" => mechanic.boss_name,
       "threshold" => threshold(mechanic),
       "notes" => notes(mechanic),
-      "active" => true
+      "active" => true,
+      "valid_from" => mechanic.valid_from,
+      "valid_until" => mechanic.valid_until
     }
   end
 

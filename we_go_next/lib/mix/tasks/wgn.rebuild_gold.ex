@@ -7,10 +7,9 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
   Usage:
 
       mix wgn.rebuild_gold
-      mix wgn.rebuild_gold --definition-set-id 123
       mix wgn.rebuild_gold --encounter-id 456
 
-  `--definition-set-id` is a compatibility-only option for targeted backfills.
+  All rebuilds use the live gold mechanics catalog.
   """
 
   use Mix.Task
@@ -26,13 +25,10 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
     Mix.Task.run("app.start")
 
     opts = parse_args!(args)
-    rebuild_opts = rebuild_opts(opts)
-
     encounter_ids = encounter_ids(opts)
-    ruleset_label = ruleset_label(rebuild_opts)
 
     totals =
-      case Rebuilds.rebuild_encounters(encounter_ids, rebuild_opts) do
+      case Rebuilds.rebuild_encounters(encounter_ids) do
         {:ok, totals} ->
           totals
 
@@ -43,15 +39,15 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
       end
 
     Mix.shell().info(
-      "Rebuilt tracked failures for #{length(encounter_ids)} pull(s) using #{ruleset_label}. " <>
+      "Rebuilt tracked failures for #{length(encounter_ids)} pull(s) using the live mechanics catalog. " <>
         "Deleted #{totals.deleted} stale row(s), inserted #{totals.inserted} row(s)."
     )
   end
 
   defp parse_args!(args) do
     case OptionParser.parse(args,
-           strict: [definition_set_id: :integer, ruleset_id: :integer, encounter_id: :integer],
-           aliases: [r: :ruleset_id, e: :encounter_id]
+           strict: [encounter_id: :integer],
+           aliases: [e: :encounter_id]
          ) do
       {opts, [], []} ->
         opts
@@ -68,19 +64,6 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
     end
   end
 
-  defp rebuild_opts(opts) do
-    cond do
-      definition_set_id = Keyword.get(opts, :definition_set_id) ->
-        [ruleset_id: definition_set_id]
-
-      ruleset_id = Keyword.get(opts, :ruleset_id) ->
-        [ruleset_id: ruleset_id]
-
-      true ->
-        [ruleset: :active]
-    end
-  end
-
   defp encounter_ids(opts) do
     case Keyword.fetch(opts, :encounter_id) do
       {:ok, encounter_id} ->
@@ -93,7 +76,4 @@ defmodule Mix.Tasks.Wgn.RebuildGold do
         |> Repo.all()
     end
   end
-
-  defp ruleset_label(ruleset_id: ruleset_id), do: "definition_set_id=#{ruleset_id}"
-  defp ruleset_label(ruleset: :active), do: "current mechanic definitions"
 end

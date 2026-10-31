@@ -200,9 +200,6 @@ defmodule WeGoNext.Gold.ObservedMechanicsTest do
   defp insert_criterion!(spell_id, spell_name, %DimEncounter{} = encounter) do
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(%{
-      source_rule_id: System.unique_integer([:positive]),
-      ruleset_id: System.unique_integer([:positive]),
-      ruleset_version: 1,
       spell_id: spell_id,
       spell_name: spell_name,
       mechanic_type: "avoidable",
@@ -233,8 +230,6 @@ defmodule WeGoNext.Gold.ObservedMechanicsTest do
       encounter_dim_id: encounter.id,
       player_dim_id: player.id,
       criterion_dim_id: criterion.id,
-      ruleset_id: criterion.ruleset_id,
-      ruleset_version: criterion.ruleset_version,
       product: criterion.product,
       channel: criterion.channel,
       build_version: criterion.build_version,

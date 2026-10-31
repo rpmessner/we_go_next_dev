@@ -44,7 +44,7 @@ defmodule WeGoNext.GameData.Raids.Mechanic do
     :default_actionability,
     :default_fact_eligibility
   ]
-  defstruct @enforce_keys ++ [rule: %{}, notes: nil]
+  defstruct @enforce_keys ++ [rule: %{}, notes: nil, valid_from: nil, valid_until: nil]
 
   @type evidence_family ::
           :cast | :damage_taken | :debuff_application | :interrupt_opportunity

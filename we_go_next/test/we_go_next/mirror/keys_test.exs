@@ -30,6 +30,12 @@ defmodule WeGoNext.Mirror.KeysTest do
            })
   end
 
+  test "undated identity remains compatible with the pre-collapse key" do
+    # Independent SHA-256 baseline from the old undated identity layout.
+    assert Keys.criterion_key(criterion_attrs(%{"max_hits" => 0})) ==
+             "28fa32962a49d0018f8483e2f7e63acfd78fe6e62c2432e08caac5351aa1fb68"
+  end
+
   test "criterion key changes when threshold changes" do
     base = criterion_attrs(%{"max_hits" => 0})
 

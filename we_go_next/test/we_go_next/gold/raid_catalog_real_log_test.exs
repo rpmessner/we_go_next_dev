@@ -50,7 +50,7 @@ defmodule WeGoNext.Gold.RaidCatalogRealLogTest do
 
       assert {:ok, _} = Silver.project_and_persist(encounter, events: events)
 
-      assert {:ok, _} = Rules.sync_current_tier_rules(activate: true, promote: true)
+      assert {:ok, _} = Rules.sync_current_tier_rules()
 
       assert {:ok, %{inserted: unquote(expected_count)}} =
                FactFailure.rebuild_for_encounter(encounter.id)
@@ -78,7 +78,7 @@ defmodule WeGoNext.Gold.RaidCatalogRealLogTest do
       assert Enum.sum(Enum.map(actual, & &1["hits"])) == expected["hits"]
 
       # Repeated sync/rebuild must replace facts, not duplicate them.
-      assert {:ok, _} = Rules.sync_current_tier_rules(activate: true, promote: true)
+      assert {:ok, _} = Rules.sync_current_tier_rules()
 
       assert {:ok, %{inserted: unquote(expected_count)}} =
                FactFailure.rebuild_for_encounter(encounter.id)

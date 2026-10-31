@@ -140,12 +140,12 @@ The historical `./data/` directory of manually downloaded Warcraft Logs CSV expo
 
 Those exports were never bronze parser input and should not be reintroduced as an active data dependency. Historical session logs still mention them because they were used during early research and initial rule-seed curation.
 
-Current bundled rules seed uses only local evidence that can be resolved confidently:
+Historical bundled seed evidence (the JSON seed path is retired) included:
 
 - `Arcane Expulsion` spell `1214081`, avoidable, from historical Warcraft Logs export evidence and pull-summary docs
 - `Void Burst` spell `1269183`, avoidable, from historical Warcraft Logs export evidence
 
-Do not invent rule rows for old CSV spell names that do not have a reliable local spell ID mapping. New external evidence should enter through explicit source-data ingestion, not a checked-in ad hoc `data/` folder.
+Do not invent rule rows for old CSV spell names that do not have a reliable local spell ID mapping. New external evidence should enter through explicit source-data ingestion, not a checked-in ad hoc `data/` folder. Current failure definitions live in the raid code catalog.
 
 ### Future: Strategy Diagrams
 
@@ -162,7 +162,7 @@ New patch/season mechanic source data should be handled by a later bronze/source
 - **Bronze/log ingestion** owns raw WoW combat log files and provenance. `combat_log_files` remains the operational catalog for live and Warcraft Logs archive files.
 - **Silver** owns deterministic projections under the `silver` Postgres schema: damage taken, damage taken events, damage done, deaths, current interrupt/cast observations, debuff applications, and player info. Event-grain silver rows are allowed only for named downstream rule, classifier, fact, or UI needs; silver must not become a generic raw combat-log event warehouse. Known gap: `silver.interrupt_opportunity` is currently overbroad and should be tightened/reframed by task `#61`.
 - **Gold** owns analytic dimensions/facts and public-safe product read models under the `gold` schema. Current fact proof: `gold.fact_failure`; known gap: the local encounter detail page is not yet fully backed by gold read models.
-- **Rules** owns internal authored mechanic business configuration under the `rules` schema. Product-facing flows should treat code-defined raid mechanics as the rules and hide ruleset/promotion plumbing.
+- **Mechanics catalog** is authored under `WeGoNext.GameData.Raids` and synced straight into `gold.dim_mechanic_criterion`. There is one live catalog, no ruleset/activation/promotion lifecycle. The `rules.ruleset` and `rules.mechanic_criterion` tables are dropped (we-g18.10).
 
 ### Current Medallion Grain
 
@@ -181,10 +181,10 @@ The legacy `/encounters/:id` analysis page has been pruned from active routing. 
 
 ### Mechanics/Rules Layer Decisions
 
-- `rules.ruleset` supports `draft`, `active`, and `archived`.
-- Exactly one active ruleset globally for the first implementation pass.
-- Backfills/tests should be able to select a ruleset explicitly by ID.
-- `rules.mechanic_criterion` validates thresholds by mechanic type:
+- `mix we_go_next.sync_raid_rules [current_tier] [--rebuild]` writes the code catalog directly into gold. `seed_rules` with no args is a compatibility alias; JSON seeds and activate/promote/version flags are retired.
+- Removed definitions become inactive on sync; dimension ids and stable criterion keys keep existing facts attached until rebuild. Backfills always use this live catalog.
+- Optional `valid_from` (inclusive) / `valid_until` (exclusive) UTC instants scope a mechanic by pull start time. Undated keys are unchanged.
+- `gold.dim_mechanic_criterion` validates thresholds by mechanic type:
   - `avoidable`: only `threshold["max_hits"]` as a non-negative integer
   - `interrupt`: optional `threshold["must_interrupt"]`, defaults to `true`
   - `targeted_cone`: first-class aim/cone mechanics such as Vaelgor & Ezzorak Dread Breath. The rule spell is the cast spell, while the threshold declares combat-log evidence:
@@ -196,11 +196,10 @@ The legacy `/encounters/:id` analysis page has been pruned from active routing. 
     - `allowed_collateral_roles`: roles such as `tank` that can be intentionally included before a hit is counted as collateral
     - `position_evidence`: `ignored`, `optional`, or `required`
   - `soak`, `spread`, `stack`, `tank_mechanic`, `healer_mechanic`: empty threshold map until fact semantics exist
-- Bootstrap current-tier mechanics through `WeGoNext.Rules.sync_current_tier_rules/1` or `mix we_go_next.sync_raid_rules`, not migrations. `mix we_go_next.seed_rules` with no path should follow that current-tier catalog path; explicit JSON paths are legacy fixtures/examples.
+- Bootstrap current-tier mechanics through `WeGoNext.Rules.sync_current_tier_rules/1` or `mix we_go_next.sync_raid_rules`, not migrations.
 - Supported `:avoidable` + `:damage_taken` code-defined raid mechanics are fact-eligible by default; do not require a manual `track: true` flag.
 - `:targeted_cone` mechanics are not generic avoidable damage. They need a dedicated fact builder that attributes primary failure to the assigned/aiming target and records clipped players separately.
-- Gold facts currently identify mechanics through `criterion_dim_id -> gold.dim_mechanic_criterion`, not a direct mutable rule row.
-- The rule-to-gold step is implementation plumbing for fact keys. It must stay collapsed or hidden behind sync/rebuild commands so users do not manage a separate promotion workflow.
+- Gold facts identify mechanics through `criterion_dim_id -> gold.dim_mechanic_criterion`. Sync does not delete these keys or their attached facts; rebuild replaces facts for each pull.
 
 ### Medallion Correctness Order
 
@@ -255,7 +254,7 @@ we_go_next_dev/
 │   │   │   ├── silver/                    # Silver Ecto schemas
 │   │   │   ├── gold/                      # Gold dimensions/facts
 │   │   │   ├── rules.ex                   # Rules context
-│   │   │   ├── rules/                     # Rules Ecto schemas
+│   │   │   ├── rules/                     # Catalog sync flow table
 │   │   │   ├── combat_log_file.ex         # Ecto schema for log files
 │   │   │   ├── encounters/
 │   │   │   │   └── encounter.ex           # Ecto schema for encounters
@@ -272,7 +271,6 @@ we_go_next_dev/
 │   │       │   └── settings_live.ex       # Settings LiveView
 │   │       ├── components/                # Reusable components
 │   │       └── controllers/               # Error handling
-│   ├── priv/rules/                        # Static curated rules seed JSON
 │   ├── mix.exs                            # Project config
 │   └── priv/repo/migrations/              # Database migrations
 ├── tools/                          # Local spell/dungeon reference JSON
