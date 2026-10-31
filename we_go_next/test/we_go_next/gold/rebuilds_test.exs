@@ -66,6 +66,24 @@ defmodule WeGoNext.Gold.RebuildsTest do
     assert fact_exists?(second_encounter, "Player-Two", second_criterion)
   end
 
+  test "a failed batch identifies completed, failed and unattempted encounters" do
+    ruleset = insert_ruleset!("Batch Rules", "active")
+    first = insert_dim_encounter!("boss-one")
+    last = insert_dim_encounter!("boss-two")
+
+    assert {:error,
+            %{
+              encounter_id: -1,
+              completed_encounter_ids: [completed],
+              remaining_encounter_ids: [remaining],
+              totals: %{encounters: 3}
+            }} =
+             Rebuilds.rebuild_encounters([first.id, -1, last.id], ruleset_id: ruleset.id)
+
+    assert completed == first.id
+    assert remaining == last.id
+  end
+
   defp fact_exists?(encounter, player_guid, criterion) do
     player = Repo.get_by(DimPlayer, player_guid: player_guid)
 

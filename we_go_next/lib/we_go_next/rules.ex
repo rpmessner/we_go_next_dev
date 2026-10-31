@@ -13,7 +13,7 @@ defmodule WeGoNext.Rules do
   alias WeGoNext.GameData.Raids
   alias WeGoNext.Gold.{DimMechanicCriterion, Rebuilds}
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
+  alias WeGoNext.Rules.{MechanicCriterion, Ruleset, RulesetLifecycle, SyncFlow}
   alias WeGoNext.SourceData
 
   @initial_rules_path Application.compile_env(
@@ -71,9 +71,16 @@ defmodule WeGoNext.Rules do
   end
 
   def update_ruleset(%Ruleset{} = ruleset, attrs) do
-    ruleset
-    |> Ruleset.changeset(attrs)
-    |> Repo.update()
+    event =
+      case map_get(attrs, "status") do
+        nil -> :sync
+        "draft" -> :reset
+        "active" -> :activate
+        "archived" -> :archive
+        _ -> :invalid
+      end
+
+    transition_ruleset(ruleset, event, attrs)
   end
 
   def change_ruleset(%Ruleset{} = ruleset, attrs \\ %{}) do
@@ -83,29 +90,68 @@ defmodule WeGoNext.Rules do
   @doc """
   Activates a ruleset and archives any previously active ruleset.
   """
-  def activate_ruleset(%Ruleset{} = ruleset) do
-    now = DateTime.utc_now()
+  def activate_ruleset(%Ruleset{} = ruleset), do: transition_ruleset(ruleset, :activate, %{})
 
+  def archive_ruleset(%Ruleset{} = ruleset), do: transition_ruleset(ruleset, :archive, %{})
+
+  defp transition_ruleset(ruleset, event, attrs) do
     Repo.transaction(fn ->
-      from(r in Ruleset, where: r.status == "active" and r.id != ^ruleset.id)
-      |> Repo.update_all(set: [status: "archived", archived_at: now, updated_at: now])
-
-      ruleset
-      |> Ruleset.changeset(%{status: "active", activated_at: now, archived_at: nil})
-      |> Repo.update()
-      |> case do
-        {:ok, ruleset} -> ruleset
-        {:error, changeset} -> Repo.rollback(changeset)
-      end
+      lock_ruleset_lifecycle()
+      transition_current_ruleset(get_ruleset!(ruleset.id), event, attrs)
     end)
   end
 
-  def archive_ruleset(%Ruleset{} = ruleset) do
-    now = DateTime.utc_now()
+  defp transition_current_ruleset(current, event, attrs) do
+    case RulesetLifecycle.step(lifecycle_state(current.status), event) do
+      {:ok, next, _, effects} ->
+        if :activate in effects, do: archive_replaced_ruleset(current.id)
+        persist_transition(current, next, effects, attrs)
 
-    ruleset
-    |> Ruleset.changeset(%{status: "archived", archived_at: now})
-    |> Repo.update()
+      :invalid ->
+        Repo.rollback(:invalid_ruleset_transition)
+    end
+  end
+
+  defp archive_replaced_ruleset(replacement_id) do
+    case get_active_ruleset() do
+      %Ruleset{id: id} = previous when id != replacement_id ->
+        {:ok, next, _, effects} =
+          RulesetLifecycle.step(:active, :replace, %{replacement: true})
+
+        persist_transition(previous, next, effects, %{})
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp persist_transition(ruleset, next, effects, attrs) do
+    changeset = Ruleset.changeset(ruleset, attrs)
+    changeset = Ecto.Changeset.put_change(changeset, :status, Atom.to_string(next))
+
+    changeset =
+      Enum.reduce(effects, changeset, fn
+        :activate, cs ->
+          Ecto.Changeset.change(cs, activated_at: DateTime.utc_now(), archived_at: nil)
+
+        :archive, cs ->
+          Ecto.Changeset.change(cs, archived_at: DateTime.utc_now())
+      end)
+
+    case Repo.update(changeset) do
+      {:ok, updated} -> updated
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  defp lifecycle_state("draft"), do: :draft
+  defp lifecycle_state("active"), do: :active
+  defp lifecycle_state("archived"), do: :archived
+
+  # Serialize global-active replacement and re-read persisted state, never trust
+  # the caller's potentially stale struct. This also covers nested seed updates.
+  defp lock_ruleset_lifecycle do
+    Repo.query!("SELECT pg_advisory_xact_lock(1886318190)")
   end
 
   def list_mechanic_criteria(%Ruleset{} = ruleset) do
@@ -214,34 +260,65 @@ defmodule WeGoNext.Rules do
 
     * `:name` - internal definition set name, defaults to `"<raid name> Mechanics"`
     * `:version` - internal definition set version, defaults to `1`
-    * `:status` - internal definition set status, defaults to `"draft"`
+    * `:status` - initial status for a newly created set only, defaults to `"draft"`
     * `:activate` - make synced definitions current, defaults to `false`
     * `:promote` - refresh fact-key criteria, defaults to `false`
     * `:rebuild` - make current, refresh fact keys, and rebuild failures, defaults to `false`
   """
   def sync_raid_mechanics(raid, opts \\ []) do
-    opts = normalize_raid_sync_opts(opts)
+    result = %{ruleset: nil, criteria: [], promoted: nil, rebuild: nil}
+    run_sync_flow(:sync, SyncFlow.initial(opts), result, raid, opts)
+  end
 
+  defp run_sync_flow(:done, ctx, result, _raid, _opts) do
+    {:ok, Map.put(result, :completed, ctx.completed)}
+  end
+
+  defp run_sync_flow(stage, ctx, result, raid, opts) do
+    case safely_run_sync_stage(stage, result, raid, opts) do
+      {:ok, updated} ->
+        {:ok, next, ctx, _effects} = SyncFlow.step(stage, :succeeded, ctx)
+        run_sync_flow(next, ctx, updated, raid, opts)
+
+      {:error, reason} ->
+        {:ok, :failed, ctx, _effects} = SyncFlow.step(stage, :failed, ctx)
+        {:error, %{stage: stage, reason: reason, completed: ctx.completed, result: result}}
+    end
+  end
+
+  defp safely_run_sync_stage(stage, result, raid, opts) do
+    run_sync_stage(stage, result, raid, opts)
+  rescue
+    exception ->
+      {:error, %{exception: exception.__struct__, message: Exception.message(exception)}}
+  end
+
+  defp run_sync_stage(:sync, result, raid, opts) do
     with {:ok, raid_module} <- raid_module(raid),
          {:ok, synced} <-
            seed_rules(
              raid_seed_payload(raid_module, opts),
              Keyword.put(opts, :retire_missing, true)
-           ),
-         {:ok, ruleset} <- maybe_activate_synced_ruleset(synced.ruleset, opts),
-         {:ok, promoted} <- maybe_promote_synced_ruleset(ruleset, opts),
-         {:ok, rebuild} <- maybe_rebuild_after_sync(opts) do
-      {:ok, %{ruleset: ruleset, criteria: synced.criteria, promoted: promoted, rebuild: rebuild}}
+           ) do
+      {:ok, Map.merge(result, synced)}
     end
   end
 
-  defp normalize_raid_sync_opts(opts) do
-    if Keyword.get(opts, :rebuild, false) do
-      opts
-      |> Keyword.put(:activate, true)
-      |> Keyword.put(:promote, true)
-    else
-      opts
+  defp run_sync_stage(:activate, result, _raid, _opts) do
+    with {:ok, ruleset} <- activate_ruleset(result.ruleset) do
+      {:ok, %{result | ruleset: ruleset}}
+    end
+  end
+
+  defp run_sync_stage(:promote, result, _raid, _opts) do
+    with {:ok, promoted} <- promote_ruleset_to_gold(result.ruleset) do
+      {:ok, %{result | promoted: promoted}}
+    end
+  end
+
+  defp run_sync_stage(:rebuild, result, _raid, _opts) do
+    with {:ok, rebuild} <- Rebuilds.rebuild_all(ruleset_id: result.ruleset.id) do
+      {:ok, %{result | rebuild: rebuild}}
     end
   end
 
@@ -279,6 +356,7 @@ defmodule WeGoNext.Rules do
 
   def seed_rules(%{} = payload, opts \\ []) do
     Repo.transaction(fn ->
+      lock_ruleset_lifecycle()
       ruleset_attrs = map_get(payload, "ruleset", %{})
       criteria = map_get(payload, "criteria", [])
 
@@ -311,7 +389,7 @@ defmodule WeGoNext.Rules do
 
     case Repo.get_by(Ruleset, name: name, version: version) do
       %Ruleset{} = ruleset ->
-        update_ruleset(ruleset, ruleset_seed_attrs(attrs))
+        update_ruleset(ruleset, Map.delete(ruleset_seed_attrs(attrs), :status))
 
       nil ->
         create_ruleset(ruleset_seed_attrs(attrs))
@@ -344,30 +422,6 @@ defmodule WeGoNext.Rules do
       },
       "criteria" => raid_module.rule_criteria()
     }
-  end
-
-  defp maybe_activate_synced_ruleset(ruleset, opts) do
-    if Keyword.get(opts, :activate, false) do
-      activate_ruleset(ruleset)
-    else
-      {:ok, ruleset}
-    end
-  end
-
-  defp maybe_promote_synced_ruleset(ruleset, opts) do
-    if Keyword.get(opts, :promote, false) do
-      promote_ruleset_to_gold(ruleset)
-    else
-      {:ok, nil}
-    end
-  end
-
-  defp maybe_rebuild_after_sync(opts) do
-    if Keyword.get(opts, :rebuild, false) do
-      Rebuilds.rebuild_all(ruleset: :active)
-    else
-      {:ok, nil}
-    end
   end
 
   defp ruleset_seed_attrs(attrs) do

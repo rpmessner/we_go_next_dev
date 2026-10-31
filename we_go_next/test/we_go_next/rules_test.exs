@@ -56,6 +56,43 @@ defmodule WeGoNext.RulesTest do
     assert Rules.get_active_ruleset().id == second.id
   end
 
+  test "an active ruleset cannot be archived without a replacement, even from a stale struct" do
+    {:ok, draft} = Rules.create_ruleset(%{name: "Guarded active"})
+    {:ok, active} = Rules.activate_ruleset(draft)
+    assert {:error, :invalid_ruleset_transition} = Rules.archive_ruleset(active)
+    assert {:error, :invalid_ruleset_transition} = Rules.archive_ruleset(draft)
+    assert Rules.get_active_ruleset().id == active.id
+  end
+
+  test "generic updates cannot reset an archived or active ruleset to draft" do
+    {:ok, first} = Rules.create_ruleset(%{name: "Guarded archived"})
+    {:ok, second} = Rules.create_ruleset(%{name: "Replacement"})
+    {:ok, _} = Rules.activate_ruleset(first)
+    {:ok, active} = Rules.activate_ruleset(second)
+    archived = Rules.get_ruleset!(first.id)
+
+    assert {:error, :invalid_ruleset_transition} =
+             Rules.update_ruleset(archived, %{status: "draft"})
+
+    assert {:error, :invalid_ruleset_transition} =
+             Rules.update_ruleset(active, %{"status" => "draft"})
+
+    assert Rules.get_ruleset!(first.id).status == "archived"
+    assert Rules.get_active_ruleset().id == second.id
+  end
+
+  test "a failed activation update rolls back archival of the previous active ruleset" do
+    {:ok, first} = Rules.create_ruleset(%{name: "Rollback original"})
+    {:ok, second} = Rules.create_ruleset(%{name: "Rollback replacement"})
+    {:ok, _} = Rules.activate_ruleset(first)
+
+    assert {:error, %Ecto.Changeset{}} =
+             Rules.update_ruleset(second, %{status: "active", name: first.name})
+
+    assert Rules.get_active_ruleset().id == first.id
+    assert Rules.get_ruleset!(second.id).status == "draft"
+  end
+
   test "database allows only one active ruleset" do
     {:ok, first} = Rules.create_ruleset(%{name: "Active One", status: "active", version: 1})
     assert first.status == "active"
@@ -368,6 +405,61 @@ defmodule WeGoNext.RulesTest do
              )
   end
 
+  test "re-sync and repeated rebuild keep active status, fact keys and fact values stable" do
+    encounter = insert_dim_encounter!("3180", "Lightblinded Vanguard", 16)
+    insert_player_info!(encounter, "Player-Stable", "Stable")
+    insert_damage_taken!(encounter, "Player-Stable", "Creature-A", 1_248_652, 10_000, 1)
+
+    {:ok, first} = Rules.sync_raid_mechanics("midnight_season_1", rebuild: true)
+    facts = fact_values()
+    assert length(facts) == 1
+
+    for _ <- 1..2 do
+      {:ok, synced} = Rules.sync_raid_mechanics("midnight_season_1")
+      assert synced.ruleset.status == "active"
+      assert synced.ruleset.activated_at == first.ruleset.activated_at
+      assert fact_values() == facts
+
+      {:ok, rebuilt} = Rules.sync_raid_mechanics("midnight_season_1", rebuild: true)
+      assert rebuilt.ruleset.id == first.ruleset.id
+      assert rebuilt.completed == [:sync, :activate, :promote, :rebuild]
+
+      assert Enum.map(rebuilt.promoted.criteria, & &1.id) ==
+               Enum.map(first.promoted.criteria, & &1.id)
+
+      assert fact_values() == facts
+    end
+  end
+
+  test "sync reports the failed stage and committed prefix when promotion raises" do
+    Repo.query!("""
+    CREATE FUNCTION pg_temp.reject_ruleset_snapshot() RETURNS trigger AS $$
+    BEGIN
+      RAISE EXCEPTION 'ruleset test promotion failure';
+    END;
+    $$ LANGUAGE plpgsql
+    """)
+
+    Repo.query!("""
+    CREATE TRIGGER ruleset_test_reject_snapshot BEFORE INSERT ON gold.dim_mechanic_criterion
+    FOR EACH ROW EXECUTE FUNCTION pg_temp.reject_ruleset_snapshot()
+    """)
+
+    assert {:error,
+            %{
+              stage: :promote,
+              completed: [:sync, :activate],
+              result: result,
+              reason: %{exception: Postgrex.Error}
+            }} =
+             Rules.sync_raid_mechanics("midnight_season_1", rebuild: true)
+
+    assert result.ruleset.status == "active"
+    assert Rules.get_active_ruleset().id == result.ruleset.id
+    assert length(Rules.list_mechanic_criteria(result.ruleset)) == 26
+    assert Repo.aggregate(DimMechanicCriterion, :count) == 0
+  end
+
   test "promotes ruleset criteria to idempotent gold snapshots" do
     {:ok, ruleset} =
       Rules.create_ruleset(%{
@@ -645,6 +737,17 @@ defmodule WeGoNext.RulesTest do
     assert snapshot.spell_name == "Referenced Spell"
     assert snapshot.boss_name == "Referenced Boss"
     assert snapshot.build_key == "11.2.0"
+  end
+
+  defp fact_values do
+    FactFailure
+    |> order_by([f], [f.encounter_dim_id, f.player_dim_id, f.criterion_dim_id])
+    |> Repo.all()
+    |> Enum.map(fn fact ->
+      fact
+      |> Map.from_struct()
+      |> Map.drop([:__meta__, :encounter, :player, :criterion, :rebuilt_at])
+    end)
   end
 
   defp criterion_attrs(%Ruleset{} = ruleset, overrides) do

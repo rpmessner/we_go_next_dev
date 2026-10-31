@@ -1,0 +1,38 @@
+---
+title: "Ruleset status: atomic active replacement"
+---
+stateDiagram-v2
+  s0: active / archived
+  s1: active / draft
+  s2: archived / active
+  s3: archived / archived
+  s4: archived / draft
+  s5: draft / active
+  s6: draft / archived
+  s7: draft / draft
+  [*] --> s0
+  [*] --> s1
+  [*] --> s2
+  [*] --> s3
+  [*] --> s4
+  [*] --> s5
+  [*] --> s6
+  [*] --> s7
+  s0 --> s2: activate one, archive previous active
+  s1 --> s0: archive draft
+  s1 --> s2: activate one, archive previous active
+  s2 --> s0: activate one, archive previous active
+  s3 --> s0: activate one, archive previous active
+  s3 --> s2: activate one, archive previous active
+  s4 --> s1: activate one, archive previous active
+  s4 --> s2: activate one, archive previous active
+  s4 --> s3: archive draft
+  s5 --> s0: activate one, archive previous active
+  s5 --> s2: archive draft
+  s6 --> s0: activate one, archive previous active
+  s6 --> s3: archive draft
+  s6 --> s5: activate one, archive previous active
+  s7 --> s1: activate one, archive previous active
+  s7 --> s4: archive draft
+  s7 --> s5: activate one, archive previous active
+  s7 --> s6: archive draft

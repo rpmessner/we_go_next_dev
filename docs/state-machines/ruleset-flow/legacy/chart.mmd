@@ -1,0 +1,20 @@
+---
+title: "Legacy bug: re-seed demotes the active ruleset"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Breaks SyncNeverDemotes
+    lg1: Path to the SyncNeverDemotes bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  s0: sync: active (started active)
+  s1: done: draft (started active)
+  s2: failed: active (started active)
+  [*] --> s0
+  s0 --> s1: re-seed defaults status to draft
+  s0 --> s2: Fail
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s1 breaks
+  class s1 bugPath
