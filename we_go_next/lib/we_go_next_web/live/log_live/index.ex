@@ -20,6 +20,7 @@ defmodule WeGoNextWeb.LogLive.Index do
   }
 
   alias WeGoNextWeb.Components.ImportedLogsSwitcher
+  alias WeGoNextWeb.{ImportStatus, LoadState, WatchControl}
   import Ecto.Query
 
   # ============================================================================
@@ -32,10 +33,9 @@ defmodule WeGoNextWeb.LogLive.Index do
 
     if connected?(socket) do
       Phoenix.PubSub.subscribe(WeGoNext.PubSub, "encounters")
-      Phoenix.PubSub.subscribe(WeGoNext.PubSub, ImportWorker.progress_topic(user.id))
     end
 
-    loading = match?(%{status: :importing}, ImportWorker.get_status(user.id))
+    socket = ImportStatus.mount(socket, user.id)
 
     {:ok,
      socket
@@ -43,9 +43,7 @@ defmodule WeGoNextWeb.LogLive.Index do
      |> assign(:user, user)
      |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
      |> assign(:imported_logs, list_imported_logs(user.id))
-     |> assign(:loading, loading)
-     |> assign(:error, nil)
-     |> assign(:import_progress, nil)}
+     |> assign(:load_status, LoadState.initial())}
   end
 
   # ============================================================================
@@ -58,7 +56,7 @@ defmodule WeGoNextWeb.LogLive.Index do
 
     {:noreply,
      socket
-     |> assign(:loading, true)
+     |> transition_load(:load)
      |> start_async(:load_from_db, fn -> EncounterStore.load_from_db(file_id) end)}
   end
 
@@ -70,31 +68,20 @@ defmodule WeGoNextWeb.LogLive.Index do
       :ok ->
         {:noreply,
          socket
-         |> assign(:loading, true)
-         |> assign(:error, nil)
-         |> assign(:import_progress, %{percent: 0, encounters_found: 0, status: :parsing})}
+         |> ImportStatus.refresh(socket.assigns.user.id)}
 
       {:already_importing, existing_path} ->
         {:noreply,
          socket
-         |> assign(:error, "Already importing #{Path.basename(existing_path)}")}
+         |> ImportStatus.refresh(socket.assigns.user.id)
+         |> put_flash(:error, "Already importing #{Path.basename(existing_path)}")}
     end
   end
 
   @impl true
   def handle_event("toggle_watch_enabled", %{"file_id" => file_id}, socket) do
-    with {:ok, file_id} <- parse_id(file_id),
-         %CombatLogFile{source: :live} = combat_log_file <-
-           get_user_combat_log(socket.assigns.user.id, file_id),
-         :ok <- toggle_watching(combat_log_file) do
-      {:noreply,
-       socket
-       |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-       |> maybe_refresh_current_combat_log(file_id)}
-    else
-      _reason ->
-        {:noreply, put_flash(socket, :error, "Failed to update watch setting")}
-    end
+    socket = WatchControl.toggle(socket, file_id)
+    handle_info({:watch_changed, file_id}, socket)
   end
 
   @impl true
@@ -170,30 +157,44 @@ defmodule WeGoNextWeb.LogLive.Index do
       {:ok, count} ->
         {:noreply,
          socket
-         |> assign(:loading, false)
-         |> assign(:import_progress, nil)
+         |> ImportStatus.refresh(socket.assigns.user.id)
          |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
          |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
          |> put_flash(:info, "Imported #{count} encounters")}
 
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:loading, false)
-         |> assign(:import_progress, nil)
-         |> assign(:error, "Failed to import log: #{inspect(reason)}")}
+      {:error, _reason} ->
+        {:noreply, ImportStatus.refresh(socket, socket.assigns.user.id)}
     end
   end
 
   @impl true
-  def handle_info({:watch_stopped, _file_id, _reason}, socket) do
-    {:noreply,
-     socket
-     |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
-     |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))}
+  def handle_info({:watch_stopped, file_id, _reason}, socket),
+    do: handle_info({:watch_changed, file_id}, socket)
+
+  def handle_info({:watch_changed, _file_id}, socket) do
+    logs = socket.assigns |> Map.get(:imported_logs, []) |> WatchControl.snapshot()
+    {:noreply, assign(socket, :imported_logs, logs)}
   end
 
   @impl true
+  def handle_info({:import_started, _token}, socket),
+    do: {:noreply, ImportStatus.refresh(socket, socket.assigns.user.id)}
+
+  def handle_info(:reconcile_import, socket) do
+    socket = ImportStatus.refresh(socket, socket.assigns.user.id)
+
+    socket =
+      if socket.assigns.import_status.state == :importing do
+        socket
+      else
+        socket
+        |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
+        |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
+      end
+
+    {:noreply, socket}
+  end
+
   def handle_info({:encounters_loaded, _count}, socket) do
     {:noreply, assign(socket, :combat_log_file, EncounterStore.current_combat_log_file())}
   end
@@ -203,22 +204,23 @@ defmodule WeGoNextWeb.LogLive.Index do
         {:import_progress, %{bytes_read: bytes, total_bytes: total, encounters_found: found}},
         socket
       ) do
-    percent = if total > 0, do: round(bytes / total * 100), else: 0
-    prev_found = get_in(socket.assigns.import_progress, [:encounters_found]) || 0
+    prev_found = socket.assigns.import_status.encounters_found
 
     socket =
-      if found > prev_found do
+      ImportStatus.progress(socket, %{
+        bytes_read: bytes,
+        total_bytes: total,
+        encounters_found: found
+      })
+
+    socket =
+      if socket.assigns.import_status.state == :importing and found > prev_found do
         assign(socket, :imported_logs, list_imported_logs(socket.assigns.user.id))
       else
         socket
       end
 
-    {:noreply,
-     assign(socket, :import_progress, %{
-       percent: percent,
-       encounters_found: found,
-       status: :parsing
-     })}
+    {:noreply, socket}
   end
 
   @impl true
@@ -245,15 +247,14 @@ defmodule WeGoNextWeb.LogLive.Index do
       {:ok, count} ->
         {:noreply,
          socket
-         |> assign(:loading, false)
+         |> transition_load(:loaded)
          |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
          |> put_flash(:info, "Loaded #{count} encounters from database")}
 
       {:error, reason} ->
         {:noreply,
          socket
-         |> assign(:loading, false)
-         |> assign(:error, "Failed to load: #{inspect(reason)}")}
+         |> transition_load(:failed, reason)}
     end
   end
 
@@ -261,8 +262,7 @@ defmodule WeGoNextWeb.LogLive.Index do
   def handle_async(:load_from_db, {:exit, reason}, socket) do
     {:noreply,
      socket
-     |> assign(:loading, false)
-     |> assign(:error, "Failed to load: #{inspect(reason)}")}
+     |> transition_load(:failed, reason)}
   end
 
   # ============================================================================
@@ -272,7 +272,7 @@ defmodule WeGoNextWeb.LogLive.Index do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="space-y-6">
+    <div class="space-y-6" data-load-state={@load_status.state}>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <.back navigate={~p"/"}>Back to encounters</.back>
@@ -284,25 +284,26 @@ defmodule WeGoNextWeb.LogLive.Index do
       </div>
 
       <div
-        :if={@import_progress}
+        :if={@import_status.state == :importing}
         class="rounded-lg border border-zinc-700 bg-zinc-800 p-4"
       >
         <div class="mb-1 flex items-center justify-between text-sm text-zinc-400">
           <span>
             Reimporting log file...
           </span>
-          <span>{@import_progress.percent}%</span>
+          <span>{@import_status.percent}%</span>
         </div>
         <div class="h-2.5 w-full rounded-full bg-zinc-700">
           <div
             class="h-2.5 rounded-full bg-wow-gold transition-all duration-300"
-            style={"width: #{@import_progress.percent}%"}
+            style={"width: #{@import_status.percent}%"}
           >
           </div>
         </div>
       </div>
 
-      <p :if={@error} class="text-sm text-red-400">{@error}</p>
+      <p :if={@import_status.state in [:failed, :timed_out]} class="text-sm text-red-400">{@import_status.error}</p>
+      <p :if={@load_status.state == :failed} class="text-sm text-red-400">{@load_status.error}</p>
 
       <ImportedLogsSwitcher.render
         imported_logs={@imported_logs}
@@ -328,6 +329,15 @@ defmodule WeGoNextWeb.LogLive.Index do
   # Private Helpers
   # ============================================================================
 
+  defp transition_load(socket, event, reason \\ nil) do
+    status = socket.assigns.load_status
+
+    {:ok, state, ctx, _effects} =
+      LoadState.step(status.state, event, %{error: status.error, reason: reason})
+
+    assign(socket, :load_status, %{state: state, error: ctx.error})
+  end
+
   defp list_imported_logs(user_id) do
     CombatLogFile
     |> where([clf], clf.user_id == ^user_id)
@@ -351,18 +361,11 @@ defmodule WeGoNextWeb.LogLive.Index do
     })
     |> order_by([clf, e], desc_nulls_last: min(e.start_time), desc: clf.last_parsed_at)
     |> Repo.all()
+    |> WatchControl.snapshot()
   end
 
   defp get_user_combat_log(user_id, file_id) do
     Repo.get_by(CombatLogFile, id: file_id, user_id: user_id)
-  end
-
-  defp toggle_watching(%CombatLogFile{watch_enabled: true} = combat_log_file) do
-    FileWatcher.stop_watching(combat_log_file)
-  end
-
-  defp toggle_watching(%CombatLogFile{watch_enabled: false} = combat_log_file) do
-    FileWatcher.watch(combat_log_file)
   end
 
   defp maybe_refresh_current_combat_log(socket, file_id) do

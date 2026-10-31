@@ -57,6 +57,12 @@ defmodule WeGoNext.ImportWorker do
             conflict_target: [:user_id]
           )
 
+        Phoenix.PubSub.broadcast(
+          WeGoNext.PubSub,
+          progress_topic(user_id),
+          {:import_started, operation.token}
+        )
+
         task =
           Task.Supervisor.async_nolink(WeGoNext.ImportTaskSupervisor, fn ->
             Process.put(:ingest_operation_token, operation.token)

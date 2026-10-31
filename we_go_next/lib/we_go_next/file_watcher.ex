@@ -118,6 +118,7 @@ defmodule WeGoNext.FileWatcher do
 
     if tracking and (clf.source != :live or not clf.watch_enabled) do
       {phase, data} = transition(phase, :stop, data)
+      broadcast({:watch_stopped, clf.id, :refresh})
       reply(phase, data, from, true)
     else
       reply(phase, data, from, tracking)
@@ -162,6 +163,7 @@ defmodule WeGoNext.FileWatcher do
     case claim_watch(clf, newest_only) do
       {:ok, claimed} ->
         {phase, data} = transition(phase, :watch, %{data | candidate: claimed})
+        broadcast({:watch_changed, claimed.id})
         reply(phase, data, from, :ok)
 
       {:error, reason} ->

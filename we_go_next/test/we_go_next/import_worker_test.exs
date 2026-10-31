@@ -74,6 +74,8 @@ defmodule WeGoNext.ImportWorkerTest do
     on_exit(fn -> if Process.alive?(blocker.pid), do: Process.exit(blocker.pid, :kill) end)
     Phoenix.PubSub.subscribe(WeGoNext.PubSub, ImportWorker.progress_topic(user.id))
     assert :ok = ImportWorker.start_import(user.id, path, generate_document: false)
+    assert_receive {:import_started, token}
+    assert token == Repo.get_by!(WeGoNext.FileIngest.Operation, user_id: user.id).token
     :ok = Supervisor.terminate_child(WeGoNext.Supervisor, ImportWorker)
     {:ok, _} = Supervisor.restart_child(WeGoNext.Supervisor, ImportWorker)
     assert %{status: :importing, path: ^path} = ImportWorker.get_status(user.id)

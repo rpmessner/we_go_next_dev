@@ -1,19 +1,21 @@
 defmodule WeGoNextWeb.SettingsLive do
   use WeGoNextWeb, :live_view
 
-  alias WeGoNext.{Accounts, CombatLogFile, FileWatcher}
+  alias WeGoNext.Accounts
+  alias WeGoNextWeb.{PathState, WatchControl}
 
   @impl true
   def mount(_params, _session, socket) do
     user = Accounts.get_or_create_default_user()
-    watching_file = FileWatcher.current_file()
+    if connected?(socket), do: WatchControl.subscribe()
+    watching_file = WatchControl.current_file()
 
     {:ok,
      socket
      |> assign(:page_title, "Settings")
      |> assign(:user, user)
      |> assign(:path_input, user.wow_logs_path || "")
-     |> assign(:path_valid, check_path_valid(user.wow_logs_path))
+     |> assign(:path_state, path_state(:empty, user.wow_logs_path))
      |> assign(:warcraft_logs_client_name_input, user.warcraft_logs_client_name || "")
      |> assign(:watching_file, watching_file)}
   end
@@ -21,12 +23,12 @@ defmodule WeGoNextWeb.SettingsLive do
   @impl true
   def handle_event("validate_path", %{"path" => path}, socket) do
     path = String.trim(path)
-    valid = check_path_valid(path)
+    state = path_state(socket.assigns.path_state, path)
 
     {:noreply,
      socket
      |> assign(:path_input, path)
-     |> assign(:path_valid, valid)}
+     |> assign(:path_state, state)}
   end
 
   @impl true
@@ -38,7 +40,7 @@ defmodule WeGoNextWeb.SettingsLive do
         {:noreply,
          socket
          |> assign(:user, user)
-         |> assign(:path_valid, check_path_valid(path))
+         |> assign(:path_state, path_state(socket.assigns.path_state, path))
          |> put_flash(:info, "WoW Logs folder saved!")}
 
       {:error, _changeset} ->
@@ -97,28 +99,33 @@ defmodule WeGoNextWeb.SettingsLive do
   end
 
   @impl true
-  def handle_event("stop_watching", _params, socket) do
-    case socket.assigns.watching_file do
-      %CombatLogFile{} = combat_log_file ->
-        case FileWatcher.stop_watching(combat_log_file) do
-          :ok ->
-            {:noreply,
-             assign(socket, :watching_file, nil) |> put_flash(:info, "Stopped watching log")}
-
-          {:error, _reason} ->
-            {:noreply, put_flash(socket, :error, "Failed to stop watching log")}
-        end
-
-      nil ->
-        {:noreply, socket}
-    end
+  def handle_event("toggle_watch_enabled", %{"file_id" => id}, socket) do
+    {:noreply,
+     socket |> WatchControl.toggle(id) |> assign(:watching_file, WatchControl.current_file())}
   end
 
-  defp check_path_valid(nil), do: false
-  defp check_path_valid(""), do: false
+  @impl true
+  def handle_info({:watch_changed, _id}, socket),
+    do: {:noreply, assign(socket, :watching_file, WatchControl.current_file())}
 
-  defp check_path_valid(path) do
-    File.dir?(path)
+  def handle_info({:watch_stopped, _id, _reason}, socket),
+    do: {:noreply, assign(socket, :watching_file, WatchControl.current_file())}
+
+  def handle_info({:log_rotated, _file, _count}, socket),
+    do: {:noreply, assign(socket, :watching_file, WatchControl.current_file())}
+
+  def handle_info(_message, socket), do: {:noreply, socket}
+
+  defp path_state(state, path) do
+    event =
+      cond do
+        path in [nil, ""] -> :empty
+        File.dir?(path) -> :valid
+        true -> :invalid
+      end
+
+    {:ok, next, _, []} = PathState.step(state, event, %{})
+    next
   end
 
   @impl true
@@ -142,12 +149,12 @@ defmodule WeGoNextWeb.SettingsLive do
               <p class="text-green-400/70 text-sm">{Path.basename(@watching_file.file_path)}</p>
             </div>
           </div>
-          <button
-            phx-click="stop_watching"
+          <WatchControl.render
+            id="settings-watch"
+            file={@watching_file}
+            variant={:clear}
             class="px-3 py-1.5 bg-green-800 text-green-200 text-sm rounded hover:bg-green-700"
-          >
-            Clear
-          </button>
+          />
         </div>
       </div>
 
@@ -180,7 +187,7 @@ defmodule WeGoNextWeb.SettingsLive do
                 phx-debounce="300"
                 class={[
                   "flex-1 bg-zinc-900 border rounded px-3 py-2 text-zinc-100 placeholder-zinc-500 focus:ring-1",
-                  if(@path_valid,
+                  if(@path_state == :valid,
                     do: "border-green-600 focus:border-green-500 focus:ring-green-500",
                     else: "border-zinc-600 focus:border-wow-gold focus:ring-wow-gold"
                   )
@@ -189,16 +196,16 @@ defmodule WeGoNextWeb.SettingsLive do
               />
               <button
                 type="submit"
-                disabled={!@path_valid}
+                disabled={@path_state != :valid}
                 class="px-4 py-2 bg-wow-gold text-zinc-900 font-semibold rounded hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Save
               </button>
             </div>
-            <p :if={@path_input != "" && !@path_valid} class="mt-1 text-sm text-red-400">
+            <p :if={@path_state == :invalid} class="mt-1 text-sm text-red-400">
               Folder not found. Make sure the path exists and is accessible.
             </p>
-            <p :if={@path_valid} class="mt-1 text-sm text-green-400">
+            <p :if={@path_state == :valid} class="mt-1 text-sm text-green-400">
               ✓ Folder found
             </p>
           </div>

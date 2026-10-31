@@ -1,0 +1,7 @@
+stateDiagram-v2
+  empty --> valid: valid [always]
+  empty --> invalid: invalid [always]
+  valid --> empty: empty [always]
+  valid --> invalid: invalid [always]
+  invalid --> empty: empty [always]
+  invalid --> valid: valid [always]

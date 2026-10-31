@@ -18,6 +18,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   }
 
   alias WeGoNext.Gold.DimEncounter
+  alias WeGoNextWeb.{DocumentIndexState, ImportStatus, LogSelectionState, SortState, WatchControl}
 
   alias WeGoNextWeb.Components.{EncounterList, LogSelector}
   import Ecto.Query
@@ -32,7 +33,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
     if connected?(socket) do
       Phoenix.PubSub.subscribe(WeGoNext.PubSub, "encounters")
-      Phoenix.PubSub.subscribe(WeGoNext.PubSub, ImportWorker.progress_topic(user.id))
       maybe_watch_logs_directory(user)
     end
 
@@ -55,20 +55,18 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         [] -> if(length(selector_logs) == 1, do: hd(selector_logs).full_path, else: "all")
       end
 
-    {loading, import_progress, selected_log} =
-      case ImportWorker.get_status(user.id) do
-        %{status: :importing, path: path} ->
-          {true, %{percent: 0, encounters_found: 0, status: :parsing}, path}
+    socket = ImportStatus.mount(socket, user.id)
 
-        _ ->
-          {false, nil, selected_log}
-      end
+    selected_log =
+      if socket.assigns.import_status.state == :importing,
+        do: socket.assigns.import_status.path,
+        else: selected_log
 
     {:ok,
      socket
      |> assign(:page_title, "Encounters")
      |> assign(:user, user)
-     |> assign(:documents_state, documents_state)
+     |> assign(:documents_state, DocumentIndexState.project(:empty, documents_state))
      |> assign(:sort_direction, :asc)
      |> assign(:log_files, log_files)
      |> assign(:selector_logs, selector_logs)
@@ -80,11 +78,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
        filter_records(encounter_records, filter_log_id, imported_logs)
      )
      |> assign(:selected_log, selected_log)
-     |> assign(:import_enabled, import_enabled?(selected_log, imported_logs))
-     |> assign(:reimport?, imported_path?(selected_log, imported_logs))
-     |> assign(:loading, loading)
-     |> assign(:error, nil)
-     |> assign(:import_progress, import_progress)}
+     |> assign(:selection_state, LogSelectionState.select(:all, selected_log, imported_logs))}
   end
 
   # ============================================================================
@@ -101,8 +95,14 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      socket
      |> assign(:selected_log, path)
      |> assign(:filter_log_id, filter_log_id)
-     |> assign(:import_enabled, import_enabled?(path, socket.assigns.imported_logs))
-     |> assign(:reimport?, imported_path?(path, socket.assigns.imported_logs))
+     |> assign(
+       :selection_state,
+       LogSelectionState.select(
+         socket.assigns.selection_state,
+         path,
+         socket.assigns.imported_logs
+       )
+     )
      |> assign_document_records()}
   end
 
@@ -111,7 +111,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     path = String.trim(path)
 
     if path == "" do
-      {:noreply, assign(socket, :error, "Please select a log file")}
+      {:noreply, put_flash(socket, :error, "Please select a log file")}
     else
       do_import(socket, path)
     end
@@ -119,7 +119,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
   @impl true
   def handle_event("toggle_sort_direction", _params, socket) do
-    direction = if socket.assigns.sort_direction == :asc, do: :desc, else: :asc
+    {:ok, direction, _, [:store]} = SortState.step(socket.assigns.sort_direction, :toggle, %{})
 
     {:noreply,
      socket
@@ -137,27 +137,17 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         socket
       )
       when direction in ["asc", "desc"] do
-    {:noreply, assign(socket, :sort_direction, String.to_existing_atom(direction))}
+    event = if direction == "asc", do: :restore_asc, else: :restore_desc
+    {:ok, direction, _, []} = SortState.step(socket.assigns.sort_direction, event, %{})
+    {:noreply, assign(socket, :sort_direction, direction)}
   end
 
   def handle_event("restore_session_preferences", _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_event("toggle_watch_enabled", %{"file_id" => file_id}, socket) do
-    with {file_id, ""} <- Integer.parse(file_id),
-         %CombatLogFile{source: :live} = combat_log_file <-
-           Repo.get_by(CombatLogFile, id: file_id, user_id: socket.assigns.user.id),
-         :ok <- toggle_watching(combat_log_file) do
-      imported_logs = list_imported_logs(socket.assigns.user.id)
-
-      {:noreply,
-       socket
-       |> assign(:imported_logs, imported_logs)
-       |> assign(:watch_log, newest_watchable_log(imported_logs))
-       |> assign_selector_logs()}
-    else
-      _reason -> {:noreply, put_flash(socket, :error, "Failed to update watch setting")}
-    end
+    socket = WatchControl.toggle(socket, file_id)
+    handle_info({:watch_changed, file_id}, socket)
   end
 
   # ============================================================================
@@ -172,38 +162,72 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
         {:noreply,
          socket
-         |> assign(:loading, false)
-         |> assign(:import_progress, nil)
+         |> ImportStatus.refresh(socket.assigns.user.id)
          |> assign(:imported_logs, imported_logs)
          |> assign(:watch_log, newest_watchable_log(imported_logs))
          |> assign_filter_for_path(socket.assigns.selected_log)
          |> assign_document_records()
          |> assign_selector_logs()
-         |> assign(:import_enabled, true)
-         |> assign(:reimport?, imported_path?(socket.assigns.selected_log, imported_logs))
+         |> assign(
+           :selection_state,
+           LogSelectionState.select(
+             socket.assigns.selection_state,
+             socket.assigns.selected_log,
+             imported_logs
+           )
+         )
          |> put_flash(:info, "Imported #{count} encounters")}
 
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:loading, false)
-         |> assign(:import_progress, nil)
-         |> assign(:error, "Failed to import log: #{inspect(reason)}")}
+      {:error, _reason} ->
+        {:noreply, ImportStatus.refresh(socket, socket.assigns.user.id)}
     end
   end
 
   @impl true
-  def handle_info({:watch_stopped, _file_id, _reason}, socket) do
-    imported_logs = list_imported_logs(socket.assigns.user.id)
+  def handle_info({:watch_stopped, file_id, _reason}, socket),
+    do: handle_info({:watch_changed, file_id}, socket)
+
+  def handle_info({:watch_changed, _file_id}, socket) do
+    imported_logs = WatchControl.snapshot(socket.assigns.imported_logs)
 
     {:noreply,
      socket
      |> assign(:imported_logs, imported_logs)
-     |> assign(:watch_log, newest_watchable_log(imported_logs))
-     |> assign_selector_logs()}
+     |> assign(:watch_log, newest_watchable_log(imported_logs))}
   end
 
   @impl true
+  def handle_info({:import_started, _token}, socket),
+    do: {:noreply, ImportStatus.refresh(socket, socket.assigns.user.id)}
+
+  def handle_info(:reconcile_import, socket) do
+    socket = ImportStatus.refresh(socket, socket.assigns.user.id)
+
+    socket =
+      if socket.assigns.import_status.state == :importing do
+        socket
+      else
+        imported_logs = list_imported_logs(socket.assigns.user.id)
+
+        socket
+        |> assign(:imported_logs, imported_logs)
+        |> assign(:watch_log, newest_watchable_log(imported_logs))
+        |> assign_filter_for_path(socket.assigns.selected_log)
+        |> assign_selector_logs()
+        |> assign(
+          :selection_state,
+          LogSelectionState.select(
+            socket.assigns.selection_state,
+            socket.assigns.selected_log,
+            imported_logs
+          )
+        )
+        |> assign_document_records()
+      end
+
+    {:noreply, socket}
+  end
+
   def handle_info({:encounters_loaded, _count}, socket) do
     {:noreply, assign_document_records(socket)}
   end
@@ -213,11 +237,17 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         {:import_progress, %{bytes_read: bytes, total_bytes: total, encounters_found: found}},
         socket
       ) do
-    percent = if total > 0, do: round(bytes / total * 100), else: 0
-    prev_found = socket.assigns.import_progress[:encounters_found] || 0
+    prev_found = socket.assigns.import_status.encounters_found
 
     socket =
-      if found > prev_found do
+      ImportStatus.progress(socket, %{
+        bytes_read: bytes,
+        total_bytes: total,
+        encounters_found: found
+      })
+
+    socket =
+      if socket.assigns.import_status.state == :importing and found > prev_found do
         imported_logs = list_imported_logs(socket.assigns.user.id)
 
         socket
@@ -229,12 +259,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         socket
       end
 
-    {:noreply,
-     assign(socket, :import_progress, %{
-       percent: percent,
-       encounters_found: found,
-       status: :parsing
-     })}
+    {:noreply, socket}
   end
 
   @impl true
@@ -250,8 +275,10 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign_selector_logs()
      |> assign(:selected_log, new_clf.file_path)
      |> assign(:filter_log_id, filter_id_for_path(new_clf.file_path, imported_logs))
-     |> assign(:import_enabled, import_enabled?(new_clf.file_path, imported_logs))
-     |> assign(:reimport?, imported_path?(new_clf.file_path, imported_logs))
+     |> assign(
+       :selection_state,
+       LogSelectionState.select(socket.assigns.selection_state, new_clf.file_path, imported_logs)
+     )
      |> assign_document_records()
      |> put_flash(
        :info,
@@ -286,11 +313,9 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         user={@user}
         log_files={@selector_logs}
         selected_log={@selected_log}
-        import_enabled={@import_enabled}
-        reimport={@reimport?}
-        loading={@loading}
-        import_progress={@import_progress}
-        error={@error}
+        import_enabled={@selection_state != :all}
+        reimport={@selection_state == :imported}
+        import_status={@import_status}
         watch_log={@watch_log}
       />
 
@@ -299,11 +324,11 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         sort_direction={@sort_direction}
         show_sort_control={true}
         log_files={@log_files}
-        loading={@loading}
+        loading={@import_status.state == :importing}
       />
 
       <section
-        :if={@encounter_records == [] && !@loading && @documents_state == :empty}
+        :if={@encounter_records == [] && @import_status.state != :importing && @documents_state.state == :empty}
         class="rounded-lg border border-zinc-700 bg-zinc-800 p-6"
       >
         <h2 class="text-lg font-semibold text-zinc-100">No Encounter Documents</h2>
@@ -317,13 +342,13 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       </section>
 
       <section
-        :if={@encounter_records == [] && !@loading && match?({:error, _reason}, @documents_state)}
+        :if={@encounter_records == [] && @import_status.state != :importing && @documents_state.state == :unavailable}
         class="rounded-lg border border-red-800/70 bg-red-950/30 p-6"
       >
         <h2 class="text-lg font-semibold text-red-100">Document Store Unavailable</h2>
         <p class="mt-2 text-sm text-red-200">
           The encounter document index could not be read from the configured store:
-          <span class="font-mono">{inspect(elem(@documents_state, 1))}</span>
+          <span class="font-mono">{inspect(@documents_state.error)}</span>
         </p>
       </section>
     </div>
@@ -344,15 +369,14 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       :ok ->
         {:noreply,
          socket
-         |> assign(:loading, true)
-         |> assign(:error, nil)
-         |> assign(:selected_log, path)
-         |> assign(:import_progress, %{percent: 0, encounters_found: 0, status: :parsing})}
+         |> ImportStatus.refresh(user_id)
+         |> assign(:selected_log, path)}
 
       {:already_importing, existing_path} ->
         {:noreply,
          socket
-         |> assign(:error, "Already importing #{Path.basename(existing_path)}")}
+         |> ImportStatus.refresh(user_id)
+         |> put_flash(:error, "Already importing #{Path.basename(existing_path)}")}
     end
   end
 
@@ -373,14 +397,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       {:ok, files} -> files
       {:error, _} -> []
     end
-  end
-
-  defp toggle_watching(%CombatLogFile{watch_enabled: true} = combat_log_file) do
-    FileWatcher.stop_watching(combat_log_file)
-  end
-
-  defp toggle_watching(%CombatLogFile{watch_enabled: false} = combat_log_file) do
-    FileWatcher.watch(combat_log_file)
   end
 
   defp assign_selector_logs(socket) do
@@ -428,7 +444,10 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       :encounter_records,
       filter_records(records, socket.assigns.filter_log_id, socket.assigns.imported_logs)
     )
-    |> assign(:documents_state, state)
+    |> assign(
+      :documents_state,
+      DocumentIndexState.project(socket.assigns.documents_state.state, state)
+    )
   end
 
   defp default_filter_log_id([%{id: id} | _rest]), do: id
@@ -442,11 +461,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       nil -> :none
     end
   end
-
-  defp import_enabled?("all", _imported_logs), do: false
-  defp import_enabled?(nil, _imported_logs), do: false
-
-  defp import_enabled?(_path, _imported_logs), do: true
 
   defp imported_path?(path, imported_logs) when is_binary(path) do
     Enum.any?(imported_logs, &(&1.file_path == path))
@@ -542,6 +556,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     })
     |> order_by([clf, e], desc_nulls_last: min(e.start_time), desc: clf.last_parsed_at)
     |> Repo.all()
+    |> WatchControl.snapshot()
   end
 
   defp newest_watchable_log(imported_logs) do
