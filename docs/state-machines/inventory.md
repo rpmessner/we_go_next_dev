@@ -84,3 +84,9 @@ Covers `Importer`, `ImportWorker` and `combat_log_files.last_parsed_byte`.
 - **Legacy, per AGENTS.md:** `analyzers/*`, `encounter.ex`, `MythicPlusRun` and `TrashPull`.
 
 Remove dead state only inside the machine ticket that owns its feature. Don't do separate cleanup.
+
+## Operator decisions (foreman, 2026-10-31)
+
+- **Breakdown:** published as proposed (epic below).
+- **Watching:** importing or viewing a log turns watching on by default. While the app is running, watching turns itself off when the log hasn't been written to for about 20–30 minutes; the configurable default is 30. That is a timer state in the FileWatcher machine. Watching is restored at boot if it was on.
+- **Uploading:** removed. The mirror app has been shut down as too expensive; publishing may return later as a static HTML/JS artifact on a free or cheap host. Item 2 becomes a removal, not a machine: the outbox, upload worker, `publish_enabled`, the public viewer and ingest all go. `Mirror.Keys` stays, because gold uses it for `criterion_key` and `source_encounter_key`.
