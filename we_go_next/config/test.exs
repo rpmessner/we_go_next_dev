@@ -5,8 +5,8 @@ config :we_go_next, analysis_mcp_enabled: true
 # Enable SQL sandbox for browser test isolation
 config :we_go_next, sql_sandbox: true
 
-# Keep the current-log watcher deterministic under the SQL sandbox. Tests can
-# still drive it explicitly with WeGoNext.FileWatcher.sync_now/0.
+# Keep watcher polling deterministic under the SQL sandbox. Tests can send
+# :poll explicitly; idle deadlines remain real :gen_statem timeouts.
 config :we_go_next, file_watcher_poll_interval_ms: false
 
 # Tests drain document uploads explicitly.

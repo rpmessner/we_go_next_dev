@@ -186,6 +186,14 @@ defmodule WeGoNextWeb.LogLive.Index do
   end
 
   @impl true
+  def handle_info({:watch_stopped, _file_id, _reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:combat_log_file, EncounterStore.current_combat_log_file())
+     |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))}
+  end
+
+  @impl true
   def handle_info({:encounters_loaded, _count}, socket) do
     {:noreply, assign(socket, :combat_log_file, EncounterStore.current_combat_log_file())}
   end
@@ -215,6 +223,8 @@ defmodule WeGoNextWeb.LogLive.Index do
 
   @impl true
   def handle_info({:log_rotated, new_clf, count}, socket) do
+    FileWatcher.display(new_clf)
+
     {:noreply,
      socket
      |> assign(:combat_log_file, new_clf)
@@ -348,13 +358,7 @@ defmodule WeGoNextWeb.LogLive.Index do
   end
 
   defp toggle_watching(%CombatLogFile{watch_enabled: true} = combat_log_file) do
-    with {:ok, _combat_log_file} <-
-           combat_log_file
-           |> CombatLogFile.changeset(%{watch_enabled: false})
-           |> Repo.update() do
-      stop_if_watching(combat_log_file.id)
-      :ok
-    end
+    FileWatcher.stop_watching(combat_log_file)
   end
 
   defp toggle_watching(%CombatLogFile{watch_enabled: false} = combat_log_file) do
@@ -368,13 +372,6 @@ defmodule WeGoNextWeb.LogLive.Index do
 
       _combat_log_file ->
         socket
-    end
-  end
-
-  defp stop_if_watching(file_id) do
-    case FileWatcher.current_file() do
-      %CombatLogFile{id: ^file_id} -> FileWatcher.stop_watching()
-      _other -> :ok
     end
   end
 

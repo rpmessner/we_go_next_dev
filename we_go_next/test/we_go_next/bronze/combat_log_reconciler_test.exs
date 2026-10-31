@@ -10,6 +10,7 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
 
     dir = Path.join(System.tmp_dir!(), "wgn-reconciler-#{System.unique_integer([:positive])}")
     archive_dir = Path.join(dir, "warcraftlogsarchive")
@@ -22,7 +23,7 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
       })
 
     on_exit(fn -> File.rm_rf!(dir) end)
-    on_exit(fn -> FileWatcher.stop_watching() end)
+    on_exit(fn -> WeGoNext.FileWatcherCleanup.stop() end)
     FileWatcher.stop_watching()
 
     {:ok, dir: dir, archive_dir: archive_dir, user: user}
@@ -161,7 +162,7 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
     assert updated.last_parsed_byte == 12
   end
 
-  test "Accounts discovery refreshes FileWatcher when it reconciles the tracked row", %{
+  test "Accounts discovery stops watching an archived row but preserves its display", %{
     dir: dir,
     archive_dir: archive_dir,
     user: user
@@ -180,10 +181,12 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
         head_sha256: sha256(content)
       })
 
+    FileWatcher.display(live)
     FileWatcher.watch(live)
 
     assert {:ok, _logs} = Accounts.list_combat_logs(user)
-    assert %CombatLogFile{id: id, file_path: ^archive_path} = FileWatcher.current_file()
+    assert FileWatcher.current_file() == nil
+    assert %CombatLogFile{id: id, file_path: ^archive_path} = FileWatcher.displayed_file()
     assert id == live.id
   end
 

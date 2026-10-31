@@ -3,7 +3,7 @@ defmodule WeGoNext.EncounterStore do
   Provides access to encounters for the current combat log file.
   Queries database directly - no caching layer.
 
-  The current file is tracked by FileWatcher. This module provides
+  Display selection is separate from FileWatcher's watched file. This module provides
   convenience functions for accessing encounters from that file.
   """
 
@@ -22,7 +22,7 @@ defmodule WeGoNext.EncounterStore do
   def import_log(log_path, user_id, opts \\ []) do
     case Importer.import_log(log_path, user_id, opts) do
       {:ok, %{file: clf, new_encounters: count}} ->
-        # Start watching this file for changes
+        FileWatcher.display(clf)
         FileWatcher.watch(clf)
 
         Phoenix.PubSub.broadcast(
@@ -45,7 +45,7 @@ defmodule WeGoNext.EncounterStore do
   def sync_log(log_path) do
     case Importer.sync_log(log_path) do
       {:ok, %{file: clf, new_encounters: count}} ->
-        # Update FileWatcher with fresh CLF (has updated byte offsets)
+        FileWatcher.display(clf)
         FileWatcher.watch(clf)
 
         if count > 0 do
@@ -72,7 +72,7 @@ defmodule WeGoNext.EncounterStore do
         {:error, :not_found}
 
       clf ->
-        # Start watching this file for changes
+        FileWatcher.display(clf)
         FileWatcher.watch(clf)
 
         count = length(Importer.list_encounters(clf))
@@ -134,7 +134,7 @@ defmodule WeGoNext.EncounterStore do
   Returns the currently loaded log path.
   """
   def current_log_path do
-    case FileWatcher.current_file() do
+    case current_combat_log_file() do
       nil -> nil
       clf -> clf.file_path
     end
@@ -142,17 +142,17 @@ defmodule WeGoNext.EncounterStore do
 
   @doc """
   Returns the current CombatLogFile record if one is loaded.
-  Returns the struct directly from FileWatcher - it's always kept up-to-date
-  after imports/syncs via FileWatcher.watch/1.
+  Display selection is not changed by background sync, rotation or watch-off.
   """
   def current_combat_log_file do
-    FileWatcher.current_file()
+    FileWatcher.displayed_file()
   end
 
   @doc """
   Clears the current file reference.
   """
   def clear do
+    FileWatcher.clear_display()
     FileWatcher.stop_watching()
     :ok
   end

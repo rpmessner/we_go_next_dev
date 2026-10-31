@@ -1,7 +1,7 @@
 defmodule WeGoNextWeb.SettingsLive do
   use WeGoNextWeb, :live_view
 
-  alias WeGoNext.{Accounts, CombatLogFile, FileWatcher, Repo}
+  alias WeGoNext.{Accounts, CombatLogFile, FileWatcher}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -100,16 +100,12 @@ defmodule WeGoNextWeb.SettingsLive do
   def handle_event("stop_watching", _params, socket) do
     case socket.assigns.watching_file do
       %CombatLogFile{} = combat_log_file ->
-        case combat_log_file
-             |> CombatLogFile.changeset(%{watch_enabled: false})
-             |> Repo.update() do
-          {:ok, _updated_log} ->
-            FileWatcher.stop_watching()
-
+        case FileWatcher.stop_watching(combat_log_file) do
+          :ok ->
             {:noreply,
              assign(socket, :watching_file, nil) |> put_flash(:info, "Stopped watching log")}
 
-          {:error, _changeset} ->
+          {:error, _reason} ->
             {:noreply, put_flash(socket, :error, "Failed to stop watching log")}
         end
 

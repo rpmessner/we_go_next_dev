@@ -1,418 +1,428 @@
 defmodule WeGoNext.FileWatcher do
   @moduledoc """
-  Tracks the currently loaded combat log file and incrementally syncs appended
-  completed encounters.
+  Singleton live-log watch adapter. Selection for display is independent of the
+  watched file. Durable watch changes are acknowledged only after persistence;
+  task replies are accepted only for the current watch generation.
 
-  WoW can write combat log lines during a pull before the matching
-  ENCOUNTER_END exists. The importer only advances progress through completed
-  encounter boundaries, so polling a current log is safe even if the file
-  changes mid-pull.
-
-  The poll also watches the logs directory for rotation: when WoW creates a
-  newer `WoWCombatLog-*.txt` (new session), the watcher imports it, switches
-  tracking to it, and broadcasts `{:log_rotated, clf, count}` on the
-  `"encounters"` topic. `watch_directory/2` arms the same detection before any
-  file is tracked (e.g. dashboard opened before the raid's log exists).
+  `file_watcher_idle_timeout_ms` defaults to 30 minutes. Its monotonic clock starts
+  when watching starts (including boot), and is reset only by observed file writes.
+  Failed syncs, including `:ingest_busy`, retry with bounded exponential backoff.
   """
-  use GenServer
+  @behaviour :gen_statem
   import Ecto.Query
   require Logger
 
-  alias WeGoNext.{CombatLogFile, Importer, Repo}
+  alias WeGoNext.{CombatLogFile, FileIngest, FileWatchLifecycle, Importer, Repo}
 
-  @poll_interval_ms 5_000
-
-  # Client API
+  def child_spec(opts), do: %{id: __MODULE__, start: {__MODULE__, :start_link, [opts]}}
 
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+    :gen_statem.start_link({:local, Keyword.get(opts, :name, __MODULE__)}, __MODULE__, opts, [])
   end
 
-  @doc """
-  Sets the current combat log file being viewed.
-  Accepts either a CombatLogFile struct or a file path string.
-  """
-  def watch(file_or_path)
-
-  def watch(%CombatLogFile{source: :live} = clf) do
-    case claim_watch(clf) do
-      {:ok, updated_clf} -> GenServer.cast(__MODULE__, {:watch, updated_clf})
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
+  def watch(%CombatLogFile{source: :live} = clf), do: call({:watch, clf})
   def watch(%CombatLogFile{}), do: {:error, :watch_disabled}
 
-  def watch(file_path) when is_binary(file_path) do
-    case Repo.get_by(CombatLogFile, file_path: file_path) do
+  def watch(path) when is_binary(path) do
+    case Repo.get_by(CombatLogFile, file_path: path) do
       nil -> {:error, :not_found}
       clf -> watch(clf)
     end
   end
 
-  # Exclusively marks the log as watch-enabled; only the user's newest live
-  # log may hold the flag. Also used when rotation switches tracking.
-  defp claim_watch(%CombatLogFile{source: :live} = clf) do
-    Repo.transaction(fn ->
-      fresh_clf = Repo.get!(CombatLogFile, clf.id)
+  def watch_directory(dir, user_id), do: call({:directory, dir, user_id})
+  def stop_watching, do: call(:stop)
+  def stop_watching(%CombatLogFile{id: id}), do: call({:stop, id})
+  def current_file, do: call(:watched_file)
+  def displayed_file, do: call(:displayed_file)
+  def display(%CombatLogFile{} = clf), do: call({:display, clf})
+  def clear_display, do: call({:display, nil})
+  def refresh_if_tracking(%CombatLogFile{} = clf), do: call({:refresh, clf})
 
-      newest_live_log_id =
-        CombatLogFile
-        |> where([row], row.user_id == ^fresh_clf.user_id and row.source == :live)
-        |> Repo.all()
-        |> Enum.max_by(&log_order_key/1, fn -> nil end)
-        |> case do
-          %CombatLogFile{id: id} -> id
-          nil -> nil
-        end
+  @doc false
+  def set_poll_interval_ms(ms) when ms == false or (is_integer(ms) and ms > 0),
+    do: call({:poll_interval, ms})
 
-      if newest_live_log_id != fresh_clf.id do
-        Repo.rollback(:not_newest_live_log)
+  defp call(message), do: :gen_statem.call(__MODULE__, message, 30_000)
+
+  @impl true
+  def callback_mode, do: :handle_event_function
+
+  @impl true
+  def init(opts) do
+    data =
+      Map.merge(FileWatchLifecycle.initial(), %{
+        clf: nil,
+        displayed: nil,
+        candidate: nil,
+        result: nil,
+        logs_dir: nil,
+        user_id: nil,
+        known_files: nil,
+        sync_ref: nil,
+        sync_kind: nil,
+        signature: nil,
+        activity_path: nil,
+        last_write: now(),
+        idle_ms: Keyword.get(opts, :idle_timeout_ms, config(:idle_timeout_ms, 30 * 60_000)),
+        poll_ms: Keyword.get(opts, :poll_interval_ms, config(:poll_interval_ms, 5_000)),
+        retry_at: nil,
+        poll_at: now()
+      })
+
+    if Keyword.get(opts, :restore, true) do
+      {:ok, :idle, data, [{:next_event, :internal, :restore}]}
+    else
+      {:ok, :idle, data}
+    end
+  end
+
+  @impl true
+  def handle_event(:internal, :restore, phase, data) do
+    case Repo.all(from(f in CombatLogFile, where: f.watch_enabled and f.source == :live))
+         |> Enum.max_by(&log_order_key/1, fn -> nil end) do
+      nil -> {:keep_state, data}
+      clf -> select(phase, data, clf, nil, false)
+    end
+  end
+
+  def handle_event({:call, from}, {:watch, clf}, phase, data),
+    do: select(phase, data, clf, from)
+
+  def handle_event({:call, from}, :stop, phase, data),
+    do: stop(phase, data, from)
+
+  def handle_event({:call, from}, {:stop, id}, phase, data) do
+    if data.tracked == id do
+      stop(phase, data, from)
+    else
+      Repo.update_all(from(f in CombatLogFile, where: f.id == ^id), set: [watch_enabled: false])
+      reply(phase, data, from, :ok)
+    end
+  end
+
+  def handle_event({:call, from}, :watched_file, phase, data),
+    do: reply(phase, data, from, data.clf)
+
+  def handle_event({:call, from}, :displayed_file, phase, data) do
+    displayed = if data.displayed, do: Repo.get(CombatLogFile, data.displayed.id)
+    reply(phase, %{data | displayed: displayed}, from, displayed)
+  end
+
+  def handle_event({:call, from}, {:display, clf}, phase, data),
+    do: reply(phase, %{data | displayed: clf}, from, :ok)
+
+  def handle_event({:call, from}, {:refresh, clf}, phase, data) do
+    tracking = data.tracked == clf.id
+    data = if tracking, do: %{data | clf: clf}, else: data
+
+    if tracking and (clf.source != :live or not clf.watch_enabled) do
+      {phase, data} = transition(phase, :stop, data)
+      reply(phase, data, from, true)
+    else
+      reply(phase, data, from, tracking)
+    end
+  end
+
+  def handle_event({:call, from}, {:poll_interval, ms}, phase, data),
+    do: reply(phase, %{data | poll_ms: ms, poll_at: now()}, from, :ok)
+
+  def handle_event({:call, from}, {:directory, dir, user_id}, phase, data) do
+    data = %{data | candidate: %{dir: dir, user_id: user_id}}
+    {phase, data} = transition(phase, :directory, data)
+    reply(phase, data, from, :ok)
+  end
+
+  def handle_event(type, :poll, phase, data) when type in [:info, {:timeout, :poll}] do
+    interval = if is_integer(data.poll_ms), do: data.poll_ms, else: 5_000
+    poll(phase, observe_write(%{data | poll_at: now() + interval}))
+  end
+
+  def handle_event({:timeout, :idle}, :expire, phase, data) do
+    data = %{observe_write(data) | now: now()}
+    {:ok, _next, _ctx, effects} = FileWatchLifecycle.step(phase, :expire, data)
+
+    if :disable in effects,
+      do: stop(phase, data, nil, :expire),
+      else: continue(phase, data)
+  end
+
+  def handle_event(:info, {ref, result}, phase, %{sync_ref: ref} = data)
+      when is_reference(ref) do
+    Process.demonitor(ref, [:flush])
+    task_result(phase, data, result)
+  end
+
+  def handle_event(:info, {:DOWN, ref, :process, _pid, reason}, phase, %{sync_ref: ref} = data),
+    do: task_result(phase, data, {:error, reason})
+
+  def handle_event(_type, _event, phase, data), do: continue(phase, data)
+
+  defp select(phase, data, clf, from, newest_only \\ true) do
+    case claim_watch(clf, newest_only) do
+      {:ok, claimed} ->
+        {phase, data} = transition(phase, :watch, %{data | candidate: claimed})
+        reply(phase, data, from, :ok)
+
+      {:error, reason} ->
+        reply(phase, data, from, {:error, reason})
+    end
+  end
+
+  defp stop(phase, data, from, event \\ :stop) do
+    # No task is killed: FileIngest remains the owner of any in-flight write.
+    # Forgetting the monitor makes its eventual result unable to change tracking.
+    case Repo.transaction(fn ->
+           Repo.update_all(from(f in CombatLogFile, where: f.watch_enabled),
+             set: [watch_enabled: false]
+           )
+         end) do
+      {:ok, _} ->
+        if data.enabled or not is_nil(data.logs_dir),
+          do: broadcast({:watch_stopped, data.tracked, event})
+
+        {phase, data} = transition(phase, event, data)
+        reply(phase, data, from, :ok)
+
+      {:error, reason} ->
+        reply(phase, data, from, {:error, reason})
+    end
+  end
+
+  defp poll(phase, data) do
+    if data.clf && not enabled?(data.clf.id) do
+      stop(phase, data, nil)
+    else
+      {phase, data} = transition(phase, :retry, data)
+      {:ok, ^phase, data, effects} = FileWatchLifecycle.step(phase, :poll, data)
+
+      if :inspect in effects, do: poll_ready(phase, data), else: continue(phase, data)
+    end
+  end
+
+  defp poll_ready(phase, data) do
+    # Rotation takes priority over catching up the old log, so a busy or failing
+    # old file cannot starve a newly created one.
+    candidate = rotation_candidate(data)
+    fresh = if data.clf, do: Repo.get(CombatLogFile, data.clf.id)
+
+    {phase, data} =
+      cond do
+        candidate -> transition(phase, :rotate, %{data | candidate: candidate})
+        fresh && Importer.sync_needed?(fresh) -> transition(phase, :sync, %{data | clf: fresh})
+        true -> {phase, maybe_refresh_snapshot(data)}
       end
 
-      CombatLogFile
-      |> where([row], row.user_id == ^fresh_clf.user_id and row.source == :live)
-      |> Repo.update_all(set: [watch_enabled: false])
+    continue(phase, data)
+  end
 
-      fresh_clf
-      |> CombatLogFile.changeset(%{watch_enabled: true})
+  defp task_result(phase, data, {:ok, %{file: clf} = result}) do
+    case maybe_claim_rotation(data.sync_kind, clf) do
+      {:ok, clf} ->
+        event =
+          if Enum.any?(Map.get(result, :medallion_results, []), &match?({:error, _}, &1)),
+            do: :partial_failure,
+            else: :success
+
+        {phase, data} = transition(phase, event, %{data | result: %{result | file: clf}})
+        continue(phase, data)
+
+      {:error, reason} ->
+        task_result(phase, data, {:error, reason})
+    end
+  end
+
+  defp task_result(phase, data, {:error, reason}) do
+    Logger.warning("FileWatcher: Sync failed: #{inspect(reason)}")
+    {phase, data} = transition(phase, :failure, data)
+    continue(phase, data)
+  end
+
+  defp maybe_claim_rotation(:rotate, clf), do: claim_watch(clf)
+  defp maybe_claim_rotation(_, clf), do: {:ok, clf}
+
+  defp transition(phase, event, data) do
+    {:ok, next, data, effects} = FileWatchLifecycle.step(phase, event, %{data | now: now()})
+    {next, Enum.reduce(effects, data, &effect/2)}
+  end
+
+  defp effect(:select, data) do
+    data = data |> observe_write() |> forget_task()
+    clf = data.candidate
+    last_write = if data.clf && data.clf.id == clf.id, do: data.last_write, else: now()
+
+    %{
+      data
+      | clf: clf,
+        logs_dir: Path.dirname(clf.file_path),
+        user_id: clf.user_id,
+        known_files: nil,
+        signature: signature(clf.file_path),
+        activity_path: clf.file_path,
+        last_write: last_write,
+        retry_at: nil
+    }
+  end
+
+  defp effect(:directory, data) do
+    %{
+      data
+      | logs_dir: data.candidate.dir,
+        user_id: data.candidate.user_id,
+        known_files: snapshot_live_logs(data.candidate.dir),
+        last_write: now()
+    }
+  end
+
+  defp effect(:disable, data) do
+    data = forget_task(data)
+
+    %{
+      data
+      | clf: nil,
+        logs_dir: nil,
+        user_id: nil,
+        known_files: nil,
+        retry_at: nil,
+        activity_path: nil
+    }
+  end
+
+  defp effect(:sync, data) do
+    task = FileIngest.start_sync(data.clf)
+    %{data | sync_ref: task.ref, sync_kind: :sync, task_generation: data.generation}
+  end
+
+  defp effect(:rotate, data) do
+    path = data.candidate
+    data = observe_path(data, path)
+    user_id = data.user_id
+
+    task =
+      Task.Supervisor.async_nolink(WeGoNext.ImportTaskSupervisor, fn ->
+        Importer.import_log(path, user_id)
+      end)
+
+    %{data | sync_ref: task.ref, sync_kind: :rotate, task_generation: data.generation}
+  end
+
+  defp effect(:complete, data) do
+    clf = data.result.file
+    count = data.result.new_encounters
+    if count > 0, do: broadcast({:encounters_loaded, count})
+
+    if data.sync_kind == :rotate do
+      broadcast({:log_rotated, clf, count})
+    end
+
+    data = forget_task(data)
+
+    %{
+      data
+      | clf: clf,
+        logs_dir: Path.dirname(clf.file_path),
+        user_id: clf.user_id,
+        known_files: nil,
+        retry_at: nil
+    }
+  end
+
+  defp effect(:fail, data) do
+    data = forget_task(data)
+    base = if is_integer(data.poll_ms), do: data.poll_ms, else: 5_000
+    %{data | retry_at: now() + min(base * Integer.pow(2, data.failures), 300_000)}
+  end
+
+  defp effect(:reset, data), do: data
+
+  defp forget_task(data) do
+    if data.sync_ref, do: Process.demonitor(data.sync_ref, [:flush])
+    %{data | sync_ref: nil, sync_kind: nil, task_generation: nil}
+  end
+
+  defp reply(phase, data, nil, _result), do: continue(phase, data)
+
+  defp reply(phase, data, from, result),
+    do: {:next_state, phase, data, [{:reply, from, result} | timers(phase, data)]}
+
+  defp continue(phase, data), do: {:next_state, phase, data, timers(phase, data)}
+
+  defp timers(_phase, %{logs_dir: nil}) do
+    [{{:timeout, :poll}, :infinity, :poll}, {{:timeout, :idle}, :infinity, :expire}]
+  end
+
+  defp timers(_phase, data) do
+    poll = if data.poll_ms == false, do: :infinity, else: max(data.poll_at - now(), 0)
+    idle = max(data.idle_ms - (now() - data.last_write), 0)
+    [{{:timeout, :poll}, poll, :poll}, {{:timeout, :idle}, idle, :expire}]
+  end
+
+  defp observe_write(%{activity_path: nil} = data), do: data
+  defp observe_write(data), do: observe_path(data, data.activity_path)
+
+  defp observe_path(data, path) do
+    signature = signature(path)
+
+    if signature && (path != data.activity_path or signature != data.signature),
+      do: %{data | signature: signature, activity_path: path, last_write: now()},
+      else: data
+  end
+
+  defp signature(path) do
+    case File.stat(path, time: :posix) do
+      {:ok, stat} -> {stat.size, stat.mtime, stat.ctime}
+      _ -> nil
+    end
+  end
+
+  defp enabled?(id),
+    do: match?(%CombatLogFile{source: :live, watch_enabled: true}, Repo.get(CombatLogFile, id))
+
+  defp claim_watch(clf, newest_only \\ true) do
+    Repo.transaction(fn ->
+      fresh = Repo.get(CombatLogFile, clf.id) || Repo.rollback(:not_found)
+
+      newest =
+        Repo.all(
+          from(f in CombatLogFile, where: f.user_id == ^fresh.user_id and f.source == :live)
+        )
+        |> Enum.max_by(&log_order_key/1, fn -> nil end)
+
+      if fresh.source != :live, do: Repo.rollback(:watch_disabled)
+
+      if newest_only and (is_nil(newest) or newest.id != fresh.id),
+        do: Repo.rollback(:not_newest_live_log)
+
+      Repo.update_all(from(f in CombatLogFile, where: f.watch_enabled),
+        set: [watch_enabled: false]
+      )
+
+      fresh
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.force_change(:watch_enabled, true)
       |> Repo.update!()
     end)
   end
 
-  defp claim_watch(%CombatLogFile{}), do: {:error, :watch_disabled}
-
-  defp log_order_key(combat_log_file) do
-    datetime = CombatLogFile.filename_datetime(combat_log_file.file_path)
-
-    {if(datetime, do: NaiveDateTime.to_erl(datetime), else: {{0, 1, 1}, {0, 0, 0}}),
-     combat_log_file.id}
+  defp log_order_key(clf) do
+    datetime = CombatLogFile.filename_datetime(clf.file_path)
+    {if(datetime, do: NaiveDateTime.to_erl(datetime), else: {{0, 1, 1}, {0, 0, 0}}), clf.id}
   end
 
-  @doc """
-  Watches a logs directory for newly created combat logs when no file is
-  tracked yet. No-op while a file is already being tracked (its directory is
-  scanned as part of the regular poll).
-  """
-  def watch_directory(logs_dir, user_id) when is_binary(logs_dir) do
-    GenServer.call(__MODULE__, {:watch_directory, logs_dir, user_id})
-  end
-
-  @doc """
-  Clears the current file reference.
-  """
-  def stop_watching do
-    GenServer.call(__MODULE__, :stop_watching)
-  end
-
-  @doc """
-  Returns the currently tracked file.
-  """
-  def current_file do
-    GenServer.call(__MODULE__, :current_file)
-  end
-
-  @doc """
-  Refreshes the tracked struct only when it is tracking the same database row.
-  """
-  def refresh_if_tracking(%CombatLogFile{} = clf) do
-    GenServer.call(__MODULE__, {:refresh_if_tracking, clf})
-  end
-
-  @doc """
-  Returns the directory of the current log file.
-  """
-  def watched_directory do
-    GenServer.call(__MODULE__, :watched_directory)
-  end
-
-  @doc """
-  Immediately checks the current watched file for appended completed encounters.
-  """
-  def sync_now do
-    GenServer.call(__MODULE__, :sync_now, 30_000)
-  end
-
-  @doc false
-  def set_poll_interval_ms(interval_ms) when is_integer(interval_ms) and interval_ms > 0 do
-    GenServer.call(__MODULE__, {:set_poll_interval_ms, interval_ms})
-  end
-
-  def set_poll_interval_ms(false) do
-    GenServer.call(__MODULE__, {:set_poll_interval_ms, false})
-  end
-
-  # Server callbacks
-
-  @impl true
-  def init(opts) do
-    interval_ms =
-      Keyword.get(
-        opts,
-        :poll_interval_ms,
-        Application.get_env(:we_go_next, :file_watcher_poll_interval_ms, @poll_interval_ms)
-      )
-
-    {:ok, initial_state(interval_ms)}
-  end
-
-  defp initial_state(poll_interval_ms) do
-    %{
-      clf: nil,
-      logs_dir: nil,
-      user_id: nil,
-      known_files: nil,
-      timer_ref: nil,
-      sync_ref: nil,
-      sync_kind: nil,
-      poll_interval_ms: poll_interval_ms
-    }
-  end
-
-  @impl true
-  def handle_cast({:watch, %CombatLogFile{} = clf}, state) do
-    logs_dir = Path.dirname(clf.file_path)
-    Logger.info("FileWatcher: Now tracking #{Path.basename(clf.file_path)}")
-
-    new_state = %{
-      clf: clf,
-      logs_dir: logs_dir,
-      user_id: clf.user_id,
-      known_files: nil,
-      timer_ref: state_timer_ref(state),
-      sync_ref: state_sync_ref(state),
-      sync_kind: state_sync_kind(state),
-      poll_interval_ms: state_poll_interval_ms(state)
-    }
-
-    {:noreply, schedule_poll(new_state)}
-  end
-
-  @impl true
-  def handle_call(:stop_watching, _from, state) do
-    Logger.info("FileWatcher: Stopped tracking")
-
-    {:reply, :ok, stop_watching_state(state)}
-  end
-
-  @impl true
-  def handle_call({:watch_directory, logs_dir, user_id}, _from, state) do
-    state = ensure_runtime_state(state)
-
-    cond do
-      not is_nil(state.clf) ->
-        {:reply, :ok, state}
-
-      state.logs_dir == logs_dir and not is_nil(state.known_files) ->
-        {:reply, :ok, schedule_poll(%{state | user_id: user_id})}
-
-      true ->
-        Logger.info("FileWatcher: Watching #{logs_dir} for new combat logs")
-
-        {:reply, :ok,
-         schedule_poll(%{
-           state
-           | logs_dir: logs_dir,
-             user_id: user_id,
-             known_files: snapshot_live_logs(logs_dir)
-         })}
-    end
-  end
-
-  @impl true
-  def handle_call(:current_file, _from, state) do
-    state = ensure_runtime_state(state)
-    {:reply, state.clf, schedule_poll(state)}
-  end
-
-  @impl true
-  def handle_call({:refresh_if_tracking, %CombatLogFile{} = clf}, _from, state) do
-    if state.clf && state.clf.id == clf.id do
-      logs_dir = Path.dirname(clf.file_path)
-      Logger.info("FileWatcher: Refreshed tracking for #{Path.basename(clf.file_path)}")
-
-      {:reply, true, schedule_poll(%{state | clf: clf, logs_dir: logs_dir, user_id: clf.user_id})}
-    else
-      {:reply, false, state}
-    end
-  end
-
-  @impl true
-  def handle_call(:watched_directory, _from, state) do
-    state = ensure_runtime_state(state)
-    {:reply, state.logs_dir, schedule_poll(state)}
-  end
-
-  @impl true
-  def handle_call({:set_poll_interval_ms, interval_ms}, _from, state) do
-    {:reply, :ok,
-     state |> ensure_runtime_state() |> Map.put(:poll_interval_ms, interval_ms) |> schedule_poll()}
-  end
-
-  @impl true
-  def handle_call(:sync_now, _from, state) do
-    state = ensure_runtime_state(state)
-
-    cond do
-      is_nil(state.clf) ->
-        {:reply, {:ok, 0}, state}
-
-      not watch_enabled?(state.clf) ->
-        {:reply, {:error, :watch_disabled}, stop_watching_state(state)}
-
-      is_nil(state.sync_ref) ->
-        {reply, state} = sync_current_file(state)
-        {:reply, reply, schedule_poll(state)}
-
-      true ->
-        {:reply, {:error, :already_syncing}, state}
-    end
-  end
-
-  @impl true
-  def handle_info(:poll, %{sync_ref: sync_ref} = state) when not is_nil(sync_ref) do
-    {:noreply, %{state | timer_ref: nil}}
-  end
-
-  def handle_info(:poll, %{clf: nil, logs_dir: nil} = state) do
-    {:noreply, %{state | timer_ref: nil}}
-  end
-
-  def handle_info(:poll, state) do
-    state = %{state | timer_ref: nil}
-
-    cond do
-      state.clf && not watch_enabled?(state.clf) ->
-        {:noreply, stop_watching_state(state)}
-
-      state.clf && watched_file_has_new_content?(state.clf) ->
-        {:noreply, start_async_sync(state)}
-
-      new_log_path = rotation_candidate(state) ->
-        {:noreply, start_rotation_import(state, new_log_path)}
-
-      true ->
-        {:noreply, state |> maybe_refresh_snapshot() |> schedule_poll()}
-    end
-  end
-
-  def handle_info({ref, result}, %{sync_ref: ref} = state) do
-    Process.demonitor(ref, [:flush])
-    state = handle_task_result(state.sync_kind, result, state)
-
-    {:noreply, state |> Map.put(:sync_ref, nil) |> Map.put(:sync_kind, nil) |> schedule_poll()}
-  end
-
-  def handle_info({:DOWN, ref, :process, _pid, reason}, %{sync_ref: ref} = state) do
-    Logger.warning("FileWatcher: Sync task exited: #{inspect(reason)}")
-
-    {:noreply,
-     state
-     |> Map.put(:sync_ref, nil)
-     |> Map.put(:sync_kind, nil)
-     |> refresh_tracked_file()
-     |> schedule_poll()}
-  end
-
-  def handle_info(_message, state), do: {:noreply, state}
-
-  defp handle_task_result(
-         :rotate,
-         {:ok, %{file: %CombatLogFile{} = clf, new_encounters: count}},
-         state
-       ) do
-    case claim_watch(clf) do
-      {:ok, claimed_clf} ->
-        Logger.info(
-          "FileWatcher: Rotated to #{Path.basename(claimed_clf.file_path)} (#{count} encounter#{plural(count)})"
-        )
-
-        maybe_broadcast_loaded(count)
-
-        Phoenix.PubSub.broadcast(
-          WeGoNext.PubSub,
-          "encounters",
-          {:log_rotated, claimed_clf, count}
-        )
-
-        %{
-          state
-          | clf: claimed_clf,
-            logs_dir: Path.dirname(claimed_clf.file_path),
-            user_id: claimed_clf.user_id,
-            known_files: nil
-        }
-
-      {:error, reason} ->
-        # An even newer log may have appeared mid-import; the next poll will
-        # find and rotate to it instead.
-        Logger.warning("FileWatcher: Could not claim watch after rotation: #{inspect(reason)}")
-        refresh_tracked_file(state)
-    end
-  end
-
-  defp handle_task_result(:rotate, {:error, reason}, state) do
-    Logger.warning("FileWatcher: Rotation import failed: #{inspect(reason)}")
-    refresh_tracked_file(state)
-  end
-
-  defp handle_task_result(
-         _sync,
-         {:ok, %{file: %CombatLogFile{} = clf, new_encounters: count}},
-         state
-       ) do
-    Logger.info(
-      "FileWatcher: Synced #{Path.basename(clf.file_path)} (#{count} new encounter#{plural(count)})"
-    )
-
-    maybe_broadcast_loaded(count)
-    %{state | clf: clf, logs_dir: Path.dirname(clf.file_path), user_id: clf.user_id}
-  end
-
-  defp handle_task_result(_sync, {:error, reason}, state) do
-    Logger.warning("FileWatcher: Sync failed: #{inspect(reason)}")
-    refresh_tracked_file(state)
-  end
-
-  defp start_async_sync(state) do
-    state = cancel_timer(state)
-    clf = Repo.get!(CombatLogFile, state.clf.id)
-
-    task = WeGoNext.FileIngest.start_sync(clf)
-
-    %{state | sync_ref: task.ref, sync_kind: :sync, clf: clf}
-  end
-
-  defp start_rotation_import(state, new_log_path) do
-    state = cancel_timer(state)
-    user_id = state.user_id
-    Logger.info("FileWatcher: Detected new combat log #{Path.basename(new_log_path)}")
-
-    task =
-      Task.Supervisor.async_nolink(WeGoNext.ImportTaskSupervisor, fn ->
-        Importer.import_log(new_log_path, user_id)
-      end)
-
-    %{state | sync_ref: task.ref, sync_kind: :rotate}
-  end
-
-  # Rotation scan: a live log qualifies while tracking a file when its
-  # filename session timestamp is newer than the tracked file's; before any
-  # file is tracked, when it was not present in the watch_directory snapshot.
   defp rotation_candidate(%{logs_dir: nil}), do: nil
 
-  defp rotation_candidate(state) do
-    case File.ls(state.logs_dir) do
+  defp rotation_candidate(data) do
+    case File.ls(data.logs_dir) do
       {:ok, files} ->
         files
-        |> Enum.filter(&(live_log_with_datetime?(&1) and new_live_log?(&1, state)))
+        |> Enum.filter(&(live_log_with_datetime?(&1) and new_live_log?(&1, data)))
         |> Enum.max_by(&CombatLogFile.filename_datetime/1, NaiveDateTime, fn -> nil end)
         |> case do
           nil -> nil
-          filename -> Path.join(state.logs_dir, filename)
+          filename -> Path.join(data.logs_dir, filename)
         end
 
-      {:error, _reason} ->
+      _ ->
         nil
     end
   end
@@ -423,136 +433,38 @@ defmodule WeGoNext.FileWatcher do
   end
 
   defp new_live_log?(filename, %{clf: %CombatLogFile{} = clf}) do
-    tracked_filename = Path.basename(clf.file_path)
-
-    case CombatLogFile.filename_datetime(tracked_filename) do
-      %NaiveDateTime{} = tracked_dt ->
-        filename != tracked_filename and
-          NaiveDateTime.after?(CombatLogFile.filename_datetime(filename), tracked_dt)
+    case CombatLogFile.filename_datetime(clf.file_path) do
+      %NaiveDateTime{} = tracked ->
+        NaiveDateTime.after?(CombatLogFile.filename_datetime(filename), tracked)
 
       nil ->
         false
     end
   end
 
-  defp new_live_log?(filename, %{known_files: %MapSet{} = known_files}) do
-    not MapSet.member?(known_files, filename)
-  end
+  defp new_live_log?(filename, %{known_files: %MapSet{} = known}),
+    do: not MapSet.member?(known, filename)
 
-  defp new_live_log?(_filename, _state), do: false
+  defp new_live_log?(_, _), do: false
 
-  defp snapshot_live_logs(logs_dir) do
-    case File.ls(logs_dir) do
+  defp snapshot_live_logs(dir) do
+    case File.ls(dir) do
       {:ok, files} -> files |> Enum.filter(&live_log_with_datetime?/1) |> MapSet.new()
-      {:error, _reason} -> nil
+      _ -> nil
     end
   end
 
-  # A directory watch whose snapshot failed (e.g. drive not mounted yet) must
-  # not treat every file as new once the directory appears; take the snapshot
-  # first and only report files created after it.
-  defp maybe_refresh_snapshot(%{clf: nil, known_files: nil, logs_dir: logs_dir} = state)
-       when is_binary(logs_dir) do
-    %{state | known_files: snapshot_live_logs(logs_dir)}
-  end
+  defp maybe_refresh_snapshot(%{clf: nil, known_files: nil, logs_dir: dir} = data)
+       when is_binary(dir), do: %{data | known_files: snapshot_live_logs(dir)}
 
-  defp maybe_refresh_snapshot(state), do: state
+  defp maybe_refresh_snapshot(data), do: data
+  defp broadcast(message), do: Phoenix.PubSub.broadcast(WeGoNext.PubSub, "encounters", message)
 
-  defp ensure_runtime_state(state) do
-    state
-    |> Map.put_new(:timer_ref, nil)
-    |> Map.put_new(:sync_ref, nil)
-    |> Map.put_new(:sync_kind, nil)
-    |> Map.put_new(:known_files, nil)
-    |> Map.put_new(
-      :poll_interval_ms,
-      Application.get_env(:we_go_next, :file_watcher_poll_interval_ms, @poll_interval_ms)
-    )
-  end
+  defp config(:idle_timeout_ms, default),
+    do: Application.get_env(:we_go_next, :file_watcher_idle_timeout_ms, default)
 
-  defp sync_current_file(state) do
-    state = cancel_timer(state)
-    clf = Repo.get!(CombatLogFile, state.clf.id)
+  defp config(:poll_interval_ms, default),
+    do: Application.get_env(:we_go_next, :file_watcher_poll_interval_ms, default)
 
-    case Importer.sync_log(clf) do
-      {:ok, %{file: %CombatLogFile{} = updated_clf, new_encounters: count}} ->
-        maybe_broadcast_loaded(count)
-        {{:ok, count}, %{state | clf: updated_clf, logs_dir: Path.dirname(updated_clf.file_path)}}
-
-      {:error, reason} ->
-        {{:error, reason}, refresh_tracked_file(state)}
-    end
-  end
-
-  defp watched_file_has_new_content?(%CombatLogFile{} = clf) do
-    case Repo.get(CombatLogFile, clf.id) do
-      nil ->
-        false
-
-      %CombatLogFile{} = fresh_clf ->
-        Importer.sync_needed?(fresh_clf)
-    end
-  end
-
-  defp watch_enabled?(%CombatLogFile{id: id}) do
-    match?(%CombatLogFile{source: :live, watch_enabled: true}, Repo.get(CombatLogFile, id))
-  end
-
-  defp stop_watching_state(state) do
-    state
-    |> cancel_timer()
-    |> then(fn state -> initial_state(state.poll_interval_ms) end)
-  end
-
-  defp refresh_tracked_file(%{clf: nil} = state), do: state
-
-  defp refresh_tracked_file(state) do
-    case Repo.get(CombatLogFile, state.clf.id) do
-      nil -> %{state | clf: nil, logs_dir: nil, user_id: nil}
-      %CombatLogFile{} = clf -> %{state | clf: clf, logs_dir: Path.dirname(clf.file_path)}
-    end
-  end
-
-  defp schedule_poll(%{clf: nil, logs_dir: nil} = state), do: cancel_timer(state)
-
-  defp schedule_poll(%{sync_ref: sync_ref} = state) when not is_nil(sync_ref),
-    do: cancel_timer(state)
-
-  defp schedule_poll(%{poll_interval_ms: false} = state), do: cancel_timer(state)
-
-  defp schedule_poll(state) do
-    state = cancel_timer(state)
-    timer_ref = Process.send_after(self(), :poll, state.poll_interval_ms)
-    %{state | timer_ref: timer_ref}
-  end
-
-  defp cancel_timer(%{timer_ref: nil} = state), do: state
-
-  defp cancel_timer(%{timer_ref: timer_ref} = state) do
-    Process.cancel_timer(timer_ref)
-    %{state | timer_ref: nil}
-  end
-
-  defp cancel_timer(state), do: Map.put(state, :timer_ref, nil)
-
-  defp maybe_broadcast_loaded(count) when count > 0 do
-    Phoenix.PubSub.broadcast(WeGoNext.PubSub, "encounters", {:encounters_loaded, count})
-  end
-
-  defp maybe_broadcast_loaded(_count), do: :ok
-
-  defp plural(1), do: ""
-  defp plural(_count), do: "s"
-
-  defp state_timer_ref(%{timer_ref: timer_ref}), do: timer_ref
-  defp state_timer_ref(_state), do: nil
-
-  defp state_sync_ref(%{sync_ref: sync_ref}), do: sync_ref
-  defp state_sync_ref(_state), do: nil
-
-  defp state_sync_kind(%{sync_kind: sync_kind}), do: sync_kind
-  defp state_sync_kind(_state), do: nil
-
-  defp state_poll_interval_ms(%{poll_interval_ms: poll_interval_ms}), do: poll_interval_ms
-  defp state_poll_interval_ms(_state), do: @poll_interval_ms
+  defp now, do: System.monotonic_time(:millisecond)
 end
