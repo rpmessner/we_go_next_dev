@@ -74,7 +74,9 @@ boundaries. Existing encounters are not silently rebuilt.
 
 Use **Reimport** / **Confirm Reimport** on `/` for a fully imported log.
 
-This resets the selected `combat_log_files` row to byte zero and deletes its transitional `public.encounters` rows. The next import reparses the whole file and reruns silver/gold for newly inserted encounter boundaries.
+This deletes the log's transitional `public.encounters` rows and sets a replay cursor (`combat_log_files.reparse_from_byte`) to zero. The next import reparses the whole file and reruns silver/gold for every encounter boundary still in it. `last_parsed_byte` never moves backwards. An interrupted replay resumes on the next sync.
+
+Force reimport is a replay, not a replacement (operator decision, 2026-10-31). Warehouse rows and documents for pulls that are no longer in the source file stay. Gold encounter identity can be shared between copies of the same log (live and archive), so nothing is deleted on the assumption that a missing pull is gone. Logs rarely shrink; if one does, its old pulls remain visible.
 
 Use force reimport when:
 
