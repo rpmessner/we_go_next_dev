@@ -78,3 +78,13 @@ mix wgn.export_analysis --session ANALYSIS_UUID --output /tmp/analysis-in-app.js
 ```
 
 No paid API call was made during implementation.
+
+## First live run (2026-10-31)
+
+`mix wgn.ask --log Archive-WoWCombatLog-090626_103607.txt --boss Sszorak --pull 5` asked corpus Q1. The run was Analysis session `a5e057c4-55af-466f-9f20-84cb40792dbb`, question `d0519f30-80bd-4312-bb76-e25f053b665d`, and it ended `answered`.
+
+- **Answer:** the first death was Kahnu at 2:35 to Mutilate, matching revision 2 of the reference. Claims carried citations and inferences were labelled. One factual slip: it called Mädz a Survival Hunter; the reference says Beast Mastery.
+- **Calls:** 10 model requests and 9 Tool calls, including one `wipe_cause`.
+- **Tokens:** 22 uncached input, 153,814 cache-read, 37,039 cache-write and 3,561 output.
+- **Cost:** about $0.40 at the documented Opus 5.5 rates. The same question cost $4.20 in the Claude Code baseline and $1.37 in the post-promotion rerun.
+- **Export:** `mix wgn.export_analysis` matched every Tool call.
