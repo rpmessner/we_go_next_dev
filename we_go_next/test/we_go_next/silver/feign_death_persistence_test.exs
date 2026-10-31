@@ -81,7 +81,11 @@ defmodule WeGoNext.Silver.FeignDeathPersistenceTest do
 
     assert {:ok, document} = Documents.EncounterDocument.encode(dim.id)
     assert document.silver_death_derivation_version == 2
-    refute Documents.stale?(document)
+    assert WeGoNext.Freshness.current?(document, :silver_deaths)
+    # Silver alone does not prove that either gold output was rebuilt.
+    assert Documents.stale?(document)
+    assert WeGoNext.Freshness.classify(document).failures == :missing
+    assert WeGoNext.Freshness.classify(document).wipe_cause == :missing
     assert length(document.deaths) == 25
 
     assert {:ok, deaths_result} =

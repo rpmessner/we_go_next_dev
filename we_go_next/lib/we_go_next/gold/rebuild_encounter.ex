@@ -6,7 +6,8 @@ defmodule WeGoNext.Gold.RebuildEncounter do
   which gold dimensions or facts need to be rebuilt for an encounter.
   """
 
-  alias WeGoNext.Documents
+  import Ecto.Query
+  alias WeGoNext.{Documents, Freshness, Repo}
   alias WeGoNext.Gold.{DimEncounter, FactFailure, FactWipeCause}
 
   @type rebuild_result :: %{
@@ -30,14 +31,51 @@ defmodule WeGoNext.Gold.RebuildEncounter do
   end
 
   def rebuild(encounter_dim_id, opts) when is_integer(encounter_dim_id) and is_list(opts) do
-    with {:ok, wipe_cause} <- FactWipeCause.rebuild_for_encounter(encounter_dim_id),
-         {:ok, result} <- rebuild_other_outputs(encounter_dim_id, opts) do
-      {:ok, Map.put(result, :fact_wipe_cause, wipe_cause)}
-    end
+    # Keep the durable partial marker outside the output transaction. A failed
+    # write (or process death after writing the file) rolls back facts, not this
+    # marker. Readers validate document stamps against the live dimension.
+    # Session locks span both commits and serialize coordinated rebuilds.
+    Repo.checkout(fn ->
+      Repo.query!("SELECT pg_advisory_lock($1, $2)", [181_806, encounter_dim_id])
+
+      try do
+        case mark_partial(encounter_dim_id) do
+          {0, _} -> {:error, :encounter_not_found}
+          {1, _} -> rebuild_transaction(encounter_dim_id, opts)
+        end
+      after
+        Repo.query!("SELECT pg_advisory_unlock($1, $2)", [181_806, encounter_dim_id])
+      end
+    end)
+  end
+
+  defp mark_partial(id) do
+    from(e in DimEncounter, where: e.id == ^id)
+    |> Repo.update_all(set: [failure_derivation_version: Freshness.partial_stamp()])
+  end
+
+  defp rebuild_transaction(id, opts) do
+    Repo.transaction(fn ->
+      with {:ok, wipe_cause} <- FactWipeCause.rebuild_for_encounter(id),
+           {:ok, result} <- rebuild_other_outputs(id, opts) do
+        if not Keyword.get(opts, :generate_document, true), do: mark_partial(id)
+        Map.put(result, :fact_wipe_cause, wipe_cause)
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
   end
 
   defp rebuild_other_outputs(encounter_dim_id, opts) do
-    case FactFailure.rebuild_for_encounter(encounter_dim_id, rebuild_opts(opts)) do
+    result =
+      if rebuild_opts(opts) == [ruleset: :active] and
+           not Repo.exists?(from(r in WeGoNext.Rules.Ruleset, where: r.status == "active")) do
+        {:error, :active_ruleset_not_found}
+      else
+        FactFailure.rebuild_for_encounter(encounter_dim_id, rebuild_opts(opts))
+      end
+
+    case result do
       {:ok, result} ->
         with {:ok, document_result} <- maybe_generate_document(encounter_dim_id, opts) do
           {:ok, %{fact_failure: result, document: document_result}}

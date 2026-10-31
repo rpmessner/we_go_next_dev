@@ -34,6 +34,28 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
     {:ok, documents_root: documents_root}
   end
 
+  test "a document with obsolete wipe-cause logic is stale" do
+    document = %{
+      schema_version: EncounterDocument.schema_version(),
+      derivation_version: Derivation.current_version(),
+      failure_derivation_version: Derivation.current_version(),
+      silver_death_derivation_version: Documents.current_death_derivation_version(),
+      wipe_cause_derivation_version: 0
+    }
+
+    assert Documents.stale?(document)
+  end
+
+  test "a standalone document does not inherit stamps from an unrelated local surrogate id" do
+    unrelated = insert_encounter!("different-boss")
+
+    document =
+      WeGoNext.Freshness.current_versions()
+      |> Map.merge(%{source_encounter_key: "standalone-document", encounter: %{id: unrelated.id}})
+
+    refute Documents.stale?(document)
+  end
+
   test "encodes a versioned document from detail and observed mechanics read models" do
     encounter = insert_encounter!("fixture-boss")
     ruleset = insert_ruleset!("Active Ruleset", "active")

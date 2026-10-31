@@ -30,6 +30,7 @@ defmodule WeGoNext.Gold.DimEncounter do
     field(:end_byte, :integer)
     field(:silver_death_derivation_version, :integer)
     field(:wipe_cause_derivation_version, :integer)
+    field(:failure_derivation_version, :integer)
 
     timestamps(type: :utc_datetime_usec)
   end

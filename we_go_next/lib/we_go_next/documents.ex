@@ -8,7 +8,7 @@ defmodule WeGoNext.Documents do
   alias WeGoNext.Documents.{EncounterDocument, Store}
   alias WeGoNext.Gold.DimEncounter
   alias WeGoNext.Gold.FactFailure.Derivation
-  alias WeGoNext.Repo
+  alias WeGoNext.{Freshness, Repo}
   alias WeGoNext.Silver.DeathDerivation
 
   @type generate_result :: %{
@@ -110,10 +110,32 @@ defmodule WeGoNext.Documents do
   def current_death_derivation_version, do: DeathDerivation.current_version()
 
   def stale?(document) do
-    document.derivation_version != current_derivation_version() or
-      Map.get(document, :silver_death_derivation_version) !=
-        current_death_derivation_version()
+    components = [:document, :silver_deaths, :failures, :wipe_cause]
+
+    not Freshness.current?(document, components) or live_stamps_stale?(document)
   end
+
+  # A filesystem write cannot join a Postgres transaction. The live stamp keeps
+  # even a newly written file visibly partial until its rebuild commits.
+  defp live_stamps_stale?(%{source_encounter_key: key} = document) when is_binary(key) do
+    case Repo.get_by(DimEncounter, source_encounter_key: key) do
+      nil ->
+        false
+
+      encounter ->
+        not Freshness.current?(encounter, [:silver_deaths, :failures, :wipe_cause]) or
+          Enum.any?(
+            [
+              :silver_death_derivation_version,
+              :failure_derivation_version,
+              :wipe_cause_derivation_version
+            ],
+            &(Map.get(document, &1) != Map.get(encounter, &1))
+          )
+    end
+  end
+
+  defp live_stamps_stale?(_document), do: false
 
   @doc """
   Builds the public index entry for an encounter document.

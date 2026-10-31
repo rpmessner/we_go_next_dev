@@ -807,6 +807,8 @@ defmodule WeGoNextWeb.EncounterLiveShowTest do
         generated_at: "2026-07-08T20:10:00Z",
         derivation_version: Documents.current_derivation_version(),
         silver_death_derivation_version: DeathDerivation.current_version(),
+        failure_derivation_version: Documents.current_derivation_version(),
+        wipe_cause_derivation_version: WeGoNext.Gold.FactWipeCause.current_version(),
         source_encounter_key: source_encounter_key,
         encounter: %{
           id: 9_001,

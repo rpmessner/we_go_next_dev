@@ -44,8 +44,15 @@ defmodule WeGoNext.Gold.FactFailure.Rebuilder do
       deleted = delete_existing_facts!(dim_encounter.id, ruleset_id)
 
       case insert_builder_rows(dim_encounter.id, ruleset_id, DateTime.utc_now()) do
-        {:ok, inserted} -> %{deleted: deleted, inserted: inserted}
-        {:error, reason} -> Repo.rollback(reason)
+        {:ok, inserted} ->
+          dim_encounter
+          |> Ecto.Changeset.change(failure_derivation_version: Derivation.current_version())
+          |> Repo.update!()
+
+          %{deleted: deleted, inserted: inserted}
+
+        {:error, reason} ->
+          Repo.rollback(reason)
       end
     end)
   end

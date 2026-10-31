@@ -1,0 +1,19 @@
+---
+title: "A rebuild is current only when facts and document agree"
+---
+stateDiagram-v2
+  s0: idle: facts 0, document 0, current
+  s1: building: facts 0, document 0, partial
+  s2: built: facts 0, document 0, partial
+  s3: failed: facts 0, document 0, partial
+  s4: written: facts 0, document 1, partial
+  s5: failed: facts 0, document 1, partial
+  s6: done: facts 1, document 1, current
+  [*] --> s0
+  s0 --> s1: start rebuild
+  s1 --> s2: build facts
+  s1 --> s3: write fails or process stops
+  s2 --> s3: write fails or process stops
+  s2 --> s4: write document
+  s4 --> s5: write fails or process stops
+  s4 --> s6: commit consistent outputs

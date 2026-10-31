@@ -315,14 +315,10 @@ defmodule WeGoNext.Gold.FailureSummary do
   end
 
   defp stale_derivation_fact_count(filters) do
-    FactFailure
-    |> join(:inner, [failure], encounter in assoc(failure, :encounter))
-    |> where(
-      [failure, encounter],
-      fragment("? IS DISTINCT FROM ?", failure.derivation_version, ^Derivation.current_version())
-    )
-    |> apply_fact_filters(filters)
-    |> Repo.aggregate(:count)
+    DimEncounter
+    |> apply_encounter_filters(filters)
+    |> Repo.all()
+    |> Enum.count(&(not WeGoNext.Freshness.current?(&1, :failures)))
   end
 
   defp latest_rebuilt_at(filters) do
@@ -633,7 +629,7 @@ defmodule WeGoNext.Gold.FailureSummary do
         severity: :warning,
         title: "Failure logic changed",
         body:
-          "#{stale_count} tracked failure row#{plural(stale_count)} were built before the current failure logic. Rebuild failures."
+          "#{stale_count} pull#{plural(stale_count)} lack a completed rebuild with the current failure logic. Rebuild failures."
       }
       | diagnostics
     ]
@@ -702,6 +698,13 @@ defmodule WeGoNext.Gold.FailureSummary do
         )
         SELECT
           rule.*,
+          ARRAY(
+            SELECT encounter.failure_derivation_version
+            FROM gold.dim_encounter encounter
+            WHERE #{rule_encounter_match_sql("rule", "encounter")}
+              AND ($1::timestamptz IS NULL OR encounter.start_time >= $1::timestamptz)
+              AND ($2::timestamptz IS NULL OR encounter.start_time < $2::timestamptz)
+          ) AS failure_stamps,
           (
             SELECT count(*)
             FROM gold.dim_encounter encounter
@@ -804,8 +807,13 @@ defmodule WeGoNext.Gold.FailureSummary do
   defp zero_fact_reason(%{encounter_damage_rows_count: 0}), do: :no_silver_damage_rows
   defp zero_fact_reason(%{silver_damage_rows_count: 0}), do: :spell_id_mismatch
 
-  defp zero_fact_reason(%{silver_hit_count: hit_count, threshold: threshold}) do
-    if to_integer(hit_count) <= max_hits(threshold),
+  defp zero_fact_reason(%{silver_hit_count: hit_count, threshold: threshold} = row) do
+    current? =
+      Enum.all?(row.failure_stamps, fn version ->
+        WeGoNext.Freshness.current?(%{failure_derivation_version: version}, :failures)
+      end)
+
+    if current? and to_integer(hit_count) <= max_hits(threshold),
       do: :below_threshold,
       else: :gold_rebuild_needed
   end

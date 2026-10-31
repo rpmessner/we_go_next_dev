@@ -32,6 +32,17 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
     {:ok, encounter: encounter, documents_root: documents_root}
   end
 
+  test "freshness detects an unstamped pull even with zero failure rows", %{encounter: encounter} do
+    freshness =
+      WeGoNext.Analysis.ReadModel.freshness(
+        [%{pull_id: encounter.id}],
+        %{file_size: 0, last_parsed_byte: 0}
+      )
+
+    assert freshness.stale_failure_pull_ids == [encounter.id]
+    assert WeGoNext.Gold.FailureSummary.readiness().stale_failure_logic_count == 1
+  end
+
   test "rebuild/2 runs the current fact_failure builder with the active ruleset", %{
     encounter: encounter,
     documents_root: documents_root
@@ -59,6 +70,61 @@ defmodule WeGoNext.Gold.RebuildEncounterTest do
            )
 
     assert File.exists?(Path.join(documents_root, "index.json"))
+  end
+
+  test "an index write failure leaves a detectable partial rebuild, not current facts", %{
+    encounter: encounter,
+    documents_root: root
+  } do
+    ruleset = insert_ruleset!("Active Ruleset", "active")
+    insert_criterion!(ruleset, encounter, 909)
+    insert_player_info!(encounter, "Player-One", "One")
+    insert_damage_taken!(encounter, "Player-One", 909, 100, 1)
+
+    encounter
+    |> Ecto.Changeset.change(
+      silver_death_derivation_version: WeGoNext.Silver.DeathDerivation.current_version()
+    )
+    |> Repo.update!()
+
+    File.mkdir_p!(Path.join(root, "index.json"))
+
+    assert {:error, :eisdir} = RebuildEncounter.rebuild(encounter)
+    dimension = Repo.get!(DimEncounter, encounter.id)
+    assert dimension.failure_derivation_version == -1
+    assert dimension.wipe_cause_derivation_version == nil
+    assert {:ok, document} = WeGoNext.Documents.fetch_encounter(encounter.source_encounter_key)
+
+    assert WeGoNext.Freshness.current?(document, [
+             :document,
+             :silver_deaths,
+             :failures,
+             :wipe_cause
+           ])
+
+    assert WeGoNext.Documents.stale?(document)
+    assert Repo.aggregate(FactFailure, :count) == 0
+
+    freshness =
+      WeGoNext.Analysis.ReadModel.freshness(
+        [%{pull_id: encounter.id}],
+        %{file_size: 0, last_parsed_byte: 0}
+      )
+
+    assert freshness.partial_rebuild_pull_ids == [encounter.id]
+
+    File.rmdir!(Path.join(root, "index.json"))
+    assert {:ok, %{fact_failure: %{inserted: 1}}} = RebuildEncounter.rebuild(encounter)
+    assert {:ok, repaired} = WeGoNext.Documents.fetch_encounter(encounter.source_encounter_key)
+    refute WeGoNext.Documents.stale?(repaired)
+  end
+
+  test "a successful zero-fact rebuild stamps the pull", %{encounter: encounter} do
+    insert_ruleset!("Active Ruleset", "active")
+    assert {:ok, %{fact_failure: %{inserted: 0}}} = RebuildEncounter.rebuild(encounter)
+
+    assert Repo.get!(DimEncounter, encounter.id).failure_derivation_version ==
+             WeGoNext.Gold.FactFailure.Derivation.current_version()
   end
 
   test "rebuild/2 passes through an explicit ruleset id", %{encounter: encounter} do
