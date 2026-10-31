@@ -53,11 +53,6 @@ ENV HOME=/home/app \
   MIX_ENV=prod
 
 COPY --from=builder --chown=app:app /app/_build/prod/rel/we_go_next ./
-COPY --chown=app:app docker-entrypoint.sh /app/bin/docker-entrypoint
-
-RUN chmod +x /app/bin/docker-entrypoint
-
 USER app
 
-ENTRYPOINT ["/app/bin/docker-entrypoint"]
 CMD ["/app/bin/we_go_next", "start"]

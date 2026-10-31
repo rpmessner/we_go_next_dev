@@ -22,8 +22,8 @@ all converging on editable `rules.mechanic_criterion` rows → gold rebuild → 
 | 3 | [User Mechanic Classification UI](03-user-classification-ui.md) | planned | `we-i3` (we-20…22) |
 | 4 | [Fact Semantics Expansion](04-fact-semantics-expansion.md) | planned | `we-i4` (we-23…24) |
 | 5 | [Encounter Document Read Models](05-encounter-documents.md) | in progress — implementation complete on branch; review/merge pending | `we-i5` (we-25, we-27…30, we-35) |
-| 6 | [Public Analysis Mirror](06-public-analysis-mirror.md) | in progress — implementation complete on branch; R2/deployed smoke pending | `we-i6` (we-31…34, we-36; we-11…12 carried forward) |
-| — | [Public Gold Mirror](../PUBLIC_MIRROR_DESIGN.md) | **superseded** by 5–6 (built through we-12) | `we-i0` (we-5…10) |
+| 6 | [Public Analysis Mirror](06-public-analysis-mirror.md) | retired — removed in we-g18.2 because of hosting cost | `we-i6` (we-31…34, we-36; we-11…12 carried forward) |
+| — | [Public Gold Mirror](../PUBLIC_MIRROR_DESIGN.md) | retired (built through we-12) | `we-i0` (we-5…10) |
 
 ## Dependency Shape
 
@@ -31,8 +31,7 @@ all converging on editable `rules.mechanic_criterion` rows → gold rebuild → 
   define the mechanic/rule/fact pipeline.
 - Initiative 5 defines the encounter documents the frontend renders from —
   the generator serializes existing read models at build time.
-- Initiative 6 uploads opted-in documents to a private R2 bucket for the
-  hosted app to read.
+- Initiative 6 is retired; local document work has no publishing dependency.
 
 Encounter document work can start before every mechanic type is complete, but
 mechanic-specific sections must depend on the relevant fact semantics rather

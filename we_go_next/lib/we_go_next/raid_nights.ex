@@ -11,7 +11,6 @@ defmodule WeGoNext.RaidNights do
 
   alias WeGoNext.{CombatLogFile, Documents, Repo}
   alias WeGoNext.Gold.DimEncounter
-  alias WeGoNext.Mirror.Outbox
 
   def rename(%CombatLogFile{} = log, name) when is_binary(name) do
     with {:ok, updated_log} <-
@@ -54,8 +53,7 @@ defmodule WeGoNext.RaidNights do
     |> encounter_ids_for_log()
     |> Enum.reduce_while(:ok, fn encounter_id, :ok ->
       case Documents.generate_for_encounter(encounter_id) do
-        {:ok, result} ->
-          if log.publish_enabled, do: Outbox.enqueue(result.source_encounter_key)
+        {:ok, _result} ->
           {:cont, :ok}
 
         {:error, reason} ->

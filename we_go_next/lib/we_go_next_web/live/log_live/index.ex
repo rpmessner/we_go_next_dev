@@ -2,7 +2,7 @@ defmodule WeGoNextWeb.LogLive.Index do
   @moduledoc """
   LiveView for imported combat log management.
 
-  Handles switching between imported logs and per-log settings: publish,
+  Handles switching between imported logs and per-log settings:
   reimport, and Warcraft Logs report linking. Importing new logs happens on
   the home page (`WeGoNextWeb.EncounterLive.Index`).
   """
@@ -18,8 +18,6 @@ defmodule WeGoNextWeb.LogLive.Index do
     Repo,
     WarcraftLogs
   }
-
-  alias WeGoNext.Mirror.Outbox
 
   alias WeGoNextWeb.Components.ImportedLogsSwitcher
   import Ecto.Query
@@ -80,26 +78,6 @@ defmodule WeGoNextWeb.LogLive.Index do
         {:noreply,
          socket
          |> assign(:error, "Already importing #{Path.basename(existing_path)}")}
-    end
-  end
-
-  @impl true
-  def handle_event("toggle_publish_enabled", %{"file_id" => file_id}, socket) do
-    with {:ok, file_id} <- parse_id(file_id),
-         %CombatLogFile{} = combat_log_file <-
-           get_user_combat_log(socket.assigns.user.id, file_id),
-         {:ok, updated_combat_log_file} <-
-           combat_log_file
-           |> CombatLogFile.changeset(%{publish_enabled: !combat_log_file.publish_enabled})
-           |> Repo.update() do
-      {:noreply,
-       socket
-       |> maybe_backfill_publish_outbox(updated_combat_log_file)
-       |> assign(:imported_logs, list_imported_logs(socket.assigns.user.id))
-       |> maybe_refresh_current_combat_log(file_id)}
-    else
-      _reason ->
-        {:noreply, put_flash(socket, :error, "Failed to update publish setting")}
     end
   end
 
@@ -300,7 +278,7 @@ defmodule WeGoNextWeb.LogLive.Index do
           <.back navigate={~p"/"}>Back to encounters</.back>
           <h1 class="mt-3 text-2xl font-bold text-wow-gold">Imported Logs</h1>
           <p class="mt-1 text-sm text-zinc-400">
-            Manage imported combat logs: switch the current log, reimport, publish, and Warcraft Logs links.
+            Manage imported combat logs: switch the current log, reimport, and manage Warcraft Logs links.
           </p>
         </div>
       </div>
@@ -375,7 +353,6 @@ defmodule WeGoNextWeb.LogLive.Index do
       warcraft_logs_report_code: clf.warcraft_logs_report_code,
       warcraft_logs_fight_id: clf.warcraft_logs_fight_id,
       warcraft_logs_linked_at: clf.warcraft_logs_linked_at,
-      publish_enabled: clf.publish_enabled,
       raid_night_name: clf.raid_night_name
     })
     |> order_by([clf, e], desc_nulls_last: min(e.start_time), desc: clf.last_parsed_at)
@@ -385,24 +362,6 @@ defmodule WeGoNextWeb.LogLive.Index do
   defp get_user_combat_log(user_id, file_id) do
     Repo.get_by(CombatLogFile, id: file_id, user_id: user_id)
   end
-
-  # Rebuilds only enqueue uploads for logs already marked publishable, so
-  # enabling publish must backfill the log's existing encounters.
-  defp maybe_backfill_publish_outbox(socket, %CombatLogFile{publish_enabled: true} = clf) do
-    {:ok, queued} = Outbox.enqueue_missing_for_combat_log_file(clf)
-
-    if queued > 0 do
-      put_flash(
-        socket,
-        :info,
-        "Publishing enabled — queued #{queued} existing encounter#{if queued == 1, do: "", else: "s"} for upload"
-      )
-    else
-      socket
-    end
-  end
-
-  defp maybe_backfill_publish_outbox(socket, %CombatLogFile{}), do: socket
 
   defp toggle_watching(%CombatLogFile{watch_enabled: true} = combat_log_file) do
     with {:ok, _combat_log_file} <-

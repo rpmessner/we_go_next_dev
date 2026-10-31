@@ -141,8 +141,7 @@ defmodule WeGoNext.Gold.FactWipeCauseTest do
 
     assert {:ok, %{fact_wipe_cause: %{inserted: 3}}} =
              RebuildEncounter.rebuild(dim.id,
-               generate_document: false,
-               enqueue_mirror_upload: false
+               generate_document: false
              )
 
     Repo.update!(Ecto.Changeset.change(dim, success: true))

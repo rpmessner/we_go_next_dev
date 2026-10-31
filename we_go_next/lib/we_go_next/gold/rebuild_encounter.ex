@@ -6,12 +6,8 @@ defmodule WeGoNext.Gold.RebuildEncounter do
   which gold dimensions or facts need to be rebuilt for an encounter.
   """
 
-  import Ecto.Query
-
   alias WeGoNext.Documents
   alias WeGoNext.Gold.{DimEncounter, FactFailure, FactWipeCause}
-  alias WeGoNext.Mirror.Outbox
-  alias WeGoNext.{CombatLogFile, Repo}
 
   @type rebuild_result :: %{
           fact_failure: map(),
@@ -44,7 +40,6 @@ defmodule WeGoNext.Gold.RebuildEncounter do
     case FactFailure.rebuild_for_encounter(encounter_dim_id, rebuild_opts(opts)) do
       {:ok, result} ->
         with {:ok, document_result} <- maybe_generate_document(encounter_dim_id, opts) do
-          maybe_enqueue_mirror_upload(encounter_dim_id, opts)
           {:ok, %{fact_failure: result, document: document_result}}
         end
 
@@ -68,40 +63,6 @@ defmodule WeGoNext.Gold.RebuildEncounter do
     else
       {:ok, %{skipped: :disabled}}
     end
-  end
-
-  defp maybe_enqueue_mirror_upload(encounter_dim_id, opts) do
-    if Keyword.get(opts, :enqueue_mirror_upload, true) and publish_enabled?(encounter_dim_id) do
-      case Outbox.enqueue_for_encounter(encounter_dim_id) do
-        {:ok, _upload} -> :ok
-        {:error, _reason} -> :ok
-      end
-    end
-  end
-
-  defp publish_enabled?(encounter_dim_id) do
-    case Repo.get(DimEncounter, encounter_dim_id) do
-      %DimEncounter{} = encounter ->
-        encounter
-        |> source_file_query()
-        |> Repo.exists?()
-
-      nil ->
-        false
-    end
-  end
-
-  defp source_file_query(%DimEncounter{source_head_sha256: head_sha256})
-       when is_binary(head_sha256) do
-    from(file in CombatLogFile,
-      where: file.head_sha256 == ^head_sha256 and file.publish_enabled == true
-    )
-  end
-
-  defp source_file_query(%DimEncounter{source_file_path: source_file_path}) do
-    from(file in CombatLogFile,
-      where: file.file_path == ^source_file_path and file.publish_enabled == true
-    )
   end
 
   defp rebuild_opts(opts) do

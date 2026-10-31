@@ -3,12 +3,9 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
 
   alias WeGoNext.{Accounts, CombatLogFile, FileWatcher, WarcraftLogs}
   alias WeGoNext.Encounters.Encounter
-  alias WeGoNext.Gold.DimEncounter
-  alias WeGoNext.Mirror.MirrorUpload
   alias WeGoNext.Repo
 
   setup do
-    Repo.delete_all(MirrorUpload)
     Repo.delete_all(Encounter)
     Repo.delete_all(CombatLogFile)
     FileWatcher.stop_watching()
@@ -44,55 +41,15 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
     assert pos_two < pos_one
   end
 
-  test "toggles publish setting on imported log rows", %{conn: conn} do
+  test "imported log rows have no publishing control", %{conn: conn} do
     user = Accounts.get_or_create_default_user()
-    log = insert_combat_log!(user, "/tmp/wgn-publish-toggle.log")
-    insert_encounter!(log, %{start_time: ~U[2026-04-12 20:00:00Z]})
+    insert_combat_log!(user, "/tmp/wgn-local-only.log")
 
-    %DimEncounter{}
-    |> DimEncounter.changeset(%{
-      source_encounter_key: "publish-toggle-backfill",
-      source_head_sha256: log.head_sha256,
-      wow_encounter_id: "toggle-boss",
-      name: "Toggle Boss"
-    })
-    |> Repo.insert!()
+    html = conn |> get(~p"/logs") |> html_response(200)
 
-    html =
-      conn
-      |> get(~p"/logs")
-      |> html_response(200)
-
-    assert html =~ "Publish"
-    assert html =~ ~s(phx-click="toggle_publish_enabled")
-    refute Repo.get!(CombatLogFile, log.id).publish_enabled
-
-    socket = %Phoenix.LiveView.Socket{
-      assigns: %{__changed__: %{}, flash: %{}, user: user, combat_log_file: nil}
-    }
-
-    assert {:noreply, socket} =
-             WeGoNextWeb.LogLive.Index.handle_event(
-               "toggle_publish_enabled",
-               %{"file_id" => to_string(log.id)},
-               socket
-             )
-
-    assert Repo.get!(CombatLogFile, log.id).publish_enabled
-
-    # Enabling publish backfills the outbox with the log's existing encounters.
-    assert %MirrorUpload{state: "pending"} =
-             Repo.get_by!(MirrorUpload, source_encounter_key: "publish-toggle-backfill")
-
-    assert {:noreply, _socket} =
-             WeGoNextWeb.LogLive.Index.handle_event(
-               "toggle_publish_enabled",
-               %{"file_id" => to_string(log.id)},
-               socket
-             )
-
-    refute Repo.get!(CombatLogFile, log.id).publish_enabled
-    assert Repo.aggregate(MirrorUpload, :count) == 1
+    assert html =~ "Reimport"
+    refute html =~ "Publish"
+    refute html =~ ~s(phx-click="toggle_publish_enabled")
   end
 
   test "names a raid night locally and shows an appropriate default", %{conn: conn} do

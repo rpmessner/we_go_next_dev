@@ -1,7 +1,7 @@
 defmodule WeGoNext.Integration.Pages.LogsPage do
   @moduledoc """
   Page object for the imported-logs management page (`/logs`): reimport,
-  publish toggles, current-log switching, and Warcraft Logs linking.
+  current-log switching and Warcraft Logs linking.
 
   Importing new logs happens on the home page — see
   `WeGoNext.Integration.Pages.HomePage`.

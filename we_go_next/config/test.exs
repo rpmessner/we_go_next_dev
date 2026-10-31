@@ -10,7 +10,6 @@ config :we_go_next, sql_sandbox: true
 config :we_go_next, file_watcher_poll_interval_ms: false
 
 # Tests drain document uploads explicitly.
-config :we_go_next, document_upload_worker_interval_ms: false
 
 # Keep generated encounter documents out of the dev store. ConnCase/FeatureCase
 # still override this per test; this is the floor for plain ExUnit DB tests.

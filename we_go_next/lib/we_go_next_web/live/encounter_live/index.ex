@@ -3,7 +3,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   LiveView for the encounter list / home page.
 
   Handles log file selection/import and renders the encounter list from
-  generated encounter documents. Per-log management (publish, reimport,
+  generated encounter documents. Per-log management (reimport,
   Warcraft Logs links) lives at `/logs` (`WeGoNextWeb.LogLive.Index`).
   """
   use WeGoNextWeb, :live_view

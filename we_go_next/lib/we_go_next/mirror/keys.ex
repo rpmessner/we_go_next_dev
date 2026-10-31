@@ -1,6 +1,8 @@
 defmodule WeGoNext.Mirror.Keys do
   @moduledoc """
-  Deterministic opaque keys for parser/public gold mirroring.
+  Deterministic opaque keys for gold dimensions and local encounter documents.
+
+  The namespace is retained for compatibility; no publishing service is required.
   """
 
   alias WeGoNext.Gold.FactFailure.Semantics
@@ -8,10 +10,10 @@ defmodule WeGoNext.Mirror.Keys do
   @separator <<31>>
 
   @doc """
-  Computes the public source encounter key from byte-range source identity.
+  Computes the source encounter key from byte-range source identity.
 
-  Returns `nil` if any required identity input is missing; publishing such an
-  encounter is an error handled by the snapshot/upload boundary.
+  Returns `nil` if any required identity input is missing; document generation
+  rejects encounters without a stable key.
   """
   @spec source_encounter_key(map()) :: String.t() | nil
   def source_encounter_key(attrs) when is_map(attrs) do
@@ -31,7 +33,7 @@ defmodule WeGoNext.Mirror.Keys do
   end
 
   @doc """
-  Computes the stable public key for a mechanic criterion snapshot.
+  Computes the stable key for a mechanic criterion snapshot.
   """
   @spec criterion_key(map(), keyword()) :: String.t()
   def criterion_key(attrs, opts \\ []) when is_map(attrs) do

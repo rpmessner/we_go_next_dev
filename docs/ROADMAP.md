@@ -21,12 +21,15 @@ Observed spells in current logs
 
 Active, in suggested order:
 
-7. [Defensives & Consumables (Raid-Lead Questions)](initiatives/07-defensives-and-consumables.md) — **current top priority** (first raid-lead-requested question set for the deployed mirror): per-player defensive/healthstone/potion usage, talent availability, and death-window "died through / available-but-unused" analysis.
+7. [Defensives & Consumables (Raid-Lead Questions)](initiatives/07-defensives-and-consumables.md) — **current top priority** (first raid-lead-requested question set for local encounter review): per-player defensive/healthstone/potion usage, talent availability, and death-window "died through / available-but-unused" analysis.
 2. [Mechanic Classification System](initiatives/02-mechanic-classification-system.md) — standardized buckets + bespoke detectors + seed data, with the avoidable real-data loop retained only as a smoke test.
 3. [User Mechanic Classification UI](initiatives/03-user-classification-ui.md) — operator authoring/overrides + `unavoidable` suppression.
 4. [Fact Semantics Expansion](initiatives/04-fact-semantics-expansion.md) — real facts for non-avoidable buckets.
 5. [Encounter Document Read Models](initiatives/05-encounter-documents.md) — per-encounter JSON documents as the medallion's read-model product; frontend renders from documents.
-6. [Public Analysis Mirror](initiatives/06-public-analysis-mirror.md) — opted-in documents uploaded to a private R2 bucket; same frontend hosted publicly behind the `/r/:slug` gate.
+
+Retired: [Public Analysis Mirror](initiatives/06-public-analysis-mirror.md). The
+operator shut it down because of hosting cost; we-g18.2 removes its infrastructure.
+Publishing may return as a static HTML/JS artifact on a free or cheap host.
 
 (Numbers match the initiative file and `we-iN` epic-bead numbers; initiative 1
 was absorbed, see below.)
@@ -37,7 +40,7 @@ classification rewrite: impact-rich observations, actionability/noise labels,
 evidence-completeness diagnostics, and one avoidable observed -> rule -> rebuild
 -> fact -> UI smoke test.
 
-Superseded parallel track: [Public Gold Mirror](PUBLIC_MIRROR_DESIGN.md) (DB-backed mirror, built through WE-12) — replaced by initiatives 5–6 above, see [`ENCOUNTER_DOCUMENTS_DESIGN.md`](ENCOUNTER_DOCUMENTS_DESIGN.md).
+Historical: [Public Gold Mirror](PUBLIC_MIRROR_DESIGN.md). Local document generation continues under initiative 5; hosted publishing is retired.
 
 Completed: [Medallion Foundation](historical/initiative-medallion-foundation.md) (archived).
 
@@ -62,20 +65,16 @@ affected, hit/application counts, total damage, top damaged players, encounter
 scope, and whether the row is actionable, unavoidable/background, irrelevant, or
 unclassified. The encounter document contract must encode that context.
 
-Before the public mirror can be considered product-complete, frontend-visible
-encounter analysis needs the document contract from
+Frontend-visible encounter analysis uses the document contract from
 [`ENCOUNTER_DOCUMENTS_DESIGN.md`](ENCOUNTER_DOCUMENTS_DESIGN.md). The target is:
 
 ```text
 silver projections + existing gold read models
   -> versioned per-encounter JSON documents emitted by the medallion build
   -> local frontend reads documents from disk
-  -> opted-in documents uploaded to a private R2 bucket
-  -> Gigalixir public frontend reads the same documents from R2
 ```
 
-Encounter documents are their own initiative, not buried inside public mirror
-work. The generator serializes existing read models at build time — no new gold
+Encounter documents are their own initiative, independent of publishing. The generator serializes existing read models at build time — no new gold
 tables are required for the base sections — while mechanic-specific sections
 must depend on the relevant mechanic/fact initiatives:
 
@@ -86,10 +85,9 @@ must depend on the relevant mechanic/fact initiatives:
 | Standardized mechanic labels and bespoke detector-backed sections | Initiative 2 |
 | User-authored classifications and suppressions | Initiative 3 |
 | Interrupt and other non-avoidable failure sections | Initiative 4 |
-| Hosted public rendering from R2 documents | Initiative 6 |
 
-Do not expand the public UI around failure facts alone. Build the encounter
-document contract section by section, then upload those documents.
+Build the local encounter document contract section by section; failure facts
+alone do not describe a useful encounter review.
 
 Do not promote raw observed spell lists as product UI. They are scaffolding until
 they include player-impact summaries and classification controls.

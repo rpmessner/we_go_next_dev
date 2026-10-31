@@ -16,7 +16,7 @@ defmodule WeGoNext.Application do
   end
 
   @doc false
-  def children(mode \\ WeGoNext.mode(), opts \\ []) do
+  def children(opts \\ []) do
     migrate_on_boot? =
       Keyword.get(
         opts,
@@ -36,27 +36,23 @@ defmodule WeGoNext.Application do
         # Start the PubSub system
         {Phoenix.PubSub, name: WeGoNext.PubSub}
       ] ++
-      parser_children(mode) ++
+      import_children() ++
       [
         # Start the Endpoint (http/https)
         WeGoNextWeb.Endpoint
       ]
   end
 
-  defp parser_children(:parser) do
+  defp import_children do
     [
       # Task supervisor for background imports
       {Task.Supervisor, name: WeGoNext.ImportTaskSupervisor},
       # Import worker (manages imports per user, survives page refresh)
       WeGoNext.ImportWorker,
-      # Public document upload worker (drains mirror_uploads in parser mode)
-      WeGoNext.Documents.UploadWorker,
       # Start the file watcher (tracks current combat log file)
       WeGoNext.FileWatcher
     ]
   end
-
-  defp parser_children(:public), do: []
 
   defp release_migrator_children(true), do: [WeGoNext.ReleaseMigrator]
   defp release_migrator_children(false), do: []

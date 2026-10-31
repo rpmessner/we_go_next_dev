@@ -1,23 +1,15 @@
-# Initiative 6 — Public Analysis Mirror (Documents on R2)
+# Initiative 6 — Public analysis mirror (retired)
 
-Beads epic: `we-i6` (we-31…we-34, we-36). Design: [`../ENCOUNTER_DOCUMENTS_DESIGN.md`](../ENCOUNTER_DOCUMENTS_DESIGN.md). Depends on initiative 5.
+Beads epic: `we-i6` (historical scope: we-31…we-34, we-36).
 
-Status: implemented on `rpmessner/public-gold`; local quality gate green. Real R2 upload and deployed-page verification remain the closeout gate for WE-34 and the carried-forward WE-11/WE-12 deployment work.
+The operator shut down the mirror app because of hosting cost. we-g18.2 removes
+the upload outbox/worker, per-log publishing flags, upload UI, report slugs,
+public viewer, remote-document credentials/store, public run mode, and hosted
+deployment pipeline. This initiative is not an active delivery target.
 
-## Goal
+Local encounter documents and stable gold keys remain. Publishing may return as
+a static HTML/JS artifact on a free or cheap host; that needs a new spec rather
+than restoring the retired backend.
 
-Host the same frontend publicly (Gigalixir, `MODE=public`), fed by encounter documents in a **private Cloudflare R2 bucket** instead of a mirrored Postgres. Upload is opt-in per log file (checkbox) plus a per-encounter Upload/Re-upload button. The DB-mirror ingest path is pruned; the public DB shrinks to `public_reports` slugs.
-
-## Scope
-
-- **WE-31** — upload documents to R2 through the `mirror_uploads` outbox plus a real drain worker (`Documents.UploadWorker`, parser-mode child). Upload = put encounter doc + refresh the public `index.json`.
-- **WE-33** — publish controls: `combat_log_files.publish_enabled` checkbox (auto-enqueue on rebuild), encounter-detail Upload/Re-upload button, upload-state diagnostics without SQL.
-- **WE-32** — public frontend reads documents from R2 under `/r/:slug` (slug gate unchanged); slug provisioning release task; Gigalixir env swap (drop `INGEST_TOKEN`, add R2 read credentials).
-- **WE-36** — prune the ingest path: `Mirror.Ingest`, `IngestController` + `/api` route, `IngestContentLength`, `Mirror.Upload`/`Mirror.Snapshot`, `Gold.PublicReadModels`, `PublicLive.*` thin views, mirror upload user settings, public-DB gold ingestion; gate `/failures` parser-only.
-- **WE-34** — end-to-end smoke: rebuild fixture locally → doc lands in R2 → public page renders expected sections (factful + zero-failure encounters).
-
-## Non-goals (v1)
-
-- No unpublish/retraction — toggling off only stops future uploads; stale docs remain in the bucket.
-- No per-user accounts; the shared-secret `/r/:slug` link stays the privacy boundary.
-- No document deletion, compression, or caching until measured need.
+See [`../ENCOUNTER_DOCUMENTS_DESIGN.md`](../ENCOUNTER_DOCUMENTS_DESIGN.md) for the
+current local read-model boundary.

@@ -199,26 +199,6 @@ defmodule WeGoNext.CombatLogParserFilteredTest do
              Enum.map(original, &Map.delete(&1, :byte_offset))
   end
 
-  test "public build and mode expose the same unavailable filtered parser" do
-    source = Path.expand("../../lib/we_go_next/combat_log_parser.ex", __DIR__)
-
-    script = """
-    Code.compile_file(#{inspect(source)})
-    {:error, :parser_unavailable} = WeGoNext.CombatLogParser.parse_events_filtered("ignored", 0, 1, "ignored", %{})
-    IO.puts("public filtered parser PASS")
-    """
-
-    for flag <- ["WE_GO_NEXT_BUILD", "WE_GO_NEXT_MODE"] do
-      {output, status} =
-        System.cmd(System.find_executable("elixir"), ["--erl", "+S 2", "-e", script],
-          env: [{flag, "public"}]
-        )
-
-      assert status == 0
-      assert output =~ "public filtered parser PASS"
-    end
-  end
-
   test "invalid ranges and missing files return errors" do
     size = File.stat!(@path).size
 

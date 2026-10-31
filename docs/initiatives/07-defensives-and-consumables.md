@@ -98,10 +98,9 @@ The recap table interleaves, time-ordered within the window:
 
 ### Surfaces
 
-**Operator-first.** The document-contract section is designed complete for both
-surfaces in `we-41` (per-death survival states + interleaved window events);
-the public mirror pass (`we-qop`) is render + real-R2 verification only, no
-contract changes. The deaths half of `we-27` is absorbed by this work; that
+**Local encounter review.** The document-contract section in `we-41` covers
+per-death survival states and interleaved window events. The former public
+mirror pass (`we-qop`) is retired with we-g18.2; it is not an acceptance gate. The deaths half of `we-27` is absorbed by this work; that
 bead re-scopes to damage-taken summaries.
 
 ## Layering (medallion)
@@ -114,7 +113,7 @@ game-data catalog (casts, auras, cooldowns, charges, talent gates, effect kinds,
      + time-bounded death window capture (damage + heals + usages per death)
   -> death-window analysis (used/active per effect kind / died-through /
      available-but-unused / on-CD / untalented / unknown)
-  -> encounter document section -> local detail UI -> public mirror
+  -> encounter document section -> local detail UI
 ```
 
 Cooldown availability is an **inference** (last use + base cooldown; encounter
@@ -143,9 +142,8 @@ start state unknown) and must be labeled as such in read models and UI.
 6. **`we-41` — Surface it (operator)** — complete document-contract section +
    operator death-card strip, interleaved table, heal checkbox (default off).
    Depends on `we-40`.
-7. **`we-qop` — Public mirror parity** — render the same section on `/r` pages;
-   deployed-page verification over a real uploaded raid night. Depends on
-   `we-41`.
+7. **`we-qop` — Public mirror parity (retired)** — no longer a delivery target
+   after the hosting shutdown and removal in we-g18.2.
 8. **`we-aub` — Advanced-params HP (deferred)** — Zig parser + bronze fields for
    unit HP; HP% annotation on window rows. Depends on `we-n7p`.
 
@@ -158,4 +156,4 @@ the death window, die through it, have talented defensives and/or a rock/pot
 sitting available, or lack the defensive untalented entirely. Externals
 received in the window are visible; heal rows toggle on demand. Unknown talent
 data and un-cataloged classes degrade to explicit "unknown" states, not silent
-zeros. The public mirror reaches parity in `we-qop` with no contract rework.
+zeros. Hosted publishing is not part of this acceptance gate.
