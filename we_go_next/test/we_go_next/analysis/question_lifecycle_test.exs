@@ -27,6 +27,32 @@ defmodule WeGoNext.Analysis.QuestionLifecycleTest do
     end
   end
 
+  test "recovery never requests paid work and serialized snapshots preserve the rules" do
+    :rand.seed(:exsss, {19, 45, 87})
+
+    for _ <- 1..400 do
+      {state, ctx} =
+        Enum.reduce(1..100, {:draft, Machine.initial(cap: 3, raised_cap: 6)}, fn _,
+                                                                                 {state, ctx} ->
+          event = Enum.random(Machine.events())
+          {:ok, next, ctx, _} = Machine.step(state, event, ctx)
+          {next, ctx}
+        end)
+
+      assert ctx == ctx |> Jason.encode!() |> Jason.decode!() |> Machine.restore()
+      {:ok, next, recovered, effects} = Machine.step(state, :recover, ctx)
+      refute :request_model in effects
+      refute :start_tool in effects
+      assert recovered.model_calls == ctx.model_calls
+      assert recovered.turns == ctx.turns
+
+      if state in [:thinking, :calling_tool, :writing] do
+        assert next == :failed
+        refute recovered.timer
+      end
+    end
+  end
+
   test "late Tool returns are recorded after timeout and Continue waits for them" do
     {state, ctx} = run([:ask_agent, :tool_requested, :timeout, :continue])
     assert state == :limit_hit

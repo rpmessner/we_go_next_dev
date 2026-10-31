@@ -34,7 +34,11 @@ defmodule WeGoNext.Application do
       release_migrator_children(migrate_on_boot?) ++
       [
         # Start the PubSub system
-        {Phoenix.PubSub, name: WeGoNext.PubSub}
+        {Phoenix.PubSub, name: WeGoNext.PubSub},
+        Supervisor.child_spec(
+          {Task, fn -> WeGoNext.Analysis.QuestionRunner.recover_orphans() end},
+          id: WeGoNext.Analysis.QuestionRecovery
+        )
       ] ++
       import_children() ++
       [

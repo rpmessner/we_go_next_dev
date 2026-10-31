@@ -80,6 +80,8 @@ defmodule WeGoNext.Analysis.QuestionRunnerTest do
 
     await_state(question.id, :answered)
     assert Analysis.get_question(question.id).answer == "No matching pulls [list_pulls]."
+    monitor = Process.monitor(pid)
+    assert_receive {:DOWN, ^monitor, :process, ^pid, _}, 1_000
     assert {:answered, _} = QuestionRunner.snapshot(question.id)
     calls = Repo.all(from(c in ToolCall, where: c.session_id == ^question.session_id))
     assert [%{tool: "list_pulls", error: nil}] = calls
@@ -115,19 +117,34 @@ defmodule WeGoNext.Analysis.QuestionRunnerTest do
   end
 
   test "HTTP errors are recorded as failed and Retry re-arms the question", %{scope: scope} do
-    Req.Test.expect(__MODULE__, &Plug.Conn.send_resp(&1, 429, "private body must not be stored"))
+    owner = self()
 
-    Req.Test.expect(
-      __MODULE__,
-      &respond(&1, [%{"type" => "text", "text" => "Retried [inference]."}], "end_turn")
-    )
+    Req.Test.expect(__MODULE__, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(owner, {:original_system, Jason.decode!(body)["system"]})
+      Plug.Conn.send_resp(conn, 429, "private body must not be stored")
+    end)
+
+    Req.Test.expect(__MODULE__, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      send(owner, {:retry_system, Jason.decode!(body)["system"]})
+      respond(conn, [%{"type" => "text", "text" => "Retried [inference]."}], "end_turn")
+    end)
 
     {question, _} = ask(scope)
     await_state(question.id, :failed)
     assert Analysis.get_question(question.id).error == "Messages API HTTP 429"
-    assert :ok = Analysis.question_event(question.id, :retry)
+
+    assert :ok =
+             Analysis.question_event(question.id, :retry,
+               req_options: [plug: {Req.Test, __MODULE__}]
+             )
+
     await_state(question.id, :answered)
     assert Analysis.get_question(question.id).error == nil
+    assert_receive {:original_system, original_system}
+    assert_receive {:retry_system, retry_system}
+    assert retry_system == original_system
     Req.Test.verify!()
   end
 
@@ -246,8 +263,7 @@ defmodule WeGoNext.Analysis.QuestionRunnerTest do
              "Why did Sszorak pull 5 wipe: what was the first thing that went wrong?"
 
     assert question.state == "answered"
-    [{pid, _}] = Registry.lookup(Analysis.QuestionRegistry, question.id)
-    on_exit(fn -> DynamicSupervisor.terminate_child(Analysis.QuestionSupervisor, pid) end)
+    assert Registry.lookup(Analysis.QuestionRegistry, question.id) == []
     Req.Test.verify!()
   end
 
@@ -256,6 +272,251 @@ defmodule WeGoNext.Analysis.QuestionRunnerTest do
     {question, _} = ask(scope)
     await_state(question.id, :failed)
     assert Analysis.get_question(question.id).error == "ANTHROPIC_API_KEY is not set"
+  end
+
+  test "a dead Registry entry cannot prevent restarting a stored question", %{scope: scope} do
+    {:ok, session} = Analysis.start_session(%{"log" => to_string(scope["log"])})
+
+    question =
+      Repo.insert!(%Analysis.Question{
+        session_id: session.id,
+        model: session.model,
+        text: "Why?",
+        state: "failed",
+        lifecycle: Analysis.QuestionLifecycle.initial()
+      })
+
+    [{_, partition, _, _}] = Supervisor.which_children(Analysis.QuestionRegistry)
+    :sys.suspend(partition)
+
+    try do
+      owner = self()
+
+      {dead, monitor} =
+        spawn_monitor(fn ->
+          Registry.register(Analysis.QuestionRegistry, question.id, nil)
+          send(owner, :registered)
+
+          receive do
+            :finish -> :ok
+          end
+        end)
+
+      assert_receive :registered
+      send(dead, :finish)
+      assert_receive {:DOWN, ^monitor, :process, ^dead, :normal}
+      assert [{^dead, _}] = Registry.lookup(Analysis.QuestionRegistry, question.id)
+
+      result =
+        try do
+          Analysis.question_event(question.id, :cancel)
+        catch
+          :exit, reason -> {:crashed, reason}
+        end
+
+      assert result == :ok
+    after
+      :sys.resume(partition)
+    end
+  end
+
+  test "Continue restarts a stopped limit snapshot without duplicating the question", %{
+    scope: scope
+  } do
+    owner = self()
+
+    Req.Test.expect(__MODULE__, fn conn ->
+      send(owner, :waiting_for_timeout)
+
+      receive do
+        :release -> respond(conn, [], "end_turn")
+      end
+    end)
+
+    {question, pid} = ask(scope, timeout_ms: 50, cap: 2, raised_cap: 4)
+    monitor = Process.monitor(pid)
+    assert_receive :waiting_for_timeout, 5_000
+    await_state(question.id, :limit_hit)
+    assert_receive {:DOWN, ^monitor, :process, ^pid, :normal}, 1_000
+
+    Req.Test.expect(
+      __MODULE__,
+      &respond(&1, [%{"type" => "text", "text" => "Continued"}], "end_turn")
+    )
+
+    assert :ok =
+             Analysis.question_event(question.id, :continue,
+               req_options: [plug: {Req.Test, __MODULE__}]
+             )
+
+    await_state(question.id, :answered)
+    question = Analysis.get_question(question.id)
+    assert question.answer == "Continued"
+    assert question.lifecycle["raised"]
+    assert question.lifecycle["cap"] == 4
+
+    assert Repo.aggregate(
+             from(m in Message, where: m.question_id == ^question.id and m.role == "user"),
+             :count
+           ) == 1
+
+    assert :ok = Analysis.question_event(question.id, :record_verdict)
+    await_state(question.id, :judged)
+    assert Analysis.get_question(question.id).lifecycle["verdict"]
+    Req.Test.verify!()
+  end
+
+  test "Cancel keeps the runner only until its late Tool result is appended", %{scope: scope} do
+    Repo.query!(
+      "CREATE FUNCTION analysis.delay_tool_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(0.2); RETURN NEW; END $$"
+    )
+
+    Repo.query!(
+      "CREATE TRIGGER delay_tool_test BEFORE INSERT ON analysis.tool_calls FOR EACH ROW EXECUTE FUNCTION analysis.delay_tool_test()"
+    )
+
+    Req.Test.expect(
+      __MODULE__,
+      &respond(
+        &1,
+        [%{"type" => "tool_use", "id" => "late", "name" => "list_pulls", "input" => %{}}],
+        "tool_use"
+      )
+    )
+
+    {question, pid} = ask(scope)
+    monitor = Process.monitor(pid)
+    await_state(question.id, :calling_tool)
+    assert :ok = Analysis.question_event(question.id, :cancel)
+    await_state(question.id, :cancelled)
+    assert_receive {:DOWN, ^monitor, :process, ^pid, :normal}, 5_000
+    question = Analysis.get_question(question.id)
+    assert question.state == "cancelled"
+    assert question.lifecycle["recorded"] == 1
+    assert question.lifecycle["tool_calls"] == 1
+
+    result =
+      Repo.one!(
+        from(m in Message, where: m.question_id == ^question.id, order_by: [desc: m.id], limit: 1)
+      )
+
+    assert [%{"type" => "tool_result", "tool_use_id" => "late", "is_error" => false}] =
+             result.content
+
+    Req.Test.verify!()
+  end
+
+  test "a failed transition write is visible to the caller and subscriber", %{scope: scope} do
+    owner = self()
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      send(owner, :request_waiting)
+
+      receive do
+        :release -> respond(conn, [], "end_turn")
+      end
+    end)
+
+    {question, pid} = ask(scope)
+    assert_receive :request_waiting, 5_000
+
+    Repo.query!(
+      "ALTER TABLE analysis.questions ADD CONSTRAINT reject_cancel CHECK (state <> 'cancelled')"
+    )
+
+    monitor = Process.monitor(pid)
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        result =
+          try do
+            Analysis.question_event(question.id, :cancel)
+          catch
+            :exit, reason -> {:crashed, reason}
+          end
+
+        assert result == {:error, "Could not persist Analysis question"}
+      end)
+
+    assert log =~ "persistence failed"
+
+    assert_receive {:analysis_question, id, {:error, "Could not persist Analysis question"}},
+                   1_000
+
+    assert id == question.id
+    assert_receive {:DOWN, ^monitor, :process, ^pid, :normal}, 1_000
+    assert Analysis.get_question(question.id).state == "failed"
+  end
+
+  test "boot recovery makes orphaned paid work retryable without replay", %{scope: scope} do
+    {:ok, session} = Analysis.start_session(%{"log" => to_string(scope["log"])})
+
+    for state <- [:thinking, :calling_tool, :writing, :cancelled, :limit_hit] do
+      {:ok, :thinking, ctx, _} =
+        Analysis.QuestionLifecycle.step(:draft, :ask_agent, Analysis.QuestionLifecycle.initial())
+
+      ctx =
+        if state in [:calling_tool, :cancelled, :limit_hit] do
+          {:ok, :calling_tool, ctx, _} =
+            Analysis.QuestionLifecycle.step(:thinking, :tool_requested, ctx)
+
+          if state == :calling_tool do
+            ctx
+          else
+            event = if state == :cancelled, do: :cancel, else: :timeout
+            {:ok, ^state, ctx, _} = Analysis.QuestionLifecycle.step(:calling_tool, event, ctx)
+            ctx
+          end
+        else
+          ctx
+        end
+
+      question =
+        Repo.insert!(%Analysis.Question{
+          session_id: session.id,
+          model: session.model,
+          text: "Interrupted",
+          state: to_string(state),
+          lifecycle: ctx
+        })
+
+      if state in [:calling_tool, :cancelled, :limit_hit] do
+        Repo.insert!(%Message{
+          session_id: session.id,
+          question_id: question.id,
+          role: "assistant",
+          content: [
+            %{"type" => "tool_use", "id" => "interrupted", "name" => "list_pulls", "input" => %{}}
+          ]
+        })
+      end
+
+      :ok = QuestionRunner.recover_orphans()
+      recovered = Analysis.get_question(question.id)
+
+      assert recovered.state ==
+               if(state in [:cancelled, :limit_hit], do: to_string(state), else: "failed")
+
+      if recovered.state == "failed", do: assert(recovered.error =~ "interrupted")
+      refute recovered.lifecycle["timer"]
+      refute recovered.lifecycle["tool_in_flight"]
+      assert recovered.lifecycle["recorded"] == recovered.lifecycle["tool_calls"]
+      assert recovered.lifecycle["model_calls"] == ctx.model_calls
+      assert Registry.lookup(Analysis.QuestionRegistry, question.id) == []
+
+      if state in [:calling_tool, :cancelled, :limit_hit] do
+        assert [%{"type" => "tool_result", "tool_use_id" => "interrupted", "is_error" => true}] =
+                 Repo.one!(
+                   from(m in Message, where: m.question_id == ^question.id and m.role == "user")
+                 ).content
+      end
+
+      count = Repo.aggregate(from(m in Message, where: m.question_id == ^question.id), :count)
+      :ok = QuestionRunner.recover_orphans()
+
+      assert Repo.aggregate(from(m in Message, where: m.question_id == ^question.id), :count) ==
+               count
+    end
   end
 
   defp ask(scope, opts \\ []) do

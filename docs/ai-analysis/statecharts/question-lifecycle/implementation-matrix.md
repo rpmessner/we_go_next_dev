@@ -16,6 +16,8 @@
 | limit_hit | continue | can_continue | thinking | raise_cap, arm_timer, request_model |
 | answered | record_verdict | always | judged | verdict |
 | judged | record_verdict | always | judged | verdict |
+| draft | recover | in_flight | draft | record_tool, stop_timer, stop_model |
+| draft | recover | always | draft |  |
 | draft | tool_returned | in_flight | draft | record_tool |
 | draft | tool_returned | always | draft |  |
 | draft | timeout | timer | draft | stop_timer, stop_model |
@@ -33,6 +35,8 @@
 | draft | continue | always | draft |  |
 | draft | record_verdict | always | draft |  |
 | draft | done | always | draft |  |
+| computing | recover | in_flight | computing | record_tool, stop_timer, stop_model |
+| computing | recover | always | computing |  |
 | computing | tool_returned | in_flight | computing | record_tool |
 | computing | tool_returned | always | computing |  |
 | computing | timeout | timer | computing | stop_timer, stop_model |
@@ -49,6 +53,8 @@
 | computing | continue | always | computing |  |
 | computing | record_verdict | always | computing |  |
 | computing | done | always | computing |  |
+| thinking | recover | in_flight | failed | record_tool, stop_timer, stop_model |
+| thinking | recover | always | failed | stop_timer, stop_model |
 | thinking | tool_returned | in_flight | thinking | record_tool |
 | thinking | tool_returned | always | thinking |  |
 | thinking | timeout | timer | limit_hit | stop_timer, stop_model |
@@ -64,6 +70,8 @@
 | thinking | continue | always | thinking |  |
 | thinking | record_verdict | always | thinking |  |
 | thinking | done | always | thinking |  |
+| calling_tool | recover | in_flight | failed | record_tool, stop_timer, stop_model |
+| calling_tool | recover | always | failed | stop_timer, stop_model |
 | calling_tool | tool_returned | in_flight | thinking | record_tool, request_model |
 | calling_tool | tool_returned | always | calling_tool |  |
 | calling_tool | timeout | timer | limit_hit | stop_timer, stop_model |
@@ -80,6 +88,8 @@
 | calling_tool | continue | always | calling_tool |  |
 | calling_tool | record_verdict | always | calling_tool |  |
 | calling_tool | done | always | calling_tool |  |
+| writing | recover | in_flight | failed | record_tool, stop_timer, stop_model |
+| writing | recover | always | failed | stop_timer, stop_model |
 | writing | tool_returned | in_flight | writing | record_tool |
 | writing | tool_returned | always | writing |  |
 | writing | timeout | timer | limit_hit | stop_timer, stop_model |
@@ -94,6 +104,8 @@
 | writing | continue | always | writing |  |
 | writing | record_verdict | always | writing |  |
 | writing | done | always | writing |  |
+| answered | recover | in_flight | answered | record_tool, stop_timer, stop_model |
+| answered | recover | always | answered |  |
 | answered | tool_returned | in_flight | answered | record_tool |
 | answered | tool_returned | always | answered |  |
 | answered | timeout | timer | answered | stop_timer, stop_model |
@@ -110,6 +122,8 @@
 | answered | cancel | always | answered |  |
 | answered | continue | always | answered |  |
 | answered | done | always | answered |  |
+| judged | recover | in_flight | judged | record_tool, stop_timer, stop_model |
+| judged | recover | always | judged |  |
 | judged | tool_returned | in_flight | judged | record_tool |
 | judged | tool_returned | always | judged |  |
 | judged | timeout | timer | judged | stop_timer, stop_model |
@@ -126,6 +140,8 @@
 | judged | cancel | always | judged |  |
 | judged | continue | always | judged |  |
 | judged | done | always | judged |  |
+| limit_hit | recover | in_flight | limit_hit | record_tool, stop_timer, stop_model |
+| limit_hit | recover | always | limit_hit |  |
 | limit_hit | tool_returned | in_flight | limit_hit | record_tool |
 | limit_hit | tool_returned | always | limit_hit |  |
 | limit_hit | timeout | timer | limit_hit | stop_timer, stop_model |
@@ -143,6 +159,8 @@
 | limit_hit | continue | always | limit_hit |  |
 | limit_hit | record_verdict | always | limit_hit |  |
 | limit_hit | done | always | limit_hit |  |
+| failed | recover | in_flight | failed | record_tool, stop_timer, stop_model |
+| failed | recover | always | failed |  |
 | failed | tool_returned | in_flight | failed | record_tool |
 | failed | tool_returned | always | failed |  |
 | failed | timeout | timer | failed | stop_timer, stop_model |
@@ -159,6 +177,8 @@
 | failed | continue | always | failed |  |
 | failed | record_verdict | always | failed |  |
 | failed | done | always | failed |  |
+| cancelled | recover | in_flight | cancelled | record_tool, stop_timer, stop_model |
+| cancelled | recover | always | cancelled |  |
 | cancelled | tool_returned | in_flight | cancelled | record_tool |
 | cancelled | tool_returned | always | cancelled |  |
 | cancelled | timeout | timer | cancelled | stop_timer, stop_model |

@@ -1,0 +1,92 @@
+---
+title: "Question lifecycle: one question in the Analysis tree"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: start
+    lg1: running
+    lg2: answered
+    lg3: stopped
+  }
+  class lg0 tan
+  class lg1 blue
+  class lg2 teal
+  class lg3 orange
+  s0: Question picked (up)
+  s1: Computing (built-in, no model) (up)
+  s2: Agent working (up)
+  s3: Answered (up)
+  s4: Running a Tool (up)
+  s5: Cancelled (up)
+  s6: Error, Retry offered (up)
+  s7: Stopped at a limit (up)
+  s8: Agent working (lost)
+  s9: Writing the answer (up)
+  s10: Answered (down)
+  s11: Running a Tool (lost)
+  s12: Cancelled (down)
+  s13: Error, Retry offered (down)
+  s14: Verdict recorded (up)
+  s15: Stopped at a limit (down)
+  s16: Writing the answer (lost)
+  s17: Cancelled (lost)
+  s18: Verdict recorded (down)
+  s19: Stopped at a limit (lost)
+  [*] --> s0
+  s0 --> s2: you ask [needs AI]
+  s0 --> s1: you ask [built-in]
+  s1 --> s3: Tool returns
+  s2 --> s4: calls a Tool [budget left]
+  s2 --> s5: Cancel
+  s2 --> s6: AI call fails
+  s2 --> s7: 10 min pass or budget used up
+  s2 --> s8: process lost
+  s2 --> s9: starts answering
+  s3 --> s10: runner stops [no Tool outstanding]
+  s3 --> s14: you give a verdict
+  s4 --> s11: process lost
+  s4 --> s5: Cancel
+  s4 --> s7: 10 min pass
+  s4 --> s2: Tool returns
+  s5 --> s12: runner stops [no Tool outstanding]
+  s6 --> s2: Retry
+  s6 --> s13: runner stops [no Tool outstanding]
+  s7 --> s15: runner stops [no Tool outstanding]
+  s7 --> s2: Continue [once, no Tool running]
+  s8 --> s13: boot records interruption [no paid replay]
+  s9 --> s3: answer done
+  s9 --> s5: Cancel
+  s9 --> s6: AI call fails
+  s9 --> s7: 10 min pass
+  s9 --> s16: process lost
+  s10 --> s3: operator resumes stored snapshot
+  s11 --> s13: boot records interruption [no paid replay]
+  s5 --> s17: process lost
+  s13 --> s6: operator resumes stored snapshot
+  s14 --> s18: runner stops [no Tool outstanding]
+  s15 --> s7: operator resumes stored snapshot
+  s7 --> s19: process lost
+  s16 --> s13: boot records interruption [no paid replay]
+  s17 --> s12: boot records interruption [no paid replay]
+  s18 --> s14: operator resumes stored snapshot
+  s19 --> s15: boot records interruption [no paid replay]
+  class s0 tan
+  class s1 blue
+  class s2 blue
+  class s3 teal
+  class s4 blue
+  class s5 orange
+  class s6 orange
+  class s7 orange
+  class s8 blue
+  class s9 blue
+  class s10 teal
+  class s11 blue
+  class s12 orange
+  class s13 orange
+  class s14 teal
+  class s15 orange
+  class s16 blue
+  class s17 orange
+  class s18 teal
+  class s19 orange
