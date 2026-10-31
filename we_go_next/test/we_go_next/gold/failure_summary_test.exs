@@ -204,6 +204,23 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
     refute "Failure logic changed" in diagnostic_titles(readiness)
   end
 
+  test "zero facts below threshold do not prove freshness without a pull stamp", %{
+    ruleset: ruleset,
+    early: early
+  } do
+    rule =
+      insert_authored_rule!(ruleset, 989, "Below threshold", early.wow_encounter_id,
+        threshold: %{"max_hits" => 5}
+      )
+
+    insert_snapshot!(ruleset, rule)
+    insert_damage_taken!(early, "Player-One", 989)
+    early |> Ecto.Changeset.change(failure_derivation_version: nil) |> Repo.update!()
+
+    [diagnostic] = FailureSummary.zero_fact_rule_diagnostics()
+    assert diagnostic.reason == :gold_rebuild_needed
+  end
+
   test "zero_fact_rule_diagnostics explains current-tier avoidable mechanics that produce no failures",
        %{
          ruleset: ruleset,
@@ -254,6 +271,8 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
       start_time: start_time
     })
     |> Repo.insert!()
+    |> Ecto.Changeset.change(failure_derivation_version: Derivation.current_version())
+    |> Repo.update!()
   end
 
   defp insert_criterion!(ruleset, spell_id, spell_name, mechanic_type) do
@@ -280,7 +299,7 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
       mechanic_type: "avoidable",
       boss_encounter_id: boss_encounter_id,
       boss_name: "Diagnostic Boss",
-      threshold: %{"max_hits" => 0},
+      threshold: Keyword.get(attrs, :threshold, %{"max_hits" => 0}),
       active: Keyword.get(attrs, :active, true)
     })
     |> Repo.insert!()
@@ -317,6 +336,10 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
   end
 
   defp insert_failure!(encounter, player, criterion, failure_count, total_damage, attrs \\ []) do
+    encounter
+    |> Ecto.Changeset.change(failure_derivation_version: Keyword.get(attrs, :derivation_version))
+    |> Repo.update!()
+
     %FactFailure{}
     |> FactFailure.changeset(%{
       encounter_dim_id: encounter.id,

@@ -4,8 +4,7 @@ defmodule WeGoNext.Analysis.Tools.WipeCause do
   import Ecto.Query
   alias WeGoNext.Analysis.{PullScope, Result}
   alias WeGoNext.Gold.{DimEncounter, FactWipeCause}
-  alias WeGoNext.Repo
-  alias WeGoNext.Silver.DeathDerivation
+  alias WeGoNext.{Freshness, Repo}
 
   def name, do: "wipe_cause"
 
@@ -69,11 +68,13 @@ defmodule WeGoNext.Analysis.Tools.WipeCause do
   end
 
   defp status(e) do
+    freshness = Freshness.classify(e)
+
     cond do
-      e.silver_death_derivation_version != DeathDerivation.current_version() ->
+      freshness.silver_deaths != :current ->
         "stale_silver_deaths"
 
-      e.wipe_cause_derivation_version != FactWipeCause.current_version() ->
+      freshness.wipe_cause != :current or freshness.failures == :partial ->
         "missing_or_stale_gold"
 
       e.success == true ->

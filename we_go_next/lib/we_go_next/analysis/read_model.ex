@@ -1,9 +1,9 @@
 defmodule WeGoNext.Analysis.ReadModel do
   @moduledoc "Log-scoped reads; never resolves the mutable current FileWatcher log."
   import Ecto.Query
-  alias WeGoNext.{CombatLogFile, Repo}
+  alias WeGoNext.{CombatLogFile, Freshness, Repo}
   alias WeGoNext.Encounters.Encounter
-  alias WeGoNext.Gold.{DimEncounter, EncounterIdentity, FactFailure}
+  alias WeGoNext.Gold.{DimEncounter, EncounterIdentity}
   alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Silver.{DeathDerivation, PlayerInfo}
 
@@ -62,46 +62,23 @@ defmodule WeGoNext.Analysis.ReadModel do
   def freshness(pulls, log) do
     ids = Enum.map(pulls, & &1.pull_id) |> Enum.reject(&is_nil/1)
 
-    stale =
-      Repo.all(
-        from(f in FactFailure,
-          where:
-            f.encounter_dim_id in ^ids and
-              fragment(
-                "? IS DISTINCT FROM ?",
-                f.derivation_version,
-                ^Derivation.current_version()
-              ),
-          distinct: true,
-          order_by: f.encounter_dim_id,
-          select: f.encounter_dim_id
-        )
-      )
-
-    stale_deaths =
-      Repo.all(
-        from(d in DimEncounter,
-          where:
-            d.id in ^ids and
-              fragment(
-                "? IS DISTINCT FROM ?",
-                d.silver_death_derivation_version,
-                ^DeathDerivation.current_version()
-              ),
-          order_by: d.id,
-          select: d.id
-        )
-      )
+    dimensions = Repo.all(from(d in DimEncounter, where: d.id in ^ids, order_by: d.id))
+    stale = for d <- dimensions, not Freshness.current?(d, :failures), do: d.id
+    stale_deaths = for d <- dimensions, not Freshness.current?(d, :silver_deaths), do: d.id
+    stale_wipes = for d <- dimensions, not Freshness.current?(d, :wipe_cause), do: d.id
 
     %{
       current_silver_death_derivation: DeathDerivation.current_version(),
       stale_death_pull_ids: stale_deaths,
       current_failure_derivation: Derivation.current_version(),
       stale_failure_pull_ids: stale,
+      stale_wipe_cause_pull_ids: stale_wipes,
+      partial_rebuild_pull_ids:
+        for(d <- dimensions, Freshness.classify(d).failures == :partial, do: d.id),
       unimported_pull_ids: for(p <- pulls, is_nil(p.pull_id), do: p.public_encounter_id),
       unparsed_bytes: max((log.file_size || 0) - (log.last_parsed_byte || 0), 0),
       caveat:
-        "Missing gold ids are catalogued pulls without medallion import. Unparsed bytes may include trash or an unfinished pull. No failure rows does not prove freshness. Stale silver deaths require force reimport, not a gold/document-only rebuild."
+        "Missing gold ids are catalogued pulls without medallion import. Unparsed bytes may include trash or an unfinished pull. Failure freshness uses a per-pull stamp, including zero-row pulls. Stale silver deaths require force reimport, not a gold/document-only rebuild."
     }
   end
 

@@ -1251,9 +1251,9 @@ defmodule WeGoNextWeb.EncounterLive.Show do
         Death projection version:
         <span class="font-mono">{Map.get(@document, :silver_death_derivation_version) || "unknown"}</span>
         (current: <span class="font-mono">{Documents.current_death_derivation_version()}</span>).
-        Failure or silver death semantics are outdated or unknown.
+        Failure, wipe-cause, or silver death semantics are outdated, unknown, or incompletely rebuilt.
         Force reimport the source log for stale silver deaths; a document-only rebuild cannot repair them.
-        Rebuild encounter documents after the source data is current.
+        Rebuild gold outputs and encounter documents together after the source data is current.
       </p>
     </section>
     """

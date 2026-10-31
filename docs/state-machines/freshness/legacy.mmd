@@ -1,0 +1,33 @@
+---
+title: "A rebuild is current only when facts and document agree"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Breaks CurrentMeansConsistent or FailureIsVisible
+    lg1: Path to the CurrentMeansConsistent or FailureIsVisible bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  s0: idle: facts 0, document 0, current
+  s1: building: facts 0, document 0, current
+  s2: failed: facts 0, document 0, current
+  s3: built: facts 1, document 0, current
+  s4: failed: facts 1, document 0, current
+  s5: written: facts 1, document 1, current
+  s6: done: facts 1, document 1, current
+  s7: failed: facts 1, document 1, current
+  [*] --> s0
+  s0 --> s1: start rebuild
+  s1 --> s2: write fails or process stops
+  s1 --> s3: build facts
+  s3 --> s4: write fails or process stops
+  s3 --> s5: write document
+  s5 --> s6: commit consistent outputs
+  s5 --> s7: write fails or process stops
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s1 bugPath
+  class s3 breaks
+  class s3 bugPath
+  class s4 breaks
+  class s4 bugPath
