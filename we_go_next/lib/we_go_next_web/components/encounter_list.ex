@@ -12,24 +12,21 @@ defmodule WeGoNextWeb.Components.EncounterList do
   alias WeGoNext.GameData.{Instances, Raids}
 
   attr(:encounter_records, :list, required: true)
-  attr(:show_resets, :boolean, required: true)
   attr(:sort_direction, :atom, default: :asc, values: [:asc, :desc])
   attr(:show_sort_control, :boolean, default: false)
-  attr(:open_menu_id, :any, default: nil)
-  attr(:is_admin, :boolean, required: true)
   attr(:log_files, :list, default: [])
   attr(:loading, :boolean, default: false)
   attr(:base_path, :string, default: "")
 
   def render(assigns) do
     records = sort_records(assigns.encounter_records, assigns.sort_direction)
-    groups = group_encounters(records, assigns.show_resets)
+    groups = group_encounters(records)
     assigns = assign(assigns, :groups, groups)
 
     ~H"""
     <div :if={@encounter_records != []}>
       <div class="flex items-center justify-between mb-3">
-        <h2 class="section-header mb-0">Encounters ({visible_count(@encounter_records, @show_resets)})</h2>
+        <h2 class="section-header mb-0">Encounters ({length(@encounter_records)})</h2>
         <div class="flex items-center gap-3">
           <button
             :if={@show_sort_control}
@@ -42,28 +39,11 @@ defmodule WeGoNextWeb.Components.EncounterList do
             <span aria-hidden="true">{if @sort_direction == :asc, do: "↑", else: "↓"}</span>
             {if @sort_direction == :asc, do: "Oldest first", else: "Newest first"}
           </button>
-          <label
-            :if={has_resets?(@encounter_records)}
-            class="flex items-center gap-2 cursor-pointer text-sm text-zinc-400"
-          >
-            <input
-              type="checkbox"
-              checked={@show_resets}
-              phx-click="toggle_show_resets"
-              class="rounded border-zinc-600 bg-zinc-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-800"
-            />
-            <span>Show resets ({reset_count(@encounter_records)})</span>
-          </label>
         </div>
       </div>
       <div class="space-y-6">
         <%= for group <- @groups do %>
-          <.instance_group
-            group={group}
-            is_admin={@is_admin}
-            open_menu_id={@open_menu_id}
-            base_path={@base_path}
-          />
+          <.instance_group group={group} base_path={@base_path} />
         <% end %>
       </div>
     </div>
@@ -75,8 +55,6 @@ defmodule WeGoNextWeb.Components.EncounterList do
   # ── Instance Group ──
 
   attr(:group, :map, required: true)
-  attr(:is_admin, :boolean, required: true)
-  attr(:open_menu_id, :any, default: nil)
   attr(:base_path, :string, default: "")
 
   defp instance_group(assigns) do
@@ -94,13 +72,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
       </div>
       <div class="space-y-1.5 ml-0">
         <%= for {encounter, idx} <- @group.encounters do %>
-          <.encounter_card
-            encounter={encounter}
-            idx={idx}
-            is_admin={@is_admin}
-            open_menu_id={@open_menu_id}
-            base_path={@base_path}
-          />
+          <.encounter_card encounter={encounter} idx={idx} base_path={@base_path} />
         <% end %>
       </div>
     </div>
@@ -120,16 +92,13 @@ defmodule WeGoNextWeb.Components.EncounterList do
 
   attr(:encounter, :map, required: true)
   attr(:idx, :integer, required: true)
-  attr(:is_admin, :boolean, required: true)
-  attr(:open_menu_id, :any, default: nil)
   attr(:base_path, :string, default: "")
 
   defp encounter_card(assigns) do
     ~H"""
     <div class={[
       "encounter-card relative",
-      if(@encounter.source_encounter_key, do: "group cursor-pointer", else: "cursor-default"),
-      if(@encounter.is_reset, do: "opacity-50", else: "")
+      if(@encounter.source_encounter_key, do: "group cursor-pointer", else: "cursor-default")
     ]}>
       <.link
         :if={@encounter.source_encounter_key}
@@ -147,7 +116,6 @@ defmodule WeGoNextWeb.Components.EncounterList do
             <span class="font-semibold text-zinc-100 group-hover:text-wow-gold">
               {@encounter.name}
             </span>
-            <span :if={@encounter.is_reset} class="ml-2 text-xs text-yellow-500">(Reset)</span>
           </div>
         </div>
         <div class="flex items-center gap-4">
@@ -163,46 +131,7 @@ defmodule WeGoNextWeb.Components.EncounterList do
           <span class="text-zinc-400 font-mono text-sm">
             {format_duration(@encounter)}
           </span>
-          <div :if={@is_admin} class="pointer-events-auto relative z-10">
-            <.gear_menu encounter={@encounter} open_menu_id={@open_menu_id} />
-          </div>
         </div>
-      </div>
-    </div>
-    """
-  end
-
-  # ── Gear Menu ──
-
-  attr(:encounter, :map, required: true)
-  attr(:open_menu_id, :any, default: nil)
-
-  defp gear_menu(assigns) do
-    ~H"""
-    <div class="relative">
-      <button
-        phx-click="toggle_menu"
-        phx-value-id={@encounter.id}
-        class="p-1.5 rounded text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 transition-colors"
-        title="Options"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      </button>
-      <div
-        :if={@open_menu_id == @encounter.id}
-        class="absolute right-0 top-full mt-1 w-36 bg-zinc-800 border border-zinc-600 rounded-lg shadow-lg z-10"
-        phx-click-away="close_menu"
-      >
-        <button
-          phx-click="toggle_reset"
-          phx-value-id={@encounter.id}
-          class="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-700 rounded-lg transition-colors"
-        >
-          {if @encounter.is_reset, do: "Unmark as reset", else: "Mark as reset"}
-        </button>
       </div>
     </div>
     """
@@ -221,9 +150,8 @@ defmodule WeGoNextWeb.Components.EncounterList do
   # Grouping Logic
   # ============================================================================
 
-  defp group_encounters(records, show_resets) do
+  defp group_encounters(records) do
     records
-    |> maybe_filter_resets(show_resets)
     |> Enum.chunk_by(&instance_group_key/1)
     |> Enum.map(fn chunk ->
       first = hd(chunk)
@@ -291,28 +219,6 @@ defmodule WeGoNextWeb.Components.EncounterList do
     Calendar.strftime(dt, "%b %d, %I:%M %p")
   end
 
-  defp maybe_filter_resets(records, true), do: records
-
-  defp maybe_filter_resets(records, false) do
-    Enum.reject(records, & &1.is_reset)
-  end
-
   defp sort_records(records, :asc), do: records
   defp sort_records(records, :desc), do: Enum.reverse(records)
-
-  defp visible_count(records, show_resets) do
-    if show_resets do
-      length(records)
-    else
-      Enum.count(records, &(not &1.is_reset))
-    end
-  end
-
-  defp reset_count(records) do
-    Enum.count(records, & &1.is_reset)
-  end
-
-  defp has_resets?(records) do
-    Enum.any?(records, & &1.is_reset)
-  end
 end

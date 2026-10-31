@@ -26,6 +26,52 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     :ok
   end
 
+  test "admin document records link to encounters without dead reset controls", %{conn: conn} do
+    user = Accounts.get_or_create_default_user()
+    user |> Ecto.Changeset.change(is_admin: true) |> Repo.update!()
+
+    key = String.duplicate("abcdef01", 8)
+
+    entry =
+      index_entry(
+        %{
+          source_encounter_key: key,
+          wow_encounter_id: "3177",
+          difficulty_id: 15,
+          difficulty_name: "Heroic",
+          instance_id: "2913"
+        },
+        "Vorasius",
+        "2026-04-19T20:00:00Z"
+      )
+
+    write_document_index!([entry])
+
+    {:ok, view, html} = Phoenix.LiveViewTest.live(conn, ~p"/")
+
+    assert Phoenix.LiveViewTest.has_element?(
+             view,
+             ~s(a[href="/encounters/#{key}"][aria-label="Open Vorasius"])
+           )
+
+    assert html =~ "Encounters (1)"
+    assert html =~ "1 wipe"
+    refute Phoenix.LiveViewTest.has_element?(view, ~s(button[title="Options"]))
+    refute html =~ ~s(phx-click="toggle_menu")
+    refute html =~ ~s(phx-click="toggle_reset")
+    refute html =~ ~s(phx-click="toggle_show_resets")
+    refute html =~ "Mark as reset"
+    refute html =~ "Show resets"
+
+    html =
+      view
+      |> Phoenix.LiveViewTest.element("#encounter-sort-direction")
+      |> Phoenix.LiveViewTest.render_click()
+
+    assert html =~ "Newest first"
+    assert Phoenix.LiveViewTest.has_element?(view, ~s(a[href="/encounters/#{key}"]))
+  end
+
   test "does not render warehouse operation controls", %{conn: conn} do
     html =
       conn

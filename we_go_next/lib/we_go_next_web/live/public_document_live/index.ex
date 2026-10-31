@@ -23,9 +23,7 @@ defmodule WeGoNextWeb.PublicDocumentLive.Index do
      |> assign(:encounter_records, filter_records(encounter_records, selected_raid_night_key))
      |> assign(:raid_nights, raid_nights)
      |> assign(:selected_raid_night_key, selected_raid_night_key)
-     |> assign(:documents_state, documents_state)
-     |> assign(:show_resets, false)
-     |> assign(:open_menu_id, nil)}
+     |> assign(:documents_state, documents_state)}
   end
 
   @impl true
@@ -79,9 +77,6 @@ defmodule WeGoNextWeb.PublicDocumentLive.Index do
 
       <EncounterList.render
         encounter_records={@encounter_records}
-        show_resets={@show_resets}
-        open_menu_id={@open_menu_id}
-        is_admin={false}
         log_files={[]}
         loading={false}
         base_path={~p"/r/#{@slug}"}
@@ -139,7 +134,6 @@ defmodule WeGoNextWeb.PublicDocumentLive.Index do
       end_time: entry.end_time,
       success: entry.success,
       fight_time_ms: entry.fight_time_ms,
-      is_reset: false,
       raid_night: raid_night,
       raid_night_key: raid_night && raid_night.key
     }
