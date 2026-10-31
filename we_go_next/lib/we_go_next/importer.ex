@@ -23,32 +23,32 @@ defmodule WeGoNext.Importer do
   def import_log(file_path, user_id, opts \\ []) do
     case get_or_create_combat_log_file(file_path, user_id) do
       {:ok, clf} ->
-        clf =
-          if Keyword.get(opts, :force_reimport, false) do
-            reset_for_reimport(clf)
-          else
-            clf
-          end
+        event = if Keyword.get(opts, :force_reimport, false), do: :reimport, else: :import
 
-        do_import(clf, opts)
+        WeGoNext.FileIngest.run(clf, event, &import_fresh_file(&1, event, opts), opts)
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
+  defp import_fresh_file(clf, event, opts) do
+    fresh = if event == :reimport, do: reset_for_reimport(clf), else: clf
+    do_import(fresh, opts)
+  end
+
   defp reset_for_reimport(clf) do
-    # Delete all existing encounters for this file
-    from(e in EncounterRecord, where: e.combat_log_file_id == ^clf.id)
-    |> Repo.delete_all()
+    # Preserve the existing public-only deletion scope pending an operator
+    # decision. Preparation is atomic, and replay progress survives a crash.
+    {:ok, prepared} =
+      Repo.transaction(fn ->
+        from(e in EncounterRecord, where: e.combat_log_file_id == ^clf.id)
+        |> Repo.delete_all()
 
-    # Reset parsing progress
-    {:ok, updated} =
-      clf
-      |> Ecto.Changeset.change(%{last_parsed_byte: 0, is_complete: false})
-      |> Repo.update()
+        clf |> Ecto.Changeset.change(reparse_from_byte: 0) |> Repo.update!()
+      end)
 
-    updated
+    prepared
   end
 
   @doc """
@@ -58,14 +58,7 @@ defmodule WeGoNext.Importer do
   def sync_log(file_or_path)
 
   def sync_log(%CombatLogFile{} = clf) do
-    # Check for new content OR unparsed bytes in existing content
-    has_unparsed = (clf.last_parsed_byte || 0) < (clf.file_size || 0)
-
-    if has_unparsed or CombatLogFile.has_new_content?(clf) do
-      do_import(clf)
-    else
-      {:ok, %{file: clf, new_encounters: 0}}
-    end
+    WeGoNext.FileIngest.run(clf, :sync, &sync_fresh_file/1)
   end
 
   def sync_log(file_path) when is_binary(file_path) do
@@ -143,7 +136,22 @@ defmodule WeGoNext.Importer do
     EncounterRecord.to_encounter_struct(enc)
   end
 
+  @doc "Whether bytes or unfinished medallion work need another sync (including retry without file growth)."
+  def sync_needed?(%CombatLogFile{} = clf) do
+    not is_nil(clf.reparse_from_byte) or
+      (clf.last_parsed_byte || 0) < (clf.file_size || 0) or
+      CombatLogFile.has_new_content?(clf) or pending_medallion?(clf)
+  end
+
   # Private functions
+
+  defp sync_fresh_file(clf) do
+    if sync_needed?(clf) do
+      do_import(clf)
+    else
+      {:ok, %{file: clf, new_encounters: 0, medallion_results: []}}
+    end
+  end
 
   defp get_or_create_combat_log_file(file_path, user_id) do
     case Repo.get_by(CombatLogFile, file_path: file_path) do
@@ -186,7 +194,8 @@ defmodule WeGoNext.Importer do
   end
 
   defp do_import_existing_file(%CombatLogFile{} = clf, opts) do
-    start_byte = clf.last_parsed_byte || 0
+    start_byte = clf.reparse_from_byte || clf.last_parsed_byte || 0
+
     progress_topic = Keyword.get(opts, :progress_topic)
 
     case CombatLogParser.scan_boundaries(clf.file_path, start_byte) do
@@ -211,11 +220,11 @@ defmodule WeGoNext.Importer do
             {:existing, %EncounterRecord{}} -> false
           end)
 
-        inserted_encounters =
-          Enum.flat_map(results, fn
-            {:inserted, %EncounterRecord{} = encounter} -> [encounter]
-            {:existing, %EncounterRecord{}} -> []
-          end)
+        pending_encounters =
+          EncounterRecord
+          |> where([e], e.combat_log_file_id == ^clf.id and e.medallion_state != "complete")
+          |> order_by([e], asc: e.start_byte)
+          |> Repo.all()
 
         # Final progress update. Only advance to completed encounter boundaries:
         # current logs may contain flushed lines for an in-progress pull without
@@ -223,7 +232,8 @@ defmodule WeGoNext.Importer do
         # later completed pull invisible to incremental imports.
         {:ok, updated_clf} = update_file_progress(clf, parsed_end_byte)
 
-        medallion_results = run_medallion_imports(inserted_encounters, updated_clf, opts)
+        medallion_results = run_medallion_imports(pending_encounters, updated_clf, opts)
+        updated_clf = finish_reparse(updated_clf, parsed_end_byte)
 
         {:ok,
          %{
@@ -237,6 +247,14 @@ defmodule WeGoNext.Importer do
         {:error, %{reason: reason, file: updated_clf}}
     end
   end
+
+  defp finish_reparse(%CombatLogFile{reparse_from_byte: nil} = clf, _end_byte), do: clf
+
+  defp finish_reparse(clf, end_byte) when end_byte >= clf.last_parsed_byte do
+    clf |> Ecto.Changeset.change(reparse_from_byte: nil) |> Repo.update!()
+  end
+
+  defp finish_reparse(clf, _end_byte), do: clf
 
   defp ensure_importable_file(%CombatLogFile{} = clf) do
     if File.regular?(clf.file_path) do
@@ -271,13 +289,29 @@ defmodule WeGoNext.Importer do
     |> Map.fetch!(:end_byte)
   end
 
+  defp pending_medallion?(clf) do
+    Repo.exists?(
+      from(e in EncounterRecord,
+        where: e.combat_log_file_id == ^clf.id and e.medallion_state != "complete"
+      )
+    )
+  end
+
   defp run_medallion_imports(encounters, %CombatLogFile{} = clf, opts) do
     Enum.map(encounters, fn encounter ->
       case run_medallion_import(encounter, clf, opts) do
         {:ok, _result} = ok ->
+          encounter
+          |> Ecto.Changeset.change(medallion_state: "complete", medallion_error: nil)
+          |> Repo.update!()
+
           ok
 
         {:error, reason} = error ->
+          encounter
+          |> Ecto.Changeset.change(medallion_state: "failed", medallion_error: inspect(reason))
+          |> Repo.update!()
+
           Logger.warning(
             "Failed medallion import for encounter #{encounter.id}: #{inspect(reason)}"
           )
@@ -390,6 +424,7 @@ defmodule WeGoNext.Importer do
       end_byte: boundary.end_byte,
       combat_log_file_id: clf.id,
       is_reset: detect_reset?(boundary),
+      medallion_state: "pending",
       inserted_at: now,
       updated_at: now
     }
@@ -487,14 +522,26 @@ defmodule WeGoNext.Importer do
       |> DateTime.from_naive!("Etc/UTC")
       |> DateTime.truncate(:second)
 
-    clf
-    |> Ecto.Changeset.change(%{
-      last_parsed_byte: end_byte,
-      last_parsed_at: DateTime.utc_now() |> DateTime.truncate(:second),
-      # Use end_byte as file_size to ensure has_new_content? detects if more was written
-      file_size: end_byte,
-      file_mtime: mtime_dt
-    })
-    |> Repo.update()
+    from(f in CombatLogFile,
+      where: f.id == ^clf.id,
+      update: [
+        set: [
+          last_parsed_byte: fragment("GREATEST(?, ?)", f.last_parsed_byte, ^end_byte),
+          reparse_from_byte:
+            fragment(
+              "CASE WHEN ? IS NULL THEN NULL ELSE GREATEST(?, ?) END",
+              f.reparse_from_byte,
+              f.reparse_from_byte,
+              ^end_byte
+            ),
+          last_parsed_at: ^DateTime.truncate(DateTime.utc_now(), :second),
+          file_size: ^end_byte,
+          file_mtime: ^mtime_dt
+        ]
+      ]
+    )
+    |> Repo.update_all([])
+
+    {:ok, Repo.get!(CombatLogFile, clf.id)}
   end
 end

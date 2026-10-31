@@ -198,16 +198,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
   end
 
   @impl true
-  def handle_info({:import_progress, :saving}, socket) do
-    {:noreply,
-     assign(socket, :import_progress, %{
-       percent: 100,
-       encounters_found: socket.assigns.import_progress[:encounters_found] || 0,
-       status: :saving
-     })}
-  end
-
-  @impl true
   def handle_info(
         {:import_progress, %{bytes_read: bytes, total_bytes: total, encounters_found: found}},
         socket

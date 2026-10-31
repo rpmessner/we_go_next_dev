@@ -1,150 +1,206 @@
 defmodule WeGoNext.ImportWorker do
   @moduledoc """
-  Manages log imports independently of LiveView processes.
-
-  Imports run in a supervised process that survives page refreshes.
-  Progress is tracked and broadcast via PubSub, and can be queried
-  by LiveViews on mount to resume showing progress.
+  Starts bounded import tasks and retains a durable receipt per user. Tasks commit
+  and broadcast their own result, so restarting this dispatcher cannot lose a
+  completion. Restart recovery re-arms deadlines and monitors surviving tasks.
   """
   use GenServer
+  import Ecto.Query
+  alias WeGoNext.{EncounterStore, Repo}
+  alias WeGoNext.FileIngest.Operation
 
-  alias WeGoNext.EncounterStore
+  @default_timeout 300_000
 
-  # Client API
+  def start_link(_opts), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
 
-  @doc """
-  Starts an import for the given user. Returns immediately.
-  Progress updates are broadcast to "import_progress:{user_id}".
+  def start_import(user_id, path, opts \\ []),
+    do: GenServer.call(__MODULE__, {:start_import, user_id, path, opts})
 
-  Options:
-    - :force_reimport - If true, deletes existing encounters and starts fresh
-  """
-  def start_import(user_id, log_path, opts \\ []) do
-    GenServer.call(__MODULE__, {:start_import, user_id, log_path, opts})
-  end
-
-  @doc """
-  Returns the current import status for a user.
-  Returns nil if no import is running, or a map with progress info.
-  """
-  def get_status(user_id) do
-    GenServer.call(__MODULE__, {:get_status, user_id})
-  end
-
-  @doc """
-  Returns all currently tracked imports.
-  """
-  def active_imports do
-    GenServer.call(__MODULE__, :active_imports)
-  end
-
-  @doc """
-  Returns the PubSub topic for import progress updates.
-  """
-  def progress_topic(user_id) do
-    "import_progress:#{user_id}"
-  end
-
-  # Server callbacks
-
-  def start_link(_opts) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
-  end
+  def get_status(user_id), do: GenServer.call(__MODULE__, {:get_status, user_id})
+  def progress_topic(user_id), do: "import_progress:#{user_id}"
+  def active_imports, do: GenServer.call(__MODULE__, :active_imports)
 
   @impl true
   def init(_) do
-    # State: %{user_id => %{status: :importing, path: path, progress: %{...}, task_ref: ref}}
-    {:ok, %{}}
+    # Migrations also start the application; do not query a table before it exists.
+    %{rows: [[table]]} = Repo.query!("SELECT to_regclass('public.import_operations')::text")
+
+    operations =
+      if table, do: Repo.all(from(o in Operation, where: o.status == "importing")), else: []
+
+    state = Map.new(operations, &{&1.token, recover(&1)})
+    {:ok, state}
   end
 
   @impl true
-  def handle_call({:start_import, user_id, log_path, opts}, _from, state) do
-    case Map.get(state, user_id) do
-      %{status: :importing} = existing ->
-        # Already importing for this user
-        {:reply, {:already_importing, existing.path}, state}
+  def handle_call({:start_import, user_id, path, opts}, _from, state) do
+    case running(user_id) do
+      %Operation{} = operation ->
+        {:reply, {:already_importing, operation.path}, state}
 
-      _ ->
-        # Start import in a monitored task
-        topic = progress_topic(user_id)
-        force_reimport = Keyword.get(opts, :force_reimport, false)
+      nil ->
+        now = DateTime.utc_now()
+        timeout = Keyword.get(opts, :timeout, @default_timeout)
+
+        operation = %Operation{
+          user_id: user_id,
+          token: Ecto.UUID.generate(),
+          path: path,
+          status: "importing",
+          started_at: now,
+          deadline: DateTime.add(now, timeout, :millisecond)
+        }
+
+        operation =
+          Repo.insert!(operation,
+            on_conflict: {:replace_all_except, [:id, :user_id]},
+            conflict_target: [:user_id]
+          )
 
         task =
           Task.Supervisor.async_nolink(WeGoNext.ImportTaskSupervisor, fn ->
-            EncounterStore.import_log(log_path, user_id,
-              progress_topic: topic,
-              force_reimport: force_reimport,
-              generate_document: true
-            )
+            Process.put(:ingest_operation_token, operation.token)
+            finish(operation, perform(path, user_id, opts))
           end)
 
-        new_state =
-          Map.put(state, user_id, %{
-            status: :importing,
-            path: log_path,
-            task_ref: task.ref,
-            started_at: DateTime.utc_now()
-          })
-
-        {:reply, :ok, new_state}
+        timer = arm_deadline(operation)
+        info = %{operation: operation, pid: task.pid, ref: task.ref, timer: timer}
+        {:reply, :ok, Map.put(state, operation.token, info)}
     end
   end
 
   @impl true
   def handle_call({:get_status, user_id}, _from, state) do
-    status = Map.get(state, user_id)
+    status =
+      case running(user_id) do
+        nil -> nil
+        operation -> %{status: :importing, path: operation.path, started_at: operation.started_at}
+      end
+
     {:reply, status, state}
   end
 
   @impl true
   def handle_call(:active_imports, _from, state) do
-    {:reply, state, state}
+    statuses =
+      Map.new(state, fn {_, info} ->
+        {info.operation.user_id, %{status: :importing, path: info.operation.path}}
+      end)
+
+    {:reply, statuses, state}
   end
 
   @impl true
-  def handle_info({ref, result}, state) do
-    # Task completed - find which user this was for
-    case find_user_by_ref(state, ref) do
-      nil ->
+  def handle_info({:deadline, token}, state) do
+    case Map.pop(state, token) do
+      {nil, _} ->
         {:noreply, state}
 
-      user_id ->
-        # Demonitor and flush
-        Process.demonitor(ref, [:flush])
-
-        # Broadcast completion
-        topic = progress_topic(user_id)
-
-        case result do
-          {:ok, count} ->
-            Phoenix.PubSub.broadcast(WeGoNext.PubSub, topic, {:import_complete, {:ok, count}})
-
-          {:error, reason} ->
-            Phoenix.PubSub.broadcast(WeGoNext.PubSub, topic, {:import_complete, {:error, reason}})
-        end
-
-        # Remove from state
-        {:noreply, Map.delete(state, user_id)}
+      {info, remaining} ->
+        # Mark first, fencing any result racing with the kill.
+        finish(info.operation, {:error, :ingest_timeout})
+        if info.pid, do: Task.Supervisor.terminate_child(WeGoNext.ImportTaskSupervisor, info.pid)
+        if info.ref, do: Process.demonitor(info.ref, [:flush])
+        {:noreply, remaining}
     end
   end
+
+  @impl true
+  def handle_info({ref, _result}, state) when is_reference(ref), do: discard(ref, state)
 
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, reason}, state) do
-    # Task crashed
-    case find_user_by_ref(state, ref) do
+    case Enum.find(state, fn {_, info} -> info.ref == ref end) do
       nil ->
         {:noreply, state}
 
-      user_id ->
-        topic = progress_topic(user_id)
-        Phoenix.PubSub.broadcast(WeGoNext.PubSub, topic, {:import_complete, {:error, reason}})
-        {:noreply, Map.delete(state, user_id)}
+      {_, info} ->
+        finish(info.operation, {:error, {:task_exit, reason}})
+        discard(ref, state)
     end
   end
 
-  defp find_user_by_ref(state, ref) do
-    Enum.find_value(state, fn {user_id, info} ->
-      if info.task_ref == ref, do: user_id
-    end)
+  defp perform(path, user_id, opts) do
+    EncounterStore.import_log(
+      path,
+      user_id,
+      Keyword.merge([generate_document: true], opts)
+      |> Keyword.put(:progress_topic, progress_topic(user_id))
+    )
+  rescue
+    error -> {:error, Exception.message(error)}
+  catch
+    kind, reason -> {:error, {kind, reason}}
+  end
+
+  defp finish(operation, result) do
+    attrs =
+      case result do
+        {:ok, count} -> [status: "complete", encounters: count, error: nil]
+        {:error, reason} -> [status: "failed", error: inspect(reason)]
+      end
+
+    {changed, _} =
+      Repo.update_all(
+        from(o in Operation,
+          where:
+            o.user_id == ^operation.user_id and o.token == ^operation.token and
+              o.status == "importing"
+        ),
+        set: attrs
+      )
+
+    if changed == 1 do
+      Phoenix.PubSub.broadcast(
+        WeGoNext.PubSub,
+        progress_topic(operation.user_id),
+        {:import_complete, result}
+      )
+    end
+
+    :ok
+  end
+
+  defp running(user_id), do: Repo.get_by(Operation, user_id: user_id, status: "importing")
+
+  defp recover(operation) do
+    pid =
+      Enum.find(Task.Supervisor.children(WeGoNext.ImportTaskSupervisor), fn pid ->
+        case Process.info(pid, :dictionary) do
+          {:dictionary, dictionary} ->
+            Keyword.get(dictionary, :ingest_operation_token) == operation.token
+
+          nil ->
+            false
+        end
+      end)
+
+    %{
+      operation: operation,
+      pid: pid,
+      ref: if(pid, do: Process.monitor(pid)),
+      timer: arm_deadline(operation)
+    }
+  end
+
+  defp arm_deadline(operation) do
+    remaining = max(DateTime.diff(operation.deadline, DateTime.utc_now(), :millisecond), 0)
+    Process.send_after(self(), {:deadline, operation.token}, remaining)
+  end
+
+  defp discard(ref, state) do
+    Process.demonitor(ref, [:flush])
+
+    remaining =
+      Map.reject(state, fn {_, info} ->
+        if info.ref == ref do
+          Process.cancel_timer(info.timer)
+          true
+        else
+          false
+        end
+      end)
+
+    {:noreply, remaining}
   end
 end

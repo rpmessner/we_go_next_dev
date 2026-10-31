@@ -191,16 +191,6 @@ defmodule WeGoNextWeb.LogLive.Index do
   end
 
   @impl true
-  def handle_info({:import_progress, :saving}, socket) do
-    {:noreply,
-     assign(socket, :import_progress, %{
-       percent: 100,
-       encounters_found: get_in(socket.assigns.import_progress, [:encounters_found]) || 0,
-       status: :saving
-     })}
-  end
-
-  @impl true
   def handle_info(
         {:import_progress, %{bytes_read: bytes, total_bytes: total, encounters_found: found}},
         socket
@@ -289,12 +279,7 @@ defmodule WeGoNextWeb.LogLive.Index do
       >
         <div class="mb-1 flex items-center justify-between text-sm text-zinc-400">
           <span>
-            <%= case @import_progress.status do %>
-              <% :parsing -> %>
-                Reimporting log file...
-              <% :saving -> %>
-                Saving to database...
-            <% end %>
+            Reimporting log file...
           </span>
           <span>{@import_progress.percent}%</span>
         </div>
@@ -346,7 +331,6 @@ defmodule WeGoNextWeb.LogLive.Index do
       last_parsed_byte: clf.last_parsed_byte,
       encounter_count: count(e.id),
       first_encounter_start_at: min(e.start_time),
-      is_complete: clf.is_complete,
       source: clf.source,
       watch_enabled: clf.watch_enabled,
       warcraft_logs_report_url: clf.warcraft_logs_report_url,

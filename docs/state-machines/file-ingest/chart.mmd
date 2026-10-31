@@ -1,0 +1,22 @@
+---
+title: "Per-file ingest"
+---
+stateDiagram-v2
+  s0: idle
+  s1: importing
+  s2: reimporting
+  s3: syncing
+  s4: failed
+  [*] --> s0
+  s0 --> s1: claim file
+  s0 --> s2: claim file
+  s0 --> s3: claim file
+  s1 --> s4: fail or deadline expires
+  s2 --> s4: fail or deadline expires
+  s3 --> s4: fail or deadline expires
+  s4 --> s2: claim file
+  s4 --> s1: claim file
+  s4 --> s3: claim file
+  s1 --> s0: finish
+  s2 --> s0: finish
+  s3 --> s0: finish
