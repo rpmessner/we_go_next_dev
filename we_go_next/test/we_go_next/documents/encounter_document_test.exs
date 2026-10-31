@@ -4,7 +4,6 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
   alias WeGoNext.Documents
   alias WeGoNext.Documents.EncounterDocument
   alias WeGoNext.{Accounts, CombatLogFile, RaidNights}
-  alias WeGoNext.Mirror.MirrorUpload
 
   alias WeGoNext.Gold.{
     DimEncounter,
@@ -166,8 +165,7 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
         file_path: encounter.source_file_path,
         source: :live,
         head_sha256: encounter.source_head_sha256,
-        raid_night_name: "Sunday Mythic Progression",
-        publish_enabled: true
+        raid_night_name: "Sunday Mythic Progression"
       })
       |> Repo.insert!()
 
@@ -201,9 +199,6 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
     assert {:ok, _log} = RaidNights.rename(log, "Renamed Progression Night")
     renamed_document = encounter_path |> File.read!() |> Jason.decode!()
     assert renamed_document["raid_night"]["name"] == "Renamed Progression Night"
-
-    assert %MirrorUpload{state: "pending"} =
-             Repo.get_by!(MirrorUpload, source_encounter_key: encounter.source_encounter_key)
   end
 
   defp insert_encounter!(wow_encounter_id) do

@@ -64,7 +64,6 @@ defmodule WeGoNext.CombatLogFile do
     # Mark as complete when fully parsed and a newer log exists (dead log)
     field(:is_complete, :boolean, default: false)
     field(:watch_enabled, :boolean, default: false)
-    field(:publish_enabled, :boolean, default: false)
     field(:raid_night_name, :string)
 
     belongs_to(:user, User)
@@ -91,7 +90,6 @@ defmodule WeGoNext.CombatLogFile do
       :user_id,
       :is_complete,
       :watch_enabled,
-      :publish_enabled,
       :raid_night_name
     ])
     |> validate_required([:file_path, :user_id, :source])

@@ -16,9 +16,12 @@ States: `draft`, `active`, `archived`. Set in `Rules.activate_ruleset`, `archive
 - A retired criterion's gold snapshot is only switched off at promote time.
 - Seed, activate, promote and rebuild each run in their own transaction. `rebuild_all` halts on the first error without recording progress.
 
-### 2. Mirror upload outbox (risk high; pure table plus conditional updates)
+### 2. Mirror upload outbox (removed in we-g18.2)
 
-States: `pending`, `stale`, `error`, `published`. Enqueued from the gold rebuild, raid nights, the encounter page's Upload button and the smoke task. Drained by `UploadWorker`, `drain_once`, the smoke task and the mix tasks.
+The operator chose removal, not a machine. The following findings describe the
+retired implementation; no upload lifecycle remains to model.
+
+Former states: `pending`, `stale`, `error`, `published`. Enqueued from the gold rebuild, raid nights, the encounter page's Upload button and the smoke task. Drained by `UploadWorker`, `drain_once`, the smoke task and the mix tasks.
 
 - **Lost update:** no claim or lock. If an enqueue sets a row `stale` while that row is mid-publish, the publish overwrites it with `published`, and the newer document is never uploaded.
 - **No in-flight state:** two drainers can publish the same row.
@@ -71,14 +74,14 @@ Covers `Importer`, `ImportWorker` and `combat_log_files.last_parsed_byte`.
 
 ### 8. Encounter detail, Settings and the public viewer (risk low; small tables)
 
-- **Upload state mapped twice:** the encounter page maps the raw upload state again and invents a "not_queued" pseudo-state.
+- **Removed in we-g18.2 — upload state mapped twice:** the encounter page maps the raw upload state again and invents a "not_queued" pseudo-state.
 - **Stale Settings banner:** Settings' "watching" banner is a snapshot taken at mount.
-- **Disable doesn't reach open pages:** turning a public report off only takes effect in the plug, so already-connected viewers keep the page.
-- **Duplicated classification:** the public viewer repeats the document-state classification.
+- **Removed in we-g18.2 — disable doesn't reach open pages:** turning a public report off only takes effect in the plug, so already-connected viewers keep the page.
+- **Removed in we-g18.2 — duplicated classification:** the public viewer repeats the document-state classification.
 
 ## Dead or legacy code (don't model it)
 
-- **Never set or never called:** `CombatLogFile.is_complete` and its helpers, `MirrorUpload.batch_id`, `Rules.archive_ruleset`, `Rules.operations_status`, `ImportWorker.active_imports`, `FileWatcher.sync_now`, `FileWatcher.watched_directory` and `EncounterStore.sync_log`.
+- **Never set or never called:** `CombatLogFile.is_complete` and its helpers, `Rules.archive_ruleset`, `Rules.operations_status`, `ImportWorker.active_imports`, `FileWatcher.sync_now`, `FileWatcher.watched_directory` and `EncounterStore.sync_log`.
 - **Never broadcast:** the `:saving` progress branches.
 - **No effect on document records:** the reset grouping.
 - **Legacy, per AGENTS.md:** `analyzers/*`, `encounter.ex`, `MythicPlusRun` and `TrashPull`.

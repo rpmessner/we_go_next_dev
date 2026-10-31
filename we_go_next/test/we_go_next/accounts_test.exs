@@ -100,43 +100,6 @@ defmodule WeGoNext.AccountsTest do
     assert Accounts.warcraft_logs_api_key(cleared) == :error
   end
 
-  test "document R2 secret access key is encrypted before storage", %{user: user} do
-    assert {:ok, updated} =
-             Accounts.set_document_r2_credentials(
-               user,
-               "https://r2.example",
-               "raid-documents",
-               "access-key-id",
-               "secret-access-key"
-             )
-
-    assert updated.document_r2_endpoint == "https://r2.example"
-    assert updated.document_r2_bucket == "raid-documents"
-    assert updated.document_r2_access_key_id == "access-key-id"
-    assert updated.document_r2_secret_access_key_set_at
-    refute updated.document_r2_secret_access_key_encrypted == "secret-access-key"
-    refute updated.document_r2_secret_access_key_encrypted =~ "secret"
-    assert {:ok, "secret-access-key"} = Accounts.document_r2_secret_access_key(updated)
-    assert Accounts.document_r2_configured?(updated)
-
-    assert {:ok, renamed} =
-             Accounts.update_document_r2_settings(
-               updated,
-               "https://r2-renamed.example",
-               "renamed-documents",
-               "renamed-access-key-id"
-             )
-
-    assert renamed.document_r2_endpoint == "https://r2-renamed.example"
-
-    assert renamed.document_r2_secret_access_key_encrypted ==
-             updated.document_r2_secret_access_key_encrypted
-
-    assert {:ok, cleared} = Accounts.clear_document_r2_credentials(renamed)
-    refute Accounts.document_r2_configured?(cleared)
-    assert Accounts.document_r2_secret_access_key(cleared) == :error
-  end
-
   defp sha256(data) do
     :sha256
     |> :crypto.hash(data)

@@ -102,8 +102,8 @@ mix run -e 'log = WeGoNext.Repo.get!(WeGoNext.CombatLogFile, 30); IO.inspect(WeG
 ```
 
 This reprojects silver and rebuilds gold/documents through the normal import
-path. It prunes obsolete death rows, not just upserts real deaths. Re-upload
-published documents after verifying the corrected local counts.
+path. It prunes obsolete death rows, not just upserts real deaths. Regenerate
+local documents after verifying the corrected counts.
 
 ## Current-Tier Mechanics Bootstrap
 
@@ -394,50 +394,24 @@ Rows include source file/line provenance, labels/role filters where available,
 comments, and inferred mechanic hints. They are scaffolding input for
 code-defined raid catalogs, not active rules.
 
-## Public Mirror Document Uploads
+## Local encounter documents
 
-Public sharing uses generated encounter documents, not DB ingest. The local
-parser writes `encounters/<source_encounter_key>.json` and `index.json` through
-`WeGoNext.Documents.Store`; opted-in uploads are tracked by `mirror_uploads` and
-drained by `WeGoNext.Documents.UploadWorker` in parser mode.
-
-Enable publishing for an imported log from the imported-logs UI, or use the
-Upload/Re-upload button on an encounter detail page to enqueue a single pull.
-The public app reads from R2 under `/r/:slug`; `/failures` is local
-parser-only.
-
-Useful checks:
+The medallion build writes `encounters/<source_encounter_key>.json` and
+`index.json` through `WeGoNext.Documents.Store.FileSystem`. The frontend reads
+these files locally. To regenerate one pull:
 
 ```bash
 mix wgn.rebuild_documents --encounter-id <encounter_dim_id>
-mix run -e 'IO.inspect(WeGoNext.Mirror.Outbox.process_pending(limit: 10, max_concurrency: 2))'
 ```
 
-Repeatable public mirror smoke:
+The public mirror and upload feature were removed in we-g18.2. There are no
+publishing controls or report-slug routes. Publishing may return as a static
+HTML/JS artifact on a free or cheap host.
 
-```bash
-mix wgn.public_mirror_smoke \
-  --factful-encounter-id 124 \
-  --zero-failure-encounter-id <zero_failure_encounter_dim_id> \
-  --slug <report-slug> \
-  --public-base-url https://<public-host>
-```
-
-This rebuilds the documents, uploads through `mirror_uploads`, validates the R2
-index/documents, and probes `/r/:slug` plus both detail pages. Copy the result
-block to WE-34, WE-11, and WE-12 after a real-bucket run.
-
-Gigalixir public mode needs R2 read credentials and should not have the old
-ingest token configured:
-
-```bash
-gigalixir config:unset INGEST_TOKEN
-gigalixir config:set DOCUMENTS_STORE=r2
-gigalixir config:set R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-gigalixir config:set R2_BUCKET=<bucket>
-gigalixir config:set R2_ACCESS_KEY_ID=<read-access-key-id>
-gigalixir config:set R2_SECRET_ACCESS_KEY=<read-secret-access-key>
-```
+After reviewing and backing up the local database, apply the removal migration
+with `mix ecto.migrate`. It deletes upload/report tables, the per-log publishing
+flag, and stored remote-document credentials. Stable gold keys and local
+encounter documents are retained. The migration cannot recover deleted data.
 
 ## Diagnosing Empty Failures
 

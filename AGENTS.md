@@ -33,7 +33,7 @@ The old Midnight launch deadline has passed. The project is no longer organized 
 6. Explain empty and stale medallion states without requiring SQL.
 7. Build encounter detail views from silver/gold read models.
 8. Expand fact/dim/criterion coverage when the supporting data grain is defensible.
-9. Promote frontend-visible encounter analysis into gold-backed read models before treating the hosted public mirror as a true copy of the local detail page.
+9. Keep frontend-visible encounter analysis in versioned local encounter documents.
 
 ### Mythic+ Support
 
@@ -65,17 +65,13 @@ The original analyzer/UI MVP has been pruned from active routing. The current ar
 - ✅ Silver projection tables keyed by `gold.dim_encounter.id`
 - ✅ Gold `fact_failure` proof-of-concept derived from silver/gold tables
 - ✅ Rules schema foundation for authored mechanic criteria
-- ✅ Public mirror plumbing for deploy, report slugs, ingest auth, stable keys, and parser upload outbox
+- ✅ Local encounter documents generated from silver/gold read models
 
-The current hosted public mirror is a provisional failure-fact preview. It proves
-deployment and upload mechanics, but it does not yet mirror the useful local
-encounter detail page because that page still depends on silver-derived read
-models for roster, deaths, damage, debuffs, interrupts/casts, and other pull
-detail. Public-sharing work should now follow
-`docs/ENCOUNTER_DOCUMENTS_DESIGN.md`: the medallion build emits versioned
-per-encounter JSON documents, the local frontend renders from those documents
-on disk, and opted-in documents are uploaded to a private Cloudflare R2 bucket
-for the Gigalixir public app to read (same frontend, `/r/:slug` gate).
+The public mirror was shut down because of hosting cost and removed in we-g18.2.
+Publishing may return as a static HTML/JS artifact on a free or cheap host.
+Keep local document generation and `WeGoNext.Mirror.Keys`: gold dimensions use
+its stable `criterion_key` and `source_encounter_key` functions. There is no
+upload worker, public run mode, report-slug viewer, or remote document store.
 
 **Current board focus:** make real current-tier failures appear from code-defined raid mechanics over real combat logs. Source-data imports from DBM, WowAnalyzer, and journal/reference metadata are scaffolding for authoring those code files, not a separate candidate/review/promotion product path.
 
@@ -373,12 +369,10 @@ Issue tracking lives **in-repo via [beads](https://github.com/steveyegge/beads) 
 
 ## Recent Updates
 
-### 2026-06-29: Public Mirror Replanned Around Gold Detail Contract
+### 2026-10-31: Public mirror retired
 
-- WE-5 through WE-12 built useful public mirror plumbing: parser/public mode, Gigalixir deploy, report slugs, ingest auth, stable mirror keys, and parser upload outbox.
-- Real-data dogfooding showed the current public surface mirrors only `gold.fact_failure` and related dimensions, which is too narrow to represent the local encounter detail page.
-- The corrected product target is a public-safe gold encounter detail JSON contract covering roster, deaths, damage summaries, debuffs, interrupts/casts where defensible, and failure facts.
-- New public-sharing work should follow `docs/PUBLIC_MIRROR_GOLD_DETAIL_PLAN.md`: medallion build emits JSON files, the local frontend reads them, and the uploader syncs them to Cloudflare for the Gigalixir public app. Do not keep expanding the public UI around failure facts alone.
+- Removed upload intent, credentials, publishing controls, report slugs, public routes, and hosted deployment configuration (we-g18.2).
+- Local JSON documents and stable gold identity keys remain. Old mirror plans describe retired infrastructure, not current architecture.
 
 ### 2026-05-18: Failures View and Legacy Analysis Pruning
 
