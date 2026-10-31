@@ -44,6 +44,47 @@ defmodule WeGoNextWeb.SettingsLiveTest do
     refute render(view) =~ "Last Loaded Log:"
   end
 
+  test "fresh encounter list default becomes the displayed log in Settings", %{conn: conn} do
+    user = Accounts.get_or_create_default_user()
+    older = log!(user, "Archive-WoWCombatLog-090526.txt", :warcraftlogs_archive)
+    newest = log!(user, "Archive-WoWCombatLog-090626.txt", :warcraftlogs_archive)
+
+    for {log, parsed_at} <- [
+          {older, ~U[2026-09-05 20:00:00Z]},
+          {newest, ~U[2026-09-06 20:00:00Z]}
+        ] do
+      log |> Ecto.Changeset.change(last_parsed_at: parsed_at) |> Repo.update!()
+    end
+
+    assert FileWatcher.displayed_file() == nil
+    {:ok, encounters, _} = live(conn, ~p"/")
+    assert has_element?(encounters, "option[selected]", Path.basename(newest.file_path))
+
+    {:ok, settings, _} = live(conn, ~p"/settings")
+    assert has_element?(settings, "#settings-displayed-log", Path.basename(newest.file_path))
+    assert has_element?(settings, "#settings-watched-log", "None")
+    assert FileWatcher.displayed_file().id == newest.id
+    assert FileWatcher.current_file() == nil
+  end
+
+  test "mounting encounters keeps an existing displayed log and an independent watch", %{
+    conn: conn
+  } do
+    user = Accounts.get_or_create_default_user()
+    archive = log!(user, "Archive-WoWCombatLog-090626.txt", :warcraftlogs_archive)
+    watched = log!(user, "WoWCombatLog-103126_200000.txt", :live)
+    assert :ok = FileWatcher.display(archive)
+    assert :ok = FileWatcher.watch(watched)
+
+    {:ok, encounters, _} = live(conn, ~p"/")
+    assert has_element?(encounters, "option[selected]", Path.basename(archive.file_path))
+    {:ok, settings, _} = live(conn, ~p"/settings")
+    assert has_element?(settings, "#settings-displayed-log", Path.basename(archive.file_path))
+    assert has_element?(settings, "#settings-watched-log", Path.basename(watched.file_path))
+    assert FileWatcher.displayed_file().id == archive.id
+    assert FileWatcher.current_file().id == watched.id
+  end
+
   test "open Settings follows archive selection and clearing without a watch change", %{
     conn: conn
   } do

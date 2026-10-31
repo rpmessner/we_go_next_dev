@@ -47,13 +47,13 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     imported_logs = list_imported_logs(user.id)
 
     selector_logs = selector_logs(log_files, imported_logs)
-    filter_log_id = default_filter_log_id(imported_logs)
+    displayed_log = ensure_displayed_log(imported_logs)
+    filter_log_id = if displayed_log, do: displayed_log.id, else: :all
 
     selected_log =
-      case imported_logs do
-        [%{file_path: path} | _rest] -> path
-        [] -> if(length(selector_logs) == 1, do: hd(selector_logs).full_path, else: "all")
-      end
+      if displayed_log,
+        do: displayed_log.file_path,
+        else: if(length(selector_logs) == 1, do: hd(selector_logs).full_path, else: "all")
 
     socket = ImportStatus.mount(socket, user.id)
 
@@ -450,8 +450,17 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     )
   end
 
-  defp default_filter_log_id([%{id: id} | _rest]), do: id
-  defp default_filter_log_id([]), do: :all
+  defp ensure_displayed_log(imported_logs) do
+    case {FileWatcher.displayed_file(), imported_logs} do
+      {nil, [%{id: id} | _rest]} ->
+        log = Repo.get!(CombatLogFile, id)
+        :ok = FileWatcher.display(log)
+        log
+
+      {displayed, _logs} ->
+        displayed
+    end
+  end
 
   defp filter_id_for_path("all", _imported_logs), do: :all
 

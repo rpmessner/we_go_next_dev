@@ -45,7 +45,8 @@ defmodule WeGoNextWeb.PageStateTest do
     settings |> element("button[phx-click=toggle_watch_enabled]") |> render_click()
     refute has_element?(logs, "#watch-log-#{log.id}[checked]")
     refute has_element?(encounters, "#watch-newest-log[checked]")
-    refute render(settings) =~ "WoWCombatLog-103126_200000.txt"
+    assert has_element?(settings, "#settings-watched-log", "None")
+    assert has_element?(settings, "#settings-displayed-log", "WoWCombatLog-103126_200000.txt")
   end
 
   test "Encounter list reconciles the imported selector after a lost completion", %{
