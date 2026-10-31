@@ -34,6 +34,12 @@ defmodule Mix.Tasks.WeGoNext.SeedRules do
           "Synced #{length(criteria)} mechanic definition(s) into #{ruleset.name} v#{ruleset.version}."
         )
 
+      {:error, %{stage: stage, completed: completed, reason: reason}} ->
+        Mix.raise(
+          "Mechanic definition sync failed at #{stage}. " <>
+            "Committed stages: #{inspect(completed)}. Failure: #{inspect(reason, limit: :infinity)}"
+        )
+
       {:error, reason} ->
         Mix.raise("Failed to sync mechanic definitions: #{inspect(reason)}")
     end

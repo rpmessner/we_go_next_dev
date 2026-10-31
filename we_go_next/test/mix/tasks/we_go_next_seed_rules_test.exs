@@ -38,6 +38,24 @@ defmodule Mix.Tasks.WeGoNext.SeedRulesTest do
              |> Repo.aggregate(:count)
   end
 
+  test "default seed and raid sync commands preserve an activated ruleset" do
+    {:ok, %{ruleset: active}} = WeGoNext.Rules.sync_current_tier_rules(activate: true)
+
+    capture_task_output(fn -> SeedRules.run([]) end)
+    assert WeGoNext.Rules.get_ruleset!(active.id).status == "active"
+    assert WeGoNext.Rules.get_ruleset!(active.id).activated_at == active.activated_at
+
+    capture_task_output(fn -> Mix.Tasks.WeGoNext.SyncRaidRules.run([]) end)
+    assert WeGoNext.Rules.get_ruleset!(active.id).status == "active"
+    assert WeGoNext.Rules.get_ruleset!(active.id).activated_at == active.activated_at
+  end
+
+  test "raid sync CLI names the failed stage and committed work" do
+    assert_raise Mix.Error, ~r/failed at sync.*Committed stages: \[\]/, fn ->
+      Mix.Tasks.WeGoNext.SyncRaidRules.run(["not-a-raid", "--rebuild"])
+    end
+  end
+
   test "still accepts explicit static JSON paths for legacy fixtures" do
     path =
       Path.join(System.tmp_dir!(), "wgn-legacy-rules-#{System.unique_integer([:positive])}.json")

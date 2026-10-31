@@ -57,15 +57,33 @@ defmodule WeGoNext.Gold.Rebuilds do
     rebuild_opts = normalize_rebuild_opts(opts)
     totals = %{encounters: length(encounter_ids), deleted: 0, inserted: 0, skipped: 0}
 
-    Enum.reduce_while(encounter_ids, {:ok, totals}, fn encounter_id, {:ok, totals} ->
-      case RebuildEncounter.rebuild(encounter_id, rebuild_opts) do
-        {:ok, %{fact_failure: result}} ->
-          {:cont, {:ok, add_result(totals, result)}}
+    rebuild_batch(encounter_ids, rebuild_opts, totals, [])
+  end
 
-        {:error, reason} ->
-          {:halt, {:error, %{encounter_id: encounter_id, reason: reason, totals: totals}}}
-      end
-    end)
+  defp rebuild_batch([], _opts, totals, _completed), do: {:ok, totals}
+
+  defp rebuild_batch([encounter_id | remaining], opts, totals, completed) do
+    case safely_rebuild_encounter(encounter_id, opts) do
+      {:ok, %{fact_failure: result}} ->
+        rebuild_batch(remaining, opts, add_result(totals, result), [encounter_id | completed])
+
+      {:error, reason} ->
+        {:error,
+         %{
+           encounter_id: encounter_id,
+           reason: reason,
+           totals: totals,
+           completed_encounter_ids: Enum.reverse(completed),
+           remaining_encounter_ids: remaining
+         }}
+    end
+  end
+
+  defp safely_rebuild_encounter(encounter_id, opts) do
+    RebuildEncounter.rebuild(encounter_id, opts)
+  rescue
+    exception ->
+      {:error, %{exception: exception.__struct__, message: Exception.message(exception)}}
   end
 
   defp encounter_ids do
