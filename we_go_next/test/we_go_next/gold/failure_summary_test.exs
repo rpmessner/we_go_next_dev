@@ -11,16 +11,10 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
 
   alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
   alias WeGoNext.Silver.DamageTaken
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
-
-    ruleset =
-      %Ruleset{}
-      |> Ruleset.changeset(%{name: "Failure Summary Rules", status: "active"})
-      |> Repo.insert!()
 
     suffix = System.unique_integer([:positive])
 
@@ -36,14 +30,13 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
 
     raid = get_or_insert_player!("__RAID__", "Raid")
 
-    swirl = insert_criterion!(ruleset, 101, "Swirl", "avoidable")
-    cast = insert_criterion!(ruleset, 202, "Shadow Volley", "interrupt")
+    swirl = insert_criterion!(101, "Swirl", "avoidable")
+    cast = insert_criterion!(202, "Shadow Volley", "interrupt")
 
     early = insert_encounter!("boss-one", "Boss One", ~U[2026-05-01 20:00:00Z])
     late = insert_encounter!("boss-two", "Boss Two", ~U[2026-05-03 20:00:00Z])
 
-    {:ok,
-     ruleset: ruleset, one: one, raid: raid, swirl: swirl, cast: cast, early: early, late: late}
+    {:ok, one: one, raid: raid, swirl: swirl, cast: cast, early: early, late: late}
   end
 
   test "list_grouped_failures groups by player and criterion", %{
@@ -136,7 +129,7 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
         end_date: ~D[2026-05-01]
       })
 
-    assert readiness.active_promoted_snapshots_count == 2
+    assert readiness.synced_mechanics_count == 2
     assert readiness.failure_ready_mechanics_count == 2
     assert readiness.scoped_encounters_count == 1
     assert readiness.matching_silver_observation_count == 1
@@ -145,7 +138,10 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
     assert readiness.selected_fact_count == 0
     assert readiness.selected_failure_row_count == 0
 
-    assert diagnostic_titles(readiness) == ["No tracked failures"]
+    assert diagnostic_titles(readiness) == [
+             "No tracked failures",
+             "Some mechanics produced no failures"
+           ]
   end
 
   test "readiness reports stale failures when current mechanic definitions are not represented",
@@ -154,7 +150,8 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
          swirl: swirl,
          early: early
        } do
-    insert_failure!(early, one, swirl, 1, 100, ruleset_version: 99)
+    insert_failure!(early, one, swirl, 1, 100)
+    swirl |> Ecto.Changeset.change(active: false) |> Repo.update!()
 
     readiness = FailureSummary.readiness()
 
@@ -205,15 +202,14 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
   end
 
   test "zero facts below threshold do not prove freshness without a pull stamp", %{
-    ruleset: ruleset,
     early: early
   } do
-    rule =
-      insert_authored_rule!(ruleset, 989, "Below threshold", early.wow_encounter_id,
-        threshold: %{"max_hits" => 5}
-      )
+    Repo.delete_all(DimMechanicCriterion)
 
-    insert_snapshot!(ruleset, rule)
+    insert_catalog_rule!(989, "Below threshold", early.wow_encounter_id,
+      threshold: %{"max_hits" => 5}
+    )
+
     insert_damage_taken!(early, "Player-One", 989)
     early |> Ecto.Changeset.change(failure_derivation_version: nil) |> Repo.update!()
 
@@ -223,31 +219,23 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
 
   test "zero_fact_rule_diagnostics explains current-tier avoidable mechanics that produce no failures",
        %{
-         ruleset: ruleset,
          early: early,
          late: late
        } do
-    insert_authored_rule!(ruleset, 301, "Stale Snapshot", "boss-one")
+    Repo.delete_all(DimMechanicCriterion)
 
-    no_encounter = insert_authored_rule!(ruleset, 302, "No Encounter", "missing-boss")
-    insert_snapshot!(ruleset, no_encounter)
+    insert_catalog_rule!(302, "No Encounter", "missing-boss")
 
-    no_silver = insert_authored_rule!(ruleset, 303, "No Silver", early.wow_encounter_id)
-    insert_snapshot!(ruleset, no_silver)
+    insert_catalog_rule!(303, "No Silver", early.wow_encounter_id)
 
-    spell_mismatch = insert_authored_rule!(ruleset, 304, "Wrong Spell", late.wow_encounter_id)
-    insert_snapshot!(ruleset, spell_mismatch)
+    insert_catalog_rule!(304, "Wrong Spell", late.wow_encounter_id)
     insert_damage_taken!(late, "Player-Other", 999_304)
 
-    inactive =
-      insert_authored_rule!(ruleset, 305, "Inactive Rule", early.wow_encounter_id, active: false)
-
-    insert_snapshot!(ruleset, inactive, active: false)
+    insert_catalog_rule!(305, "Inactive Rule", early.wow_encounter_id, active: false)
 
     diagnostics = FailureSummary.zero_fact_rule_diagnostics()
     reasons_by_spell = Map.new(diagnostics, &{&1.spell_id, &1.reason})
 
-    assert reasons_by_spell[301] == :stale_gold_snapshot
     assert reasons_by_spell[302] == :no_matching_encounter
     assert reasons_by_spell[303] == :no_silver_damage_rows
     assert reasons_by_spell[304] == :spell_id_mismatch
@@ -256,7 +244,7 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
     readiness = FailureSummary.readiness()
 
     assert "Some mechanics produced no failures" in diagnostic_titles(readiness)
-    assert length(readiness.zero_fact_rule_diagnostics) == 5
+    assert length(readiness.zero_fact_rule_diagnostics) == 4
   end
 
   defp insert_encounter!(wow_encounter_id, name, start_time) do
@@ -275,25 +263,25 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
     |> Repo.update!()
   end
 
-  defp insert_criterion!(ruleset, spell_id, spell_name, mechanic_type) do
+  defp insert_criterion!(spell_id, spell_name, mechanic_type) do
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(%{
-      source_rule_id: System.unique_integer([:positive]),
-      ruleset_id: ruleset.id,
-      ruleset_version: ruleset.version,
       spell_id: spell_id,
       spell_name: spell_name,
       mechanic_type: mechanic_type,
-      threshold: %{"max_hits" => 0},
+      threshold:
+        if(mechanic_type == "interrupt",
+          do: %{"must_interrupt" => true},
+          else: %{"max_hits" => 0}
+        ),
       active: true
     })
     |> Repo.insert!()
   end
 
-  defp insert_authored_rule!(ruleset, spell_id, spell_name, boss_encounter_id, attrs \\ []) do
-    %MechanicCriterion{}
-    |> MechanicCriterion.changeset(%{
-      ruleset_id: ruleset.id,
+  defp insert_catalog_rule!(spell_id, spell_name, boss_encounter_id, attrs \\ []) do
+    %DimMechanicCriterion{}
+    |> DimMechanicCriterion.changeset(%{
       spell_id: spell_id,
       spell_name: spell_name,
       mechanic_type: "avoidable",
@@ -301,24 +289,6 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
       boss_name: "Diagnostic Boss",
       threshold: Keyword.get(attrs, :threshold, %{"max_hits" => 0}),
       active: Keyword.get(attrs, :active, true)
-    })
-    |> Repo.insert!()
-  end
-
-  defp insert_snapshot!(ruleset, rule, attrs \\ []) do
-    %DimMechanicCriterion{}
-    |> DimMechanicCriterion.changeset(%{
-      source_rule_id: rule.id,
-      ruleset_id: ruleset.id,
-      ruleset_version: ruleset.version,
-      spell_id: rule.spell_id,
-      spell_name: rule.spell_name,
-      mechanic_type: rule.mechanic_type,
-      boss_encounter_id: rule.boss_encounter_id,
-      boss_name: rule.boss_name,
-      difficulty_id: rule.difficulty_id,
-      threshold: rule.threshold,
-      active: Keyword.get(attrs, :active, rule.active)
     })
     |> Repo.insert!()
   end
@@ -345,8 +315,6 @@ defmodule WeGoNext.Gold.FailureSummaryTest do
       encounter_dim_id: encounter.id,
       player_dim_id: player.id,
       criterion_dim_id: criterion.id,
-      ruleset_id: criterion.ruleset_id,
-      ruleset_version: Keyword.get(attrs, :ruleset_version, criterion.ruleset_version),
       product: criterion.product,
       channel: criterion.channel,
       build_version: criterion.build_version,

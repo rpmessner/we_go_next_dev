@@ -74,19 +74,8 @@ defmodule WeGoNext.Analysis.PullToolsTest do
         do:
           Repo.insert!(WeGoNext.Silver.DamageTaken.changeset(%WeGoNext.Silver.DamageTaken{}, row))
 
-    ruleset =
-      Repo.insert!(
-        WeGoNext.Rules.Ruleset.changeset(%WeGoNext.Rules.Ruleset{}, %{
-          name: "Fixture rules",
-          status: "active"
-        })
-      )
-
     Repo.insert!(
       WeGoNext.Gold.DimMechanicCriterion.changeset(%WeGoNext.Gold.DimMechanicCriterion{}, %{
-        source_rule_id: 1,
-        ruleset_id: ruleset.id,
-        ruleset_version: ruleset.version,
         spell_id: 1_246_502,
         spell_name: "Avenger's Shield",
         mechanic_type: "avoidable",
@@ -252,8 +241,6 @@ defmodule WeGoNext.Analysis.PullToolsTest do
         encounter_dim_id: dim.id,
         player_dim_id: gold.id,
         criterion_dim_id: fact.criterion_dim_id,
-        ruleset_id: fact.ruleset_id,
-        ruleset_version: fact.ruleset_version,
         failure_count: fact.failure_count,
         total_damage: fact.total_damage,
         derivation_version: fact.derivation_version
@@ -359,8 +346,6 @@ defmodule WeGoNext.Analysis.PullToolsTest do
       encounter_dim_id: second.id,
       player_dim_id: fact.player_dim_id,
       criterion_dim_id: fact.criterion_dim_id,
-      ruleset_id: fact.ruleset_id,
-      ruleset_version: fact.ruleset_version,
       failure_count: 1,
       total_damage: 100,
       derivation_version: fact.derivation_version

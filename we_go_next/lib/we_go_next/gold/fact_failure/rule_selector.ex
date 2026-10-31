@@ -2,7 +2,7 @@ defmodule WeGoNext.Gold.FactFailure.RuleSelector do
   @moduledoc """
   Selects the effective gold criterion snapshots for a rebuild.
 
-  Rules are scoped by active status, ruleset, boss encounter id, and difficulty.
+  Criteria are scoped by active status, pull start time, boss id, and difficulty.
   When multiple snapshots match the same spell, the most specific match wins.
   """
 
@@ -32,7 +32,8 @@ defmodule WeGoNext.Gold.FactFailure.RuleSelector do
         FROM gold.dim_mechanic_criterion c
         JOIN encounter_scope e ON TRUE
         WHERE c.active = TRUE
-          AND c.ruleset_id = $2
+          AND (c.valid_from IS NULL OR e.start_time >= c.valid_from)
+          AND (c.valid_until IS NULL OR e.start_time < c.valid_until)
           AND (
             c.boss_encounter_id IS NULL
             OR (

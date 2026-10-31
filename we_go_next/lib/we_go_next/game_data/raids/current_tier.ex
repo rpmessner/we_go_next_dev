@@ -2,7 +2,7 @@ defmodule WeGoNext.GameData.Raids.CurrentTier do
   @moduledoc """
   Default Midnight catalog, including current progression and Season 1 coverage.
 
-  A single active ruleset serves imported history as well as current pulls; do not
+  One live mechanics catalog serves imported history as well as current pulls; do not
   drop the Season 1 criteria when syncing The Venomous Abyss and Midnight Lairs.
   """
 

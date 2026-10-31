@@ -1,21 +1,14 @@
 defmodule WeGoNext.Gold.DimMechanicCriterion do
-  @moduledoc """
-  Gold dimension row for mechanic failure criteria.
-  """
-
+  @moduledoc "Live mechanics catalog and stable key dimension for failure facts."
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias WeGoNext.Mechanics.Taxonomy
+  alias WeGoNext.Mechanics.{CriterionThreshold, Taxonomy}
   alias WeGoNext.Mirror.Keys
 
   @schema_prefix "gold"
-
   schema "dim_mechanic_criterion" do
     field(:criterion_key, :string)
-    field(:source_rule_id, :integer)
-    field(:ruleset_id, :integer)
-    field(:ruleset_version, :integer)
     field(:product, :string, default: "wow")
     field(:channel, :string, default: "retail")
     field(:build_version, :string)
@@ -29,18 +22,15 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
     field(:threshold, :map, default: %{})
     field(:notes, :string)
     field(:active, :boolean, default: true)
-
+    field(:valid_from, :utc_datetime_usec)
+    field(:valid_until, :utc_datetime_usec)
     timestamps(type: :utc_datetime_usec)
   end
 
-  @doc false
-  def changeset(dim_criterion, attrs) do
-    dim_criterion
+  def changeset(criterion, attrs) do
+    criterion
     |> cast(attrs, [
-      :source_rule_id,
       :criterion_key,
-      :ruleset_id,
-      :ruleset_version,
       :product,
       :channel,
       :build_version,
@@ -53,14 +43,14 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
       :difficulty_id,
       :threshold,
       :notes,
-      :active
+      :active,
+      :valid_from,
+      :valid_until
     ])
+    |> CriterionThreshold.validate()
     |> put_criterion_key()
     |> validate_required([
       :criterion_key,
-      :source_rule_id,
-      :ruleset_id,
-      :ruleset_version,
       :product,
       :channel,
       :spell_id,
@@ -70,81 +60,56 @@ defmodule WeGoNext.Gold.DimMechanicCriterion do
       :active
     ])
     |> validate_inclusion(:mechanic_type, Taxonomy.rule_types())
-    |> validate_number(:ruleset_version, greater_than: 0)
-    |> unique_constraint(:source_rule_id)
-    |> unique_constraint(:criterion_key)
-  end
-
-  @doc false
-  def mirror_changeset(dim_criterion, attrs) do
-    dim_criterion
-    |> cast(attrs, [
-      :criterion_key,
-      :ruleset_id,
-      :ruleset_version,
-      :product,
-      :channel,
-      :build_version,
-      :build_key,
-      :spell_id,
-      :spell_name,
-      :mechanic_type,
-      :boss_encounter_id,
-      :boss_name,
-      :difficulty_id,
-      :threshold,
-      :notes,
-      :active
-    ])
-    |> put_criterion_key()
-    |> validate_required([
-      :criterion_key,
-      :ruleset_id,
-      :ruleset_version,
-      :product,
-      :channel,
-      :spell_id,
-      :spell_name,
-      :mechanic_type,
-      :threshold,
-      :active
-    ])
-    |> validate_inclusion(:mechanic_type, Taxonomy.rule_types())
-    |> validate_number(:ruleset_version, greater_than: 0)
+    |> validate_window()
     |> unique_constraint(:criterion_key)
   end
 
   def mechanic_types, do: Taxonomy.rule_types()
 
-  defp put_criterion_key(changeset) do
-    if get_field(changeset, :criterion_key) do
-      changeset
-    else
-      fields = fields_for_key(changeset)
+  defp validate_window(changeset) do
+    case {get_field(changeset, :valid_from), get_field(changeset, :valid_until)} do
+      {%DateTime{} = from, %DateTime{} = until} ->
+        if DateTime.compare(from, until) == :lt,
+          do: changeset,
+          else: add_error(changeset, :valid_until, "must be after valid_from")
 
-      if key_ready?(fields) do
-        put_change(changeset, :criterion_key, Keys.criterion_key(fields))
-      else
+      _ ->
         changeset
-      end
     end
   end
 
-  defp fields_for_key(changeset) do
-    %{
-      product: get_field(changeset, :product),
-      channel: get_field(changeset, :channel),
-      build_key: get_field(changeset, :build_key),
-      boss_encounter_id: get_field(changeset, :boss_encounter_id),
-      difficulty_id: get_field(changeset, :difficulty_id),
-      spell_id: get_field(changeset, :spell_id),
-      mechanic_type: get_field(changeset, :mechanic_type),
-      threshold: get_field(changeset, :threshold)
-    }
-  end
+  defp put_criterion_key(changeset) do
+    fields =
+      Map.new(
+        [
+          :product,
+          :channel,
+          :build_key,
+          :boss_encounter_id,
+          :difficulty_id,
+          :spell_id,
+          :mechanic_type,
+          :threshold,
+          :valid_from,
+          :valid_until
+        ],
+        &{&1, get_field(changeset, &1)}
+      )
 
-  defp key_ready?(fields) do
-    fields.product && fields.channel && fields.spell_id && fields.mechanic_type &&
-      fields.threshold
+    if get_field(changeset, :criterion_key) ||
+         Enum.any?(
+           [
+             fields.product,
+             fields.channel,
+             fields.spell_id,
+             fields.mechanic_type,
+             fields.threshold
+           ],
+           &is_nil/1
+         ) do
+      changeset
+    else
+      put_change(changeset, :criterion_key, Keys.criterion_key(fields))
+    end
   end
 end

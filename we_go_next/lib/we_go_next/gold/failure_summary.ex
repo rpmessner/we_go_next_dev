@@ -8,7 +8,6 @@ defmodule WeGoNext.Gold.FailureSummary do
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, FactFailure}
   alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
   alias WeGoNext.Silver.{DamageTaken, InterruptOpportunity}
 
   @default_date_range_days 14
@@ -67,9 +66,6 @@ defmodule WeGoNext.Gold.FailureSummary do
           selected_failure_row_count: non_neg_integer(),
           stale_mechanic_definition_count: non_neg_integer(),
           stale_failure_logic_count: non_neg_integer(),
-          active_ruleset: Ruleset.t() | nil,
-          active_authored_rules_count: non_neg_integer(),
-          active_promoted_snapshots_count: non_neg_integer(),
           scoped_encounters_count: non_neg_integer(),
           selected_fact_count: non_neg_integer(),
           total_fact_count: non_neg_integer(),
@@ -179,31 +175,28 @@ defmodule WeGoNext.Gold.FailureSummary do
   """
   @spec readiness(filters()) :: readiness()
   def readiness(filters \\ %{}) when is_map(filters) do
-    active_ruleset = Repo.get_by(Ruleset, status: "active")
-    synced_mechanics_count = active_authored_rules_count(active_ruleset)
-    failure_ready_mechanics_count = active_promoted_snapshots_count(active_ruleset)
+    synced_mechanics_count = Repo.aggregate(active_criteria_query(), :count)
+    failure_ready_mechanics_count = synced_mechanics_count
     selected_failure_row_count = selected_fact_count(filters)
-    imported_observation_count = matching_silver_observation_count(active_ruleset, filters)
-    stale_mechanic_definition_count = stale_fact_count(active_ruleset, filters)
+    matches = silver_match_counts(filters)
+    imported_observation_count = matches.observations
+    stale_mechanic_definition_count = stale_fact_count(filters)
     stale_failure_logic_count = stale_derivation_fact_count(filters)
 
     counts = %{
-      mechanics_synced?: not is_nil(active_ruleset),
+      mechanics_synced?: synced_mechanics_count > 0,
       synced_mechanics_count: synced_mechanics_count,
       failure_ready_mechanics_count: failure_ready_mechanics_count,
       imported_observation_count: imported_observation_count,
       selected_failure_row_count: selected_failure_row_count,
       stale_mechanic_definition_count: stale_mechanic_definition_count,
       stale_failure_logic_count: stale_failure_logic_count,
-      active_ruleset: active_ruleset,
-      active_authored_rules_count: synced_mechanics_count,
-      active_promoted_snapshots_count: failure_ready_mechanics_count,
       scoped_encounters_count: scoped_encounters_count(filters),
       selected_fact_count: selected_failure_row_count,
       total_fact_count: Repo.aggregate(FactFailure, :count),
-      active_fact_count: active_fact_count(active_ruleset, filters),
+      active_fact_count: active_fact_count(filters),
       matching_silver_observation_count: imported_observation_count,
-      matching_criteria_count: matching_criteria_count(active_ruleset, filters),
+      matching_criteria_count: matches.criteria,
       stale_fact_count: stale_mechanic_definition_count,
       stale_derivation_fact_count: stale_failure_logic_count,
       current_derivation_version: Derivation.current_version(),
@@ -247,21 +240,6 @@ defmodule WeGoNext.Gold.FailureSummary do
 
   defp apply_end_date(query, _date), do: query
 
-  defp active_authored_rules_count(nil), do: 0
-
-  defp active_authored_rules_count(%Ruleset{id: ruleset_id}) do
-    MechanicCriterion
-    |> where([criterion], criterion.ruleset_id == ^ruleset_id)
-    |> Repo.aggregate(:count)
-  end
-
-  defp active_promoted_snapshots_count(nil), do: 0
-
-  defp active_promoted_snapshots_count(%Ruleset{id: ruleset_id, version: version}) do
-    active_criteria_query(ruleset_id, version)
-    |> Repo.aggregate(:count)
-  end
-
   defp scoped_encounters_count(filters) do
     DimEncounter
     |> apply_encounter_filters(filters)
@@ -275,40 +253,22 @@ defmodule WeGoNext.Gold.FailureSummary do
     |> Repo.aggregate(:count)
   end
 
-  defp active_fact_count(nil, _filters), do: 0
-
-  defp active_fact_count(%Ruleset{id: ruleset_id, version: version}, filters) do
+  defp active_fact_count(filters) do
     FactFailure
     |> join(:inner, [failure], encounter in assoc(failure, :encounter))
-    |> where([failure, encounter], failure.ruleset_id == ^ruleset_id)
-    |> where([failure, encounter], failure.ruleset_version == ^version)
+    |> join(:inner, [failure, encounter], criterion in assoc(failure, :criterion))
+    |> where([failure, encounter, criterion], criterion.active)
     |> apply_fact_filters(filters)
     |> Repo.aggregate(:count)
   end
 
-  defp matching_silver_observation_count(nil, _filters), do: 0
-
-  defp matching_silver_observation_count(%Ruleset{} = ruleset, filters) do
-    silver_match_counts(ruleset, filters).observations
-  end
-
-  defp matching_criteria_count(nil, _filters), do: 0
-
-  defp matching_criteria_count(%Ruleset{} = ruleset, filters) do
-    silver_match_counts(ruleset, filters).criteria
-  end
-
-  defp stale_fact_count(nil, _filters), do: 0
-
-  defp stale_fact_count(%Ruleset{id: ruleset_id, version: version}, filters) do
+  defp stale_fact_count(filters) do
     FactFailure
     |> join(:inner, [failure], criterion in assoc(failure, :criterion))
     |> join(:inner, [failure, criterion], encounter in assoc(failure, :encounter))
     |> where(
       [failure, criterion, encounter],
-      failure.ruleset_id != ^ruleset_id or failure.ruleset_version != ^version or
-        failure.ruleset_id != criterion.ruleset_id or
-        failure.ruleset_version != criterion.ruleset_version
+      not criterion.active or criterion.updated_at > failure.rebuilt_at
     )
     |> apply_stale_fact_filters(filters)
     |> Repo.aggregate(:count)
@@ -329,9 +289,9 @@ defmodule WeGoNext.Gold.FailureSummary do
     |> Repo.one()
   end
 
-  defp silver_match_counts(%Ruleset{id: ruleset_id, version: version}, filters) do
-    avoidable = avoidable_silver_match_counts(ruleset_id, version, filters)
-    interrupt = interrupt_silver_match_counts(ruleset_id, version, filters)
+  defp silver_match_counts(filters) do
+    avoidable = avoidable_silver_match_counts(filters)
+    interrupt = interrupt_silver_match_counts(filters)
 
     %{
       observations: avoidable.observations + interrupt.observations,
@@ -339,14 +299,13 @@ defmodule WeGoNext.Gold.FailureSummary do
     }
   end
 
-  defp avoidable_silver_match_counts(ruleset_id, version, filters) do
+  defp avoidable_silver_match_counts(filters) do
     query =
       DamageTaken
       |> join(:inner, [damage], encounter in assoc(damage, :encounter))
       |> join(:inner, [damage, encounter], criterion in DimMechanicCriterion,
         on:
           criterion.spell_id == damage.spell_id and criterion.mechanic_type == "avoidable" and
-            criterion.ruleset_id == ^ruleset_id and criterion.ruleset_version == ^version and
             criterion.active == true
       )
       |> apply_criterion_scope()
@@ -358,15 +317,14 @@ defmodule WeGoNext.Gold.FailureSummary do
     }
   end
 
-  defp interrupt_silver_match_counts(ruleset_id, version, filters) do
+  defp interrupt_silver_match_counts(filters) do
     query =
       InterruptOpportunity
       |> join(:inner, [opportunity], encounter in assoc(opportunity, :encounter))
       |> join(:inner, [opportunity, encounter], criterion in DimMechanicCriterion,
         on:
           criterion.spell_id == opportunity.interrupted_spell_id and
-            criterion.mechanic_type == "interrupt" and criterion.ruleset_id == ^ruleset_id and
-            criterion.ruleset_version == ^version and criterion.active == true
+            criterion.mechanic_type == "interrupt" and criterion.active == true
       )
       |> where([opportunity, encounter, criterion], opportunity.success == false)
       |> apply_criterion_scope()
@@ -386,11 +344,8 @@ defmodule WeGoNext.Gold.FailureSummary do
     |> MapSet.new()
   end
 
-  defp active_criteria_query(ruleset_id, version) do
-    DimMechanicCriterion
-    |> where([criterion], criterion.ruleset_id == ^ruleset_id)
-    |> where([criterion], criterion.ruleset_version == ^version)
-    |> where([criterion], criterion.active == true)
+  defp active_criteria_query do
+    where(DimMechanicCriterion, [criterion], criterion.active == true)
   end
 
   defp apply_criterion_scope(query) do
@@ -403,7 +358,13 @@ defmodule WeGoNext.Gold.FailureSummary do
           (criterion.boss_encounter_id == encounter.wow_encounter_id and ^difficulty_scope)
       )
 
-    where(query, ^scope)
+    query
+    |> where(^scope)
+    |> where(
+      [observation, encounter, criterion],
+      (is_nil(criterion.valid_from) or encounter.start_time >= criterion.valid_from) and
+        (is_nil(criterion.valid_until) or encounter.start_time < criterion.valid_until)
+    )
   end
 
   defp criterion_difficulty_scope do
@@ -498,8 +459,7 @@ defmodule WeGoNext.Gold.FailureSummary do
 
   defp readiness_diagnostics(counts) do
     []
-    |> maybe_no_active_ruleset(counts)
-    |> maybe_no_promoted_criteria(counts)
+    |> maybe_no_catalog(counts)
     |> maybe_no_encounters(counts)
     |> maybe_no_matching_silver(counts)
     |> maybe_no_gold_facts(counts)
@@ -509,7 +469,7 @@ defmodule WeGoNext.Gold.FailureSummary do
     |> Enum.reverse()
   end
 
-  defp maybe_no_active_ruleset(diagnostics, %{active_ruleset: nil}) do
+  defp maybe_no_catalog(diagnostics, %{mechanics_synced?: false}) do
     [
       %{
         severity: :blocked,
@@ -520,27 +480,7 @@ defmodule WeGoNext.Gold.FailureSummary do
     ]
   end
 
-  defp maybe_no_active_ruleset(diagnostics, _counts), do: diagnostics
-
-  defp maybe_no_promoted_criteria(
-         diagnostics,
-         %{
-           active_ruleset: %Ruleset{},
-           active_promoted_snapshots_count: 0
-         }
-       ) do
-    [
-      %{
-        severity: :blocked,
-        title: "Mechanics need sync",
-        body:
-          "No failure-ready mechanics are synced. Sync current-tier mechanics before rebuilding."
-      }
-      | diagnostics
-    ]
-  end
-
-  defp maybe_no_promoted_criteria(diagnostics, _counts), do: diagnostics
+  defp maybe_no_catalog(diagnostics, _counts), do: diagnostics
 
   defp maybe_no_encounters(diagnostics, %{scoped_encounters_count: 0}) do
     [
@@ -558,12 +498,12 @@ defmodule WeGoNext.Gold.FailureSummary do
   defp maybe_no_matching_silver(
          diagnostics,
          %{
-           active_promoted_snapshots_count: promoted_count,
+           failure_ready_mechanics_count: mechanic_count,
            scoped_encounters_count: encounter_count,
            matching_silver_observation_count: 0
          }
        )
-       when promoted_count > 0 and encounter_count > 0 do
+       when mechanic_count > 0 and encounter_count > 0 do
     [
       %{
         severity: :warning,
@@ -659,13 +599,7 @@ defmodule WeGoNext.Gold.FailureSummary do
     result =
       Repo.query!(
         """
-        WITH active_ruleset AS (
-          SELECT id, version
-          FROM rules.ruleset
-          WHERE status = 'active'
-          LIMIT 1
-        ),
-        avoidable_rules AS (
+        WITH avoidable_rules AS (
           SELECT
             rule.id AS rule_id,
             rule.spell_id,
@@ -676,24 +610,10 @@ defmodule WeGoNext.Gold.FailureSummary do
             rule.difficulty_id,
             rule.threshold,
             rule.active AS rule_active,
-            snapshot.id AS criterion_dim_id,
-            snapshot.active AS snapshot_active,
-            (
-              snapshot.id IS NULL
-              OR snapshot.ruleset_id IS DISTINCT FROM active_ruleset.id
-              OR snapshot.ruleset_version IS DISTINCT FROM active_ruleset.version
-              OR snapshot.spell_id IS DISTINCT FROM rule.spell_id
-              OR snapshot.mechanic_type IS DISTINCT FROM rule.mechanic_type
-              OR snapshot.boss_encounter_id IS DISTINCT FROM rule.boss_encounter_id
-              OR snapshot.difficulty_id IS DISTINCT FROM rule.difficulty_id
-              OR snapshot.threshold IS DISTINCT FROM rule.threshold
-              OR snapshot.active IS DISTINCT FROM rule.active
-            ) AS snapshot_stale
-          FROM active_ruleset
-          JOIN rules.mechanic_criterion rule
-            ON rule.ruleset_id = active_ruleset.id
-          LEFT JOIN gold.dim_mechanic_criterion snapshot
-            ON snapshot.source_rule_id = rule.id
+            rule.id AS criterion_dim_id,
+            rule.valid_from,
+            rule.valid_until
+          FROM gold.dim_mechanic_criterion rule
           WHERE rule.mechanic_type = 'avoidable'
         )
         SELECT
@@ -801,8 +721,6 @@ defmodule WeGoNext.Gold.FailureSummary do
   end
 
   defp zero_fact_reason(%{rule_active: false}), do: :inactive_rule
-  defp zero_fact_reason(%{snapshot_active: false}), do: :inactive_rule
-  defp zero_fact_reason(%{snapshot_stale: true}), do: :stale_gold_snapshot
   defp zero_fact_reason(%{matching_encounters_count: 0}), do: :no_matching_encounter
   defp zero_fact_reason(%{encounter_damage_rows_count: 0}), do: :no_silver_damage_rows
   defp zero_fact_reason(%{silver_damage_rows_count: 0}), do: :spell_id_mismatch
@@ -821,11 +739,6 @@ defmodule WeGoNext.Gold.FailureSummary do
   defp zero_fact_message(:inactive_rule, row) do
     {:info, "Disabled mechanic",
      "#{rule_label(row)} is disabled, so rebuilds should not emit tracked failures for it."}
-  end
-
-  defp zero_fact_message(:stale_gold_snapshot, row) do
-    {:warning, "Mechanic sync needed",
-     "#{rule_label(row)} is not in sync with the failure-ready mechanics. Sync current-tier mechanics before rebuilding."}
   end
 
   defp zero_fact_message(:no_matching_encounter, row) do
@@ -876,7 +789,9 @@ defmodule WeGoNext.Gold.FailureSummary do
   defp rule_encounter_match_sql(rule_alias, encounter_alias) do
     """
     (
-      #{rule_alias}.boss_encounter_id IS NULL
+      (#{rule_alias}.valid_from IS NULL OR #{encounter_alias}.start_time >= #{rule_alias}.valid_from)
+      AND (#{rule_alias}.valid_until IS NULL OR #{encounter_alias}.start_time < #{rule_alias}.valid_until)
+      AND (#{rule_alias}.boss_encounter_id IS NULL
       OR (
         #{rule_alias}.boss_encounter_id = #{encounter_alias}.wow_encounter_id
         AND (
@@ -896,7 +811,7 @@ defmodule WeGoNext.Gold.FailureSummary do
           )
         )
       )
-    )
+    ))
     """
   end
 

@@ -3,7 +3,6 @@ defmodule WeGoNextWeb.FailureLiveTest do
 
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.Ruleset
 
   test "renders grouped mechanic failures", %{conn: conn} do
     player = insert_player!("Player-One-#{System.unique_integer([:positive])}", "One")
@@ -40,7 +39,7 @@ defmodule WeGoNextWeb.FailureLiveTest do
       |> html_response(200)
 
     assert html =~ "No mechanic failures found"
-    refute html =~ "Swirl"
+    refute Floki.text(Floki.find(Floki.parse_document!(html), "table")) =~ "Swirl"
   end
 
   test "defaults to latest imported encounter date range without query params", %{conn: conn} do
@@ -65,7 +64,7 @@ defmodule WeGoNextWeb.FailureLiveTest do
     assert html =~ ~s(value="2026-04-27")
     assert html =~ ~s(value="2026-05-10")
     assert html =~ "Recent Swirl"
-    refute html =~ "Old Swirl"
+    refute Floki.text(Floki.find(Floki.parse_document!(html), "table")) =~ "Old Swirl"
   end
 
   test "explains missing synced current-tier mechanics", %{conn: conn} do
@@ -77,23 +76,6 @@ defmodule WeGoNextWeb.FailureLiveTest do
     assert html =~ "Data Readiness"
     assert html =~ "Current-tier mechanics not synced"
     assert html =~ "Sync current-tier mechanics and rebuild failures"
-  end
-
-  test "explains synced mechanics without failure-ready rows", %{conn: conn} do
-    %Ruleset{}
-    |> Ruleset.changeset(%{
-      name: "Unpromoted Failure Rules #{System.unique_integer([:positive])}",
-      status: "active"
-    })
-    |> Repo.insert!()
-
-    html =
-      conn
-      |> get(~p"/failures")
-      |> html_response(200)
-
-    assert html =~ "Mechanics need sync"
-    assert html =~ "No failure-ready mechanics are synced"
   end
 
   defp insert_player!(guid, name) do
@@ -127,21 +109,17 @@ defmodule WeGoNextWeb.FailureLiveTest do
   end
 
   defp insert_criterion!(spell_id, spell_name, mechanic_type, boss_name) do
-    ruleset =
-      %Ruleset{}
-      |> Ruleset.changeset(%{name: "Failure Live Rules #{System.unique_integer([:positive])}"})
-      |> Repo.insert!()
-
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(%{
-      source_rule_id: System.unique_integer([:positive]),
-      ruleset_id: ruleset.id,
-      ruleset_version: ruleset.version,
       spell_id: spell_id,
       spell_name: spell_name,
       mechanic_type: mechanic_type,
       boss_name: boss_name,
-      threshold: %{"max_hits" => 0},
+      threshold:
+        if(mechanic_type == "interrupt",
+          do: %{"must_interrupt" => true},
+          else: %{"max_hits" => 0}
+        ),
       active: true
     })
     |> Repo.insert!()
@@ -153,8 +131,6 @@ defmodule WeGoNextWeb.FailureLiveTest do
       encounter_dim_id: encounter.id,
       player_dim_id: player.id,
       criterion_dim_id: criterion.id,
-      ruleset_id: criterion.ruleset_id,
-      ruleset_version: criterion.ruleset_version,
       product: criterion.product,
       channel: criterion.channel,
       build_version: criterion.build_version,

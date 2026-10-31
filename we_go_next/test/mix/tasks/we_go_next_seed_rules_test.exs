@@ -1,100 +1,32 @@
 defmodule Mix.Tasks.WeGoNext.SeedRulesTest do
-  use ExUnit.Case, async: false
-
+  use WeGoNext.DataCase, async: false
   import ExUnit.CaptureIO
-
-  alias Mix.Tasks.WeGoNext.SeedRules
-  alias WeGoNext.Gold.{DimMechanicCriterion, FactFailure}
+  alias Mix.Tasks.WeGoNext.{SeedRules, SyncRaidRules}
+  alias WeGoNext.Gold.DimMechanicCriterion
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
 
-  setup do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
-    Mix.shell(Mix.Shell.Process)
-
-    Repo.delete_all(FactFailure)
-    Repo.delete_all(DimMechanicCriterion)
-    Repo.delete_all(MechanicCriterion)
-    Repo.delete_all(Ruleset)
-
-    on_exit(fn ->
-      Mix.shell(Mix.Shell.IO)
-    end)
-
-    :ok
+  test "default seed and sync write directly to the same live catalog" do
+    output = capture_io(fn -> SeedRules.run([]) end)
+    assert output =~ "Synced 32 raid mechanic(s) into the live gold catalog"
+    first = Repo.all(DimMechanicCriterion) |> Enum.map(& &1.id) |> Enum.sort()
+    capture_io(fn -> SyncRaidRules.run([]) end)
+    assert Repo.all(DimMechanicCriterion) |> Enum.map(& &1.id) |> Enum.sort() == first
   end
 
-  test "defaults to current-tier raid catalog mechanics" do
-    output = capture_task_output(fn -> SeedRules.run([]) end)
-
-    assert output =~
-             "Synced 32 mechanic definition(s) into Midnight Current Tier Mechanics v1."
-
-    assert Repo.get_by(Ruleset, name: "Midnight Current Tier Mechanics", version: 1)
-    refute Repo.get_by(Ruleset, name: "Initial Mechanic Rules", version: 1)
-
-    assert 32 =
-             MechanicCriterion
-             |> Repo.aggregate(:count)
+  test "--rebuild runs sync then rebuild without lifecycle flags" do
+    output = capture_io(fn -> SyncRaidRules.run(["--rebuild"]) end)
+    assert output =~ "Synced 32 raid mechanic(s) into the live gold catalog"
+    assert output =~ "Rebuilt failures:"
+    assert output =~ "encounters: 0"
   end
 
-  test "default seed and raid sync commands preserve an activated ruleset" do
-    {:ok, %{ruleset: active}} = WeGoNext.Rules.sync_current_tier_rules(activate: true)
-
-    capture_task_output(fn -> SeedRules.run([]) end)
-    assert WeGoNext.Rules.get_ruleset!(active.id).status == "active"
-    assert WeGoNext.Rules.get_ruleset!(active.id).activated_at == active.activated_at
-
-    capture_task_output(fn -> Mix.Tasks.WeGoNext.SyncRaidRules.run([]) end)
-    assert WeGoNext.Rules.get_ruleset!(active.id).status == "active"
-    assert WeGoNext.Rules.get_ruleset!(active.id).activated_at == active.activated_at
-  end
-
-  test "raid sync CLI names the failed stage and committed work" do
-    assert_raise Mix.Error, ~r/failed at sync.*Committed stages: \[\]/, fn ->
-      Mix.Tasks.WeGoNext.SyncRaidRules.run(["not-a-raid", "--rebuild"])
+  test "obsolete activation, promotion and version flags are rejected" do
+    for flag <- ["--activate", "--promote", "--failure-ready", "--version", "--name"] do
+      assert_raise Mix.Error, ~r/Invalid options/, fn -> SyncRaidRules.run([flag]) end
     end
   end
 
-  test "still accepts explicit static JSON paths for legacy fixtures" do
-    path =
-      Path.join(System.tmp_dir!(), "wgn-legacy-rules-#{System.unique_integer([:positive])}.json")
-
-    payload = %{
-      "ruleset" => %{"name" => "Legacy Fixture Rules", "version" => 1, "status" => "draft"},
-      "criteria" => [
-        %{
-          "spell_id" => 999_001,
-          "spell_name" => "Legacy Avoid",
-          "mechanic_type" => "avoidable",
-          "threshold" => %{"max_hits" => 0}
-        }
-      ]
-    }
-
-    File.write!(path, Jason.encode!(payload))
-    on_exit(fn -> File.rm(path) end)
-
-    output = capture_task_output(fn -> SeedRules.run([path]) end)
-
-    assert output =~ "Synced 1 mechanic definition(s) into Legacy Fixture Rules v1."
-    assert Repo.get_by(Ruleset, name: "Legacy Fixture Rules", version: 1)
-  end
-
-  defp capture_task_output(fun) do
-    capture_io(fn ->
-      fun.()
-      flush_shell_messages()
-    end)
-  end
-
-  defp flush_shell_messages do
-    receive do
-      {:mix_shell, :info, [message]} ->
-        IO.puts(message)
-        flush_shell_messages()
-    after
-      0 -> :ok
-    end
+  test "JSON fixtures are not a second catalog authoring path" do
+    assert_raise Mix.Error, ~r/JSON seeds are retired/, fn -> SeedRules.run(["fixture.json"]) end
   end
 end

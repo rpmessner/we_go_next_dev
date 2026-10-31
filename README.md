@@ -24,7 +24,7 @@ Current working pieces:
 - Silver tables for damage, deaths, interrupts, debuffs, and player info.
 - Gold dimensions for encounters, players, and mechanic criteria.
 - `gold.fact_failure` for avoidable and missed-interrupt failures.
-- Rules schema with draft/active/archived rulesets and promoted gold snapshots.
+- One code-defined live mechanics catalog synced directly into gold.
 - DBM source-data ingestion groundwork for inferred mechanic candidates.
 - LiveView pages for encounter import/listing, settings, and failures.
 - Local encounter documents generated from silver/gold read models.
@@ -57,19 +57,18 @@ Typical WSL path:
 
 ## Rules Bootstrap
 
-Failures require an active ruleset and promoted gold criterion snapshots. Until the rules UI exists, use:
+Sync the code-defined catalog into gold and rebuild failures:
 
 ```bash
 cd we_go_next
-mix run -e 'alias WeGoNext.Rules; {:ok, %{ruleset: rs}} = Rules.seed_initial_rules(); {:ok, active} = Rules.activate_ruleset(rs); {:ok, _} = Rules.promote_ruleset_to_gold(active)'
-mix wgn.rebuild_gold
+mix we_go_next.sync_raid_rules --rebuild
 ```
 
 ## Rebuilds
 
 Use the smallest rebuild that matches the change:
 
-- Rules changed: promote rules, then `mix wgn.rebuild_gold`.
+- Catalog changed: `mix we_go_next.sync_raid_rules --rebuild`.
 - Gold fact logic changed: `mix wgn.rebuild_gold`.
 - Silver projection or parser logic changed: force reimport affected logs from the UI.
 

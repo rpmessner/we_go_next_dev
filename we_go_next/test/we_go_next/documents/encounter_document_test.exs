@@ -13,7 +13,6 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
 
   alias WeGoNext.Gold.FactFailure.Derivation
   alias WeGoNext.Repo
-  alias WeGoNext.Rules.Ruleset
   alias WeGoNext.Silver.{DamageTaken, DamageTakenEvent, Death, PlayerInfo, SurvivalAction}
 
   setup do
@@ -58,8 +57,7 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
 
   test "encodes a versioned document from detail and observed mechanics read models" do
     encounter = insert_encounter!("fixture-boss")
-    ruleset = insert_ruleset!("Active Ruleset", "active")
-    insert_criterion!(ruleset, encounter, 101)
+    insert_criterion!(encounter, 101)
     insert_player_info!(encounter, "Player-One", "One")
     insert_damage_taken!(encounter, "Player-One", 101, 100, 1)
     insert_damage_taken_event!(encounter, "Player-One", 101, "Bad 101", 100)
@@ -246,22 +244,9 @@ defmodule WeGoNext.Documents.EncounterDocumentTest do
     |> Repo.insert!()
   end
 
-  defp insert_ruleset!(name, status) do
-    %Ruleset{}
-    |> Ruleset.changeset(%{name: name, status: status})
-    |> Repo.insert!()
-  end
-
-  defp insert_criterion!(%Ruleset{} = ruleset, %DimEncounter{} = encounter, spell_id) do
+  defp insert_criterion!(%DimEncounter{} = encounter, spell_id) do
     %DimMechanicCriterion{}
     |> DimMechanicCriterion.changeset(%{
-      source_rule_id: System.unique_integer([:positive]),
-      ruleset_id: ruleset.id,
-      ruleset_version: ruleset.version,
-      product: ruleset.product,
-      channel: ruleset.channel,
-      build_version: ruleset.build_version,
-      build_key: ruleset.build_key,
       spell_id: spell_id,
       spell_name: "Bad #{spell_id}",
       mechanic_type: "avoidable",

@@ -272,6 +272,7 @@ defmodule WeGoNext.Gold.ObservedMechanics do
       [criterion],
       is_nil(criterion.difficulty_id) or criterion.difficulty_id == ^encounter.difficulty_id
     )
+    |> apply_validity(encounter.start_time)
     |> order_by([criterion], asc: criterion.spell_name, asc: criterion.id)
     |> select([criterion], %{
       criterion_dim_id: criterion.id,
@@ -282,11 +283,24 @@ defmodule WeGoNext.Gold.ObservedMechanics do
       boss_name: criterion.boss_name,
       difficulty_id: criterion.difficulty_id,
       threshold: criterion.threshold,
-      ruleset_id: criterion.ruleset_id,
-      ruleset_version: criterion.ruleset_version
+      valid_from: criterion.valid_from,
+      valid_until: criterion.valid_until
     })
     |> Repo.all()
     |> Enum.group_by(& &1.spell_id)
+  end
+
+  defp apply_validity(query, nil) do
+    where(query, [criterion], is_nil(criterion.valid_from) and is_nil(criterion.valid_until))
+  end
+
+  defp apply_validity(query, start_time) do
+    where(
+      query,
+      [criterion],
+      (is_nil(criterion.valid_from) or criterion.valid_from <= ^start_time) and
+        (is_nil(criterion.valid_until) or criterion.valid_until > ^start_time)
+    )
   end
 
   defp facts_by_spell(_encounter_dim_id, []), do: %{}

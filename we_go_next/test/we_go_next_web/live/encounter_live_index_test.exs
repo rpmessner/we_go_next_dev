@@ -6,7 +6,6 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
   alias WeGoNext.Gold.{DimEncounter, DimMechanicCriterion, DimPlayer, FactFailure}
   alias WeGoNext.Repo
   alias WeGoNext.Rules
-  alias WeGoNext.Rules.{MechanicCriterion, Ruleset}
   alias WeGoNext.Silver.{DamageTaken, PlayerInfo}
 
   setup do
@@ -16,8 +15,6 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     Repo.delete_all(PlayerInfo)
     Repo.delete_all(DimPlayer)
     Repo.delete_all(DimEncounter)
-    Repo.delete_all(MechanicCriterion)
-    Repo.delete_all(Ruleset)
     Repo.delete_all(Encounter)
     Repo.delete_all(CombatLogFile)
     FileWatcher.stop_watching()
@@ -205,17 +202,15 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
   end
 
   test "does not expose current-tier sync state on the home page", %{conn: conn} do
-    assert {:ok, %{ruleset: active_ruleset, criteria: criteria, promoted: promoted}} =
-             Rules.sync_current_tier_rules(activate: true, promote: true)
+    assert {:ok, %{criteria: criteria}} =
+             Rules.sync_current_tier_rules()
 
     html =
       conn
       |> get(~p"/")
       |> html_response(200)
 
-    assert active_ruleset.name == "Midnight Current Tier Mechanics"
     assert length(criteria) == 32
-    assert length(promoted.criteria) == 32
     refute html =~ "32 synced mechanics"
     refute html =~ "32 failure-ready mechanics"
     refute html =~ "Active: Midnight Current Tier Mechanics"

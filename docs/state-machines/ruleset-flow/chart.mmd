@@ -1,26 +1,15 @@
 ---
-title: "Ruleset sync: committed stages and explicit failure"
+title: "Live mechanics catalog: sync then rebuild"
 ---
 stateDiagram-v2
   s0: sync
-  s1: activate
-  s2: done
-  s3: Failed at sync
-  s4: promote
-  s5: Failed at promote
-  s6: Failed at activate
-  s7: rebuild
-  s8: Failed at rebuild
+  s1: done
+  s2: Failed at sync
+  s3: rebuild
+  s4: Failed at rebuild
   [*] --> s0
-  s0 --> s2: sync definitions, keep status [no further stages requested]
-  s0 --> s3: report failed stage and committed prefix
-  s0 --> s4: sync definitions, keep status [promotion only requested]
-  s0 --> s1: sync definitions, keep status [activate requested]
-  s1 --> s2: activate, replace previous active [no promotion requested]
-  s1 --> s6: report failed stage and committed prefix
-  s1 --> s4: activate, replace previous active [promotion requested]
-  s4 --> s2: refresh fact keys [no rebuild requested]
-  s4 --> s5: report failed stage and committed prefix
-  s4 --> s7: refresh fact keys [rebuild requested]
-  s7 --> s2: rebuild facts
-  s7 --> s8: report failed stage and committed prefix
+  s0 --> s1: sync gold catalog [sync only]
+  s0 --> s2: report failed stage and committed prefix
+  s0 --> s3: sync gold catalog [rebuild requested]
+  s3 --> s1: replace pull facts from catalog
+  s3 --> s4: report failed stage and committed prefix

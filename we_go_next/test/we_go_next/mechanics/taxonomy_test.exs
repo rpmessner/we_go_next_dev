@@ -3,7 +3,7 @@ defmodule WeGoNext.Mechanics.TaxonomyTest do
 
   alias WeGoNext.Mechanics.Taxonomy
   alias WeGoNext.Gold.DimMechanicCriterion
-  alias WeGoNext.Rules.MechanicCriterion
+  alias WeGoNext.Gold.DimMechanicCriterion, as: MechanicCriterion
 
   test "classifies the standardized mechanic and actionability vocabulary" do
     assert Taxonomy.keys() == [
