@@ -3,7 +3,7 @@ defmodule WeGoNext.Analysis.QuestionLifecycle do
   use WeGoNext.StateTable
 
   @states ~w(draft computing thinking calling_tool writing answered judged limit_hit failed cancelled)a
-  @events ~w(ask_builtin computed ask_agent tool_requested over_limit tool_returned answer_started answer_done timeout api_error retry cancel continue record_verdict done)a
+  @events ~w(ask_builtin computed ask_agent tool_requested over_limit tool_returned answer_started answer_done timeout api_error retry cancel continue record_verdict done recover)a
   @guards ~w(always builtin agent tool_budget exhausted answer_budget in_flight timer can_continue)a
   @effects ~w(arm_timer request_model compute charge start_tool record_tool stop_timer stop_model raise_cap verdict finish_answer)a
   @running ~w(thinking calling_tool writing)a
@@ -61,7 +61,14 @@ defmodule WeGoNext.Analysis.QuestionLifecycle do
 
             timed_out = if state in @running, do: :limit_hit, else: state
 
+            recovered_to = if state in @running, do: :failed, else: state
+            recovery_effects = if state in @running, do: [:stop_timer, :stop_model], else: []
+
+            pending_recovery = [:record_tool, :stop_timer, :stop_model]
+
             [
+              {state, :recover, :in_flight, recovered_to, pending_recovery},
+              {state, :recover, :always, recovered_to, recovery_effects},
               {state, :tool_returned, :in_flight, returned_to, returned_effects},
               {state, :tool_returned, :always, state, []},
               {state, :timeout, :timer, timed_out, [:stop_timer, :stop_model]},
@@ -85,8 +92,20 @@ defmodule WeGoNext.Analysis.QuestionLifecycle do
     }
   end
 
+  def restore(snapshot) do
+    Map.new(initial(), fn {key, default} ->
+      value = Map.get(snapshot, Atom.to_string(key), default)
+
+      {key, restore_value(key, value)}
+    end)
+  end
+
   def step(state, event, ctx),
     do: WeGoNext.StateTable.step(@rows, state, event, ctx, &guard/2, &reduce/2)
+
+  defp restore_value(:kind, value) when value in [:builtin, "builtin"], do: :builtin
+  defp restore_value(:kind, _), do: :agent
+  defp restore_value(_, value), do: value
 
   defp guard(:always, _), do: true
   defp guard(:builtin, ctx), do: ctx.kind == :builtin

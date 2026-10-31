@@ -48,6 +48,99 @@ defmodule WeGoNext.Analysis.VerdictTest do
     assert Repo.one!(ToolCall).tool == "record_verdict"
   end
 
+  test "record_verdict advances the persisted question through its lifecycle", %{
+    session: session,
+    args: args
+  } do
+    question =
+      Repo.insert!(%Analysis.Question{
+        session_id: session.id,
+        model: session.model,
+        text: "Why?",
+        state: "answered",
+        answer: args["answer"],
+        lifecycle: Analysis.QuestionLifecycle.initial()
+      })
+
+    Analysis.subscribe_question(question.id)
+    assert {:ok, _} = Analysis.call_tool("record_verdict", args)
+    assert_receive {:analysis_question, id, {:state, :judged}}
+    assert id == question.id
+    judged = Analysis.get_question(question.id)
+    assert judged.state == "judged"
+    assert judged.lifecycle["verdict"]
+    assert Repo.aggregate(Verdict, :count) == 1
+  end
+
+  test "failed verdict audit also rolls back the machine transition", %{
+    session: session,
+    args: args
+  } do
+    question =
+      Repo.insert!(%Analysis.Question{
+        session_id: session.id,
+        model: session.model,
+        text: "Why?",
+        state: "answered",
+        answer: args["answer"],
+        lifecycle: Analysis.QuestionLifecycle.initial()
+      })
+
+    Repo.query!(
+      "ALTER TABLE analysis.tool_calls ADD CONSTRAINT reject_question_verdict CHECK (tool <> 'record_verdict')"
+    )
+
+    assert {:error, "Tool call could not be recorded"} =
+             Analysis.call_tool("record_verdict", args)
+
+    assert Analysis.get_question(question.id).state == "answered"
+    assert Repo.aggregate(Verdict, :count) == 0
+  end
+
+  test "an ambiguous answer never judges an arbitrary question", %{session: session, args: args} do
+    for _ <- 1..2 do
+      Repo.insert!(%Analysis.Question{
+        session_id: session.id,
+        model: session.model,
+        text: "Why?",
+        state: "answered",
+        answer: args["answer"],
+        lifecycle: Analysis.QuestionLifecycle.initial()
+      })
+    end
+
+    assert {:error, "Tool call could not be recorded"} =
+             Analysis.call_tool("record_verdict", args)
+
+    assert Repo.aggregate(Verdict, :count) == 0
+    assert Repo.all(Analysis.Question) |> Enum.all?(&(&1.state == "answered"))
+  end
+
+  test "question_id selects the answer explicitly when answer text is ambiguous", %{
+    session: session,
+    args: args
+  } do
+    questions =
+      for _ <- 1..2 do
+        Repo.insert!(%Analysis.Question{
+          session_id: session.id,
+          model: session.model,
+          text: "Why?",
+          state: "answered",
+          answer: args["answer"],
+          lifecycle: Analysis.QuestionLifecycle.initial()
+        })
+      end
+
+    [first, selected] = questions
+
+    assert {:ok, _} =
+             Analysis.call_tool("record_verdict", Map.put(args, "question_id", selected.id))
+
+    assert Analysis.get_question(first.id).state == "answered"
+    assert Analysis.get_question(selected.id).state == "judged"
+  end
+
   test "recorded duration excludes verdict persistence time", %{args: args} do
     Repo.query!(
       "CREATE FUNCTION analysis.delay_verdict_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(0.15); RETURN NEW; END $$"

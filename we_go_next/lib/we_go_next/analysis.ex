@@ -47,7 +47,10 @@ defmodule WeGoNext.Analysis do
   end
 
   def get_question(id), do: Repo.get(WeGoNext.Analysis.Question, id)
-  def question_event(id, event), do: WeGoNext.Analysis.QuestionRunner.event(id, event)
+
+  def question_event(id, event, opts \\ []),
+    do: WeGoNext.Analysis.QuestionRunner.event(id, event, opts)
+
   def subscribe_question(id), do: WeGoNext.Analysis.QuestionRunner.subscribe(id)
 
   defp question_session(scope, opts) do
@@ -88,9 +91,9 @@ defmodule WeGoNext.Analysis do
     duration_ms = System.monotonic_time(:millisecond) - start
     record_playbook_load(name, session, outcome)
 
-    {:ok, _} =
+    {:ok, question} =
       Repo.transaction(fn ->
-        record_verdict(name, outcome, session)
+        question = record_verdict(name, outcome, session)
 
         Repo.insert!(%ToolCall{
           session_id: session && session.id,
@@ -103,7 +106,12 @@ defmodule WeGoNext.Analysis do
           error: error,
           called_at: DateTime.utc_now()
         })
+
+        question
       end)
+
+    if is_struct(question, WeGoNext.Analysis.Question),
+      do: WeGoNext.Analysis.QuestionRunner.notify_snapshot(question)
 
     outcome
   rescue
@@ -130,6 +138,8 @@ defmodule WeGoNext.Analysis do
   defp started_session(_, session, _), do: session
 
   defp record_verdict("record_verdict", {:ok, %{data: data}}, session) do
+    question = record_question_verdict(session, data)
+
     Repo.insert!(%Verdict{
       session_id: session.id,
       answer: data["answer"],
@@ -137,9 +147,33 @@ defmodule WeGoNext.Analysis do
       correction: data["correction"],
       recorded_at: DateTime.utc_now()
     })
+
+    question
   end
 
   defp record_verdict(_, _, _), do: :ok
+
+  defp record_question_verdict(session, data) do
+    questions =
+      Repo.all(
+        from(q in WeGoNext.Analysis.Question,
+          where: q.session_id == ^session.id,
+          lock: "FOR UPDATE"
+        )
+      )
+
+    matches =
+      case data["question_id"] do
+        nil -> Enum.filter(questions, &(&1.answer == data["answer"]))
+        id -> Enum.filter(questions, &(&1.id == id))
+      end
+
+    case {questions, matches, data["question_id"]} do
+      {[], _, nil} -> :ok
+      {_, [question], _} -> WeGoNext.Analysis.QuestionRunner.record_verdict_snapshot!(question)
+      _ -> Repo.rollback(:ambiguous_question_verdict)
+    end
+  end
 
   defp invoke(nil, _, _), do: {:error, "Unknown Tool"}
 

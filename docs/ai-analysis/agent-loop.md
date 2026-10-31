@@ -1,6 +1,6 @@
 # Headless Analysis questions
 
-`WeGoNext.Analysis.ask/3` starts one temporary supervised `:gen_statem` process per question. The process stays alive after an answer or stop so callers can send Retry, Continue, or a verdict event. A node restart does not replay paid requests. Recorded questions, messages, and Tool calls remain in Postgres.
+`WeGoNext.Analysis.ask/3` starts one temporary supervised `:gen_statem` process per question. The runner stops after a terminal state, once any outstanding Tool result is appended. Retry, Continue, and verdict events restart a runner from its stored snapshot. Boot recovery marks interrupted thinking/calling_tool/writing questions failed and offers explicit Retry; it never replays paid requests. Recorded questions, messages, and Tool calls remain in Postgres.
 
 ## API
 
@@ -29,9 +29,10 @@ The default model is `claude-opus-5-5`. Set `model:` when starting an Analysis s
 {:analysis_question, question_id, {:text_delta, text}}
 {:analysis_question, question_id, {:usage, usage_map}}
 {:analysis_question, question_id, {:answer, text}}
+{:analysis_question, question_id, {:error, reason}}
 ```
 
-State and answer notifications follow persistence. Text deltas are provisional until the complete assistant message is stored. `QuestionRunner.snapshot/1` synchronously reads a running process. After recording an operator verdict through the existing `record_verdict` Tool, callers can send `:record_verdict` to advance an answered question to `judged`.
+State and answer notifications follow persistence. Text deltas are provisional until the complete assistant message is stored. A failed transition write returns/broadcasts an error and stops paid work; failure-state persistence is best-effort if the database remains unavailable. `QuestionRunner.snapshot/1` reads a running process or its stored snapshot without restarting it. MCP `record_verdict` advances the persisted answer to `judged` through the lifecycle table, atomically with the verdict and Tool audit. Supply optional `question_id` for explicit identity; legacy calls can identify one exact stored answer. Ambiguous or unmatched in-app answers are rejected rather than judging an arbitrary question. External MCP sessions with no question rows keep their session-only verdicts.
 
 A deterministic built-in can use `kind: :builtin, builtin_tool: {tool_name, args}`. It uses the same recorded executor and no model. This is the adapter entry point, not the built-in picker planned in we-cqa.8.
 
@@ -50,6 +51,10 @@ The SSE decoder handles partial frames, Tool JSON, thinking signatures, errors, 
 The table is `Analysis.QuestionLifecycle`. Its [complete matrix](statecharts/question-lifecycle/implementation-matrix.md) and [diagram](statecharts/question-lifecycle/implementation.mmd) are generated from the same rows and checked by tests. The compile-time validator rejects unknown names, missing state/event pairs, and missing or ambiguous fallback rows.
 
 The ten-minute timeout is a named `:gen_statem` timeout, not a state timeout. Changing from thinking to calling a Tool cannot cancel it. Retry and Continue replace the timeout. The last model turn is reserved for an answer by sending `tool_choice: none`. Continue is accepted only once and only after any outstanding Tool has returned.
+
+Boot recovery also repairs outstanding Tool transcripts after Cancel/timeout without changing those terminal states. An interrupted Tool gets an error result describing its unknown outcome, not a replay. Runtime options such as HTTP test plugs are not persisted; `question_event/3` accepts fresh runner options when restarting.
+
+The [runner model and chart](../state-machines/question-runner/README.md) cover stop/restart recovery.
 
 The default turn cap is 40, raised to 80 by Continue. Full spend/request accounting and operator-facing limit controls belong to we-cqa.3. The lifecycle counters follow the TLA+ abstraction: successful Tool or answer turns, rather than failed HTTP attempts.
 

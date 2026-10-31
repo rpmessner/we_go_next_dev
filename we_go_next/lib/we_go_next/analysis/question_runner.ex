@@ -3,7 +3,7 @@ defmodule WeGoNext.Analysis.QuestionRunner do
   @behaviour :gen_statem
   import Ecto.Query
   alias WeGoNext.Analysis
-  alias WeGoNext.Analysis.{Anthropic, Message, QuestionLifecycle, Startup}
+  alias WeGoNext.Analysis.{Anthropic, Message, Question, QuestionLifecycle, Startup}
   alias WeGoNext.Repo
 
   def child_spec(args),
@@ -14,9 +14,168 @@ defmodule WeGoNext.Analysis.QuestionRunner do
     :gen_statem.start_link(name, __MODULE__, {question, session, opts}, [])
   end
 
-  def event(id, event), do: :gen_statem.call(via(id), {:event, event})
-  def snapshot(id), do: :gen_statem.call(via(id), :snapshot)
-  defp via(id), do: {:via, Registry, {Analysis.QuestionRegistry, id}}
+  def event(id, event, opts \\ [])
+
+  def event(id, event, opts) when event in [:cancel, :continue, :retry, :record_verdict],
+    do: call_event(id, event, opts, 1)
+
+  def event(_, _, _), do: {:error, :invalid_event}
+
+  defp call_event(id, event, opts, retries) do
+    with {:ok, pid} <- ensure_started(id, opts) do
+      :gen_statem.call(pid, {:event, event})
+    end
+  catch
+    :exit, {reason, {:gen_statem, :call, _}} when reason in [:normal, :noproc] and retries > 0 ->
+      call_event(id, event, opts, retries - 1)
+  end
+
+  def snapshot(id) do
+    case Registry.whereis_name({Analysis.QuestionRegistry, id}) do
+      pid when is_pid(pid) -> :gen_statem.call(pid, :snapshot)
+      :undefined -> stored_snapshot(id)
+    end
+  catch
+    :exit, {reason, {:gen_statem, :call, _}} when reason in [:normal, :noproc] ->
+      stored_snapshot(id)
+  end
+
+  defp stored_snapshot(id) do
+    case Analysis.get_question(id) do
+      nil -> {:error, :not_found}
+      question -> {state(question), question}
+    end
+  end
+
+  defp ensure_started(id, opts) do
+    case Registry.whereis_name({Analysis.QuestionRegistry, id}) do
+      pid when is_pid(pid) -> {:ok, pid}
+      :undefined -> start_stored(Analysis.get_question(id), opts)
+    end
+  end
+
+  defp start_stored(nil, _opts), do: {:error, :not_found}
+
+  defp start_stored(question, opts) do
+    question =
+      if state(question) in [:thinking, :calling_tool, :writing] or
+           question.lifecycle["tool_in_flight"] == true,
+         do: recover_snapshot(question),
+         else: question
+
+    session = Repo.get!(Analysis.Session, question.session_id)
+
+    books =
+      Analysis.Playbooks.for_boss(
+        Analysis.Playbooks.load(),
+        session.boss,
+        Analysis.ReadModel.pulls(session)
+      )
+
+    session = %{session | playbooks: books}
+
+    case DynamicSupervisor.start_child(
+           Analysis.QuestionSupervisor,
+           {__MODULE__, {question, session, opts}}
+         ) do
+      {:error, {:already_started, pid}} -> {:ok, pid}
+      result -> result
+    end
+  end
+
+  defp state(question),
+    do: Enum.find(QuestionLifecycle.states(), &(Atom.to_string(&1) == question.state))
+
+  @doc false
+  def notify_snapshot(question) do
+    Phoenix.PubSub.broadcast(
+      WeGoNext.PubSub,
+      topic(question.id),
+      {:analysis_question, question.id, {:state, state(question)}}
+    )
+  end
+
+  @doc false
+  def record_verdict_snapshot!(question) do
+    ctx = QuestionLifecycle.restore(question.lifecycle)
+    {:ok, next, ctx, effects} = QuestionLifecycle.step(state(question), :record_verdict, ctx)
+    if :verdict not in effects, do: Repo.rollback(:question_not_answered)
+
+    question
+    |> Ecto.Changeset.change(state: to_string(next), lifecycle: ctx)
+    |> Repo.update!()
+  end
+
+  @doc "Recovers interrupted snapshots without running any effect or replaying a paid request."
+  def recover_orphans do
+    Repo.all(
+      from(q in Question,
+        where:
+          q.state in ["thinking", "calling_tool", "writing"] or
+            fragment("?->>'tool_in_flight' = 'true'", q.lifecycle)
+      )
+    )
+    |> Enum.each(fn question ->
+      if Registry.whereis_name({Analysis.QuestionRegistry, question.id}) == :undefined do
+        recover_snapshot(question)
+      end
+    end)
+
+    :ok
+  end
+
+  defp recover_snapshot(question) do
+    {:ok, question} =
+      Repo.transaction(fn ->
+        question = Repo.one!(from(q in Question, where: q.id == ^question.id, lock: "FOR UPDATE"))
+        ctx = QuestionLifecycle.restore(question.lifecycle)
+        record_interrupted_tool(question)
+
+        {:ok, next, ctx, _} = QuestionLifecycle.step(state(question), :recover, ctx)
+
+        question
+        |> Ecto.Changeset.change(
+          state: to_string(next),
+          lifecycle: ctx,
+          error:
+            if(next == :failed,
+              do: "Analysis interrupted by a process restart; Retry to resume",
+              else: question.error
+            )
+        )
+        |> Repo.update!()
+      end)
+
+    question
+  end
+
+  defp record_interrupted_tool(question) do
+    messages = Repo.all(from(m in Message, where: m.question_id == ^question.id, order_by: m.id))
+    recorded = for m <- messages, b <- m.content, b["type"] == "tool_result", do: b["tool_use_id"]
+    calls = messages |> Enum.filter(&(&1.role == "assistant")) |> List.last()
+
+    results =
+      for call <- if(calls, do: calls.content, else: []),
+          call["type"] == "tool_use",
+          call["id"] not in recorded do
+        %{
+          "type" => "tool_result",
+          "tool_use_id" => call["id"],
+          "content" => "Tool execution interrupted; outcome unknown. Not automatically replayed.",
+          "is_error" => true
+        }
+      end
+
+    if results != [] do
+      Repo.insert!(%Message{
+        session_id: question.session_id,
+        question_id: question.id,
+        role: "user",
+        content: results
+      })
+    end
+  end
+
   def topic(id), do: "analysis_question:#{id}"
   def subscribe(id), do: Phoenix.PubSub.subscribe(WeGoNext.PubSub, topic(id))
 
@@ -28,75 +187,148 @@ defmodule WeGoNext.Analysis.QuestionRunner do
     data = %{
       question: question,
       session: session,
-      ctx: QuestionLifecycle.initial(opts),
+      ctx:
+        if(question.state == "draft",
+          do: QuestionLifecycle.initial(opts),
+          else: QuestionLifecycle.restore(question.lifecycle)
+        ),
       opts: opts,
       task: nil,
       pending: nil,
       stream_token: nil,
-      answer: nil,
-      error: nil,
+      answer: question.answer,
+      error: question.error,
       system:
         Startup.instructions(session) <>
           "\nThis in-app Analysis session is already started. Do not call start_session. " <>
           "Begin with session_context using the Analysis session id above.\n"
     }
 
-    append(data, "user", [
-      %{"type" => "text", "text" => question.text <> "\nScope: " <> Jason.encode!(question.scope)}
-    ])
+    if question.state == "draft" do
+      append(data, "user", [
+        %{
+          "type" => "text",
+          "text" => question.text <> "\nScope: " <> Jason.encode!(question.scope)
+        }
+      ])
 
-    event = if data.ctx.kind == :builtin, do: :ask_builtin, else: :ask_agent
-    {:ok, :draft, data, [{:next_event, :internal, event}]}
+      event = if data.ctx.kind == :builtin, do: :ask_builtin, else: :ask_agent
+      {:ok, :draft, data, [{:next_event, :internal, event}]}
+    else
+      {:ok, state(question), data}
+    end
   end
 
   @impl true
-  def handle_event({:call, from}, :snapshot, state, data),
+  def handle_event(type, event, state, data) do
+    dispatch(type, event, state, data)
+  rescue
+    error in [
+      Ecto.ConstraintError,
+      Ecto.InvalidChangesetError,
+      Ecto.StaleEntryError,
+      Postgrex.Error,
+      DBConnection.ConnectionError
+    ] ->
+      storage_failure(type, state, data, error)
+  end
+
+  defp storage_failure(type, state, data, error) do
+    require Logger
+
+    Logger.error(
+      "Analysis question #{data.question.id} persistence failed: #{inspect(error.__struct__)}"
+    )
+
+    reason = "Could not persist Analysis question"
+    completed_tool? = type == :info and match?({:tools, _}, data.pending)
+    event = if data.ctx.tool_in_flight and not completed_tool?, do: :timeout, else: :recover
+    {:ok, next, ctx, effects} = QuestionLifecycle.step(state, event, data.ctx)
+    {data, _} = Enum.reduce(effects, {%{data | ctx: ctx, error: reason}, []}, &effect/2)
+    persist_failure(data, next, completed_tool?)
+    broadcast(data, {:error, reason})
+
+    replies =
+      case type do
+        {:call, from} -> [{:reply, from, {:error, reason}}]
+        _ -> []
+      end
+
+    if ctx.tool_in_flight do
+      {:next_state, next, data, replies}
+    else
+      {:stop_and_reply, :normal, replies, data}
+    end
+  end
+
+  defp persist_failure(data, next, completed_tool?) do
+    Repo.transaction(fn ->
+      if completed_tool?, do: record_interrupted_tool(data.question)
+
+      data.question
+      |> Ecto.Changeset.change(state: to_string(next), lifecycle: data.ctx, error: data.error)
+      |> Repo.update!(mode: :savepoint)
+    end)
+  rescue
+    _ -> :unavailable
+  end
+
+  defp dispatch({:call, from}, :snapshot, state, data),
     do: {:keep_state_and_data, [{:reply, from, {state, data.question}}]}
 
-  def handle_event({:call, from}, {:event, event}, state, data)
-      when event in [:cancel, :continue, :retry, :record_verdict] do
+  defp dispatch({:call, from}, {:event, event}, state, data)
+       when event in [:cancel, :continue, :retry, :record_verdict] do
     {next, data, actions} = transition(state, event, data)
     {:next_state, next, data, [{:reply, from, :ok} | actions]}
   end
 
-  def handle_event({:call, from}, _, _, _),
+  defp dispatch({:call, from}, _, _, _),
     do: {:keep_state_and_data, [{:reply, from, {:error, :invalid_event}}]}
 
-  def handle_event(:internal, event, state, data) do
+  defp dispatch(:internal, :stop_if_terminal, state, data) do
+    if state in [:answered, :judged, :failed, :cancelled, :limit_hit] and
+         not data.ctx.tool_in_flight do
+      {:stop, :normal, data}
+    else
+      :keep_state_and_data
+    end
+  end
+
+  defp dispatch(:internal, event, state, data) do
     {next, data, actions} = transition(state, event, data)
     {:next_state, next, data, actions}
   end
 
-  def handle_event({:timeout, :question}, :expired, state, data) do
+  defp dispatch({:timeout, :question}, :expired, state, data) do
     {next, data, actions} = transition(state, :timeout, data)
     {:next_state, next, data, actions}
   end
 
-  def handle_event(
-        :info,
-        {:stream, token, delta},
-        _state,
-        %{stream_token: token, pending: :model} = data
-      ) do
+  defp dispatch(
+         :info,
+         {:stream, token, delta},
+         _state,
+         %{stream_token: token, pending: :model} = data
+       ) do
     broadcast(data, delta)
     :keep_state_and_data
   end
 
-  def handle_event(:info, {ref, result}, state, %{task: %{ref: ref}, pending: pending} = data) do
+  defp dispatch(:info, {ref, result}, state, %{task: %{ref: ref}, pending: pending} = data) do
     Process.demonitor(ref, [:flush])
     complete(pending, result, state, %{data | task: nil})
   end
 
-  def handle_event(
-        :info,
-        {:DOWN, ref, :process, _, _},
-        state,
-        %{task: %{ref: ref}, pending: pending} = data
-      ) do
+  defp dispatch(
+         :info,
+         {:DOWN, ref, :process, _, _},
+         state,
+         %{task: %{ref: ref}, pending: pending} = data
+       ) do
     complete(pending, {:error, "Analysis worker failed"}, state, %{data | task: nil})
   end
 
-  def handle_event(:info, _, _, _), do: :keep_state_and_data
+  defp dispatch(:info, _, _, _), do: :keep_state_and_data
 
   defp complete(:model, {:ok, response}, state, data) do
     append(data, "assistant", response["content"], response)
@@ -199,7 +431,6 @@ defmodule WeGoNext.Analysis.QuestionRunner do
   defp transition(state, event, data) do
     {:ok, next, ctx, effects} = QuestionLifecycle.step(state, event, data.ctx)
     data = %{data | ctx: ctx}
-    {data, actions} = Enum.reduce(effects, {data, []}, &effect/2)
 
     question =
       data.question
@@ -209,12 +440,13 @@ defmodule WeGoNext.Analysis.QuestionRunner do
         answer: data.answer,
         error: data.error
       )
-      |> Repo.update!()
+      |> Repo.update!(mode: :savepoint)
 
     data = %{data | question: question}
+    {data, actions} = Enum.reduce(effects, {data, []}, &effect/2)
     broadcast(data, {:state, next})
     if :finish_answer in effects, do: broadcast(data, {:answer, data.answer})
-    {next, data, actions}
+    {next, data, actions ++ [{:next_event, :internal, :stop_if_terminal}]}
   end
 
   defp effect(:arm_timer, {data, actions}),
@@ -286,14 +518,17 @@ defmodule WeGoNext.Analysis.QuestionRunner do
   defp effect(_, acc), do: acc
 
   defp append(data, role, content, response \\ %{}) do
-    Repo.insert!(%Message{
-      session_id: data.session.id,
-      question_id: data.question.id,
-      role: role,
-      content: content,
-      usage: response["usage"] || %{},
-      stop_reason: response["stop_reason"]
-    })
+    Repo.insert!(
+      %Message{
+        session_id: data.session.id,
+        question_id: data.question.id,
+        role: role,
+        content: content,
+        usage: response["usage"] || %{},
+        stop_reason: response["stop_reason"]
+      },
+      mode: :savepoint
+    )
   end
 
   defp run_tool(call, session_id) do
