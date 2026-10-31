@@ -69,6 +69,63 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     assert Phoenix.LiveViewTest.has_element?(view, ~s(a[href="/encounters/#{key}"]))
   end
 
+  test "reset pulls stay out of the list, numbering and kill/wipe totals", %{conn: conn} do
+    entries =
+      for {key, duration, success} <- [
+            {"reset-zero", 0, false},
+            {"reset-four-seconds", 4_000, false},
+            {"reset-under-ten", 9_999, true},
+            {"boundary-wipe", 10_000, false},
+            {"full-kill", 300_000, true}
+          ] do
+        %{
+          source_encounter_key: key,
+          wow_encounter_id: "3177",
+          difficulty_id: 15,
+          difficulty_name: "Heroic",
+          instance_id: "2913"
+        }
+        |> index_entry("Sszorak", "2026-09-06T20:00:00Z")
+        |> Map.merge(%{fight_time_ms: duration, success: success})
+      end
+
+    write_document_index!(entries)
+    {:ok, view, html} = Phoenix.LiveViewTest.live(conn, ~p"/")
+    assert_reset_free_list(view, html)
+
+    html =
+      view
+      |> Phoenix.LiveViewTest.element("#encounter-sort-direction")
+      |> Phoenix.LiveViewTest.render_click()
+
+    assert_reset_free_list(view, html)
+
+    send(view.pid, {:encounters_loaded, length(entries)})
+    assert_reset_free_list(view, Phoenix.LiveViewTest.render(view))
+  end
+
+  defp assert_reset_free_list(view, html) do
+    assert html =~ "Encounters (2)"
+    assert html =~ "1 wipe"
+    assert html =~ "1 kill"
+    assert Phoenix.LiveViewTest.has_element?(view, ~s(a[href="/encounters/boundary-wipe"]))
+    assert Phoenix.LiveViewTest.has_element?(view, ~s(a[href="/encounters/full-kill"]))
+
+    for key <- ["reset-zero", "reset-four-seconds", "reset-under-ten"] do
+      refute Phoenix.LiveViewTest.has_element?(view, ~s(a[href="/encounters/#{key}"]))
+    end
+
+    numbers =
+      view
+      |> Phoenix.LiveViewTest.element("#encounter-index")
+      |> Phoenix.LiveViewTest.render()
+      |> Floki.parse_fragment!()
+      |> Floki.find(".encounter-card span.w-6")
+      |> Enum.map(&Floki.text/1)
+
+    assert numbers == ["1.", "2."]
+  end
+
   test "does not render warehouse operation controls", %{conn: conn} do
     html =
       conn

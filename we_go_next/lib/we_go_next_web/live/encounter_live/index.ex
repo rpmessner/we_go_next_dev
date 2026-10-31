@@ -502,6 +502,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       {:ok, %{encounters: encounters}} when encounters != [] ->
         records =
           encounters
+          |> Enum.reject(&reset_pull?/1)
           |> Enum.map(&document_index_record/1)
           |> Enum.sort_by(&{encounter_timestamp(&1.start_time), &1.source_encounter_key}, :asc)
 
@@ -514,6 +515,11 @@ defmodule WeGoNextWeb.EncounterLive.Index do
         {[], {:error, reason}}
     end
   end
+
+  # Match the pull pipeline's reset boundary only for this list's display.
+  # Keep documents and gold identities intact for Analysis and reference sets.
+  defp reset_pull?(%{fight_time_ms: ms}) when is_number(ms), do: ms < 10_000
+  defp reset_pull?(_entry), do: false
 
   defp document_index_record(entry) do
     %{
