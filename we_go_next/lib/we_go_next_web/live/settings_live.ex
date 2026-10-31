@@ -1,13 +1,18 @@
 defmodule WeGoNextWeb.SettingsLive do
   use WeGoNextWeb, :live_view
 
-  alias WeGoNext.Accounts
+  alias WeGoNext.{Accounts, FileWatcher}
   alias WeGoNextWeb.{PathState, WatchControl}
 
   @impl true
   def mount(_params, _session, socket) do
     user = Accounts.get_or_create_default_user()
-    if connected?(socket), do: WatchControl.subscribe()
+
+    if connected?(socket) do
+      WatchControl.subscribe()
+      FileWatcher.subscribe_display_changes()
+    end
+
     watching_file = WatchControl.current_file()
 
     {:ok,
@@ -17,7 +22,8 @@ defmodule WeGoNextWeb.SettingsLive do
      |> assign(:path_input, user.wow_logs_path || "")
      |> assign(:path_state, path_state(:empty, user.wow_logs_path))
      |> assign(:warcraft_logs_client_name_input, user.warcraft_logs_client_name || "")
-     |> assign(:watching_file, watching_file)}
+     |> assign(:watching_file, watching_file)
+     |> assign(:displayed_file, FileWatcher.displayed_file())}
   end
 
   @impl true
@@ -100,21 +106,30 @@ defmodule WeGoNextWeb.SettingsLive do
 
   @impl true
   def handle_event("toggle_watch_enabled", %{"file_id" => id}, socket) do
-    {:noreply,
-     socket |> WatchControl.toggle(id) |> assign(:watching_file, WatchControl.current_file())}
+    {:noreply, socket |> WatchControl.toggle(id) |> assign_log_files()}
   end
 
   @impl true
   def handle_info({:watch_changed, _id}, socket),
-    do: {:noreply, assign(socket, :watching_file, WatchControl.current_file())}
+    do: {:noreply, assign_log_files(socket)}
 
   def handle_info({:watch_stopped, _id, _reason}, socket),
-    do: {:noreply, assign(socket, :watching_file, WatchControl.current_file())}
+    do: {:noreply, assign_log_files(socket)}
 
   def handle_info({:log_rotated, _file, _count}, socket),
-    do: {:noreply, assign(socket, :watching_file, WatchControl.current_file())}
+    do: {:noreply, assign_log_files(socket)}
+
+  def handle_info(:display_changed, socket),
+    do: {:noreply, assign_log_files(socket)}
 
   def handle_info(_message, socket), do: {:noreply, socket}
+
+  defp assign_log_files(socket) do
+    assign(socket,
+      watching_file: WatchControl.current_file(),
+      displayed_file: FileWatcher.displayed_file()
+    )
+  end
 
   defp path_state(state, path) do
     event =
@@ -145,7 +160,7 @@ defmodule WeGoNextWeb.SettingsLive do
               <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
             </span>
             <div>
-              <p class="text-green-300 font-medium">Current log</p>
+              <p class="text-green-300 font-medium">Watched log</p>
               <p class="text-green-400/70 text-sm">{Path.basename(@watching_file.file_path)}</p>
             </div>
           </div>
@@ -296,14 +311,14 @@ defmodule WeGoNextWeb.SettingsLive do
             <dd class="text-zinc-200">{@user.wow_logs_path || "Not configured"}</dd>
           </div>
           <div class="flex">
-            <dt class="text-zinc-500 w-40">Last Loaded Log:</dt>
-            <dd class="text-zinc-200">
-              {if @user.last_loaded_log, do: Path.basename(@user.last_loaded_log), else: "None"}
+            <dt class="text-zinc-500 w-40">Displayed Log:</dt>
+            <dd id="settings-displayed-log" class="text-zinc-200">
+              {if @displayed_file, do: Path.basename(@displayed_file.file_path), else: "None"}
             </dd>
           </div>
           <div class="flex">
-            <dt class="text-zinc-500 w-40">Current Log:</dt>
-            <dd class={if @watching_file, do: "text-green-400", else: "text-zinc-500"}>
+            <dt class="text-zinc-500 w-40">Watched Log:</dt>
+            <dd id="settings-watched-log" class={if @watching_file, do: "text-green-400", else: "text-zinc-500"}>
               {if @watching_file, do: Path.basename(@watching_file.file_path), else: "None"}
             </dd>
           </div>

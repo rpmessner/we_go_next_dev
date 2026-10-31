@@ -35,6 +35,10 @@ defmodule WeGoNext.FileWatcher do
   def stop_watching(%CombatLogFile{id: id}), do: call({:stop, id})
   def current_file, do: call(:watched_file)
   def displayed_file, do: call(:displayed_file)
+
+  def subscribe_display_changes,
+    do: Phoenix.PubSub.subscribe(WeGoNext.PubSub, "displayed_log")
+
   def display(%CombatLogFile{} = clf), do: call({:display, clf})
   def clear_display, do: call({:display, nil})
   def refresh_if_tracking(%CombatLogFile{} = clf), do: call({:refresh, clf})
@@ -109,8 +113,10 @@ defmodule WeGoNext.FileWatcher do
     reply(phase, %{data | displayed: displayed}, from, displayed)
   end
 
-  def handle_event({:call, from}, {:display, clf}, phase, data),
-    do: reply(phase, %{data | displayed: clf}, from, :ok)
+  def handle_event({:call, from}, {:display, clf}, phase, data) do
+    Phoenix.PubSub.broadcast(WeGoNext.PubSub, "displayed_log", :display_changed)
+    reply(phase, %{data | displayed: clf}, from, :ok)
+  end
 
   def handle_event({:call, from}, {:refresh, clf}, phase, data) do
     tracking = data.tracked == clf.id
