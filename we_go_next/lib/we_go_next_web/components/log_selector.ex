@@ -91,12 +91,7 @@ defmodule WeGoNextWeb.Components.LogSelector do
     <div class="mt-3">
       <div class="flex items-center justify-between text-sm text-zinc-400 mb-1">
         <span>
-          <%= case @progress.status do %>
-            <% :parsing -> %>
-              Parsing log file...
-            <% :saving -> %>
-              Saving to database...
-          <% end %>
+          Parsing log file...
         </span>
         <span>{@progress.percent}%</span>
       </div>

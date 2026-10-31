@@ -378,10 +378,7 @@ defmodule WeGoNext.FileWatcher do
     state = cancel_timer(state)
     clf = Repo.get!(CombatLogFile, state.clf.id)
 
-    task =
-      Task.Supervisor.async_nolink(WeGoNext.ImportTaskSupervisor, fn ->
-        Importer.sync_log(clf)
-      end)
+    task = WeGoNext.FileIngest.start_sync(clf)
 
     %{state | sync_ref: task.ref, sync_kind: :sync, clf: clf}
   end
@@ -493,8 +490,7 @@ defmodule WeGoNext.FileWatcher do
         false
 
       %CombatLogFile{} = fresh_clf ->
-        (fresh_clf.last_parsed_byte || 0) < (fresh_clf.file_size || 0) or
-          CombatLogFile.has_new_content?(fresh_clf)
+        Importer.sync_needed?(fresh_clf)
     end
   end
 

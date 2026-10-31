@@ -50,6 +50,8 @@ defmodule WeGoNext.CombatLogFile do
     field(:file_mtime, :utc_datetime)
     field(:last_parsed_byte, :integer, default: 0)
     field(:last_parsed_at, :utc_datetime)
+    # A resumable force-reimport cursor; last_parsed_byte remains a high-water mark.
+    field(:reparse_from_byte, :integer)
 
     field(:source, Ecto.Enum,
       values: [live: "live", warcraftlogs_archive: "warcraftlogs_archive"],
@@ -61,8 +63,6 @@ defmodule WeGoNext.CombatLogFile do
     field(:warcraft_logs_report_code, :string)
     field(:warcraft_logs_fight_id, :integer)
     field(:warcraft_logs_linked_at, :utc_datetime_usec)
-    # Mark as complete when fully parsed and a newer log exists (dead log)
-    field(:is_complete, :boolean, default: false)
     field(:watch_enabled, :boolean, default: false)
     field(:raid_night_name, :string)
 
@@ -88,7 +88,6 @@ defmodule WeGoNext.CombatLogFile do
       :warcraft_logs_fight_id,
       :warcraft_logs_linked_at,
       :user_id,
-      :is_complete,
       :watch_enabled,
       :raid_night_name
     ])
@@ -111,17 +110,6 @@ defmodule WeGoNext.CombatLogFile do
       %NaiveDateTime{} = datetime -> "Raid Night — #{Calendar.strftime(datetime, "%b %d, %Y")}"
       nil -> "Raid Night"
     end
-  end
-
-  @doc """
-  Updates the parsing progress after a successful parse.
-  """
-  def update_progress_changeset(combat_log_file, byte_offset) do
-    combat_log_file
-    |> cast(%{last_parsed_byte: byte_offset, last_parsed_at: DateTime.utc_now()}, [
-      :last_parsed_byte,
-      :last_parsed_at
-    ])
   end
 
   @doc """

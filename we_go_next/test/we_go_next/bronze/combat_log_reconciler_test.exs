@@ -45,6 +45,7 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
         source: :live,
         user_id: user.id,
         last_parsed_byte: 123,
+        watch_enabled: true,
         head_sha256: sha256(binary_part(content, 0, min(byte_size(content), 4_096)))
       })
 
@@ -54,6 +55,7 @@ defmodule WeGoNext.Bronze.CombatLogReconcilerTest do
     assert updated.file_path == archive_path
     assert updated.source == :warcraftlogs_archive
     assert updated.last_parsed_byte == 123
+    refute updated.watch_enabled
     assert updated.file_size == byte_size(content <> "archive tail")
     assert updated.head_sha256 == live.head_sha256
   end

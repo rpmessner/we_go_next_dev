@@ -19,6 +19,7 @@ defmodule WeGoNext.ImporterTest do
 
   setup do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(Repo)
+    :ok = Ecto.Adapters.SQL.Sandbox.mode(Repo, {:shared, self()})
     original_documents_root = Application.fetch_env!(:we_go_next, :documents_root)
 
     documents_root =
@@ -62,7 +63,8 @@ defmodule WeGoNext.ImporterTest do
     existing =
       insert_encounter!(%{
         combat_log_file_id: combat_log_file.id,
-        start_time: ~U[2025-11-27 12:00:01.000000Z]
+        start_time: ~U[2025-11-27 12:00:01.000000Z],
+        medallion_state: "complete"
       })
 
     assert {:ok, %{new_encounters: 0}} = Importer.sync_log(combat_log_file)
@@ -190,6 +192,48 @@ defmodule WeGoNext.ImporterTest do
                combat_log_file_id: live_file.id,
                start_time: ~U[2025-11-27 12:05:00.000000Z]
              )
+  end
+
+  @tag capture_log: true
+  test "sync retries a failed medallion step even without new bytes", %{dir: dir, user: user} do
+    log_path = Path.join(dir, "WoWCombatLog-112725_120000.txt")
+    File.cp!(fixture_path("combat_log_base.txt"), log_path)
+    root = Application.fetch_env!(:we_go_next, :documents_root)
+    Application.put_env(:we_go_next, :documents_root, "/dev/null/blocked")
+
+    assert {:ok, %{file: file, medallion_results: [{:error, _}]}} =
+             Importer.import_log(log_path, user.id)
+
+    assert %{medallion_state: "failed", medallion_error: ":enotdir"} =
+             Repo.get_by!(EncounterRecord, combat_log_file_id: file.id)
+
+    assert Importer.sync_needed?(file)
+    Application.put_env(:we_go_next, :documents_root, root)
+
+    assert {:ok, %{new_encounters: 0, medallion_results: [{:ok, _}]}} =
+             Importer.sync_log(file)
+
+    assert %{medallion_state: "complete", medallion_error: nil} =
+             Repo.get_by!(EncounterRecord, combat_log_file_id: file.id)
+
+    refute Importer.sync_needed?(Repo.get!(CombatLogFile, file.id))
+  end
+
+  test "sync resumes an interrupted force replay without lowering its high-water mark", %{
+    dir: dir,
+    user: user
+  } do
+    log_path = Path.join(dir, "WoWCombatLog-112725_120000.txt")
+    File.cp!(fixture_path("combat_log_base.txt"), log_path)
+    assert {:ok, %{file: file}} = Importer.import_log(log_path, user.id)
+    # A crash after the atomic force-reimport preparation leaves the replay cursor
+    # at zero and the old high-water mark intact, with no public boundaries.
+    file = file |> Ecto.Changeset.change(reparse_from_byte: 0) |> Repo.update!()
+    Repo.get_by!(EncounterRecord, combat_log_file_id: file.id) |> Repo.delete!()
+    assert {:ok, %{file: resumed, new_encounters: 1}} = Importer.sync_log(file)
+    assert resumed.last_parsed_byte == file.last_parsed_byte
+    assert is_nil(resumed.reparse_from_byte)
+    assert Repo.aggregate(EncounterRecord, :count) == 1
   end
 
   test "importer delegates gold rebuilds through the gold encounter boundary" do

@@ -75,6 +75,7 @@ defmodule WeGoNext.Bronze.CombatLogReconciler do
       file_size: archive_attrs.file_size,
       file_mtime: archive_attrs.file_mtime,
       source: :warcraftlogs_archive,
+      watch_enabled: false,
       head_sha256: archive_attrs.head_sha256
     })
     |> Repo.update()

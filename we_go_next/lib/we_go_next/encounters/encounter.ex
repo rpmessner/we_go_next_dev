@@ -30,6 +30,8 @@ defmodule WeGoNext.Encounters.Encounter do
     field(:fight_time_ms, :integer)
     field(:start_byte, :integer)
     field(:end_byte, :integer)
+    field(:medallion_state, :string, default: "pending")
+    field(:medallion_error, :string)
     # Mark as reset (intentional boss reset to clear debuffs)
     field(:is_reset, :boolean, default: false)
     # Explicit bridge target for medallion UI routes. This is not persisted on
@@ -58,6 +60,8 @@ defmodule WeGoNext.Encounters.Encounter do
       :start_byte,
       :end_byte,
       :combat_log_file_id,
+      :medallion_state,
+      :medallion_error,
       :is_reset
     ])
     |> validate_required([:wow_encounter_id, :name, :combat_log_file_id])
