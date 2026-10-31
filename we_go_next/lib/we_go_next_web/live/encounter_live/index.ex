@@ -13,7 +13,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     CombatLogFile,
     Documents,
     FileWatcher,
-    Importer,
     ImportWorker,
     Repo
   }
@@ -70,9 +69,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
      |> assign(:page_title, "Encounters")
      |> assign(:user, user)
      |> assign(:documents_state, documents_state)
-     |> assign(:show_resets, false)
      |> assign(:sort_direction, :asc)
-     |> assign(:open_menu_id, nil)
      |> assign(:log_files, log_files)
      |> assign(:selector_logs, selector_logs)
      |> assign(:imported_logs, imported_logs)
@@ -118,41 +115,6 @@ defmodule WeGoNextWeb.EncounterLive.Index do
     else
       do_import(socket, path)
     end
-  end
-
-  @impl true
-  def handle_event("toggle_menu", %{"id" => id_str}, socket) do
-    id = String.to_integer(id_str)
-    current = socket.assigns.open_menu_id
-
-    new_id = if current == id, do: nil, else: id
-    {:noreply, assign(socket, :open_menu_id, new_id)}
-  end
-
-  @impl true
-  def handle_event("close_menu", _params, socket) do
-    {:noreply, assign(socket, :open_menu_id, nil)}
-  end
-
-  @impl true
-  def handle_event("toggle_reset", %{"id" => id_str}, socket) do
-    id = String.to_integer(id_str)
-
-    case Importer.toggle_reset(id) do
-      {:ok, _updated} ->
-        {:noreply,
-         socket
-         |> assign_document_records()
-         |> assign(:open_menu_id, nil)}
-
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Failed to toggle reset status")}
-    end
-  end
-
-  @impl true
-  def handle_event("toggle_show_resets", _params, socket) do
-    {:noreply, assign(socket, :show_resets, not socket.assigns.show_resets)}
   end
 
   @impl true
@@ -332,11 +294,8 @@ defmodule WeGoNextWeb.EncounterLive.Index do
 
       <EncounterList.render
         encounter_records={@encounter_records}
-        show_resets={@show_resets}
         sort_direction={@sort_direction}
         show_sort_control={true}
-        open_menu_id={@open_menu_id}
-        is_admin={@user.is_admin}
         log_files={@log_files}
         loading={@loading}
       />
@@ -562,8 +521,7 @@ defmodule WeGoNextWeb.EncounterLive.Index do
       start_time: entry.start_time,
       end_time: entry.end_time,
       success: entry.success,
-      fight_time_ms: entry.fight_time_ms,
-      is_reset: false
+      fight_time_ms: entry.fight_time_ms
     }
   end
 
