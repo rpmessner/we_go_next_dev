@@ -21,7 +21,7 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     Repo.delete_all(Encounter)
     Repo.delete_all(CombatLogFile)
     FileWatcher.stop_watching()
-    on_exit(fn -> FileWatcher.stop_watching() end)
+    on_exit(fn -> WeGoNext.FileWatcherCleanup.stop() end)
 
     :ok
   end
@@ -480,7 +480,7 @@ defmodule WeGoNextWeb.EncounterLiveIndexTest do
     assert FileWatcher.current_file() == nil
     {:ok, _view, _html} = Phoenix.LiveViewTest.live(conn, ~p"/")
 
-    assert FileWatcher.watched_directory() == dir
+    assert {:directory, %{logs_dir: ^dir}} = :sys.get_state(FileWatcher)
   end
 
   defp insert_combat_log!(user, path) do

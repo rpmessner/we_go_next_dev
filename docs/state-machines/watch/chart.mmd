@@ -1,0 +1,35 @@
+---
+title: "Live log watching"
+---
+stateDiagram-v2
+  s0: idle
+  s1: directory
+  s2: idle_off
+  s3: tracking
+  s4: rotating
+  s5: syncing
+  s6: backoff
+  [*] --> s0
+  s0 --> s1: watch directory
+  s0 --> s2: watch off
+  s0 --> s3: view or import newest log
+  s1 --> s0: restore durable watch
+  s1 --> s2: watch off or no writes until deadline
+  s1 --> s3: view or import newest log
+  s1 --> s4: newer log appears
+  s2 --> s0: restore durable watch
+  s2 --> s3: view or import newest log
+  s3 --> s2: watch off or no writes until deadline
+  s3 --> s5: appended data or pending replay
+  s3 --> s4: newer log appears
+  s4 --> s0: restore durable watch
+  s4 --> s3: new log import finishes or restore durable watch
+  s4 --> s6: sync fails or ingest busy
+  s4 --> s2: watch off or no writes until deadline
+  s5 --> s3: restore durable watch or current sync finishes or view or import newest log
+  s5 --> s6: sync fails or ingest busy
+  s5 --> s2: watch off or no writes until deadline
+  s6 --> s0: restore durable watch
+  s6 --> s1: backoff expires
+  s6 --> s2: watch off or no writes until deadline
+  s6 --> s3: view or import newest log or restore durable watch or backoff expires

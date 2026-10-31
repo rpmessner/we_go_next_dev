@@ -9,7 +9,7 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
     Repo.delete_all(Encounter)
     Repo.delete_all(CombatLogFile)
     FileWatcher.stop_watching()
-    on_exit(fn -> FileWatcher.stop_watching() end)
+    on_exit(fn -> WeGoNext.FileWatcherCleanup.stop() end)
 
     :ok
   end
@@ -97,6 +97,25 @@ defmodule WeGoNextWeb.LogLiveIndexTest do
 
     refute Repo.get!(CombatLogFile, log.id).watch_enabled
     assert FileWatcher.current_file() == nil
+  end
+
+  test "a page following rotation keeps its new display selection on later syncs" do
+    user = Accounts.get_or_create_default_user()
+    old = insert_combat_log!(user, "/tmp/WoWCombatLog-112725_120000.txt")
+    new = insert_combat_log!(user, "/tmp/WoWCombatLog-112825_120000.txt")
+    FileWatcher.display(old)
+
+    socket = %Phoenix.LiveView.Socket{
+      assigns: %{__changed__: %{}, flash: %{}, user: user, combat_log_file: old}
+    }
+
+    assert {:noreply, rotated} =
+             WeGoNextWeb.LogLive.Index.handle_info({:log_rotated, new, 0}, socket)
+
+    assert {:noreply, synced} =
+             WeGoNextWeb.LogLive.Index.handle_info({:encounters_loaded, 1}, rotated)
+
+    assert synced.assigns.combat_log_file.id == new.id
   end
 
   test "renders watch control only for the newest live log", %{conn: conn} do

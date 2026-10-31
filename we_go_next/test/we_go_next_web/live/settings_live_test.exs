@@ -6,7 +6,7 @@ defmodule WeGoNextWeb.SettingsLiveTest do
 
   setup do
     FileWatcher.stop_watching()
-    on_exit(fn -> FileWatcher.stop_watching() end)
+    on_exit(fn -> WeGoNext.FileWatcherCleanup.stop() end)
 
     :ok
   end
